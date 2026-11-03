@@ -106,7 +106,7 @@ export function serviceLine(record: LegislatorRecord): string | null {
   if (!servesNow(chamber)) return null;
   const district = legislatorDistrictLine(chamber, record.current_service?.district?.code);
   const party = record.current_service?.party;
-  return [`Currently serving as ${seatTitle(chamber)}`, district, party]
+  return [`Serving as ${seatTitle(chamber)}`, district, party]
     .filter(Boolean)
     .join(' · ');
 }
@@ -238,7 +238,7 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
           </Refused>
         )}
         {read.data && !read.loading && rows.length === 0 && !read.updating && (
-          <div className="f-empty-box">No chief-authored bills are held for this service</div>
+          <div className="f-empty-box">No chief-authored bills held for this service</div>
         )}
         {rows.length > 0 && (
           <>
@@ -327,23 +327,20 @@ function Related({ record, from }: { record: LegislatorRecord; from: string }) {
     ? record.current_service?.profile_url
     : null;
   const candidacies = isBuilt('candidate') ? (detail.data?.elections ?? []) : [];
-  const connectedPerson = person.data;
+  const connectedPerson = isBuilt('person') ? person.data : null;
   // Nothing held to relate: no card rather than an empty one.
   if (!connectedPerson && candidacies.length === 0 && !official) return null;
   return (
     <section className="f-card lg2-related">
       <h2 className="f-card-title">Related records</h2>
-      <ul className="lg2-related-list">
+      <ul className="f-row-links">
         {connectedPerson && (
           <li>
             <Link
               to={withFrom(hrefFor('person', { id: connectedPerson.id }), from)}
-              className="lg2-related-link"
+              className="f-row-link lg2-related-link"
             >
-              <span>
-                <span className="lg2-related-label">View person profile</span>
-                <span className="lg2-related-note">{connectedPerson.name}</span>
-              </span>
+              <span className="f-row-link-name">View person profile</span>
               <Arrow />
             </Link>
           </li>
@@ -352,11 +349,12 @@ function Related({ record, from }: { record: LegislatorRecord; from: string }) {
           <li key={item.candidateId}>
             <Link
               to={withFrom(hrefFor('candidate', { id: item.candidateId }), from)}
-              className="lg2-related-link"
+              className="f-row-link lg2-related-link"
             >
               <span>
-                <span className="lg2-related-label">View candidate profile</span>
-                <span className="lg2-related-note">
+                <span className="f-row-link-name">View candidate profile</span>
+                <br />
+                <span className="f-row-link-note">
                   {[item.election?.label, [item.office, item.votingArea].filter(Boolean).join(', ')]
                     .filter(Boolean)
                     .join(' · ')}
@@ -372,9 +370,9 @@ function Related({ record, from }: { record: LegislatorRecord; from: string }) {
               href={official}
               target="_blank"
               rel="noopener noreferrer"
-              className="lg2-related-link"
+              className="f-row-link lg2-related-link"
             >
-              <span>
+              <span className="f-row-link-name">
                 Official source website
                 <span className="f-visually-hidden"> (opens in a new tab)</span>
               </span>

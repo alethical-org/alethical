@@ -46,7 +46,12 @@ export const NOT_HELD = 'Not held';
 /** Rule 12: a missing official report total. */
 export const REPORT_TOTAL_UNAVAILABLE = 'Report total unavailable';
 
-export const INCOMPLETE = 'Incomplete: a payment amount is missing';
+/** A total withheld for a missing payment amount, where no amount heading
+ * names the value (Design Round 34): under an amount heading it reads "Incomplete". */
+export const INCOMPLETE = 'Missing payment amount';
+
+/** No outside-spending rows for the selected years (Design Round 34, fewest words). */
+export const NO_OUTSIDE = 'No confirmed records held';
 
 export interface FinanceYears {
   link_state: 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
@@ -329,9 +334,18 @@ function AccountCard({
   const kind = registerKindLabel(committee?.register_kind);
   const checkedOn = formatDay(committee?.checked?.checked_on);
   const split = committee?.split?.state ? splitExplanation(committee.split.state) : null;
+  // The link carries the exact report whose figures the card shows (Round 37
+  // item 4): Committee reads `report` as that report's period end.
   const href = isBuilt('committee')
     ? withFrom(
-        hrefFor('committee', { id: account.registrationNumber }, { year: String(year) }),
+        hrefFor(
+          'committee',
+          { id: account.registrationNumber },
+          {
+            year: String(year),
+            report: committee?.split?.reported_total ? (committee.split.reported_through ?? '') : '',
+          },
+        ),
         from,
       )
     : null;
@@ -504,7 +518,7 @@ function OutsideSpending({
           onSettled={onSettled}
         />
       ))}
-      {none && <div className="f-empty-box">No confirmed records are held for this section</div>}
+      {none && <div className="f-empty-box">{NO_OUTSIDE}</div>}
     </div>
   );
 }

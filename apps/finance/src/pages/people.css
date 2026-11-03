@@ -16,6 +16,16 @@
   gap: 10px;
   max-width: 760px;
 }
+/* The field's label is read, not seen, except on phone, where it sits above
+ * the field with a short hint inside. */
+.pp-search-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .pp-field {
   flex: 1 1 auto;
   min-width: 0;
@@ -42,27 +52,33 @@
   font-weight: 600;
   color: var(--secondary);
 }
+/* The menus' row sits above everything after it, so an open list is never
+ * covered (eug-19/77); an open menu's own wrapper is raised by the control. */
 .pp-control-row {
+  position: relative;
+  z-index: 40;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
-.pp-layout {
-  margin-top: 20px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 24px;
-  align-items: start;
-}
 .pp-results {
   min-width: 0;
   scroll-margin-top: 70px;
 }
+.pp-results > .f-skeleton,
+.pp-results > .f-retained,
+.pp-results > .f-alert {
+  margin-top: 20px;
+}
+.pp-results > .f-retained + .f-count-line,
+.pp-results > .f-alert + .f-count-line {
+  padding-top: 20px;
+}
+/* 24px below the lowest control (f-count-line), then 10px above the list. */
 .pp-count {
-  padding: 0 0 10px 2px;
-  font-size: 14px;
-  color: var(--secondary);
+  padding-bottom: 10px;
+  padding-left: 2px;
 }
 .pp-list,
 .lg2-list {
@@ -149,39 +165,60 @@
 }
 .pp-page-btn {
   min-height: 40px;
+  gap: 6px;
   font-size: 14px;
 }
-.pp-page-btn[aria-disabled='true'] {
+.pp-page-prev {
+  padding: 0 16px 0 13px;
+}
+.pp-page-next {
+  padding: 0 13px 0 16px;
+}
+.pp-page-next svg {
+  transform: rotate(180deg);
+}
+.pp-page-btn:disabled {
   color: #6e7983;
+  cursor: default;
+}
+.pp-page-btn svg {
+  width: 16px;
+  height: 16px;
 }
 .pp-page-line {
   font-size: 14px;
   font-weight: 700;
   color: var(--secondary);
 }
-.pp-aside {
-  display: grid;
-  gap: 14px;
-  min-width: 0;
+/* General background, below the main content and above Sources and updates (eug-135). */
+.pp-about {
+  margin-top: 36px;
+  max-width: 900px;
 }
-.pp-types {
-  padding: 18px 20px;
-}
-.pp-types h2 {
+.pp-about h2 {
   margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
 }
-.pp-types dl {
-  margin: 10px 0 0;
+.pp-about dl {
+  margin: 8px 0 0;
   display: grid;
   gap: 10px;
   font-size: 13px;
   line-height: 1.5;
 }
-.pp-types dt {
+.pp-about dt {
   font-weight: 700;
 }
-.pp-types dd {
+.pp-about dd {
   margin: 0;
+  color: var(--secondary);
+}
+.pp-about p {
+  margin: 24px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--secondary);
 }
 @media (hover: hover) and (min-width: 768px) {
@@ -189,7 +226,6 @@
   .lg2-bill:hover {
     background: var(--row-hover);
   }
-  .lg2-related-link:hover .lg2-related-label,
   .lg2-committee-link:hover span,
   .cf-spender a:hover {
     color: var(--link-hover);
@@ -258,9 +294,11 @@
   font-size: 13px;
   color: var(--secondary);
 }
+/* End-of-section commentary: 24px below its list or card (eug-26), 17px in
+ * under a rounded card (eug-82). */
 .lg2-note {
-  margin: 10px 0 0;
-  padding-left: 17px;
+  margin: 0;
+  padding: 24px 0 0 17px;
   max-width: 760px;
   font-size: 13px;
   line-height: 1.5;
@@ -333,37 +371,26 @@
 .lg2-related {
   padding: 18px 20px;
 }
-.lg2-related-list {
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-}
-.lg2-related-plain {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  font-size: 14px;
-  font-weight: 600;
+/* Stacked two-line link rows (shared .f-row-links): the arrow sits at the end
+ * of each row, and hover underlines only the first line. */
+.lg2-related .f-row-links {
+  margin-top: 8px;
 }
 .lg2-related-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 44px;
   font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
 }
-.lg2-related-label {
-  display: block;
+.lg2-related-link > span:first-child {
+  min-width: 0;
 }
-.lg2-related-note {
-  display: block;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--secondary);
+.lg2-related-link .f-row-link-note {
+  display: inline-block;
+}
+.lg2-related-link .f-arrow {
+  flex: none;
 }
 .lg2-related .lg2-muted {
   margin: 8px 0 0;
@@ -669,7 +696,6 @@
 
 /* ---------- Bands ---------- */
 @media (max-width: 1099px) {
-  .pp-layout,
   .lg2-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -677,6 +703,17 @@
 @media (max-width: 767px) {
   .pp-search {
     flex-direction: column;
+  }
+  .pp-search-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
   }
   .pp-row-label {
     min-width: 100%;

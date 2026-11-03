@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { formatDay } from '@alethical/shared/moneyFormat';
 import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legislatorProfile';
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
+import { useBand } from '../ui/band';
 import { Chips, ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
-import { Arrow, BackLink, SourcesAndUpdates } from '../ui/parts';
+import { Arrow, BackLink, Chevron, SourcesAndUpdates } from '../ui/parts';
 import './people.css';
 export const PAGE_SIZE = 10;
 export interface PersonDirectoryRow {
@@ -17,7 +17,8 @@ export interface PersonDirectoryRow {
   name: string;
   slug?: string;
   year?: number;
-  election?: string;
+  /** The candidacy's election as the record holds it (`{ type: 'general' }`). */
+  election?: { type?: string | null; label?: string | null; date?: string | null } | string | null;
   office?: string;
   voting_area?: string;
   source?: { authority?: string; checkedDate?: string };
@@ -53,34 +54,46 @@ const TYPES = [
   { value: 'candidates', label: 'Candidates' },
   { value: 'legislators', label: 'Legislators' },
 ];
+const SERVICE = [
+  { value: '', label: 'Current and former' },
+  { value: 'current', label: 'Current' },
+  { value: 'former', label: 'Former' },
+];
 const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
 export function countLine(total: number, query: string, type = 'legislators') {
   return `${plural(total, ...((type === 'candidates' ? ['candidacy', 'candidacies'] : type === 'legislators' ? ['service record', 'service records'] : ['record', 'records']) as [string, string]))}${query ? ` matching “${query}”` : ''}`;
 }
+/** "2026 general · State Representative, District 45B": the drawing's candidacy
+ * line from the fields the directory serves (a candidate's party waits on the
+ * server). A legislator's party prints only where the Legislature record holds it. */
 export function rowNote(row: PersonDirectoryRow) {
-  if (row.kind === 'candidate')
-    return [row.year, row.election, row.office, row.voting_area].filter(Boolean).join(' · ');
-  if (row.kind === 'person') return 'Elections and service over time';
+  if (row.kind === 'candidate') {
+    const type = typeof row.election === 'string' ? row.election : row.election?.type;
+    const election = [row.year, type].filter(Boolean).join(' ');
+    const seat = [row.office, row.voting_area].filter(Boolean).join(', ');
+    return [election, seat].filter(Boolean).join(' · ');
+  }
+  if (row.kind === 'person') return '';
   const period = row.periods?.[0];
   const seat = period
     ? legislatorDistrictLine(currentChamber(period.chamber), period.district)
     : '';
   const status =
     row.service_status === 'current'
-      ? 'Currently serving'
+      ? 'Serving'
       : row.service_status === 'former'
         ? 'Formerly served'
         : 'Current service not confirmed';
-  return [
-    seat,
-    status,
-    row.service_status === 'former' && period?.end_date
-      ? `Ended ${formatDay(period.end_date) ?? period.end_date}`
-      : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  return [seat, period?.party, status].filter(Boolean).join(' · ');
+}
+/** The row's source, at its end. */
+export function rowEnd(row: PersonDirectoryRow) {
+  return row.kind === 'legislator'
+    ? 'Minnesota Legislature'
+    : row.kind === 'candidate'
+      ? 'Minnesota Secretary of State'
+      : '';
 }
 export function peopleLink(row: PersonDirectoryRow) {
   return hrefFor(
@@ -92,6 +105,7 @@ export function People(_props: { match: RouteMatch }) {
   const location = useLocation(),
     here = location.pathname + location.search,
     back = returnTarget(location.search);
+  const band = useBand();
   const [state, setState] = useAddressState({
     q: '',
     type: 'all',
@@ -107,11 +121,12 @@ export function People(_props: { match: RouteMatch }) {
   const [typed, setTyped] = useState(state.q);
   useEffect(() => setTyped(state.q), [state.q]);
   const sort = type === 'candidates' && state.sort === 'election_year' ? 'election_year' : 'name';
+  const service = SERVICE.some((s) => s.value === state.service) ? state.service : '';
   const read = useRead<PeoplePage>(
     apiPath(['finance', 'people'], {
       q: query,
       type,
-      service: type === 'legislators' ? state.service : '',
+      service: type === 'legislators' ? service : '',
       scope: type === 'candidates' ? state.scope : 'all',
       year: type === 'candidates' ? state.year : '',
       sort,
@@ -135,7 +150,7 @@ export function People(_props: { match: RouteMatch }) {
   }
   const filtered =
     type !== 'all' ||
-    state.service !== '' ||
+    service !== '' ||
     state.scope !== 'all' ||
     state.year !== '' ||
     sort !== 'name';
@@ -146,6 +161,7 @@ export function People(_props: { match: RouteMatch }) {
       : data
         ? countLine(data.total, data.q ?? query, data.type ?? type)
         : '';
+  const electionYear = state.scope === 'past' ? 'past' : state.year;
   return (
     <main id="main" className="f-page">
       <div className="f-content">
@@ -155,10 +171,10 @@ export function People(_props: { match: RouteMatch }) {
         </h1>
         <p className="pp-lead">
           Candidate and legislative service records stay distinct, with confirmed links to the same
-          person. Minnesota records; candidate lookup is not a complete national directory.
+          person
         </p>
         <form role="search" className="pp-search" onSubmit={submit}>
-          <label className="f-visually-hidden" htmlFor="people-name">
+          <label className="pp-search-label" htmlFor="people-name">
             Search by name
           </label>
           <input
@@ -168,7 +184,7 @@ export function People(_props: { match: RouteMatch }) {
             value={typed}
             maxLength={200}
             onChange={(e) => setTyped(e.target.value)}
-            placeholder="Search by name"
+            placeholder={band === 'phone' ? 'Name' : 'Search by name'}
             autoComplete="off"
           />
           <button className="f-btn pp-submit">Search</button>
@@ -182,50 +198,33 @@ export function People(_props: { match: RouteMatch }) {
               setState({ type, service: '', scope: 'all', year: '', sort: 'name', page: '1' })
             }
           />
-          {type === 'candidates' && (
-            <>
-              <Chips
-                label="Candidates"
-                value={state.scope === 'past' ? 'past' : 'all'}
-                options={[
-                  { value: 'all', label: 'All candidates' },
-                  { value: 'past', label: 'Past candidates' },
-                ]}
-                onChange={(scope) => setState({ scope, year: '', page: '1' })}
-              />
-              <Chips
-                label="Election year"
-                value={state.year}
+          <div className="pp-control-row">
+            {type === 'candidates' && (
+              <Dropdown
+                name="Election year"
+                value={electionYear}
                 options={[
                   { value: '', label: 'All years' },
+                  { value: 'past', label: 'Past candidates' },
                   ...(data?.years ?? []).map((y) => ({ value: String(y), label: String(y) })),
                 ]}
-                onChange={(year) => setState({ year, page: '1' })}
+                onChange={(value) =>
+                  setState(
+                    value === 'past'
+                      ? { scope: 'past', year: '', page: '1' }
+                      : { scope: 'all', year: value, page: '1' },
+                  )
+                }
               />
-            </>
-          )}
-          {type === 'legislators' && (
-            <div role="group" aria-label="Service" className="pp-chip-row">
-              <span className="pp-row-label">Service</span>
-              {[
-                { value: 'current', label: 'Current' },
-                { value: 'former', label: 'Former' },
-              ].map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  className="f-chip"
-                  aria-pressed={state.service === s.value}
-                  onClick={() =>
-                    setState({ service: state.service === s.value ? '' : s.value, page: '1' })
-                  }
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="pp-control-row">
+            )}
+            {type === 'legislators' && (
+              <Dropdown
+                name="Service"
+                value={service}
+                options={SERVICE}
+                onChange={(service) => setState({ service, page: '1' })}
+              />
+            )}
             <Dropdown
               name="Sort by"
               value={sort}
@@ -253,107 +252,105 @@ export function People(_props: { match: RouteMatch }) {
             )}
           </div>
         </div>
-        <div className="pp-layout">
-          <section ref={list} tabIndex={-1} className="pp-results" aria-label="Results">
-            {read.loading && <LoadingRows />}
-            {read.updating && <Updating />}
-            {read.failed && (
-              <Refused onRetry={read.retry} retrying={read.pending}>
-                We couldn’t load these results. This is a problem on our side.
-                {data ? ' Previous results are shown.' : ''}
-              </Refused>
-            )}
-            {data && (
-              <>
-                <div aria-live="polite" className="pp-count f-num">
-                  {count}
-                </div>
-                {!rows.length && !read.updating ? (
-                  <Empty title="No matching records" next="Try another name" />
-                ) : (
-                  <ul className="pp-list">
-                    {rows.map((row) => (
+        <section ref={list} tabIndex={-1} className="pp-results" aria-label="Results">
+          {read.loading && <LoadingRows />}
+          {read.updating && <Updating />}
+          {read.failed && (
+            <Refused onRetry={read.retry} retrying={read.pending}>
+              We couldn’t load these results. This is a problem on our side.
+              {data ? ' Previous results are shown.' : ''}
+            </Refused>
+          )}
+          {data && (
+            <>
+              <div aria-live="polite" className="f-count-line pp-count">
+                {count}
+              </div>
+              {!rows.length && !read.updating ? (
+                <Empty title="No matching records" next="Try another name" />
+              ) : (
+                <ul className="pp-list">
+                  {rows.map((row) => {
+                    const note = rowNote(row);
+                    return (
                       <li key={`${row.kind}|${row.id}`}>
                         <Link className="pp-row" to={withFrom(peopleLink(row), here)}>
                           <span className="f-marked pp-who">
                             <RecordMark kind="person" />
                             <span className="pp-name">{row.name}</span>
-                            <span className="pp-note f-num">{rowNote(row)}</span>
+                            {note && <span className="pp-note f-num">{note}</span>}
                           </span>
                           <span className="pp-kind">{row.kind.toUpperCase()}</span>
                           <span className="pp-end f-num">
-                            {row.kind === 'legislator'
-                              ? 'Minnesota Legislature'
-                              : row.kind === 'candidate'
-                                ? 'Minnesota Secretary of State'
-                                : ''}
+                            {rowEnd(row)}
                             <Arrow />
                           </span>
                         </Link>
                       </li>
-                    ))}
-                  </ul>
-                )}
-                {pages > 1 && (
-                  <nav aria-label="Pages" className="pp-pages">
-                    <button
-                      className="f-btn f-btn-secondary pp-page-btn"
-                      disabled={read.pending || page <= 1}
-                      onClick={() => goPage(page - 1)}
-                    >
-                      Previous
-                    </button>
-                    <span className="pp-page-line f-num" aria-live="polite">
-                      Page {Math.floor(data.offset / PAGE_SIZE) + 1} of {pages}
-                    </span>
-                    <button
-                      className="f-btn f-btn-secondary pp-page-btn"
-                      disabled={read.pending || !data.has_more}
-                      onClick={() => goPage(page + 1)}
-                    >
-                      Next
-                    </button>
-                  </nav>
-                )}
+                    );
+                  })}
+                </ul>
+              )}
+              {pages > 1 && (
+                <nav aria-label="Pages" className="pp-pages">
+                  <button
+                    className="f-btn f-btn-secondary pp-page-btn pp-page-prev"
+                    disabled={read.pending || page <= 1}
+                    onClick={() => goPage(page - 1)}
+                  >
+                    <Chevron />
+                    Previous
+                  </button>
+                  <span className="pp-page-line f-num" aria-live="polite">
+                    Page {Math.floor(data.offset / PAGE_SIZE) + 1} of {pages}
+                  </span>
+                  <button
+                    className="f-btn f-btn-secondary pp-page-btn pp-page-next"
+                    disabled={read.pending || !data.has_more}
+                    onClick={() => goPage(page + 1)}
+                  >
+                    Next
+                    <Chevron />
+                  </button>
+                </nav>
+              )}
+              {rows.length > 0 && (
                 <p className="lg2-note">
-                  Candidacy or an election result does not prove current service.
+                  Candidacy or an election result does not prove current service
                 </p>
-              </>
-            )}
-          </section>
-          <aside className="pp-aside">
-            <section className="f-card pp-types">
-              <h2 className="f-label">Record types</h2>
-              <dl>
-                <div>
-                  <dt>Candidate</dt>
-                  <dd>
-                    A filing for one election and office, from the Minnesota Secretary of State
-                  </dd>
-                </div>
-                <div>
-                  <dt>Legislator</dt>
-                  <dd>
-                    A service record from the Minnesota Legislature: chamber, district, committees,
-                    authored bills
-                  </dd>
-                </div>
-                <div>
-                  <dt>Person</dt>
-                  <dd>
-                    Elections and service over time, linked to candidate and legislative service
-                    records
-                  </dd>
-                </div>
-              </dl>
-            </section>
-          </aside>
-        </div>
+              )}
+            </>
+          )}
+        </section>
+        <section aria-labelledby="about-h" className="pp-about">
+          <h2 id="about-h">About these records</h2>
+          <dl>
+            <div>
+              <dt>Candidate</dt>
+              <dd>A filing for one election and office, from the Minnesota Secretary of State</dd>
+            </div>
+            <div>
+              <dt>Legislator</dt>
+              <dd>
+                A service record from the Minnesota Legislature: chamber, district, committees,
+                authored bills
+              </dd>
+            </div>
+            <div>
+              <dt>Person</dt>
+              <dd>
+                Elections and service over time, linked to candidate and legislative service
+                records
+              </dd>
+            </div>
+          </dl>
+          <p>Minnesota records only; candidate lookup is not a complete national directory</p>
+        </section>
       </div>
       <SourcesAndUpdates
         groups={[
-          { source: 'Minnesota Legislature', items: ['Service records'] },
           { source: 'Minnesota Secretary of State', items: ['Candidate records'] },
+          { source: 'Minnesota Legislature', items: ['Service records'] },
         ]}
       />
     </main>
