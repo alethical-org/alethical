@@ -142,13 +142,16 @@ export function Detail({
   const page = Math.max(1, Math.trunc(Number(address.records_page) || 1));
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  // Page 1 reads the current copy; later pages stay on the copy page 1 showed, and a
+  // changed copy is refused (409) rather than mixed in.
   const records = useRecords(
-    { kind, key: name, page, pageSize: PAGE_SIZE, snapshotId: snapshot },
+    { kind, key: name, page, pageSize: PAGE_SIZE, snapshotId: page > 1 ? snapshot : null },
     version,
   );
   const data = records.data;
   useEffect(() => {
-    if (data && snapshot === null) setSnapshot(data.snapshot_id);
+    if (data && (snapshot === null || data.page === 1) && data.snapshot_id !== snapshot)
+      setSnapshot(data.snapshot_id);
   }, [data, snapshot]);
   const n = data?.records ?? 0;
   const k = data?.confirmed ?? 0;
