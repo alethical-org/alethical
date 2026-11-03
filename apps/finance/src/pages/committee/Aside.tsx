@@ -42,11 +42,7 @@ export function IndependentCard({
         Payment year {year}
         {copied && ` · Independent expenditure file copied ${copied}`}
       </p>
-      {rows.length === 0 && (
-        <p className="cmt-none">
-          No independent expenditure records are held for this account and year
-        </p>
-      )}
+      {rows.length === 0 && <p className="cmt-none">None held for {year}</p>}
       {rows.length > 0 && (
         <ul className="cmt-ie-list">
           {rows.map((row, index) => {
@@ -131,9 +127,7 @@ export function RelatedCard({
           </li>
         </ul>
       )}
-      {answer && !stale && !member && (
-        <p className="cmt-none">No candidate affiliation is held for this committee</p>
-      )}
+      {answer && !stale && !member && <p className="cmt-none">No candidate affiliation held</p>}
     </section>
   );
 }

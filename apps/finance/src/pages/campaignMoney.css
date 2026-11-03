@@ -117,12 +117,20 @@ a.cm-card:active {
   line-height: 1.5;
   color: var(--secondary);
 }
-.cm-limits h2 {
-  margin: 0;
-  letter-spacing: 0.08em;
+/* About these records: general background below the main content, above
+ * Sources and updates (eug-135). */
+.cm-about {
+  margin-top: 36px;
+  max-width: 900px;
 }
-.cm-limits ul {
-  margin: 10px 0 0;
+.cm-about h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.cm-about ul {
+  margin: 8px 0 0;
   padding-left: 18px;
   display: grid;
   gap: 6px;
@@ -154,28 +162,37 @@ a.cm-card:active {
 }
 
 /* The tabs scroll sideways rather than wrap, down to 320px. */
-.cm-tabs .f-tabs {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-}
-.cm-tabs .f-tab {
-  font-size: 14px;
-  padding: 0 14px;
-}
 
-.cm-list {
+/* Sort, and the filter menus the server serves: the wrapper sits above the
+ * list (z-index 40); an open menu's own wrapper is raised by the shared
+ * dropdown (eug-19 / 77). */
+.cm-filters {
   margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  position: relative;
+  z-index: 40;
+}
+.cm-list {
   outline: none;
 }
-.cm-notice {
-  margin-bottom: 10px;
+.cm-list > .f-skeleton,
+.cm-list > .f-alert {
+  margin-top: 14px;
 }
+.cm-notice {
+  margin-top: 14px;
+}
+.cm-notice + .cm-notice {
+  margin-top: 10px;
+}
+/* The count line sits 24px under the controls (padding, eug-26) and 10px
+ * above the table. */
 .cm-count {
-  padding: 0 0 10px 2px;
-  font-size: 14px;
-  color: var(--secondary);
+  padding-bottom: 10px;
+  padding-left: 2px;
 }
 .cm-count:empty {
   display: none;
@@ -190,7 +207,7 @@ a.cm-card:active {
 }
 .cm-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 150px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 96px minmax(0, 1.3fr);
   gap: 12px;
   align-items: center;
   min-height: 48px;
@@ -237,6 +254,17 @@ a.cm-card:active {
 }
 .cm-reg-word {
   display: none;
+}
+.cm-status {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--secondary);
+}
+.cm-status[data-status='open'] {
+  color: var(--ink);
+}
+.cm-status[data-status='unknown'] {
+  color: var(--muted);
 }
 @media (hover: hover) and (min-width: 768px) {
   .cm-row:not(.cm-head):hover {
@@ -288,6 +316,7 @@ a.cm-card:active {
     padding: 10px 16px;
   }
   .cm-kind,
+  .cm-status,
   .cm-row:not(.cm-head) .cm-reg {
     padding-left: 36px;
   }
@@ -302,4 +331,11 @@ a.cm-card:active {
     align-items: center;
     min-height: 44px;
   }
+}
+
+/* Phone: the search label sits above the field (Campaign Money drawing). */
+.cm-search-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
 }
