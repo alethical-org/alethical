@@ -1,12 +1,19 @@
-import { formatDay } from '../ui/money';
+import { formatDay } from '@alethical/shared/moneyFormat';
 
-import { CampaignFinance } from '../parts/CampaignFinance';
+import {
+  CampaignFinance,
+  KeyFigures,
+  accountsFrom,
+  useFinanceYears,
+} from '../parts/CampaignFinance';
 import { useRecordRead } from '../parts/recordRead';
+import { candidateSeat, seatParts } from './seat';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { Refused } from '../ui/controls';
 import { Arrow, BackLink, LoadingLine, WithArrow } from '../ui/parts';
+import { MediaBuysCard } from './media/MediaBuysCard';
 import './people.css';
 
 /** The fields of the public site's candidate profile (`GET /candidates/{id}`,
@@ -44,7 +51,7 @@ export interface CandidateRecord {
 }
 
 /** The public site's result wording (apps/frontend/src/lib/personRecords.ts). */
-const RESULT_LABELS: Record<ElectionResult['status'], string> = {
+export const RESULT_LABELS: Record<ElectionResult['status'], string> = {
   certified: 'Election results',
   unofficial: 'Unofficial election results',
   pending: 'Election results pending',
@@ -53,10 +60,14 @@ const RESULT_LABELS: Record<ElectionResult['status'], string> = {
   unavailable: 'Election results unavailable',
 };
 
-const OUTCOME_LABELS = { elected: 'Elected', 'not-elected': 'Not elected', withdrew: 'Withdrew' };
+export const OUTCOME_LABELS = {
+  elected: 'Elected',
+  'not-elected': 'Not elected',
+  withdrew: 'Withdrew',
+};
 
 /** A vote outcome is stated only once certified; a withdrawal is sourced on its own. */
-function finalOutcome(result?: ElectionResult) {
+export function finalOutcome(result?: ElectionResult) {
   return result?.outcome === 'withdrew' || result?.status === 'certified'
     ? result.outcome
     : undefined;
@@ -100,8 +111,8 @@ export function sourceStamp(record: CandidateRecord): string {
 
 /** The public site's service wording for the connected legislator record. */
 function legislatorNote(leg: NonNullable<CandidateRecord['legislator']>): string | null {
-  const seat = [leg.office, leg.votingArea].filter(Boolean).join(', ');
-  if (leg.serviceStatus === 'current') return seat ? `Currently serving as ${seat}` : null;
+  const seat = candidateSeat(leg.office, leg.votingArea);
+  if (leg.serviceStatus === 'current') return seat ? `Serving as ${seat}` : null;
   if (leg.serviceStatus === 'former') return seat ? `Formerly served as ${seat}` : null;
   return 'Current service not confirmed';
 }
@@ -121,14 +132,22 @@ function NotFound() {
 }
 
 /** Candidate profile (Candidate drawing): the held candidacy facts, campaign
- * money, the election and its result, and confirmed related records. */
+ * money, the election and its result, and confirmed related records. The
+ * campaign accounts are the ones confirmed for the legislator record this
+ * candidacy is connected to; a candidacy connected to none shows none. */
 export function CandidateProfile({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const back = returnTarget(location.search);
   const read = useRecordRead<CandidateRecord>(`candidates/${encodeURIComponent(match.params.id)}`);
   const record = read.data;
+  const legislatorId = record?.legislator?.slug ?? null;
+  const years = useFinanceYears(legislatorId);
+  const accounts = accountsFrom(years.data);
   const year = record ? electionYear(record) : '';
+  // Each seat fact once: the served office often repeats the district its voting
+  // area also names ("State Representative District 56A", "House District 56A").
+  const seat = record ? seatParts(record.office, record.votingArea) : [];
   const facts = record
     ? [
         {
@@ -137,15 +156,16 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
             .filter(Boolean)
             .join(' · '),
         },
-        { label: 'Office', value: record.office },
-        { label: 'District', value: record.votingArea },
+        { label: 'Office', value: seat[0] || record.office },
+        { label: 'District', value: seat.slice(1).join(', ') || record.votingArea },
         { label: 'Party', value: record.candidate.party || 'Party not recorded' },
       ]
     : [];
   const sourceUrl = record?.result?.source?.url ?? record?.source.url ?? null;
   const leg = record?.legislator;
   const people = record?.people ?? [];
-  const hasRelated = Boolean(leg) || people.length > 0;
+  const hasRelated =
+    Boolean(leg && isBuilt('legislator')) || (people.length > 0 && isBuilt('person'));
 
   return (
     <main id="main" className="f-page">
@@ -154,7 +174,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
         {read.loading && <LoadingLine>Loading…</LoadingLine>}
         {read.failed && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this record. This is a problem on our side.
+            We couldn’t load this record
           </Refused>
         )}
         {read.notFound && <NotFound />}
@@ -165,6 +185,9 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
               <h1 tabIndex={-1} className="f-page-title lg2-title">
                 {record.candidate.name}
               </h1>
+              {legislatorId && (
+                <KeyFigures legislatorId={legislatorId} account={accounts[0] ?? null} />
+              )}
               <p className="lg2-line">
                 Official candidate record · {runningPhrase(record)} {record.office}
               </p>
@@ -194,7 +217,17 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                   </p>
                 </section>
 
-                <CampaignFinance accounts={[]} from={here} />
+                <CampaignFinance
+                  legislatorId={legislatorId}
+                  years={years}
+                  accounts={accounts}
+                  from={here}
+                />
+                <MediaBuysCard
+                  kind="candidate"
+                  target={match.params.id}
+                  name={record.candidate.name}
+                />
 
                 <section aria-labelledby="result-heading" className="lg2-section">
                   <h2 id="result-heading" className="f-section-title">
@@ -205,7 +238,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                       {year} {record.election.type} election
                     </div>
                     <div className="lg2-muted f-num">
-                      {record.office} · {record.votingArea} · Minnesota Secretary of State
+                      {[...seat, 'Minnesota Secretary of State'].join(' · ')}
                     </div>
                     <div className="cd-result-row">
                       <span
@@ -237,39 +270,41 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                 <section className="f-card lg2-related">
                   <h2 className="f-card-title">Related records</h2>
                   {hasRelated ? (
-                    <ul className="lg2-related-list">
+                    <ul className="f-row-links">
                       {leg && isBuilt('legislator') && (
                         <li>
                           <Link
                             to={withFrom(hrefFor('legislator', { id: leg.slug }), here)}
-                            className="lg2-related-link"
+                            className="f-row-link lg2-related-link"
                           >
                             <span>
-                              <span className="lg2-related-label">View legislator profile</span>
+                              <span className="f-row-link-name">View legislator profile</span>
                               {legislatorNote(leg) && (
-                                <span className="lg2-related-note">{legislatorNote(leg)}</span>
+                                <>
+                                  <br />
+                                  <span className="f-row-link-note">{legislatorNote(leg)}</span>
+                                </>
                               )}
                             </span>
                             <Arrow />
                           </Link>
                         </li>
                       )}
-                      {!isBuilt('person') &&
-                        people.map((person) => (
-                          <li key={person.id} className="lg2-related-plain">
-                            {person.name}
-                          </li>
-                        ))}
                       {isBuilt('person') &&
                         people.map((person) => (
                           <li key={person.id}>
                             <Link
                               to={withFrom(hrefFor('person', { id: person.id }), here)}
-                              className="lg2-related-link"
+                              className="f-row-link lg2-related-link"
                             >
                               <span>
-                                <span className="lg2-related-label">View person profile</span>
-                                <span className="lg2-related-note">{person.name}</span>
+                                <span className="f-row-link-name">View person profile</span>
+                                {people.length > 1 && (
+                                  <>
+                                    <br />
+                                    <span className="f-row-link-note">{person.name}</span>
+                                  </>
+                                )}
                               </span>
                               <Arrow />
                             </Link>

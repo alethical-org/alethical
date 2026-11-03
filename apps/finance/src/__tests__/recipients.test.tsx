@@ -193,14 +193,14 @@ it('links only the covered confirmed identity and withholds incomplete totals', 
       record_kind: 'confirmed_vendor',
     }),
   ).toBe('/organizations/i');
-  // Person profiles are not built, so a confirmed person gets no link to a missing page.
+  // A confirmed person opens the Person profile.
   expect(
     recipientHref({
       ...row,
       identity: { id: 'p', kind: 'person', name: 'Person' },
       record_kind: 'confirmed_person',
     }),
-  ).toBeNull();
+  ).toBe('/people/p');
   expect(recipientKind({ ...row, record_kind: 'confirmed_person' })).toBe('Person');
   expect(recipientKind({ ...row, record_kind: 'confirmed_vendor' })).toBe('Organization');
   expect(recipientAmount({ ...row, amount: '10', amount_state: 'incomplete' })).toBe('Incomplete');
