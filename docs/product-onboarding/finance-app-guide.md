@@ -173,9 +173,10 @@ figure is ever added across committees or members.
   (lobbying principals), Committees, Bills and Payments under a name, each family loaded,
   counted and failed on its own ("At least {n}" when the server's count is capped). A name
   search runs from 3 characters. View all opens the rest of a family in place.
-- **People (`/people`)**: sitting legislators, searchable by name, sorted by surname, 10 a
-  page. The server also offers candidates, person records and former legislators, but
-  the current screen has not adopted those lists. Finance Home has no Candidates entrance.
+- **People (`/people`)**: people, candidacies and legislative service stay separate,
+  searched and paged on the server, 10 a page. Candidate scope, election year and
+  current or former service filters remain in the address. Former service requires
+  a held service end; missing current membership never establishes it.
 - **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
   carries no current title, party, district or committees), each confirmed campaign account
   with its own year and figures, spending by outside groups by contest, committees (each
@@ -184,7 +185,8 @@ figure is ever added across committees or members.
   campaign-account link is read by this screen yet, so its money section is incomplete;
   the server now supplies confirmed links.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
-  Committees and funds, Party units), searched and paged on the server, names A to Z.
+  Committees and funds, Party units), searched and paged on the server. Sort by chooses
+  names A to Z or numeric registration-number order.
 - **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
   (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
   itemized expenditures, each name grouped with its own records and a sum only when every
@@ -210,8 +212,10 @@ figure is ever added across committees or members.
   spender, never added across committees. The address names the contest (`house-34b`,
   `senate-41`, `governor`).
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
-  server, names A to Z. The server supplies principal spending by year; the spending column
-  and year menu await their screen update.
+  server. Lobbyists use name order. Principals add year and name or reported-spending
+  order, with one filed total per organization for that year. Missing figures and
+  multiple filed reports stay explicit, never zero or an added total. Old rows retain their
+  own year while a new selection loads.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
   "Show more") and its matched campaign contribution records; a principal's spending by year
@@ -220,8 +224,13 @@ figure is ever added across committees or members.
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
-- **Not built yet:** Vendors and payees (`/money/recipients`) answers "not found" until the
-  screen adopts the server's payee list and confirmed vendors.
+- **Not built yet:** Vendors and payees (`/money/recipients`), Person profile (`/people/:id`),
+  Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
+  `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
+  `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
+  identities (`/money/identities`) each have a screen in the code but answer "not found"
+  and are linked from nowhere until the pull request that aligns that screen with Design's
+  current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill

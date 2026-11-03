@@ -15,7 +15,7 @@ import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
-import { Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
+import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
 import { Arrow, BackLink, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 import './campaignMoney.css';
@@ -77,7 +77,12 @@ interface MoneySummary {
 }
 
 /** The register read for one view: the server pages and searches, never the browser. */
-export function registerPath(tab: DirectoryTab, query: string, page: number): string {
+export function registerPath(
+  tab: DirectoryTab,
+  query: string,
+  page: number,
+  sort = 'name',
+): string {
   const kind = TABS.find((item) => item.value === tab)?.kind ?? 'candidate_committee';
   const params = new URLSearchParams({
     kind,
@@ -85,6 +90,7 @@ export function registerPath(tab: DirectoryTab, query: string, page: number): st
     offset: String((page - 1) * COMMITTEE_PAGE_SIZE),
   });
   if (query) params.set('q', query);
+  if (sort === 'registration') params.set('sort', sort);
   return `campaign-finance/committees?${params.toString()}`;
 }
 
@@ -154,7 +160,12 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const back = returnTarget(location.search);
-  const [address, setAddress] = useAddressState({ tab: 'candidates', q: '', page: '1' });
+  const [address, setAddress] = useAddressState({
+    tab: 'candidates',
+    q: '',
+    page: '1',
+    sort: 'name',
+  });
   const tab = tabFromParam(address.tab);
   const submitted = address.q.trim().slice(0, MAX_QUERY);
   const page = pageFromParam(address.page);
@@ -163,7 +174,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   // Back, Forward or a new link changes the address: the field follows it.
   useEffect(() => setTyped(submitted), [submitted]);
 
-  const read = useRead<CommitteeRegister>(registerPath(tab, submitted, page), {
+  const read = useRead<CommitteeRegister>(registerPath(tab, submitted, page, address.sort), {
     keepPrevious: true,
   });
   const summary = useRead<MoneySummary>('campaign-finance/summary');
@@ -302,6 +313,20 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
               />
             </div>
 
+            <div className="mb-filters">
+              <Dropdown
+                name="Sort by"
+                value={address.sort === 'registration' ? 'registration' : 'name'}
+                options={[
+                  { value: 'name', label: 'Name A–Z' },
+                  { value: 'registration', label: 'Registration' },
+                ]}
+                onChange={(sort) => setAddress({ sort, page: '1' })}
+              />
+              {address.sort === 'registration' && (
+                <ClearAll onClick={() => setAddress({ sort: 'name', page: '1' })} />
+              )}
+            </div>
             <div ref={list} tabIndex={-1} className="cm-list">
               {read.loading && <LoadingRows />}
               {freshFailure && (

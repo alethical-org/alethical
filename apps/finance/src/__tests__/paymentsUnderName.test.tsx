@@ -180,6 +180,17 @@ function section(title: string): HTMLElement {
 }
 
 describe('Payments under this name', () => {
+  it('focuses the requested payment section after the records load', async () => {
+    await render('/money/names/Example%20Media%20LLC?role=payee&section=outside-payments', payee);
+    expect(document.activeElement).toBe(section('Outside spending payments').querySelector('h2'));
+    expect(
+      requests
+        .filter((url) => url.pathname.endsWith('/payments-under-name'))
+        .map(role)
+        .sort(),
+    ).toEqual(['independent_vendor', 'vendor']);
+  });
+
   it('reads the 2 payee files separately and draws each as its own section', async () => {
     await render('/money/names/Example%20Media%20LLC?role=payee', payee);
     const payments = requests.filter((url) => url.pathname.endsWith('/payments-under-name'));

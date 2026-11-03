@@ -52,7 +52,7 @@ describe('safeReturnPath', () => {
     '/auth/return?source=google',
     '/not-a-page',
     '/',
-    '/media-buys',
+    '/money/identities',
   ])('sends %s to Finance Home instead', (value) => {
     expect(safeReturnPath(value, true)).toBe('/home');
   });

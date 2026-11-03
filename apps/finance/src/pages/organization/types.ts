@@ -51,6 +51,9 @@ export interface Identity {
 export interface RecordsListing {
   record_kind: string;
   record_key: string;
+  snapshot_id?: string;
+  page?: number;
+  pages?: number;
   fingerprints: Array<{
     fingerprint: string;
     fields: Record<string, string | null> | null;
