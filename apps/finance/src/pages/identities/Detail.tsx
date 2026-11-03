@@ -13,7 +13,7 @@ import { Pager } from '../media/shared';
 import { useRecords, write, type WriteResult } from './api';
 import { IdentityForm, type FormErrors, type FormSpec } from './Form';
 import { Refs } from './Refs';
-import { confirmationNote, confirmationSource, historyOf } from './history';
+import { confirmationNote, confirmationSource, historyRows } from './history';
 import { useIdentities } from './reads';
 import type {
   Confirmation,
@@ -634,10 +634,13 @@ export function Detail({
     const movingRows = rowsIn(moving);
     const allRows = rowsIn(printedActive);
     // A count whose file is not held is left out, never summed as 0.
-    recsCount =
-      movingRows === null || allRows === null
-        ? ''
-        : `${movingRows} of ${plural(allRows, 'record', 'records')} selected${moving.length ? ` · ${period(moving.flatMap(coveredDates))}` : ''}`;
+    const selected =
+      movingRows === null
+        ? 'Records selected'
+        : allRows === null
+          ? `${plural(movingRows, 'record', 'records')} selected`
+          : `${movingRows} of ${plural(allRows, 'record', 'records')} selected`;
+    recsCount = `${selected}${moving.length ? ` · ${period(moving.flatMap(coveredDates))}` : ''}`;
   }
 
   const pickOptions =
@@ -683,22 +686,20 @@ export function Detail({
       const moving = pickRead.data.confirmations.filter((c) => c.status === 'confirmed');
       const count = sumCounts(moving.map((c) => (c.records ? coveredRows(c) : 1)));
       const from = named(pickRead.data);
-      // A count whose file is not held is never read as 0 or a partial sum: the lead,
-      // which has no drawn words for it, is left out.
+      // A count whose file is not held is never read as 0 or a partial sum: the lead
+      // keeps its words without the number (settled wording row 27).
       const lead =
         count === null
-          ? null
+          ? `These confirmed records will move from ${from} to ${named(conf)}. Each keeps its own evidence. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`
           : count
             ? `${count === 1 ? 'This confirmed record' : `These ${count} confirmed records`} will move from ${from} to ${named(conf)}. Each keeps its own evidence. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`
             : `${from} holds no confirmed records. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`;
       mergePreview = (
         <section aria-labelledby="move-h" className="ci-preview">
           <h4 id="move-h">Links that will move</h4>
-          {lead && (
-            <p>
-              <Refs>{lead}</Refs>
-            </p>
-          )}
+          <p>
+            <Refs>{lead}</Refs>
+          </p>
           {moving.length > 0 && (
             <ul>
               {moving.map((c) => (
@@ -725,9 +726,7 @@ export function Detail({
   // ---- Page ----
   const heldSuggestions = remaining > 0 ? held : [];
   const showSuggest = !conf || remaining > 0;
-  const { rows: history, withheld } = data
-    ? historyOf(reads.byId, kind, name, n)
-    : { rows: [], withheld: 0 };
+  const history = data ? historyRows(reads.byId, kind, name, n) : [];
   const confHref = conf ? profileHref(conf, here) : null;
   const draftOpen = !!form && hasEntries(form);
 
@@ -1075,52 +1074,48 @@ export function Detail({
         {(!form || spec?.recs !== 'name') && pager}
       </section>
 
-      {/* A history whose only events wait on undrawn words is left out, never called
-          empty. */}
-      {(history.length > 0 || withheld === 0) && (
-        <section aria-labelledby="hist-h" className="ci-history-section">
-          <h3 id="hist-h">History</h3>
-          <ol className="ci-card ci-history">
-            {history.length === 0 && (
-              <li>
-                <span />
-                <span>No confirmations or suggestions yet</span>
-              </li>
-            )}
-            {history.map((row) => (
-              <li key={row.key}>
-                <span className="ci-history-date f-num">{row.date}</span>
-                <span className="ci-history-body">
-                  <span className="f-num ci-wrap">
-                    <Refs>{row.text}</Refs>
-                  </span>
-                  {row.evidence.length > 0 && (
-                    <span>
-                      <button
-                        type="button"
-                        className="f-btn f-btn-secondary ci-btn-s"
-                        aria-expanded={!!histOpen[row.key]}
-                        onClick={() =>
-                          setHistOpen((value) => ({ ...value, [row.key]: !value[row.key] }))
-                        }
-                      >
-                        View evidence
-                      </button>
-                    </span>
-                  )}
-                  {histOpen[row.key] && (
-                    <ul className="ci-evidence">
-                      {row.evidence.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  )}
+      <section aria-labelledby="hist-h" className="ci-history-section">
+        <h3 id="hist-h">History</h3>
+        <ol className="ci-card ci-history">
+          {history.length === 0 && (
+            <li>
+              <span />
+              <span>No confirmations or suggestions yet</span>
+            </li>
+          )}
+          {history.map((row) => (
+            <li key={row.key}>
+              <span className="ci-history-date f-num">{row.date}</span>
+              <span className="ci-history-body">
+                <span className="f-num ci-wrap">
+                  <Refs>{row.text}</Refs>
                 </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
+                {row.evidence.length > 0 && (
+                  <span>
+                    <button
+                      type="button"
+                      className="f-btn f-btn-secondary ci-btn-s"
+                      aria-expanded={!!histOpen[row.key]}
+                      onClick={() =>
+                        setHistOpen((value) => ({ ...value, [row.key]: !value[row.key] }))
+                      }
+                    >
+                      View evidence
+                    </button>
+                  </span>
+                )}
+                {histOpen[row.key] && (
+                  <ul className="ci-evidence">
+                    {row.evidence.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </section>
     </section>
   );
 }

@@ -59,20 +59,7 @@ export function historyRows(
   name: string,
   total: number,
 ): HistoryRow[] {
-  return historyOf(identities, kind, name, total).rows;
-}
-
-/** The printed history rows, and how many events wait on words not drawn yet (a count
- * whose file is not held, or a split whose part has no count). A history with a waiting
- * event is never called empty. */
-export function historyOf(
-  identities: ReadonlyMap<string, Identity>,
-  kind: PrintedKind,
-  name: string,
-  total: number,
-): { rows: HistoryRow[]; withheld: number } {
   const rows: HistoryRow[] = [];
-  let withheld = 0;
   const seen = new Set<string>();
   const withdrawals = new Map<
     string,
@@ -90,18 +77,19 @@ export function historyOf(
       seen.add(confirmation.id);
       const holder = identities.get(confirmation.identity_id) ?? identity;
       const k = coveredRows(confirmation);
-      const scope = `for ${k} of ${total} records, ${period(coveredDates(confirmation))}`;
-      // A count whose file is not held has no drawn words yet: the row waits.
-      if (!confirmation.replaces && confirmation.checked_at && k === null) withheld += 1;
-      else if (!confirmation.replaces && confirmation.checked_at) {
+      // Every event stays; a count resting on a file that is not held is dropped, never
+      // printed as 0 (settled wording row 27).
+      const counted = k === null ? '' : ` for ${k} of ${total} records`;
+      const scope = `${counted}, ${period(coveredDates(confirmation))}`;
+      if (!confirmation.replaces && confirmation.checked_at) {
         rows.push({
           key: `confirm|${confirmation.id}`,
           at: confirmation.checked_at,
           date: day(confirmation.checked_at) ?? '',
           text:
             createdWith === confirmation.id && holder.id === identity.id
-              ? `Created ${named(holder)} and confirmed this name as it ${scope}`
-              : `Confirmed as ${named(holder)} ${scope}`,
+              ? `Created ${named(holder)} and confirmed this name as it${scope}`
+              : `Confirmed as ${named(holder)}${scope}`,
           evidence: [
             `Evidence: ${confirmationNote(confirmation)}`,
             `Source: ${confirmationSource(confirmation)}`,
@@ -142,15 +130,15 @@ export function historyOf(
             .filter((c) => c.identity_id === from && c.status === 'confirmed')
             .map((c) => (c.records ? coveredRows(c) : 1)),
         );
-        if (moved === null) {
-          withheld += 1;
-          continue;
-        }
+        const movedText =
+          moved === null
+            ? `confirmed records moved to ${refOf(identity)}`
+            : `${plural(moved, 'confirmed record', 'confirmed records')} moved`;
         rows.push({
           key: `merge|${from}|${identity.id}`,
           at: event.at ?? '',
           date: day(event.at) ?? '',
-          text: `${fromName ? named(fromLabel) : fromLabel.name} merged into ${named(identity)}; ${plural(moved, 'confirmed record', 'confirmed records')} moved with their own evidence and dates; ${refOf(fromLabel)} now opens ${refOf(identity)}`,
+          text: `${fromName ? named(fromLabel) : fromLabel.name} merged into ${named(identity)}; ${movedText} with their own evidence and dates; ${refOf(fromLabel)} now opens ${refOf(identity)}`,
           evidence: evidenceLines(detail.reason, detail.source),
         });
       }
@@ -163,19 +151,19 @@ export function historyOf(
         // The split's own order: the part that kept the records first, the new one second.
         const [stay, moved] = parts;
         // A count is printed only as served. A part whose file is not held, or that was
-        // later merged or split, has none, and a missing count never reads as 0
-        // (grounded-answers rule 12); no words are drawn for that row yet, so it waits.
-        if (!countable(stay) || !countable(moved)) {
-          withheld += 1;
-          continue;
-        }
-        const count = (part: SplitPart) =>
-          plural(part.confirmed_records as number, 'record', 'records');
+        // later merged or split, has none: it is named by its reference alone and never
+        // reads as 0 (settled wording row 28).
+        const movedText = countable(moved)
+          ? `${plural(moved.confirmed_records as number, 'record', 'records')} moved to ${named(moved)}`
+          : `records moved to ${refOf(moved)}`;
+        const stayText = countable(stay)
+          ? `${plural(stay.confirmed_records as number, 'record', 'records')} ${stay.confirmed_records === 1 ? 'stays' : 'stay'} with ${named(stay)}`
+          : `records stay with ${refOf(stay)}`;
         rows.push({
           key: `split|${old.id}`,
           at: split.at ?? '',
           date: day(split.at) ?? '',
-          text: `Split: ${count(moved)} moved to ${named(moved)}; ${count(stay)} stay with ${named(stay)}; ${refOf(old)} now opens a choice of both`,
+          text: `Split: ${movedText}; ${stayText}; ${refOf(old)} now opens a choice of both`,
           evidence: evidenceLines(split.detail?.reason, split.detail?.source),
         });
       }
@@ -183,15 +171,11 @@ export function historyOf(
   }
   for (const [group, entry] of withdrawals) {
     const k = sumCounts(entry.items.map(coveredRows));
-    if (k === null) {
-      withheld += 1;
-      continue;
-    }
     rows.push({
       key: `withdraw|${group}`,
       at: entry.at,
       date: day(entry.at) ?? '',
-      text: `Confirmation as ${named(entry.identity)} withdrawn for ${plural(k, 'record', 'records')}: ${entry.reason}`,
+      text: `Confirmation as ${named(entry.identity)} withdrawn${k === null ? '' : ` for ${plural(k, 'record', 'records')}`}: ${entry.reason}`,
       evidence: [
         ...evidenceLines(entry.reason, entry.source),
         ...entry.items.map(
@@ -201,5 +185,5 @@ export function historyOf(
       ],
     });
   }
-  return { rows: rows.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)), withheld };
+  return rows.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 }

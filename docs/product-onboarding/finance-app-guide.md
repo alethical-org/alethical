@@ -239,22 +239,23 @@ figure is ever added across committees or members.
   identity is shown by its reference (ORG-0042 for an organization, PER-0042 for a person),
   or by its name while the server has not served one, never by its internal id. A split's
   history row gives each part's confirmed records as the server counts them today (repeated
-  identical rows count separately); when a part has no count, because a file is not held
-  or the part was later merged or split, the row is left out rather than printing 0, and a
-  later merge keeps its own row naming the reference it now opens. A record count that rests
-  on a Board file the server does not hold is never printed as 0 or as a partial sum: the
-  count is left out of "Records covered" and of the split and merge forms' record lines, the
-  split form's "selected" line and the merge preview's "will move" sentence are left out,
-  and so is each history row (confirmation, withdrawal or merge) that would print it. A
-  History holding only such rows is left out, never called empty. A selection is the
-  server's record fingerprints, or "All records" / "{year} records", which the server resolves. "Saved" appears
-  only after the server accepts; otherwise "Not saved. Your entries are kept." with Try again,
-  "These records changed since this form opened…" or, after the Board's file is replaced,
-  "Reload the records", which keeps the words and clears the selection. Unfinished entries are
-  kept as 1 draft per name, role, action and target ("Unsaved draft", "Discard draft"). A
-  contextual arrival names the spelling and its role (`?name=&role=`); a spelling with no
-  records reads "This record is not held". It is entered only from its context, never from
-  Finance Home.
+  identical rows count separately); a part with no count, because a file is not held or the
+  part was later merged or split, keeps the row and is named by its reference alone
+  ("records stay with ORG-0091"), never 0, and a later merge keeps its own row naming the
+  reference it now opens. A record count that rests on a Board file the server does not
+  hold is never printed as 0 or as a partial sum: every row and History event stays and only
+  the number is dropped ("Confirmed as {identity}", "withdrawn: {reason}", "confirmed
+  records moved to {reference}", "These confirmed records will move from …", "{k} records
+  selected" without "of n", and "Records covered" without its "N records"). History reads
+  "No confirmations or suggestions yet" only when there are no events. A selection is the
+  server's record fingerprints, or "All records" / "{year} records", which the server
+  resolves. "Saved" appears only after the server accepts; otherwise "Not saved. Your
+  entries are kept." with Try again, "These records changed since this form opened…" or,
+  after the Board's file is replaced, "Reload the records", which keeps the words and clears
+  the selection. Unfinished entries are kept as 1 draft per name, role, action and target
+  ("Unsaved draft", "Discard draft"). A contextual arrival names the spelling and its role
+  (`?name=&role=`); a spelling with no records reads "This record is not held". It is
+  entered only from its context, never from Finance Home.
 - **Not built yet:** Vendors and payees (`/money/recipients`), Person profile (`/people/:id`),
   Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
 import { ConfirmIdentities, sourceLine } from '../pages/ConfirmIdentities';
-import { historyOf, historyRows } from '../pages/identities/history';
+import { historyRows } from '../pages/identities/history';
 import type { Identity, QueuePage, QueueRow, RecordsPage } from '../pages/identities/types';
 import {
   beyondName,
@@ -524,7 +524,22 @@ describe('history of a split', () => {
     ]);
   });
 
-  it('never prints a missing count as 0 when a part’s file is not held', () => {
+  it('says "1 record stays with" for a part holding 1 record', () => {
+    const rows = historyRows(
+      splitReads([
+        active(STAY, 'Example Media LLC', 1, 'ORG-0091'),
+        active(MOVED, 'Example Media Buying Co', 2, 'ORG-0092'),
+      ]),
+      'payee_name',
+      NAME,
+      3,
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      'Split: 2 records moved to Example Media Buying Co (ORG-0092); 1 record stays with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+    ]);
+  });
+
+  it('keeps the split row when a part’s file is not held, naming it by reference alone', () => {
     const rows = historyRows(
       splitReads([
         active(STAY, 'Example Media LLC', null, 'ORG-0091'),
@@ -534,8 +549,9 @@ describe('history of a split', () => {
       NAME,
       3,
     );
-    // No words are drawn for a part whose count is not held: the row waits on them.
-    expect(rows).toEqual([]);
+    expect(rows.map((row) => row.text)).toEqual([
+      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+    ]);
   });
 
   it('never prints a count for a part later merged; the merge names where it opens', () => {
@@ -567,12 +583,13 @@ describe('history of a split', () => {
     const rows = historyRows(reads, 'payee_name', NAME, 3);
     expect(rows.map((row) => row.text)).toEqual([
       'Example Media LLC (ORG-0091) merged into Example Media Buying Co (ORG-0092); 2 confirmed records moved with their own evidence and dates; ORG-0091 now opens ORG-0092',
+      'Split: 3 records moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
     expect(rows.some((row) => /\b0 records?\b/.test(row.text))).toBe(false);
     expect(rows.some((row) => row.text.includes(STAY) || row.text.includes(MOVED))).toBe(false);
   });
 
-  it('on the page, never calls a history empty while its split waits on words', async () => {
+  it('on the page, keeps a split with an uncounted part in a History that is not empty', async () => {
     const reads = splitReads([
       active(STAY, 'Example Media LLC', null, 'ORG-0091'),
       active(MOVED, 'Example Media Buying Co', 1, 'ORG-0092'),
@@ -615,8 +632,11 @@ describe('history of a split', () => {
     });
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&role=payee_name`);
     expect(text()).toContain('Example Media Buying Co');
+    expect(container.querySelector('#hist-h')?.textContent).toBe('History');
+    expect(text()).toContain(
+      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+    );
     expect(text()).not.toContain('No confirmations or suggestions yet');
-    expect(container.querySelector('#hist-h')).toBeNull();
     expect(text()).not.toMatch(/\b0 records?\b/);
   });
 });
@@ -638,7 +658,7 @@ describe('counts whose file is not held', () => {
     expect(sumCounts([1, null])).toBeNull();
   });
 
-  it('leaves out the history rows whose count is not held', () => {
+  it('keeps every history event and drops only a count that is not held', () => {
     const withdrawn = notHeld(
       confirmation('c-old', ORG, [3], {
         status: 'withdrawn',
@@ -647,7 +667,7 @@ describe('counts whose file is not held', () => {
       }),
     );
     const merged = notHeld(confirmation('c-9', DULUTH, [4]));
-    const { rows, withheld } = historyOf(
+    const rows = historyRows(
       new Map([
         [
           ORG,
@@ -676,14 +696,16 @@ describe('counts whose file is not held', () => {
       4,
     );
     expect(rows.map((row) => row.text)).toEqual([
+      'ORG-0043 merged into Example Media LLC (ORG-0002); confirmed records moved to ORG-0002 with their own evidence and dates; ORG-0043 now opens ORG-0002',
+      'Confirmation as Example Media LLC (ORG-0002) withdrawn: Different registration number',
       'Confirmed as Example Media LLC (ORG-0002) for 2 of 4 records, Jan 1, 2026 to Feb 2, 2026',
+      'Confirmed as Example Media LLC (ORG-0002), May 5, 2026',
+      'Confirmed as Example Media LLC (ORG-0002), Mar 3, 2026',
+      'Confirmed as Example Media LLC (ORG-0002), Apr 4, 2026',
     ]);
-    // Each event that would print a count that is not held waits on words: the 3
-    // confirmations (c-2, c-old, the merged-in c-9), the withdrawal and the merge.
-    expect(withheld).toBe(5);
   });
 
-  it('leaves the count out of Records covered, the split form and the merge preview', async () => {
+  it('drops only the count in Records covered, the split form and the merge preview', async () => {
     const other = OTHER;
     serve((url) => {
       if (url.pathname.endsWith('/queue')) return json(queuePage([]));
@@ -741,15 +763,27 @@ describe('counts whose file is not held', () => {
     );
     expect(metas.some((meta) => meta.includes('Jan 1, 2026 · Checked on Aug 2, 2026'))).toBe(true);
     expect(metas.some((meta) => /\b0 records?\b/.test(meta))).toBe(false);
-    // The selected-of-total line would add a missing count, so it is left out.
-    expect(text()).not.toMatch(/selected/);
+    // The total rests on a file that is not held: "{k} records selected", no "of n".
+    expect(text()).toContain('0 records selected');
+    const option = (label: string) =>
+      [...container.querySelectorAll<HTMLElement>('#identity-form .ci-option')].find((o) =>
+        (o.textContent ?? '').includes(label),
+      )!;
+    await click(option('Feb 2, 2026').querySelector('input')!);
+    expect(text()).toContain('1 record selected · Feb 2, 2026');
+    expect(text()).not.toMatch(/of \d+ records? selected/);
+    // A selection resting on a file that is not held drops its number too.
+    await click(option('Jan 1, 2026').querySelector('input')!);
+    expect(text()).toContain('Records selected · Jan 1, 2026 to Feb 2, 2026');
 
     await click(button('Merge with another record'));
     await click(container.querySelector<HTMLInputElement>('input[type="radio"]')!);
     expect(text()).toContain('Links that will move');
     expect(text()).toContain('EXAMPLE MEDIA GROUP INC');
+    expect(text()).toContain(
+      'These confirmed records will move from Example Media Group (ORG-0042) to Example Media LLC (ORG-0002). Each keeps its own evidence. ORG-0042 will then open ORG-0002.',
+    );
     expect(text()).not.toContain('holds no confirmed records');
-    expect(text()).not.toMatch(/These \d+ confirmed records will move/);
     expect(text()).not.toMatch(/\b0 records?\b/);
   });
 });
