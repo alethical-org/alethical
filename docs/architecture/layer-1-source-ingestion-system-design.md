@@ -659,6 +659,12 @@ Committee memberships come from the same member profile pages used by the live M
 - House member profile pages expose committee assignment links under "Committee Assignments."
 - Senate member profile pages expose committee assignment links under "Committee Assignments."
 - A legislator can validly have zero committee assignments; that should remain `committee_count = 0`, not a synthetic membership row.
+- A member page lists an officer's committee twice, once plainly and once under the role
+  (for example "Chair"). They are 1 seat: the parser keeps the role entry only, and
+  `committee_count` counts distinct committees. Readers list each member once per
+  committee, with the role replacing a plain row, so rows stored before this rule
+  (159 members in 45 committees on 3 Nov 2026) read correctly until the next refresh
+  rebuilds them.
 
 The reusable implementation lives in `alethical.pipeline.committee_memberships`; for focused debugging use:
 
