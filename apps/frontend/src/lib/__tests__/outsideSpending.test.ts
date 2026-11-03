@@ -103,6 +103,11 @@ describe('outside spending money goes through the one shared formatter', () => {
     expect(formatMoney(-1.9999)).toBe('-$1');
     expect(formatMoney(-0.999)).toBe('-$0.99');
     expect(formatMoney(-487974.82)).toBe('-$487,974');
+    // Finance asks for the true minus sign; alethical.com's default keeps the hyphen.
+    expect(formatMoney(-150, { minusSign: true })).toBe('\u2212$150');
+    expect(formatMoney(-0.999, { minusSign: true })).toBe('\u2212$0.99');
+    expect(formatMoney(150, { minusSign: true })).toBe('$150');
+    expect(formatMoney(-150)).toBe('-$150');
   });
 });
 

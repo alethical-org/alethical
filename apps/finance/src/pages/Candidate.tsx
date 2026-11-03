@@ -1,4 +1,4 @@
-import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatDay } from '../ui/money';
 
 import { CampaignFinance } from '../parts/CampaignFinance';
 import { useRecordRead } from '../parts/recordRead';
