@@ -340,9 +340,9 @@ describe('Money by race page', () => {
     );
     expect(text).toContain('Registration 18558');
     expect(text).toContain('$10,700');
-    expect(text).toContain('Figures for Jan 1, 2026 to Jul 20, 2026');
+    expect(text).toContain('Figures for Jan\u00a01,\u00a02026 to Jul\u00a020,\u00a02026');
     expect(text).toContain('$10,075');
-    expect(text).toContain('Payments dated Jan 16, 2026 to Oct 16, 2026');
+    expect(text).toContain('Payments dated Jan\u00a016,\u00a02026 to Oct\u00a016,\u00a02026');
     expect(text).toContain('No usable official total in our records for 2026');
     expect(text).toContain('No itemized contributions in our records for 2026');
     expect(text).toContain('Totals are not added across committees.');

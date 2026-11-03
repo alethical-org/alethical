@@ -201,6 +201,11 @@ export function outsideBar(group: Pick<OutsideGroup, 'amount' | 'state' | 'direc
   return { amount: 0, value, negative: false };
 }
 
+/** Each date in a figure's period line stays on 1 line ("Jan 16, 2026"). */
+export function keepDates(text: string): string {
+  return text.replace(/\b([A-Z][a-z]{2}) (\d{1,2}), (\d{4})\b/g, '$1\u00a0$2,\u00a0$3');
+}
+
 /** "District 1A · 2026" kept together (Round 34): the seat words and the year
  * never break apart. */
 export function contestHeading(contest: { office: string; district: string | null }, year: number) {
@@ -841,7 +846,9 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
                                 {figure.text}
                               </span>
                               {figure.isFigure && figure.period && (
-                                <span className="mr-fig-dates f-num">{figure.period}</span>
+                                <span className="mr-fig-dates f-num">
+                                  {keepDates(figure.period)}
+                                </span>
                               )}
                             </span>
                           ))}
