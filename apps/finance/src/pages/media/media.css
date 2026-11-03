@@ -1341,3 +1341,11 @@
   flex: none;
   margin-top: 3px;
 }
+
+/* The station counts' notes: a list under the year cards, 24px below (eug-26). */
+.mb-note-list {
+  padding-left: 34px;
+}
+.mb-note-list li + li {
+  margin-top: 4px;
+}

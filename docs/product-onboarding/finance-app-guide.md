@@ -341,8 +341,11 @@ one names its exact saved version and page.
 - **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
   versions and station upload date, and the folder's one checked connection, which never
   stands for each file inside it.
-- **TV station (`/media-buys/stations/:id`)**: files held by year, each year linking to its
-  folders, and the other stations held. Counts are files, never ads or money.
+- **TV station (`/media-buys/stations/:id`)**: the station's counts once for all years (files
+  held, unique file contents, files whose text could not be fully read, files we couldn't
+  download, folders we couldn't list, with the 3 drawn notes on what they mean), then files
+  held by year, each year linking to its folders, and the other stations held. Counts are
+  files, never ads or money; a per-year breakdown of the other counts waits on the server.
 - **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
   each marked Checked or Machine-read · Not checked, addresses checked for it with View
   evidence at the exact version and page, and separate campaign and outside-spending

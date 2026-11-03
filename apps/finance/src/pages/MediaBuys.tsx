@@ -249,6 +249,8 @@ export function MediaBuys() {
                 <p aria-live="polite" className="f-count-line mb-count">
                   {data.capped ? 'At least ' : ''}
                   {data.total.toLocaleString('en-US')} {data.total === 1 ? noun[0] : noun[1]}
+                  {/* A search lists TV station files, whatever tab is open. */}
+                  {searching ? ` matching “${data.q}”` : ''}
                 </p>
                 {rows.length === 0 ? (
                   <Empty title="No TV station files match this search" />
