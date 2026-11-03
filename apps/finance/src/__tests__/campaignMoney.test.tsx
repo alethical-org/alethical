@@ -160,9 +160,10 @@ describe('Campaign money directory', () => {
     expect(container.querySelector('#cm-about')?.textContent).toBe('About these records');
     expect(text).toContain('Campaign payment records before 2015 are not included.');
     expect(text).toContain('Open registration');
-    // Money connections is off BUILT until its screen is aligned with Design's
-    // current drawing, so nothing links to it; Vendors and payees is on.
-    expect(container.querySelector('a[href^="/money/connections"]')).toBeNull();
+    // The drawn header action opens Money connections, returning here.
+    const connections = container.querySelector('a[href^="/money/connections"]');
+    expect(connections?.getAttribute('href')).toBe('/money/connections?from=%2Fmoney');
+    expect(connections?.textContent).toContain('Explore money connections');
     expect(container.querySelector('a[href^="/money/recipients"]')).toBeTruthy();
     // Donors by employer is entered from here (Round 29, eug-44), not from Home.
     const employers = container.querySelector('a[href^="/money/employers"]');
@@ -221,7 +222,7 @@ describe('Campaign money directory', () => {
     );
     expect(registerRequests()[0]).toContain('kind=party_unit');
     expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain('Party units');
-    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Finance Home');
+    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Research public records');
     act(() => root.unmount());
     root = createRoot(container);
     requests = [];
