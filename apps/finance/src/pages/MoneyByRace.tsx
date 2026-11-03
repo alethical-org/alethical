@@ -32,8 +32,10 @@ import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
 import { Refused } from '../ui/controls';
 import { BackLink, LoadingLine, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
-import { DATE_MISSING, sumAmounts, TOTAL_WITHHELD } from './committee/data';
+import { SplitBarList, useView, ViewSwitch, type SplitBarRow } from '../ui/view';
+import { DATE_MISSING, sumAmounts } from './committee/data';
 import './raceAndRecipients.css';
+import './moneyByRace.css';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 
@@ -132,9 +134,17 @@ export interface OutsideGroup {
   spenderRegistration: string | null;
   linkable: boolean;
   direction: string | null;
-  /** The exact sum of this group's own payments, or null when one lacks an amount. */
+  /** The exact sum of this group's own payments, or null when the shared total
+   * rule withholds it (see `state`). */
   amount: string | null;
+  /** Why a total is or is not shown (Round 36, the shared total rule): every
+   * amount held and every payment date held. Outside-spending rows carry no
+   * stored filing year, so a missing date always withholds the period. */
+  state: 'total' | 'missing-amount' | 'period-incomplete';
   dates: string | null;
+  /** The newest held payment date's year, for the spender's link; null when no
+   * payment is dated (a link then claims no year). */
+  recordYear: string | null;
 }
 
 /** "Oct 2, 2025 to Oct 9, 2025", 1 date alone, or the missing-date words. */
@@ -153,6 +163,50 @@ export function positionAsFiled(direction: string | null, aboutName: string): st
   return `Position not stated · ${aboutName}`;
 }
 
+/** The withheld-total words (RULE Design system; Rounds 34 to 36). */
+export const MISSING_PAYMENT_AMOUNT = 'Missing payment amount';
+export const PERIOD_INCOMPLETE = 'Reporting period incomplete';
+export const NET_NEGATIVE = 'Net amount is negative';
+
+/** A signed amount with a true minus sign: "−$1,500". */
+export function signedMoney(amount: string): string {
+  return (formatMoney(amount) ?? '').replace(/^-/, '\u2212');
+}
+
+/** A group's printed amount, or the words that say why none is shown. */
+export function groupAmountText(group: Pick<OutsideGroup, 'amount' | 'state'>): string {
+  if (group.state === 'missing-amount') return MISSING_PAYMENT_AMOUNT;
+  if (group.state === 'period-incomplete' || group.amount === null) return PERIOD_INCOMPLETE;
+  return signedMoney(group.amount);
+}
+
+/**
+ * One chart row (Round 31): For to the right of the centre line, Against to the
+ * left, scaled to its own net. A negative net prints its value with "Net amount
+ * is negative" and a withheld or unstated position gets no bar, so neither ever
+ * reads as the other position.
+ */
+export function outsideBar(group: Pick<OutsideGroup, 'amount' | 'state' | 'direction'>): {
+  amount: number | null;
+  value: string;
+  negative: boolean;
+} {
+  const value = groupAmountText(group);
+  if (group.state !== 'total' || group.amount === null)
+    return { amount: null, value, negative: false };
+  const net = Number(group.amount);
+  if (net < 0) return { amount: 0, value, negative: true };
+  if (group.direction === 'For') return { amount: net, value, negative: false };
+  if (group.direction === 'Against') return { amount: -net, value, negative: false };
+  return { amount: 0, value, negative: false };
+}
+
+/** "District 1A · 2026" kept together (Round 34): the seat words and the year
+ * never break apart. */
+export function contestHeading(contest: { office: string; district: string | null }, year: number) {
+  return `${contestSeatLabel(contest).replace(/District (\S)/g, 'District\u00a0$1')}\u00a0·\u00a0${year}`;
+}
+
 /**
  * Each spender's payments about each committee, kept apart: 1 group per committee
  * the filing names, spender and direction. Nothing is added across committees or
@@ -165,7 +219,10 @@ export function outsideGroups(
 ): OutsideGroup[] {
   const groups = new Map<
     string,
-    Omit<OutsideGroup, 'amount' | 'dates'> & { amounts: (string | null)[]; days: (string | null)[] }
+    Omit<OutsideGroup, 'amount' | 'dates' | 'state' | 'recordYear'> & {
+      amounts: (string | null)[];
+      days: (string | null)[];
+    }
   >();
   for (const row of rows) {
     const about = row.about_committee_registration_number ?? '';
@@ -198,11 +255,19 @@ export function outsideGroups(
     return index < 0 ? committeeOrder.length : index;
   };
   return [...groups.values()]
-    .map(({ amounts, days, ...group }) => ({
-      ...group,
-      amount: sumAmounts(amounts),
-      dates: paymentDates(days),
-    }))
+    .map(({ amounts, days, ...group }) => {
+      const sum = sumAmounts(amounts);
+      const state: OutsideGroup['state'] =
+        sum === null ? 'missing-amount' : days.every(Boolean) ? 'total' : 'period-incomplete';
+      const held = days.filter((day): day is string => Boolean(day)).sort();
+      return {
+        ...group,
+        amount: state === 'total' ? sum : null,
+        state,
+        dates: paymentDates(days),
+        recordYear: held.length > 0 ? held[held.length - 1].slice(0, 4) : null,
+      };
+    })
     .sort(
       (a, b) =>
         place(a.aboutRegistration) - place(b.aboutRegistration) ||
@@ -630,6 +695,7 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
   const redirecting = !contest && officeOnly && firstContest !== null;
   const loading = !failed && (read.loading || read.updating || redirecting);
   const isPhone = band === 'phone';
+  const [osView, setOsView] = useView('osView');
 
   const district = menuContests.find((item) => item.anchor === anchor) ?? null;
   const officeOptions = offices.map((name) => ({ value: name, label: name }));
@@ -641,6 +707,16 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
 
   const committeeHref = (registration: string, query: Record<string, string>) =>
     isBuilt('committee') ? withFrom(hrefFor('committee', { id: registration }, query), here) : null;
+  /** A spender opens at its Independent expenditures in the year of its own
+   * newest payment record, and claims no year when no payment is dated
+   * (Round 33). */
+  const spenderHref = (group: OutsideGroup) =>
+    group.linkable && group.spenderRegistration
+      ? committeeHref(group.spenderRegistration, {
+          tab: 'independent',
+          ...(group.recordYear ? { year: group.recordYear } : {}),
+        })
+      : null;
 
   return (
     <main id="main" className="f-page">
@@ -710,15 +786,12 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
         {loaded && contest && (
           <>
             <div className="mr-contest">
-              <h2 className="mr-contest-title f-num">
-                {contestSeatLabel(contest)} · {year}
-              </h2>
+              <h2 className="mr-contest-title f-num">{contestHeading(contest, year)}</h2>
             </div>
 
             <section aria-labelledby="mr-cc-heading" className="mr-section">
               <div className="mr-section-head">
                 <h3 id="mr-cc-heading">Candidate committees</h3>
-                <span className="mr-section-meta">{RACE_REGISTRATION_NOTE}</span>
               </div>
               {contest.periodsDiffer && <p className="mr-mixed">{MIXED_PERIODS_NOTE}</p>}
               {contest.committees.length === 0 ? (
@@ -776,14 +849,18 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
                       );
                     })}
                   </div>
-                  <p className="mr-note">
-                    Total contributions are what the committee reported to the state; itemized
-                    contributions are the donations with named givers in our contribution records.
-                    Totals are not added across committees.
-                  </p>
-                  {/* Rule 12: why the 2 figures differ, in the shared wording. */}
-                  <p className="mr-note">{RACE_DONOR_EXPLANATION}</p>
-                  <p className="mr-note">{RACE_COMPARISON_NOTE}</p>
+                  {/* The heading keeps only its scope; the caveat joins the end
+                      note, 24px under the table (Round 34). */}
+                  <div className="mr-end-note">
+                    <p>
+                      Total contributions are what the committee reported to the state; itemized
+                      contributions are the donations with named givers in our contribution records.
+                      Totals are not added across committees. {RACE_REGISTRATION_NOTE}.
+                    </p>
+                    {/* Rule 12: why the 2 figures differ, in the shared wording. */}
+                    <p>{RACE_DONOR_EXPLANATION}</p>
+                    <p>{RACE_COMPARISON_NOTE}</p>
+                  </div>
                 </>
               )}
             </section>
@@ -791,8 +868,11 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
             <section aria-labelledby="mr-os-heading" className="mr-section mr-outside">
               <div className="mr-section-head">
                 <h3 id="mr-os-heading">Spending by outside groups</h3>
-                <span className="mr-section-meta f-num">
-                  Independent expenditures file · {year}
+                <span className="mr-os-tools">
+                  <span className="mr-section-meta">Independent expenditures for this contest</span>
+                  {outside.data && !outside.failed && groups.length > 0 && (
+                    <ViewSwitch value={osView} onChange={setOsView} />
+                  )}
                 </span>
               </div>
               {outside.loading && !outside.failed && (
@@ -815,81 +895,111 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
               )}
               {outside.data && !outside.failed && groups.length > 0 && (
                 <>
-                  <div role="table" aria-label="Spending by outside groups" className="mr-table">
-                    {!isPhone && (
-                      <div role="row" className="mr-os-row mr-head">
-                        <span role="columnheader">SPENDER</span>
-                        <span role="columnheader">POSITION AS FILED</span>
-                        <span role="columnheader" className="mr-fig">
-                          AMOUNT
-                        </span>
-                        <span role="columnheader" className="mr-fig">
-                          PAYMENT DATES
-                        </span>
-                      </div>
-                    )}
-                    {groups.map((group) => {
-                      const href =
-                        group.linkable && group.spenderRegistration
-                          ? committeeHref(group.spenderRegistration, {
-                              year: String(year),
-                              tab: 'independent',
-                            })
-                          : null;
-                      const spender = href ? (
-                        <Link to={href} className="mr-link">
-                          {group.spender}
-                        </Link>
-                      ) : (
-                        <span className="mr-plain">{group.spender}</span>
-                      );
-                      const amount =
-                        group.amount === null ? TOTAL_WITHHELD : formatMoney(group.amount);
-                      const position = positionAsFiled(group.direction, group.aboutName);
-                      if (isPhone) {
-                        return (
-                          <div role="row" key={group.key} className="mr-os-phone">
-                            <div className="mr-os-phone-top">
-                              <span role="cell" className="mr-os-name">
-                                {spender}
+                  {osView === 'chart' && (
+                    <div className="f-chart mr-os-chart">
+                      <SplitBarList
+                        label="Spending by outside groups"
+                        rows={groups.map((group): SplitBarRow => {
+                          const bar = outsideBar(group);
+                          const href = spenderHref(group);
+                          return {
+                            key: group.key,
+                            label: (
+                              <span className="mr-os-chart-label">
+                                {href ? (
+                                  <Link to={href} className="mr-link">
+                                    {group.spender}
+                                  </Link>
+                                ) : (
+                                  <span className="mr-plain">{group.spender}</span>
+                                )}
+                                <span className="mr-os-chart-position">
+                                  {positionAsFiled(group.direction, group.aboutName)}
+                                </span>
                               </span>
-                              <span
-                                role="cell"
-                                className="mr-os-amount f-num"
-                                data-missing={group.amount === null || undefined}
-                              >
-                                {amount}
-                              </span>
-                            </div>
-                            <div role="cell" className="mr-os-phone-line f-num">
-                              {position} · {group.dates}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div role="row" key={group.key} className="mr-os-row">
-                          <span role="cell" className="mr-os-name">
-                            {spender}
+                            ),
+                            amount: bar.amount,
+                            value: bar.negative ? `${bar.value} · ${NET_NEGATIVE}` : bar.value,
+                            note:
+                              group.dates && group.dates !== DATE_MISSING
+                                ? `Payments dated ${group.dates}`
+                                : undefined,
+                          };
+                        })}
+                      />
+                    </div>
+                  )}
+                  {osView === 'table' && (
+                    <div role="table" aria-label="Spending by outside groups" className="mr-table">
+                      {!isPhone && (
+                        <div role="row" className="mr-os-row mr-head">
+                          <span role="columnheader">SPENDER</span>
+                          <span role="columnheader">POSITION AS FILED</span>
+                          <span role="columnheader" className="mr-fig">
+                            AMOUNT
                           </span>
-                          <span role="cell" className="mr-os-position">
-                            {position}
-                          </span>
-                          <span
-                            role="cell"
-                            className="mr-fig mr-os-amount f-num"
-                            data-missing={group.amount === null || undefined}
-                          >
-                            {amount}
-                          </span>
-                          <span role="cell" className="mr-fig mr-os-dates f-num">
-                            {group.dates}
+                          <span role="columnheader" className="mr-fig">
+                            PAYMENT DATES
                           </span>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <p className="mr-note">
+                      )}
+                      {groups.map((group) => {
+                        const href = spenderHref(group);
+                        const spender = href ? (
+                          <Link to={href} className="mr-link">
+                            {group.spender}
+                          </Link>
+                        ) : (
+                          <span className="mr-plain">{group.spender}</span>
+                        );
+                        const amount = groupAmountText(group);
+                        const withheld = group.state !== 'total';
+                        const position = positionAsFiled(group.direction, group.aboutName);
+                        if (isPhone) {
+                          return (
+                            <div role="row" key={group.key} className="mr-os-phone">
+                              <div className="mr-os-phone-top">
+                                <span role="cell" className="mr-os-name">
+                                  {spender}
+                                </span>
+                                <span
+                                  role="cell"
+                                  className="mr-os-amount f-num"
+                                  data-missing={withheld || undefined}
+                                >
+                                  {amount}
+                                </span>
+                              </div>
+                              <div role="cell" className="mr-os-phone-line f-num">
+                                {position} · {group.dates}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div role="row" key={group.key} className="mr-os-row">
+                            <span role="cell" className="mr-os-name">
+                              {spender}
+                            </span>
+                            <span role="cell" className="mr-os-position">
+                              {position}
+                            </span>
+                            <span
+                              role="cell"
+                              className="mr-fig mr-os-amount f-num"
+                              data-missing={withheld || undefined}
+                            >
+                              {amount}
+                            </span>
+                            <span role="cell" className="mr-fig mr-os-dates f-num">
+                              {group.dates}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="mr-end-note">
                     Independent expenditures are reported by the spender, never by the candidate,
                     and do not appear in a candidate committee’s filing. A position as filed is the
                     spender’s statement.
