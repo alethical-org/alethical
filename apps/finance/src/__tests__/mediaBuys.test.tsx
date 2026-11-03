@@ -142,6 +142,7 @@ async function render(path: string, node: () => React.ReactNode) {
   });
   await flush();
 }
+const text = () => (container.textContent ?? '').replace(/\u00a0/g, ' ');
 async function click(text: string) {
   const element = [...container.querySelectorAll<HTMLElement>('button, a')].find((e) =>
     e.textContent?.includes(text),
@@ -558,5 +559,60 @@ describe('TV station file', () => {
   it('marks a quote only where it appears exactly', () => {
     expect(markQuote('A GROSS 1', 'GROSS')).toEqual({ before: 'A ', mark: 'GROSS', after: ' 1' });
     expect(markQuote('A GR0SS 1', 'GROSS')).toBeNull();
+  });
+});
+
+describe('Media buys card', () => {
+  it('lists connected TV station files at their exact versions, or says none are connected', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    const fetcher = serve((url) =>
+      url.searchParams.get('target') === 'none'
+        ? json({ agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] })
+        : json({
+            agency_key: null,
+            exact_name_count: 0,
+            files: [
+              {
+                ...FILE,
+                kind: 'Invoice',
+                uploaded_at: '2026-03-04',
+                role: 'Advertiser, as printed on page 2',
+              },
+            ],
+            total: 1,
+            groups: [],
+          }),
+    );
+    await render('/money/committees/90001', () => (
+      <MediaBuysCard kind="committee" target="90001" name="Example Committee" />
+    ));
+    expect(text()).toContain('KSTP-TV, KARE and KMSP-TV station files, not in money totals');
+    expect(text()).toContain('KARE invoice ·Mar 4, 2026');
+    expect(text()).toContain('Advertiser, as printed on page 2');
+    expect(
+      container.querySelector(`a[href^="/media-buys/files/${KEY}?version=${VERSION}"]`),
+    ).toBeTruthy();
+    expect(
+      fetcher.mock.calls.some(([url]) =>
+        String(url).includes('connections?kind=committee&target=90001'),
+      ),
+    ).toBe(true);
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render('/money/committees/1', () => (
+      <MediaBuysCard kind="committee" target="none" name="Example Committee" />
+    ));
+    expect(text()).toContain('No TV station files have a checked connection to Example Committee');
+  });
+
+  it('stays hidden while the TV station file page is not built', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    const fetcher = serve(() => json({}));
+    await render('/money/committees/90001', () => (
+      <MediaBuysCard kind="committee" target="90001" name="X" />
+    ));
+    expect(container.textContent).toBe('');
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes('/connections'))).toBe(false);
   });
 });

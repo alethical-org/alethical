@@ -275,12 +275,10 @@ none.
 
 ## Limits and privacy
 
-The read sections for Check station files and Confirm identities are implemented as
-independent components in `apps/finance/src/pages/checking/`. They read paged queues,
-exact source versions, machine suggestions and pinned identity record pages. Preparing
-or dismissing a suggestion is local only. Their product routes remain unavailable until
-the required write forms are drawn, reviewed and built; neither queue makes a check or
-confirmation. Filer names and links use explicit display metadata; absent metadata shows
+The read sections for Confirm identities are implemented as independent components in
+`apps/finance/src/pages/checking/`. They read paged queues and pinned identity record
+pages. Its product route remains unavailable until the required write forms are drawn,
+reviewed and built; the queue makes no confirmation. Filer names and links use explicit display metadata; absent metadata shows
 the printed registration without assuming that a committee page exists.
 
 - Finance never links to alethical.com; a CI test fails if any app file names an
@@ -314,25 +312,52 @@ the printed registration without assuming that a committee page exists.
 
 ## Media buys
 
-The screens at `/media-buys`, `/media-buys/folders/:id`,
-`/media-buys/files/:key`, `/media-buys/agencies/:name` and
-`/media-buys/stations/:id` are in the code but not built yet: each answers "not found"
-until the pull request that aligns it turns its route on. They use Finance's private
-original-file routes. The directory
-browses station folders, exact agency spellings, stations and years. Its filters
-and pages stay in the address. A capped count says “At least”; a failed refresh
-keeps the earlier rows and offers another try.
+The screens at `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
+`/media-buys/agencies/:name`, `/media-buys/stations/:id` and `/media-buys/check` are in the
+code but answer "not found" until the pull request that turns their routes on. They read
+Finance's private original-file routes (`/api/v1/finance/media-buys/…`). A TV station file
+is keyed by its station and FCC source file id, never by its filename, and every link to
+one names its exact saved version and page.
 
-A file shows the selected saved version, its original page images, checked facts
-and connections, evidence, and machine-read text marked Not checked. Images carry
-the signed-in account's access header, never a token in an address; changing the
-account or version removes the earlier image. Check evidence opens the exact
-version and page. Withdrawn checks remain distinct from standing connections.
-Station counts are files and saved contents, never ads or money. Campaign and
-outside-spending searches under an agency name stay separate.
-
-Check station files stays unavailable until its forms and queue are complete.
-This read-only release saves no checks and makes no data changes.
+- **Media buys (`/media-buys`)**: TV political-ad files from KSTP-TV, KARE and KMSP-TV,
+  browsed by TV station folders (Station, Year and Category menus), agency names, stations
+  and years, or searched by words; a search lists matching TV station files. The tab,
+  filters, words and page stay in the address. A capped count says "At least"; a failed
+  refresh keeps the earlier rows with Try again. About these records states the coverage
+  limits, and Sources and updates names the date the station files were copied.
+- **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
+  versions and station upload date, and the folder's one checked connection, which never
+  stands for each file inside it.
+- **TV station (`/media-buys/stations/:id`)**: files held by year, each year linking to its
+  folders, and the other stations held. Counts are files, never ads or money.
+- **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
+  each marked Checked or Machine-read · Not checked, addresses checked for it with View
+  evidence at the exact version and page, and separate campaign and outside-spending
+  payment searches under the name, which do not prove a file was paid.
+- **TV station file (`/media-buys/files/:key`)**: 1 saved version's original page images
+  (version, page and zoom in the document bar; version and page in the address), checked
+  facts and related records for that version only, each with View evidence, and its
+  machine-read text marked Not checked. The evidence panel shows the saved quote and that
+  page's machine-read text with the quote marked only where it appears exactly, or says
+  that it isn't found or that the page has no text; Correct fact and Withdraw check sit
+  inside it and open Check TV station files. Opening and closing evidence keeps the cited
+  page. A link naming a version that is not held says "This version is not held" with
+  Open the current version, and shows no checks. Images carry the account's access header,
+  never a token in an address.
+- **Check TV station files (`/media-buys/check`)**: a queue of current versions with each
+  file's reason and an "Unsaved draft" tag; the chosen file's page and machine-read text;
+  suggestions read from that version (Use suggestion fills the form; Dismiss and Restore
+  are local); Check a fact and Check a connection (committee, lobbying principal, printed
+  issue or related TV station file, each previewed before saving); and the checks on this
+  version, each with View evidence and withdrawal inside its row. A save is refused field
+  by field before and after the server checks it, an exact duplicate reads "Already
+  saved", "Saved" appears only after the write succeeds, and a failed write reads "Not
+  saved. Your entries are kept." with Try again. A failed withdrawal keeps the check and
+  the reason. Each file and version keeps 1 draft, with each mode's own entries, in this
+  browser for this account. A link naming another version shows the version-mismatch
+  notice and Check the current copy before any form opens.
+- **Media buys card**: a record page may list the TV station files with a checked
+  connection to that record, each at its exact version, under "not in money totals".
 
 Campaign money's Sort by control reads the whole register in name order or numeric
 registration-number order; a choice resets the page and remains in the address.
