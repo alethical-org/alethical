@@ -138,10 +138,22 @@ def test_entity_search_returns_saved_active_identities_without_private_fields(
     assert response.status_code == 200
     data = response.json()["data"]
     assert (data["total"], data["pages"]) == (2, 2)
-    assert data["rows"] == [{"id": one["id"], "kind": "person", "name": "Exact Name"}]
+    assert data["rows"] == [
+        {
+            "id": one["id"],
+            "reference": one["reference"],
+            "kind": "person",
+            "name": "Exact Name",
+        }
+    ]
     response = finance_api.get(BASE, params={"q": "Exact", "kind": "organization"})
     assert response.json()["data"]["rows"] == [
-        {"id": two["id"], "kind": "organization", "name": "Exact Organization"}
+        {
+            "id": two["id"],
+            "reference": two["reference"],
+            "kind": "organization",
+            "name": "Exact Organization",
+        }
     ]
     assert finance_api.get(BASE, params={"q": "%"}).json()["data"]["rows"] == []
 

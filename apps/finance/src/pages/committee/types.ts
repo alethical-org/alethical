@@ -19,6 +19,10 @@ export interface CommitteeFinance {
     state: string;
     kind: string | null;
     name: string | null;
+    registration_date?: string | null;
+    termination_date?: string | null;
+    retained?: boolean | null;
+    copied_on?: string | null;
   };
   money_in: {
     state: BlockState;
@@ -112,4 +116,34 @@ export interface CommitteeConfirmationAnswer {
     slug: string;
     full_name: string;
   } | null;
+}
+
+/** 1 catalogued report of the year, from `/finance/committees/{n}/report-figures`.
+ * Figures are served only for the report whose coverage matches the filing the
+ * server holds (`figures_state: 'reported'`); every other report's are null. */
+export interface ReportFigureRow {
+  record_number: number;
+  report_name: string | null;
+  report_type: string | null;
+  cut_off_date: string | null;
+  filed_date: string | null;
+  effective_amendment_index: number | null;
+  special_election: boolean | null;
+  period_start: string | null;
+  beginning_cash_balance: string | null;
+  beginning_balance_as_of: string | null;
+  ending_balance_as_of: string | null;
+  contributions: string | null;
+  total_expenditures: string | null;
+  total_disbursements: string | null;
+  total_receipts: string | null;
+  ending_cash_balance: string | null;
+  figures_state: 'reported' | 'unavailable' | string;
+}
+
+export interface ReportFigures {
+  registration_number: string;
+  year: number;
+  state: 'reported' | 'not_reported' | 'unavailable' | string;
+  reports: ReportFigureRow[];
 }

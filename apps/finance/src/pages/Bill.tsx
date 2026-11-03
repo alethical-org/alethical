@@ -86,7 +86,10 @@ export function Bill({ match }: { match: RouteMatch }) {
   const id = match.params.id ?? '';
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
+  // With no earlier page in the address, the drawing's named parent: Legislation.
+  const back =
+    returnTarget(location.search) ??
+    (isBuilt('legislation') ? { to: hrefFor('legislation'), name: 'Legislation' } : null);
   const [address, setAddress] = useAddressState({ tab: 'summary', version: '' });
   const tab = tabFromParam(address.tab);
   const record = useRead<BillDetail>(billPath(id));
@@ -140,7 +143,7 @@ export function Bill({ match }: { match: RouteMatch }) {
     return (
       <Frame back={back}>
         <Refused onRetry={record.retry} retrying={record.pending}>
-          We couldn’t load this bill right now. Please try again in a moment.
+          We couldn’t load this bill
         </Refused>
       </Frame>
     );
@@ -160,10 +163,15 @@ export function Bill({ match }: { match: RouteMatch }) {
   const sponsors = ownAuthors(bill.all_sponsors ?? bill.chief_sponsors ?? [], chamber);
   const chiefs = sponsors.filter((sponsor) => sponsor.role === 'chief_author');
   const coauthors = sponsors.filter((sponsor) => sponsor.role === 'co_author');
-  const committee =
-    orderActions(bill.actions ?? [])
-      .map((action) => (action.committee_name ?? '').trim())
-      .find(Boolean) ?? null;
+  // The committee the bill was referred to: the newest action that names one,
+  // linked to its members' campaign accounts when the record carries its id.
+  const committeeAction =
+    orderActions(bill.actions ?? []).find((action) => (action.committee_name ?? '').trim()) ?? null;
+  const committee = committeeAction ? committeeAction.committee_name!.trim() : null;
+  const committeeHref =
+    committeeAction?.committee_id && isBuilt('committee-members')
+      ? withFrom(hrefFor('committee-members', { id: committeeAction.committee_id }), here)
+      : null;
   const overview = billOverviewUrl(bill.official_url);
   const summary = plainBillSummary(bill.ai_analysis?.summary);
   const citations = summary ? (bill.ai_analysis?.citations ?? []) : [];
@@ -171,10 +179,9 @@ export function Bill({ match }: { match: RouteMatch }) {
     legislatorId && isBuilt('legislator')
       ? withFrom(hrefFor('legislator', { id: legislatorId }), here)
       : null;
+  // A roll call is read by its own id, so its address needs nothing else.
   const voteLink = (voteId: string) =>
-    isBuilt('roll-call')
-      ? withFrom(hrefFor('roll-call', { id: voteId }, { bill: bill.id }), here)
-      : null;
+    isBuilt('roll-call') ? withFrom(hrefFor('roll-call', { id: voteId }), here) : null;
   // A tally on an action with no roll call to match means the copy lacks it.
   const tallyWithoutVote = actions.some((row) => row.tally && !voteForAction(row, voteList));
 
@@ -306,6 +313,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                     return (
                       <li key={row.key} className="bl-action">
                         <span className="bl-action-date">{row.date ?? ''}</span>
+                        <span className="bl-action-chamber">{row.chamber ?? ''}</span>
                         <span className="bl-action-text">
                           {row.text}
                           {href && (
@@ -322,7 +330,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                   })}
                 </ol>
               )}
-              <p className="lg-note">
+              <p className="f-section-note lg-note">
                 Actions are recorded events from the Legislature’s journal. The latest action is the
                 bill’s recorded status.
               </p>
@@ -334,14 +342,14 @@ export function Bill({ match }: { match: RouteMatch }) {
               {votes.loading && <LoadingRows />}
               {votes.failed && (
                 <Refused onRetry={votes.retry} retrying={votes.pending}>
-                  We couldn’t load this bill’s votes right now. Please try again in a moment.
+                  We couldn’t load this bill’s votes
                 </Refused>
               )}
               {votes.data && voteList.length === 0 && (
                 <Empty
                   title={
                     tallyWithoutVote
-                      ? 'Roll calls for this bill are not held in this copy'
+                      ? 'No roll calls held'
                       : 'No roll call is recorded for this bill'
                   }
                 />
@@ -355,7 +363,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                       </li>
                     ))}
                   </ul>
-                  <p className="lg-note">
+                  <p className="f-section-note lg-note">
                     Each roll call is one recorded motion. A vote result differs from the bill’s
                     eventual status.
                   </p>
@@ -490,7 +498,17 @@ export function Bill({ match }: { match: RouteMatch }) {
               <div>
                 <dt>Committee</dt>
                 <dd className={committee ? undefined : 'bl-muted'}>
-                  {committee ?? 'Not held in this copy'}
+                  {committee && committeeHref ? (
+                    <Link
+                      to={committeeHref}
+                      className="bl-name-link"
+                      aria-label={`Members’ campaign accounts, ${committee}`}
+                    >
+                      {committee}
+                    </Link>
+                  ) : (
+                    (committee ?? 'Not held in this copy')
+                  )}
                 </dd>
               </div>
             </dl>
@@ -665,14 +683,12 @@ function BillText({
   if (read.failed) {
     return (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load the full text right now. Please try again in a moment.
+        We couldn’t load the full text
       </Refused>
     );
   }
   if (read.notFound || sections.length === 0) {
-    return (
-      <div className="bl-missing">Text of the {versionLabel} version is not held in this copy</div>
-    );
+    return <div className="bl-missing">Text of the {versionLabel} version not held</div>;
   }
   let article: string | null = null;
   return (
@@ -728,10 +744,7 @@ function AuthorsAccounts({
       <h2 id="authors-acc-h" className="f-card-title">
         Authors’ campaign accounts
       </h2>
-      <p className="bl-accounts-intro">
-        Each author’s own confirmed account. These are records only; they say nothing about why
-        anyone authored this bill.
-      </p>
+      <p className="bl-accounts-intro">Each author’s own confirmed account</p>
       {read.loading && <LoadingRows />}
       {read.failed && (
         <div role="alert" className="bl-accounts-failed">
@@ -748,9 +761,7 @@ function AuthorsAccounts({
           </button>
         </div>
       )}
-      {read.data && authors.length === 0 && (
-        <p className="bl-accounts-none">No authors are held in this copy</p>
-      )}
+      {read.data && authors.length === 0 && <p className="bl-accounts-none">No authors held</p>}
       {authors.length > 0 && (
         <ul className="bl-accounts-list">
           {authors.map((author) => {
@@ -765,9 +776,7 @@ function AuthorsAccounts({
                   <span className="bl-account-role">{roleLabel(author.role)}</span>
                 </span>
                 {accounts.length === 0 ? (
-                  <span className="bl-secondary">
-                    No campaign account is confirmed for this author
-                  </span>
+                  <span className="bl-secondary">No confirmed campaign account</span>
                 ) : (
                   accounts.map((account) =>
                     isBuilt('committee') ? (
@@ -792,6 +801,11 @@ function AuthorsAccounts({
             );
           })}
         </ul>
+      )}
+      {authors.length > 0 && (
+        <p className="f-section-note bl-accounts-note">
+          These are records only; they say nothing about why anyone authored this bill
+        </p>
       )}
     </section>
   );

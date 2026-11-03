@@ -78,6 +78,11 @@ class IdentityConfirmationRequest(_Request):
         description="Why the evidence shows the record belongs to this identity."
         f" {SHARED}"
     )
+    source: str | None = Field(
+        None,
+        description="Where the evidence was found, in your own words, kept apart"
+        f" from the basis. Optional. {SHARED}",
+    )
     fingerprints: list[str] | None = Field(
         None,
         description="For a printed name: exact fingerprints selected across listing pages. A later record is never covered.",
@@ -96,11 +101,21 @@ class IdentityCreateRequest(_Request):
 
 class IdentityWithdrawRequest(_Request):
     reason: str = Field(description=f"Why it is withdrawn. {SHARED}")
+    source: str | None = Field(
+        None,
+        description="Where the evidence was found, in your own words, kept apart"
+        f" from the reason. Optional. {SHARED}",
+    )
 
 
 class IdentityMergeRequest(_Request):
     into: str = Field(description="The identity this one joins.")
     reason: str = Field(description=f"Why they are 1 identity. {SHARED}")
+    source: str | None = Field(
+        None,
+        description="Where the evidence was found, in your own words, kept apart"
+        f" from the reason. Optional. {SHARED}",
+    )
 
 
 class IdentitySplitPart(_Request):
@@ -112,6 +127,11 @@ class IdentitySplitPart(_Request):
 
 class IdentitySplitRequest(_Request):
     reason: str = Field(description=f"Why it is more than 1 identity. {SHARED}")
+    source: str | None = Field(
+        None,
+        description="Where the evidence was found, in your own words, kept apart"
+        f" from the reason. Optional. {SHARED}",
+    )
     parts: list[IdentitySplitPart] = Field(description="At least 2 parts.")
 
 

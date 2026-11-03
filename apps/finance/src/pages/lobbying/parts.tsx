@@ -12,6 +12,11 @@ export function recordNumber(raw: string | undefined): string | null {
   return raw && /^[1-9]\d{0,17}$/.test(raw) ? raw : null;
 }
 
+/** "No lobbying record was found for {id}": 1 sentence, so no closing period (eug-31). */
+export function notFoundLine(id: string | undefined): string {
+  return `No lobbying record was found for ${id ?? ''}`.trim();
+}
+
 /** An official page outside Finance, opened in a new tab. */
 export function OfficialLink({ href, children }: { href: string; children: string }) {
   return (
