@@ -355,6 +355,12 @@ def test_the_register_lists_every_kind_alphabetically_with_no_amount(
         "district",
         "is_closed",
         "termination_date",
+        "registration_date",
+        "party",
+        "registration_status",
+        "retained",
+        "retained_from_snapshot_id",
+        "captured_at",
     }
 
 
@@ -859,10 +865,11 @@ def test_no_sort_and_sort_name_both_answer_in_the_name_order_exactly(
     ]
     assert written.content == omitted.content
     assert written.headers["Cache-Control"] == omitted.headers["Cache-Control"]
-    # The answer gained no key: ``ordered_by`` already says which order it is in.
+    # Sort does not change the response contract; status records its separate filter.
     assert set(data) == {
         "state",
         "ordered_by",
+        "status",
         "kind",
         "q",
         "committees",
@@ -1366,3 +1373,164 @@ def test_no_search_result_anywhere_carries_an_amount(client, db) -> None:
     for group in data["groups"]:
         for row in group["results"]:
             assert not money_words & set(row), row
+
+
+@pytest.mark.parametrize(
+    "query, expected",
+    [("18466", [CANDIDATE]), ("846", [CANDIDATE]), ("18%", []), ("18_", [])],
+)
+def test_register_search_matches_literal_registration_numbers(
+    client, db, query, expected
+):
+    snapshot = _register(db, filer_count=2)
+    _filer(db, snapshot, CANDIDATE, name="Port, Lindsey Senate Committee")
+    _filer(db, snapshot, PARTY_UNIT, name="HRCC", kind=FilerKind.party_unit)
+    data = client.get(COMMITTEES_URL, params={"q": query}).json()["data"]
+    assert [row["registration_number"] for row in data["committees"]] == expected
+    assert data["page"]["total"] == len(expected)
+    assert data["register_total"] == 2
+
+
+def test_register_rows_serve_held_dates_party_and_retention_without_inference(
+    client, db
+):
+    previous = _register(db)
+    snapshot = _register(db, filer_count=2)
+    copied = datetime(2026, 7, 1, 12, 0, tzinfo=UTC)
+    db.add_all(
+        [
+            models.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number=CANDIDATE,
+                name="Candidate",
+                kind=FilerKind.candidate_committee,
+                party="DFL",
+                registration_date=date(2000, 1, 2),
+            ),
+            models.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number=PARTY_UNIT,
+                name="DFL in name only",
+                kind=FilerKind.party_unit,
+            ),
+            models.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number="999",
+                name="Retained",
+                kind=FilerKind.candidate_committee,
+                retained_from_snapshot_id=previous.id,
+                captured_at=copied,
+                termination_date=date(2026, 6, 1),
+            ),
+        ]
+    )
+    db.commit()
+    data = client.get(COMMITTEES_URL, params={"status": "all"}).json()["data"]
+    rows = {row["registration_number"]: row for row in data["committees"]}
+    assert rows[CANDIDATE]["registration_date"] == "2000-01-02"
+    assert rows[CANDIDATE]["party"] == "DFL"
+    assert rows[CANDIDATE]["registration_status"] == "open"
+    assert rows[PARTY_UNIT]["party"] is None
+    assert rows[PARTY_UNIT]["registration_date"] is None
+    assert rows["999"]["registration_status"] == "not_listed"
+    assert rows["999"]["retained"] is True
+    assert rows["999"]["retained_from_snapshot_id"] == str(previous.id)
+    assert rows["999"]["captured_at"] == "2026-07-01T12:00:00Z"
+    assert rows["999"]["is_closed"] is True
+    assert data["page"]["total"] == 3
+    assert data["register_total"] == 2
+
+
+@pytest.mark.parametrize(
+    "status, expected",
+    [
+        (None, ["100", "200"]),
+        ("open", ["100"]),
+        ("terminated", ["200"]),
+        ("not_listed", ["300", "400"]),
+        ("all", ["100", "200", "300", "400"]),
+    ],
+)
+def test_register_status_filters_keep_retention_distinct_from_termination(
+    client, db, status, expected
+):
+    previous = _register(db)
+    snapshot = _register(db, filer_count=2)
+    for number, terminated, retained in [
+        ("100", False, False),
+        ("200", True, False),
+        ("300", False, True),
+        ("400", True, True),
+    ]:
+        db.add(
+            models.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number=number,
+                name="Same name",
+                kind=FilerKind.candidate_committee,
+                termination_date=date(2026, 1, 1) if terminated else None,
+                retained_from_snapshot_id=previous.id if retained else None,
+            )
+        )
+    db.commit()
+    params = {"status": status} if status else {}
+    pages = [
+        client.get(
+            COMMITTEES_URL, params={**params, "limit": 1, "offset": offset}
+        ).json()["data"]
+        for offset in range(len(expected) + 1)
+    ]
+    assert [
+        row["registration_number"] for page in pages for row in page["committees"]
+    ] == expected
+    assert all(page["page"]["total"] == len(expected) for page in pages)
+    assert all(page["register_total"] == 2 for page in pages)
+    assert pages[-1]["page"]["has_more"] is False
+
+
+def test_unknown_registration_status_is_refused(client):
+    assert client.get(COMMITTEES_URL, params={"status": "invented"}).status_code == 422
+
+
+def test_register_status_composes_with_kind_name_and_number_search(client, db):
+    previous = _register(db)
+    snapshot = _register(db, filer_count=1)
+    _filer(db, snapshot, CANDIDATE, name="Listed")
+    for number, kind in [
+        ("900", FilerKind.candidate_committee),
+        ("901", FilerKind.party_unit),
+    ]:
+        db.add(
+            models.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number=number,
+                name="Same retained name",
+                kind=kind,
+                retained_from_snapshot_id=previous.id,
+            )
+        )
+    db.commit()
+    for query in ["90", "retained"]:
+        data = client.get(
+            COMMITTEES_URL,
+            params={"status": "not_listed", "kind": "party_unit", "q": query},
+        ).json()["data"]
+        assert [row["registration_number"] for row in data["committees"]] == ["901"]
+        assert data["page"]["total"] == 1
+        assert data["register_total"] == 1
+        assert data["status"] == "not_listed"
+    empty = client.get(
+        COMMITTEES_URL, params={"status": "not_listed", "q": "missing"}
+    ).json()["data"]
+    assert empty["page"]["total"] == 0
+    assert empty["committees"] == []
+
+
+def test_general_money_name_search_does_not_silently_search_registration_numbers(
+    client, db
+):
+    snapshot = _register(db, filer_count=1)
+    _filer(db, snapshot, CANDIDATE, name="Port, Lindsey Senate Committee")
+    answer = client.get(SEARCH_URL, params={"q": CANDIDATE}).json()["data"]
+    group = next(group for group in answer["groups"] if group["kind"] == "committees")
+    assert group["results"] == []

@@ -77,6 +77,7 @@ from sqlalchemy import (
     cast,
     func,
     literal,
+    or_,
     select,
     true,
     union_all,
@@ -132,6 +133,7 @@ ORDERED_BY_REGISTRATION_NUMBER = "registration_number"
 #: would rank filing calendars rather than fundraising, because these filers file to
 #: different ones (§7).
 CommitteeSort = Literal["name", "registration"]
+RegistrationStatus = Literal["open", "terminated", "not_listed", "all"]
 SORT_BY_NAME: CommitteeSort = "name"
 SORT_BY_REGISTRATION: CommitteeSort = "registration"
 
@@ -186,6 +188,12 @@ class CommitteeRow:
     district: Optional[str]
     is_closed: bool
     termination_date: Optional[date]
+    registration_date: Optional[date]
+    party: Optional[str]
+    registration_status: str
+    retained: bool
+    captured_at: Optional[datetime]
+    retained_from_snapshot_id: Optional[UUID]
     #: The Board's own sub-type code from this filer's money rows, where one carries a
     #: documented code. It carries 2 different things, both of which exist nowhere else:
     #: the **finer kind** of a committee or fund, since the register's 3 lists carry no
@@ -1008,6 +1016,8 @@ def committees(
     query: Optional[str] = None,
     release=None,
     sort: CommitteeSort = SORT_BY_NAME,
+    status: RegistrationStatus | None = None,
+    search_registration: bool = False,
 ) -> CommitteesPage:
     """One page of the register, ordered by the filed name, A to Z, unless ``sort`` says
     otherwise.
@@ -1020,8 +1030,8 @@ def committees(
     order, so 9999 comes before 10000 although the column is text.
 
     **Each order is a total order, so paging through either one never repeats or skips a
-    filer.** Names are unique within a snapshot -- checked on the live register, 0
-    duplicates in 1,603 rows -- so ``name`` alone needs no second key. A registration
+    filer.** Names use registration number as a final key, including retained rows
+    whose name can match another copy. A registration
     number is the table's key within a snapshot, so it is unique by construction; its
     numeric reading is the first key and the text itself is the second, which settles
     2 spellings of one number (``007`` and ``7``).
@@ -1089,17 +1099,26 @@ def committees(
             reason=summary.reason,
         )
     filer = schema.CampaignFinanceFiler
-    # Same rule as the count above it: the list is the Board's register as we copied
-    # it, so a retained former filer is reachable by its own address and by search but
-    # is not listed here.
-    filters = [
-        filer.snapshot_id == snapshot.id,
-        filer.retained_from_snapshot_id.is_(None),
-    ]
+    # Keep the existing default population. Explicit retained/all filters expose
+    # older copies without changing the current-register headline and kind counts.
+    filters = [filer.snapshot_id == snapshot.id]
+    if status == "not_listed":
+        filters.append(filer.retained_from_snapshot_id.is_not(None))
+    elif status != "all":
+        filters.append(filer.retained_from_snapshot_id.is_(None))
+        if status == "open":
+            filters.append(filer.termination_date.is_(None))
+        elif status == "terminated":
+            filters.append(filer.termination_date.is_not(None))
     if kind is not None:
         filters.append(filer.kind == schema.CampaignFinanceFilerKind(kind))
     if query:
-        filters.append(name_contains(filer.name, query))
+        named = name_contains(filer.name, query)
+        filters.append(
+            or_(named, name_contains(filer.registration_number, query))
+            if search_registration
+            else named
+        )
     rows = db.execute(
         select(
             filer.registration_number,
@@ -1108,6 +1127,10 @@ def committees(
             filer.office,
             filer.district,
             filer.termination_date,
+            filer.registration_date,
+            filer.party,
+            filer.retained_from_snapshot_id,
+            filer.captured_at,
             # How many filers the filter matched, counted over the whole filtered set
             # before the page was cut out of it, so "showing 8 of 778" rides back with
             # the 8 rather than costing a second crossing of the distance to the database
@@ -1125,7 +1148,7 @@ def committees(
     has_more = len(rows) > limit
     page = rows[:limit]
     total = (
-        rows[0][6]
+        rows[0][-1]
         if rows
         else db.scalar(select(func.count()).select_from(filer).where(*filters)) or 0
     )
@@ -1161,11 +1184,22 @@ def _committee_order(filer, sort: CommitteeSort) -> tuple:
             .nulls_last(),
             number.asc(),
         )
-    return (filer.name.asc(),)
+    return (filer.name.asc(), filer.registration_number.asc())
 
 
 def _committee_row(row, *, sub_types: dict[str, str]) -> CommitteeRow:
-    registration_number, name, kind, office, district, termination_date = row[:6]
+    (
+        registration_number,
+        name,
+        kind,
+        office,
+        district,
+        termination_date,
+        registration_date,
+        party,
+        retained_from,
+        captured_at,
+    ) = row[:10]
     return CommitteeRow(
         registration_number=registration_number,
         name=name,
@@ -1176,6 +1210,18 @@ def _committee_row(row, *, sub_types: dict[str, str]) -> CommitteeRow:
         # for it can never disagree.
         is_closed=termination_date is not None,
         termination_date=termination_date,
+        registration_date=registration_date,
+        party=party,
+        registration_status=(
+            "not_listed"
+            if retained_from is not None
+            else "terminated"
+            if termination_date is not None
+            else "open"
+        ),
+        retained=retained_from is not None,
+        retained_from_snapshot_id=retained_from,
+        captured_at=captured_at,
         sub_type=sub_types.get(registration_number),
     )
 
