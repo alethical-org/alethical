@@ -152,8 +152,9 @@ Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
 `/money/races/:id`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
-`/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id` and `/votes/:id`
-(§ Research pages). Every other address answers "We
+`/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
+`/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
+`/media-buys/stations/:id` and `/media-buys/check` (§ Research pages and § Media buys). Every other address answers "We
 couldn’t find that page" until its screen is built (`BUILT` in `apps/finance/src/routes.ts`).
 Every link is built from these patterns (`hrefFor`), is a real link that opens in a new tab and
 copies, and works with Back and Forward. While the screens are off, only `/`, `/sign-in` and
@@ -198,7 +199,8 @@ figure is ever added across committees or members.
   result, and confirmed related records. The office and district print once each, as on
   People. Campaign finance shows the accounts confirmed for
   the legislator record the candidacy is connected to; a candidacy connected to none shows
-  "No campaign committee is confirmed for this candidacy".
+  "No campaign committee is confirmed for this candidacy". Media buys sits between
+  Campaign finance and Election.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched by name and paged on the server, with each
   registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
@@ -212,7 +214,8 @@ figure is ever added across committees or members.
   own records and a sum only when every amount is present ("Incomplete" otherwise), sorted by
   total, payment date, name or record count, disclosure statements inside payment rows,
   large-contribution notices, statements not linked to a payment, independent expenditures,
-  related records and source evidence for each payment. Name links keep the selected year.
+  Media buys and related records in the side column, and source evidence for each payment.
+  Name links keep the selected year.
   Money received that is not a contribution is not shown yet; it waits for its own drawing.
 - **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
   member of a sitting legislative committee with their own confirmed accounts and that
@@ -235,6 +238,7 @@ figure is ever added across committees or members.
   `senate-41`, `governor`). The contest line names the office by its title ("State
   Representative · District 34B · 2026", "State Senator", "Governor" and the other statewide
   offices); a court seat keeps its seat label ("District Court · District 2 · Seat 14").
+  Media buys follows outside spending.
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
   server; each tab keeps its own Year and Sort in the address. Lobbyists show the campaign
   contributions matched to each registration in a completed calendar year ("No matching
@@ -250,8 +254,8 @@ figure is ever added across committees or members.
   each committee with its total under the shared rule and a link to that committee's
   Lobbyists tab for the year and printed name (its "Back to Lobbyist" returns to the same
   year's records); a principal's total reported spending by year as a chart (a dashed gap for
-  a year with no report held), its categories one click away in Table, and the lobbyists
-  listed for it. Opened with no earlier page, each returns to Lobbying.
+  a year with no report held), its categories one click away in Table, the lobbyists
+  listed for it, and Media buys below them. Opened with no earlier page, each returns to Lobbying.
 - **Organization profile (`/organizations/:id`)**: 1 confirmed organization's lobbying,
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover; group totals follow the shared rule, labelled by filing year when
@@ -265,10 +269,8 @@ figure is ever added across committees or members.
   Each election names its office and district once. Opened with no earlier page, it returns to
   People.
 - **Not built yet:** Vendors and payees (`/money/recipients`),
-  Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
-  `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
-  `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
-  identities (`/money/identities`) each have a screen in the code but answer "not found"
+  Money connections (`/money/connections`) and Confirm identities (`/money/identities`)
+  each have a screen in the code but answer "not found"
   and are linked from nowhere until the pull request that aligns that screen with Design's
   current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
@@ -321,3 +323,68 @@ none.
   sign-up figures.
 - The site runs at https://finance.alethical.com, the `alethical-finance` Vercel project,
   until alethicalfinance.com launches ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).
+
+## Media buys
+
+The screens at `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
+`/media-buys/agencies/:name`, `/media-buys/stations/:id` and `/media-buys/check` read
+Finance's private original-file routes (`/api/v1/finance/media-buys/…`). A TV station file
+is keyed by its station and FCC source file id, never by its filename, and every link to
+one names its exact saved version and page.
+
+- **Media buys (`/media-buys`)**: TV political-ad files from KSTP-TV, KARE and KMSP-TV,
+  browsed by TV station folders (Station, Year and Category menus), agency names, stations
+  and years, or searched by words; a search lists matching TV station files. The tab,
+  filters, words and page stay in the address. A capped count says "At least"; a failed
+  refresh keeps the earlier rows with Try again. About these records states the coverage
+  limits, and Sources and updates names the date the station files were copied.
+- **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
+  versions and station upload date, and the folder's one checked connection, which never
+  stands for each file inside it.
+- **TV station (`/media-buys/stations/:id`)**: the station's counts once for all years (files
+  held, unique file contents, files whose text could not be fully read, files we couldn't
+  download, folders we couldn't list, with the 3 drawn notes on what they mean), then files
+  held by year, each year linking to its folders, and the other stations held. Counts are
+  files, never ads or money; a per-year breakdown of the other counts waits on the server.
+- **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
+  each marked Checked or Machine-read · Not checked, addresses checked for it with View
+  evidence at the exact version and page, and separate campaign and outside-spending
+  payment searches under the name, which do not prove a file was paid.
+- **TV station file (`/media-buys/files/:key`)**: 1 saved version's original page images
+  (version, page and zoom in the document bar; version and page in the address), checked
+  facts and related records for that version only, each with View evidence, and its
+  machine-read text marked Not checked. The evidence panel shows the saved quote and that
+  page's machine-read text with the quote marked only where it appears exactly, or says
+  that it isn't found or that the page has no text; Correct fact and Withdraw check sit
+  inside it and open Check TV station files. Opening and closing evidence keeps the cited
+  page. A link naming a version that is not held says "This version is not held" with
+  Open the current version, and shows no checks. Images carry the account's access header,
+  never a token in an address.
+- **Check TV station files (`/media-buys/check`)**: a queue of current versions with each
+  file's reason and an "Unsaved draft" tag; the chosen file's page and machine-read text;
+  suggestions read from that version (Use suggestion fills the form; Dismiss and Restore
+  are local); Check a fact and Check a connection (committee, lobbying principal, printed
+  issue or related TV station file, each previewed before saving); and the checks on this
+  version, each with View evidence and withdrawal inside its row. A save is refused field
+  by field before and after the server checks it, an exact duplicate reads "Already
+  saved", "Saved" appears only after the write succeeds, and a failed write reads "Not
+  saved. Your entries are kept." with Try again. A failed withdrawal keeps the check and
+  the reason. Each file and version keeps 1 draft, with each mode's own entries, in this
+  browser for this account. A link naming another version shows the version-mismatch
+  notice and Check the current copy before any form opens.
+- **Media buys card**: Committee (by registration number), Candidate (by candidacy),
+  Principal (by entity number) and Money by race (by the contest's office, district and
+  year, matched against checked elections) list the TV station files with a checked
+  connection to that record, each at its exact version with "Back to" the page, under
+  "KSTP-TV, KARE and KMSP-TV station files, not in money totals". A candidacy lists its
+  confirmed committees' files first, each under "Files with a checked connection to
+  {committee}", then "TV station files that name this candidate", never mixed. With none:
+  "No TV station files have a checked connection to {name}"; a failed read says "We
+  couldn’t load these TV station files" with Try again. The card is absent while the TV
+  station file page is off. Person, Legislator and Organization profiles do not show it
+  yet: the server lists connected files only for a committee, candidacy, principal,
+  election, race or printed name, and each of those profiles covers several such records.
+  A row opens the file's first page, not the page the check cites.
+
+Campaign money's Sort by control reads the whole register in name order or numeric
+registration-number order; a choice resets the page and remains in the address.

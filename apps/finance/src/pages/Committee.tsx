@@ -32,6 +32,7 @@ import { useAddressState } from '../ui/addressState';
 import { Dropdown, Empty, EvidencePanel, Refused, type Evidence } from '../ui/controls';
 import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import { IndependentCard, RelatedCard } from './committee/Aside';
+import { MediaBuysCard } from './media/MediaBuysCard';
 import { ScrollingTabs, Spinner } from './committee/bits';
 import {
   AMOUNT_MISSING,
@@ -362,8 +363,7 @@ export function Committee({ match }: { match: RouteMatch }) {
           {finance.failed ? (
             <div className="cmt-top-gap">
               <Refused onRetry={finance.retry} retrying={finance.pending}>
-                We couldn’t load this committee right now. This is a problem on our side and says
-                nothing about the committee.
+                We couldn’t load this committee
               </Refused>
             </div>
           ) : (
@@ -708,6 +708,7 @@ export function Committee({ match }: { match: RouteMatch }) {
                 }
               />
             )}
+            <MediaBuysCard kind="committee" target={registration} name={name} />
             <RelatedCard confirmation={confirmation} here={here} />
           </aside>
         </div>

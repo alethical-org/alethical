@@ -34,6 +34,7 @@ import { Refused } from '../ui/controls';
 import { BackLink, LoadingLine, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 import { SplitBarList, useView, ViewSwitch, type SplitBarRow } from '../ui/view';
 import { DATE_MISSING, sumAmounts } from './committee/data';
+import { MediaBuysCard, raceTarget } from './media/MediaBuysCard';
 import './raceAndRecipients.css';
 import './moneyByRace.css';
 
@@ -1043,6 +1044,13 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
                 </>
               )}
             </section>
+            <div className="mb-buys-after">
+              <MediaBuysCard
+                kind="race"
+                target={raceTarget(contest.office, contest.district, year)}
+                name={contestHeading(contest, year)}
+              />
+            </div>
           </>
         )}
       </div>

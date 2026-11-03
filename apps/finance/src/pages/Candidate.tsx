@@ -13,6 +13,7 @@ import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { Refused } from '../ui/controls';
 import { Arrow, BackLink, LoadingLine, WithArrow } from '../ui/parts';
+import { MediaBuysCard } from './media/MediaBuysCard';
 import './people.css';
 
 /** The fields of the public site's candidate profile (`GET /candidates/{id}`,
@@ -221,6 +222,11 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                   years={years}
                   accounts={accounts}
                   from={here}
+                />
+                <MediaBuysCard
+                  kind="candidate"
+                  target={match.params.id}
+                  name={record.candidate.name}
                 />
 
                 <section aria-labelledby="result-heading" className="lg2-section">

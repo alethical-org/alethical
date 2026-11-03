@@ -15,6 +15,7 @@ import { Organization } from './pages/Organization';
 import { DonorsByEmployer } from './pages/DonorsByEmployer';
 import { SearchResults } from './pages/Search';
 import { MediaBuys } from './pages/MediaBuys';
+import { CheckStationFiles } from './pages/CheckStationFiles';
 import { StationFile } from './pages/StationFile';
 import { StationFolder, TVStation, PrintedAgency } from './pages/StationRecords';
 import { People } from './pages/People';
@@ -40,6 +41,7 @@ import './ui/finance.css';
 const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   home: () => <FinanceHome />,
   'media-buys': () => <MediaBuys />,
+  'check-station-files': () => <CheckStationFiles />,
   'station-file': (match) => <StationFile match={match} />,
   'station-folder': (match) => <StationFolder match={match} />,
   station: (match) => <TVStation match={match} />,
