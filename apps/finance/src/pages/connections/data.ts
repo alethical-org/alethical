@@ -59,6 +59,7 @@ export interface GraphEdge {
 /** 1 answer of `GET /api/v1/finance/connections`: 1 page of relationships and
  * the nodes those relationships name. */
 export interface ConnectionsPage {
+  version?: string;
   state: 'reported' | 'not_reported' | 'partial' | 'unavailable';
   nodes: GraphNode[];
   edges: GraphEdge[];

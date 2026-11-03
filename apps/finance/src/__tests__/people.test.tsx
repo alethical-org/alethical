@@ -97,6 +97,7 @@ const loaded = (url: string) => {
   const filtered = ROWS.filter((row) => row.name.includes(q));
   return json({
     state: 'reported',
+    version: 'aaaaaaaaaaaaaaaa',
     rows: filtered.slice(offset, offset + 10),
     total: filtered.length,
     counts: { person: 0, candidate: 0, legislator: filtered.length },
@@ -148,6 +149,34 @@ describe('People', () => {
     expect(text()).toContain('Page 2 of 3');
     expect(container.querySelector('.pp-row')?.textContent).toContain('Member 11');
     expect(button('Previous').getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('pins later pages and reloads the whole list after the source changes', async () => {
+    let changed = false;
+    await render('/people', (url) => {
+      const query = new URL(url).searchParams;
+      if (query.get('offset') === '10' && !changed) {
+        changed = true;
+        return new Response(
+          JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+          { status: 409 },
+        );
+      }
+      return loaded(url);
+    });
+    await act(async () => button('Next').click());
+    await settle();
+    const next = requests.find((url) => new URL(url).searchParams.get('offset') === '10')!;
+    expect(new URL(next).searchParams.get('version')).toBe('aaaaaaaaaaaaaaaa');
+    expect(text()).toContain('These records changed. Reload the list');
+    expect(text()).toContain('Member 01');
+    await act(async () => button('Try again').click());
+    await settle();
+    expect(text()).toContain('Page 1 of 3');
+    expect(text()).not.toContain('These records changed');
+    const last = requests.filter((url) => url.includes('/finance/people?')).at(-1)!;
+    expect(new URL(last).searchParams.get('offset')).toBe('0');
+    expect(new URL(last).searchParams.has('version')).toBe(false);
   });
 
   it('searches by name on Search and says when nothing matches', async () => {

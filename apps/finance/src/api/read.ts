@@ -16,7 +16,7 @@ export type ReadAnswer<T> =
   | { state: 'ok'; data: T; page?: PageInfo | null }
   | { state: 'not-found' }
   /** `busy`: the server was still busy (503) after every suggested wait. */
-  | { state: 'failed'; busy?: boolean };
+  | { state: 'failed'; busy?: boolean; changed?: boolean; accessDenied?: boolean };
 
 type Fetch = typeof fetch;
 
@@ -126,6 +126,18 @@ export async function apiGet<T>(
       continue;
     }
     if (response.status === 503 && retryAfter !== null) return { state: 'failed', busy: true };
+    if (response.status === 401 || response.status === 403)
+      return { state: 'failed', accessDenied: true };
+    if (response.status === 409) {
+      try {
+        const problem = await response.json();
+        if (problem?.type === 'https://api.alethical.com/problems/records-changed')
+          return { state: 'failed', changed: true };
+      } catch {
+        /* An unreadable conflict remains an ordinary failed read. */
+      }
+      return { state: 'failed' };
+    }
     if (response.status === 404) return { state: 'not-found' };
     if (!response.ok) return { state: 'failed' };
     try {
@@ -152,6 +164,8 @@ export interface Read<T> {
   failed: boolean;
   /** The failure was the server staying busy through every retry. */
   busy: boolean;
+  changed?: boolean;
+  accessDenied?: boolean;
   notFound: boolean;
   /** A request is in flight, including a retry. */
   pending: boolean;
@@ -181,8 +195,11 @@ export function useRead<T>(
     keepPrevious = false,
     unwrapped = false,
     acceptData,
+    revision = 0,
   }: {
     keepPrevious?: boolean;
+    /** A deliberate whole-list reload bypasses cached pages. */
+    revision?: number | string;
     /** A few routes (`/candidates/{id}`, `/people/{id}`) answer with the record
      * itself rather than `{ data: … }`. */
     unwrapped?: boolean;
@@ -190,11 +207,13 @@ export function useRead<T>(
     acceptData?: (data: T) => boolean;
   } = {},
 ): Read<T> {
-  const { apiBaseUrl, accessToken } = useFinanceSession();
+  const { apiBaseUrl, accessToken, retry: checkAccess } = useFinanceSession();
+  const accessCheck = useRef(checkAccess);
+  accessCheck.current = checkAccess;
   const accept = useRef(acceptData);
   accept.current = acceptData;
   const scope = `${apiBaseUrl}|${accessToken}`;
-  const key = path ? `${scope}|${path}` : null;
+  const key = path ? `${scope}|${path}|${revision}` : null;
   const [answer, setAnswer] = useState<{ key: string; answer: ReadAnswer<T> } | null>(() => {
     const held = key ? cache.get(key) : undefined;
     return held && key ? { key, answer: held.answer as ReadAnswer<T> } : null;
@@ -230,6 +249,11 @@ export function useRead<T>(
             ? { state: 'failed' }
             : received;
         setPending(false);
+        if (next.state === 'failed' && next.accessDenied) {
+          clearReadCache();
+          setLastData(null);
+          accessCheck.current?.();
+        }
         if (next.state !== 'failed') cache.set(key, { at: Date.now(), answer: next });
         setAnswer({ key, answer: next });
         if (next.state === 'ok') setLastData({ data: next.data, page: next.page ?? null, scope });
@@ -250,7 +274,8 @@ export function useRead<T>(
   const current = answer && answer.key === key ? answer.answer : null;
   const own = current?.state === 'ok' ? { data: current.data, page: current.page ?? null } : null;
   const prior = lastData?.scope === scope ? lastData : null;
-  const shown = key === null ? null : (own ?? (keepPrevious ? prior : null));
+  const denied = current?.state === 'failed' && current.accessDenied;
+  const shown = key === null || denied ? null : (own ?? (keepPrevious ? prior : null));
   return {
     data: shown?.data ?? null,
     page: shown?.page ?? null,
@@ -263,6 +288,8 @@ export function useRead<T>(
       (current === null || pending),
     failed: current?.state === 'failed' && !pending,
     busy: current?.state === 'failed' && current.busy === true && !pending,
+    changed: current?.state === 'failed' && current.changed === true,
+    accessDenied: current?.state === 'failed' && current.accessDenied === true,
     notFound: current?.state === 'not-found',
     pending,
     retry,

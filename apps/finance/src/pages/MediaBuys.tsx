@@ -1,3 +1,4 @@
+import { useVersionedRead } from '../api/versionedRead';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
@@ -129,7 +130,7 @@ export function MediaBuys() {
   const [typed, setTyped] = useState(state.q);
   useEffect(() => setTyped(state.q), [state.q]);
   const folders = tab === 'folders';
-  const read = useRead<Browse>(
+  const read = useVersionedRead<Browse>(
     mediaPath(['browse'], {
       tab,
       q: state.q,
@@ -138,7 +139,7 @@ export function MediaBuys() {
       year: folders ? state.year : '',
       category: folders ? state.category : '',
     }),
-    { keepPrevious: true },
+    { page, onRestart: () => setState({ page: '1' }) },
   );
   const sources = useRead<Sources>(mediaPath(['sources']));
   const data = read.data;

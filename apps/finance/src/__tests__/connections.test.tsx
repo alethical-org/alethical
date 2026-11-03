@@ -299,6 +299,7 @@ function answer(data: unknown, status = 200) {
 }
 function page(overrides: Partial<ConnectionsPage> = {}): ConnectionsPage {
   return {
+    version: 'aaaaaaaaaaaaaaaa',
     state: 'reported',
     nodes: [committee, payee],
     edges: [payment],
@@ -384,6 +385,44 @@ describe('Money connections page', () => {
     expect(container.textContent).toContain('101 of 101 connections loaded');
     expect(container.textContent).toContain('101 connections');
     expect(button('more connection')).toBeUndefined();
+  });
+
+  it('restarts the whole graph after a changed source without combining versions', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => ({ ...payment, id: `old${i}` }));
+    let changed = false;
+    serve((url) => {
+      if (url.searchParams.get('offset') === '100') {
+        changed = true;
+        return new Response(
+          JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+          { status: 409 },
+        );
+      }
+      return answer(
+        changed
+          ? page({
+              version: 'bbbbbbbbbbbbbbbb',
+              edges: [{ ...payment, id: 'fresh', amount: '987' }],
+            })
+          : page({ edges: first, total: 101, has_more: true }),
+      );
+    });
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    await act(async () => button('Show 1 more connection')!.click());
+    await flush();
+    expect(requests.at(-1)!.searchParams.get('version')).toBe('aaaaaaaaaaaaaaaa');
+    expect(container.textContent).toContain(
+      'These records changed. Reload the list. Previous results are shown.',
+    );
+    expect(container.textContent).toContain('100 connections');
+    await act(async () => button('Try again')!.click());
+    await flush();
+    expect(requests.at(-1)!.searchParams.get('offset')).toBe('0');
+    expect(requests.at(-1)!.searchParams.has('version')).toBe(false);
+    expect(container.textContent).toContain('1 connection ·');
+    expect(container.textContent).not.toContain('100 connections');
+    expect(container.textContent).not.toContain('These records changed');
   });
 
   it('reloads the pages a return names, so a line beyond the first page is selected again', async () => {

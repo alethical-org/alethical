@@ -347,6 +347,38 @@ describe('word and money rules', () => {
 });
 
 describe('history', () => {
+  it('loads a fully withdrawn owner for History without making it an active confirmation', async () => {
+    const requested: string[] = [];
+    serve((url) => {
+      requested.push(url.pathname);
+      if (url.pathname.endsWith('/records'))
+        return json(
+          recordsPage({
+            history_identities: [
+              { id: ORG, reference: 'ORG-0002', kind: 'organization', name: 'Example Media LLC' },
+            ],
+          }),
+        );
+      if (url.pathname.endsWith('/queue')) return json(queuePage([queueRow()]));
+      if (url.pathname.endsWith(`/${ORG}`))
+        return json(
+          identity(ORG, 'Example Media LLC', [
+            confirmation('old', ORG, [1], {
+              status: 'withdrawn',
+              withdrawn_at: '2026-11-03T12:00:00Z',
+              withdrawal_reason: 'Different registration number',
+              withdrawal_source: 'SOS record',
+            }),
+          ]),
+        );
+    });
+    await render(`/identities?kind=payee_name&name=${encodeURIComponent(NAME)}`);
+    expect(requested.some((path) => path.endsWith(`/${ORG}`))).toBe(true);
+    expect(text()).toContain('Confirmation as Example Media LLC (ORG-0002) withdrawn');
+    expect(text()).not.toContain('Confirmed for 1 of 2 records');
+    expect(button('Withdraw confirmation')).toBeUndefined();
+  });
+
   it('lists confirmations, withdrawals with earlier evidence and merges, newest first', () => {
     const withdrawn = confirmation('c-old', ORG, [3], {
       status: 'withdrawn',

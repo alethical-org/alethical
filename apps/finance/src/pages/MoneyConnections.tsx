@@ -1,5 +1,7 @@
+import { RECORDS_CHANGED, useVersionedRead } from '../api/versionedRead';
+import { useFinanceSession } from '../auth/session';
 import { useCallback, useEffect, useState } from 'react';
-import { apiPath, useRead } from '../api/read';
+import { apiPath } from '../api/read';
 import { Link, navigate, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor } from '../routes';
@@ -82,11 +84,13 @@ export function MoneyConnections() {
       : '';
   const relation = RELATION_KEYS.includes(address.rel) ? address.rel : '';
   const focus = address.focus;
-  const scope = JSON.stringify([q, year, relation, focus]);
+  const { apiBaseUrl, accessToken } = useFinanceSession();
+  const authScope = `${apiBaseUrl}|${accessToken}`;
+  const scope = JSON.stringify([authScope, q, year, relation, focus]);
   const [wanted, setWanted] = useState({ scope, count: 1 });
   const count = wanted.scope === scope ? wanted.count : 1;
   const offset = (count - 1) * PAGE_SIZE;
-  const read = useRead<ConnectionsPage>(
+  const read = useVersionedRead<ConnectionsPage>(
     apiPath(['finance', 'connections'], {
       q,
       year,
@@ -95,11 +99,22 @@ export function MoneyConnections() {
       limit: PAGE_SIZE,
       offset,
     }),
-    { keepPrevious: true, acceptData: (data) => data.state !== 'unavailable' },
+    {
+      page: count,
+      onRestart: () => {
+        setWanted({ scope, count: 1 });
+        setAddress({ pages: '' });
+      },
+      acceptData: (data) => data.state !== 'unavailable',
+    },
   );
   // The pages held for 1 scope. A new scope keeps the last scope's set on screen
   // until its own first page arrives, then replaces it (keepPrevious).
-  const [held, setHeld] = useState<{ scope: string; pages: ConnectionsPage[] } | null>(null);
+  const [held, setHeld] = useState<{
+    scope: string;
+    authScope: string;
+    pages: ConnectionsPage[];
+  } | null>(null);
   const arrived =
     read.data && !read.loading && !read.updating && !read.failed && read.data.offset === offset
       ? read.data
@@ -107,23 +122,27 @@ export function MoneyConnections() {
   useEffect(() => {
     if (!arrived) return;
     setHeld((prev) => {
-      const pages = prev && prev.scope === scope ? prev.pages.slice(0, count - 1) : [];
+      const pages = prev && prev.scope === read.listKey ? prev.pages.slice(0, count - 1) : [];
       if (pages.length !== count - 1) return prev;
-      return { scope, pages: [...pages, arrived] };
+      return { scope: read.listKey, authScope, pages: [...pages, arrived] };
     });
-  }, [arrived, scope, count]);
+  }, [arrived, read.listKey, authScope, count]);
+  useEffect(() => {
+    if (read.accessDenied) setHeld(null);
+  }, [read.accessDenied]);
   // A return names how many pages were loaded (at most 10): load them again in
   // order, so a line selected beyond the first page is on screen once more.
   const restoreTo = Math.min(10, Math.max(1, Math.trunc(Number(address.pages) || 1)));
   useEffect(() => {
-    if (!arrived || held?.scope !== scope || held.pages.length !== count) return;
+    if (!arrived || held?.scope !== read.listKey || held.pages.length !== count) return;
     const more = arrived.offset + arrived.edges.length < arrived.total;
     if (count < restoreTo && more) setWanted({ scope, count: count + 1 });
-  }, [arrived, held, scope, count, restoreTo]);
-  const current = held?.scope === scope;
-  const shown = held ? combinePages(held.pages) : null;
+  }, [arrived, held, read.listKey, scope, count, restoreTo]);
+  const current = held?.scope === read.listKey;
+  const safeHeld = held?.authScope === authScope && !read.accessDenied ? held : null;
+  const shown = safeHeld ? combinePages(safeHeld.pages) : null;
   const copyLine = shown ? paymentCopyLine(shown.edges) : null;
-  const last = held?.pages.at(-1) ?? null;
+  const last = safeHeld?.pages.at(-1) ?? null;
   const loaded = last ? last.offset + last.edges.length : 0;
   const remaining = current && last ? Math.max(0, last.total - loaded) : 0;
   const nodes = shown?.nodes ?? new Map<string, GraphNode>();
@@ -151,7 +170,7 @@ export function MoneyConnections() {
   const pickNode = (key: string) => setAddress({ focus: key, edge: '' });
   const pickEdge = (id: string) => setAddress({ edge: id, focus: '' });
 
-  const firstLoad = !held;
+  const firstLoad = !safeHeld;
   const failedFirst = firstLoad && read.failed;
   const empty = current && edges.length === 0;
   const mapView = view === 'chart';
@@ -305,16 +324,18 @@ export function MoneyConnections() {
               We couldn’t load these connections
             </Refused>
           )}
-          {held && !current && read.updating && <Updating />}
-          {held && !current && read.failed && !read.busy && (
+          {safeHeld && !current && read.updating && <Updating />}
+          {safeHeld && !current && read.failed && !read.busy && (
             <Refused onRetry={read.retry} retrying={read.pending}>
-              We couldn’t update these results
+              {read.changed
+                ? RECORDS_CHANGED
+                : 'We couldn’t update these results. Previous results are shown.'}
             </Refused>
           )}
-          {held && !current && read.busy && (
+          {safeHeld && !current && read.busy && (
             <BusyNotice retrying={read.pending} onRetry={read.retry} />
           )}
-          {held && (
+          {safeHeld && (
             <div className="mc-loaded">
               {empty && (
                 <div className="f-empty-box">
@@ -492,7 +513,7 @@ export function MoneyConnections() {
             </div>
           )}
         </section>
-        {held && current && (
+        {safeHeld && current && (
           <div className="mc-notices">
             {shown && shown.unavailable.length > 0 && (
               <div role="status" className="mc-notice mc-notice-partial">
@@ -513,7 +534,11 @@ export function MoneyConnections() {
             {count > 1 && read.busy && <BusyNotice retrying={read.pending} onRetry={read.retry} />}
             {count > 1 && read.failed && !read.busy && (
               <div role="alert" className="mc-notice mc-notice-failed">
-                <span>Some connections could not be loaded</span>
+                <span>
+                  {read.changed
+                    ? RECORDS_CHANGED
+                    : 'Some connections could not be loaded. Previous results are shown.'}
+                </span>
                 <button
                   type="button"
                   className="f-btn f-btn-secondary f-btn-small"
