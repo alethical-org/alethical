@@ -1430,11 +1430,14 @@
 }
 
 /* ---------- Dropdown ---------- */
+/* Every menu's wrapper is 40, raised to 41 while its list is open, so a
+ * following sibling menu never covers the open list (eug-19/77; Round 32). */
 .f-dropdown {
   position: relative;
+  z-index: 40;
 }
 .f-dropdown[data-open] {
-  z-index: 40;
+  z-index: 41;
 }
 .f-dropdown-button {
   min-height: 40px;

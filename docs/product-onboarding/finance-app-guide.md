@@ -147,7 +147,8 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/lobbying/principals/:id`, `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
 `/media-buys/agencies/:name`, `/media-buys/stations/:id`, `/media-buys/check`, `/people`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
-Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/candidates/:id`,
+Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`,
+`/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
 `/money/races/:id`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
@@ -178,16 +179,26 @@ figure is ever added across committees or members.
   counted and failed on its own ("At least {n}" when the server's count is capped). A name
   search runs from 3 characters. View all opens the rest of a family in place.
 - **People (`/people`)**: people, candidacies and legislative service stay separate,
-  searched and paged on the server, 10 a page. Candidate scope, election year and
-  current or former service filters remain in the address. Former service requires
-  a held service end; missing current membership never establishes it.
+  searched by name and paged on the server, 10 a page. Record type is a row of choices;
+  Candidates adds an Election year menu (including Past candidates) and Legislators a
+  Service menu; All records has none, and switching type clears the other type's
+  filters. Every choice stays in the address, so Finance Home's `?type=legislators&service=current`
+  and `?type=candidates` open those views. A candidacy's row names its election and seat
+  ("2026 general · State Representative, District 56A"), each fact once even where the
+  official record names the district twice; its party waits on the server. A legislator's party prints only where the
+  Legislature record holds it. Former service requires a held service end; missing current
+  membership never establishes it. Record-type definitions sit under "About these records"
+  below the results. District search and the party, office and chamber menus wait on the server.
 - **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
   carries no current title, party, district or committees), each confirmed campaign account
-  with its own year and figures, spending by outside groups by contest, committees (each
-  opening its members' accounts), and chief-authored bills, 20 a page.
-- **Candidate profile (`/candidates/:id`)**: the held candidacy facts and confirmed links. No
-  campaign-account link is read by this screen yet, so its money section is incomplete;
-  the server now supplies confirmed links.
+  with its own year and figures (its link opens that report on the committee page),
+  spending by outside groups by contest, committees (each opening its members' accounts),
+  chief-authored bills, 20 a page, and related records as two-line links.
+- **Candidate profile (`/candidates/:id`)**: the held candidacy facts, the election and its
+  result, and confirmed related records. The office and district print once each, as on
+  People. Campaign finance shows the accounts confirmed for
+  the legislator record the candidacy is connected to; a candidacy connected to none shows
+  "No campaign committee is confirmed for this candidacy".
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched by name and paged on the server, with each
   registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
@@ -237,8 +248,13 @@ figure is ever added across committees or members.
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
-- **Not built yet:** Vendors and payees (`/money/recipients`), Person profile (`/people/:id`),
-  Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
+- **Person profile (`/people/:id`)**: confirmed links to 1
+  person's candidacies, legislative service and lobbying, their campaign finance, political
+  giving and payments received, each event with its own source line. A merged record's
+  address opens the surviving record; a split record's address asks which person was meant.
+  Each election names its office and district once. Opened with no earlier page, it returns to
+  People.
+- **Not built yet:** Vendors and payees (`/money/recipients`), Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
   `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
   identities (`/money/identities`) each have a screen in the code but answer "not found"
