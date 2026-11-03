@@ -625,6 +625,14 @@ a.lbl-committee-name {
 }
 
 /* ---------- Principal: spending by year ---------- */
+/* The year sits left of its bar at every band, 56px wide (Principal drawing). */
+.lbp-chart .f-bar-row {
+  grid-template-columns: var(--bar-label) minmax(0, 1fr);
+}
+.lbp-chart .f-bar-value,
+.lbp-chart .f-bar-note {
+  grid-column: 2;
+}
 .lbp-view-row {
   margin-top: 12px;
 }

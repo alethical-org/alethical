@@ -147,7 +147,7 @@ function Spending({ principal }: { principal: LobbyingPrincipal }) {
         <ViewSwitch value={view} onChange={setView} />
       </div>
       {view === 'chart' ? (
-        <div className="f-chart">
+        <div className="f-chart lbp-chart">
           <h3>{CHART_TITLE}</h3>
           <BarList label={CHART_TITLE} rows={spendingBars(rows)} labelWidth="56px" />
         </div>
