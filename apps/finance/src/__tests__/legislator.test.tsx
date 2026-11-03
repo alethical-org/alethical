@@ -398,6 +398,17 @@ describe('Legislator helpers', () => {
     ).toBe('2024 general · State Representative, District 45B');
   });
 
+  it('names each seat fact once when the served office repeats the voting area', () => {
+    expect(
+      candidacyNote({
+        candidateId: 'c',
+        office: 'State Representative District 56A',
+        votingArea: 'House District 56A',
+        election: { date: '2026-11-03', type: 'general' },
+      }),
+    ).toBe('2026 general · State Representative, District 56A');
+  });
+
   it('names a current seat and never a former one', () => {
     expect(serviceLine(CURRENT)).toBe('Serving as State Representative · House District 45B · DFL');
     expect(serviceLine(FORMER)).toBeNull();

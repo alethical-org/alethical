@@ -6,22 +6,32 @@ import {
   amountOrMissing,
   dayOrMissing,
   groupCountLabel,
+  orderedRows,
   totalOrWithheld,
   type Group,
   type Row,
+  type SortKey,
 } from './data';
 import { StatementPanel } from './StatementPanel';
 
 /** A name links to its own committee, or to payments under that exact spelling, only
- * where that page is built; otherwise it is plain text. The name is the link and
- * expansion is a separate control (RULE Design system §07). */
-function groupHref(group: Group, here: string): string | null {
+ * where that page is built; otherwise it is plain text. Either link carries the
+ * selected year (Round 32). The name is the link and expansion is a separate
+ * control (RULE Design system §07). */
+export function groupHref(group: Group, here: string, year: number): string | null {
   if (group.committeeNumber && isBuilt('committee')) {
-    return withFrom(hrefFor('committee', { id: group.committeeNumber }), here);
+    return withFrom(
+      hrefFor('committee', { id: group.committeeNumber }, { year: String(year) }),
+      here,
+    );
   }
   if (group.printed && isBuilt('payments-under-name')) {
     return withFrom(
-      hrefFor('payments-under-name', { query: group.printed.name }, { role: group.printed.role }),
+      hrefFor(
+        'payments-under-name',
+        { query: group.printed.name },
+        { role: group.printed.role, year: String(year) },
+      ),
       here,
     );
   }
@@ -49,8 +59,8 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-function GroupName({ group, here }: { group: Group; here: string }) {
-  const href = groupHref(group, here);
+function GroupName({ group, here, year }: { group: Group; here: string; year: number }) {
+  const href = groupHref(group, here, year);
   return href ? (
     <Link to={href} className="cmt-name-link">
       {group.name}
@@ -73,7 +83,11 @@ export function PaymentTable({
   here,
   onView,
   statementLevel,
+  year,
+  sort,
 }: {
+  year: number;
+  sort: SortKey;
   label: string;
   groups: readonly Group[];
   open: ReadonlySet<string>;
@@ -116,6 +130,7 @@ export function PaymentTable({
           </button>
         );
         const withheld = group.total === null;
+        const rows = orderedRows(group, sort);
         return (
           <div
             role="rowgroup"
@@ -127,7 +142,7 @@ export function PaymentTable({
               <div role="row" className="cmt-phone-row">
                 <div className="cmt-phone-top">
                   <span role="cell" className="cmt-phone-name">
-                    <GroupName group={group} here={here} />
+                    <GroupName group={group} here={here} year={year} />
                     {group.inKind && (
                       <>
                         {' '}
@@ -140,11 +155,11 @@ export function PaymentTable({
                     className="cmt-figure cmt-phone-total"
                     data-missing={withheld || undefined}
                   >
-                    {totalOrWithheld(group.total)}
+                    {totalOrWithheld(group.total, false)}
                   </span>
                 </div>
                 <div className="cmt-small">
-                  {dayOrMissing(group.rows[0]?.date ?? null)} · {countLabel}
+                  {dayOrMissing(rows[0]?.date ?? null)} · {countLabel}
                   {group.kind && ` · ${group.kind}`}
                 </div>
                 {toggle}
@@ -152,10 +167,10 @@ export function PaymentTable({
             ) : (
               <div role="row" className="cmt-grid cmt-group-row">
                 <span role="cell" className="cmt-date">
-                  {dayOrMissing(group.rows[0]?.date ?? null)}
+                  {dayOrMissing(rows[0]?.date ?? null)}
                 </span>
                 <span role="cell" className="cmt-wrap">
-                  <GroupName group={group} here={here} />{' '}
+                  <GroupName group={group} here={here} year={year} />{' '}
                   <span className="cmt-count">· {countLabel}</span>
                   {group.inKind && (
                     <>
@@ -181,7 +196,7 @@ export function PaymentTable({
             )}
             {isOpen && (
               <div className="cmt-details">
-                {group.rows.map((row) => (
+                {rows.map((row) => (
                   <div key={row.id}>
                     <div
                       role="row"

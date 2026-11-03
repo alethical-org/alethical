@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../../ui/money';
 import { formatCount } from '@alethical/shared/moneyLanding';
 import { apiPath, useRead } from '../../api/read';
 import { Link, useLocation } from '../../router';

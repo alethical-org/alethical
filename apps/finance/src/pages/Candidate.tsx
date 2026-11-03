@@ -7,6 +7,7 @@ import {
   useFinanceYears,
 } from '../parts/CampaignFinance';
 import { useRecordRead } from '../parts/recordRead';
+import { candidateSeat, seatParts } from './seat';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
@@ -109,7 +110,7 @@ export function sourceStamp(record: CandidateRecord): string {
 
 /** The public site's service wording for the connected legislator record. */
 function legislatorNote(leg: NonNullable<CandidateRecord['legislator']>): string | null {
-  const seat = [leg.office, leg.votingArea].filter(Boolean).join(', ');
+  const seat = candidateSeat(leg.office, leg.votingArea);
   if (leg.serviceStatus === 'current') return seat ? `Serving as ${seat}` : null;
   if (leg.serviceStatus === 'former') return seat ? `Formerly served as ${seat}` : null;
   return 'Current service not confirmed';
@@ -143,6 +144,9 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
   const years = useFinanceYears(legislatorId);
   const accounts = accountsFrom(years.data);
   const year = record ? electionYear(record) : '';
+  // Each seat fact once: the served office often repeats the district its voting
+  // area also names ("State Representative District 56A", "House District 56A").
+  const seat = record ? seatParts(record.office, record.votingArea) : [];
   const facts = record
     ? [
         {
@@ -151,8 +155,8 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
             .filter(Boolean)
             .join(' · '),
         },
-        { label: 'Office', value: record.office },
-        { label: 'District', value: record.votingArea },
+        { label: 'Office', value: seat[0] || record.office },
+        { label: 'District', value: seat.slice(1).join(', ') || record.votingArea },
         { label: 'Party', value: record.candidate.party || 'Party not recorded' },
       ]
     : [];
@@ -228,7 +232,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                       {year} {record.election.type} election
                     </div>
                     <div className="lg2-muted f-num">
-                      {record.office} · {record.votingArea} · Minnesota Secretary of State
+                      {[...seat, 'Minnesota Secretary of State'].join(' · ')}
                     </div>
                     <div className="cd-result-row">
                       <span

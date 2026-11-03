@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 import { apiPath, useRead } from '../api/read';
 import { copyDate, type ServedCounts } from '../landing/counts';
 import {

@@ -222,7 +222,7 @@
   color: var(--secondary);
 }
 @media (hover: hover) and (min-width: 768px) {
-  .pp-row:hover,
+  a.pp-row:hover,
   .lg2-bill:hover {
     background: var(--row-hover);
   }
@@ -233,7 +233,7 @@
     text-underline-offset: 3px;
   }
 }
-.pp-row:active,
+a.pp-row:active,
 .lg2-bill:active {
   background: var(--tint);
 }

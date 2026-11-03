@@ -21,6 +21,7 @@ import {
   useFinanceYears,
 } from '../parts/CampaignFinance';
 import { useRecordRead } from '../parts/recordRead';
+import { candidateSeat } from './seat';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
@@ -140,7 +141,7 @@ export function candidacyNote(item: NonNullable<PersonRecord['elections']>[numbe
   const election =
     item.election?.label ||
     [item.election?.date?.slice(0, 4), item.election?.type].filter(Boolean).join(' ');
-  const seat = [item.office, item.votingArea].filter(Boolean).join(', ');
+  const seat = candidateSeat(item.office ?? undefined, item.votingArea ?? undefined);
   return [election, seat].filter(Boolean).join(' · ');
 }
 

@@ -9,7 +9,7 @@ import {
   type SplitState,
 } from '@alethical/shared/legislatorCampaignMoney';
 import { RECORD_DOES_NOT_COVER } from '@alethical/shared/moneyLanding';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 
 import { apiPath, useRead, type Read } from '../api/read';
 import { Link } from '../router';

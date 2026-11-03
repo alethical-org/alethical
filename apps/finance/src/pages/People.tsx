@@ -10,7 +10,9 @@ import { useBand } from '../ui/band';
 import { Chips, ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
 import { Arrow, BackLink, Chevron, SourcesAndUpdates } from '../ui/parts';
+import { candidateSeat } from './seat';
 import './people.css';
+export { candidateSeat };
 export const PAGE_SIZE = 10;
 export interface PersonDirectoryRow {
   kind: 'person' | 'candidate' | 'legislator';
@@ -22,6 +24,7 @@ export interface PersonDirectoryRow {
   election?: { type?: string | null; label?: string | null; date?: string | null } | string | null;
   office?: string;
   voting_area?: string;
+  party?: string | null;
   source?: { authority?: string; checkedDate?: string };
   service_status?: 'current' | 'former' | 'unknown';
   periods?: Array<{
@@ -65,15 +68,16 @@ const plural = (n: number, one: string, many: string) =>
 export function countLine(total: number, query: string, type = 'legislators') {
   return `${plural(total, ...((type === 'candidates' ? ['candidacy', 'candidacies'] : type === 'legislators' ? ['service record', 'service records'] : ['record', 'records']) as [string, string]))}${query ? ` matching “${query}”` : ''}`;
 }
-/** "2026 general · State Representative, District 45B": the drawing's candidacy
- * line from the fields the directory serves (a candidate's party waits on the
- * server). A legislator's party prints only where the Legislature record holds it. */
+/** "2026 general · State Representative, District 45B · {party}": the drawing's
+ * candidacy line, each seat fact once, with the party where the server holds it. A
+ * legislator's party prints only where the Legislature record holds it. */
 export function rowNote(row: PersonDirectoryRow) {
   if (row.kind === 'candidate') {
     const type = typeof row.election === 'string' ? row.election : row.election?.type;
     const election = [row.year, type].filter(Boolean).join(' ');
-    const seat = [row.office, row.voting_area].filter(Boolean).join(', ');
-    return [election, seat].filter(Boolean).join(' · ');
+    return [election, candidateSeat(row.office, row.voting_area), row.party]
+      .filter(Boolean)
+      .join(' · ');
   }
   if (row.kind === 'person') return '';
   const period = row.periods?.[0];
@@ -122,14 +126,21 @@ export function People(_props: { match: RouteMatch }) {
   const [typed, setTyped] = useState(state.q);
   useEffect(() => setTyped(state.q), [state.q]);
   const sort = type === 'candidates' && state.sort === 'election_year' ? 'election_year' : 'name';
+  // Only values the server accepts reach it, so a hand-edited address reads as
+  // the unfiltered view rather than as a failure on our side.
   const service = SERVICE.some((s) => s.value === state.service) ? state.service : '';
+  const scope = state.scope === 'past' ? 'past' : 'all';
+  const year =
+    /^\d{4}$/.test(state.year) && Number(state.year) >= 1900 && Number(state.year) <= 2200
+      ? state.year
+      : '';
   const read = useRead<PeoplePage>(
     apiPath(['finance', 'people'], {
       q: query,
       type,
       service: type === 'legislators' ? service : '',
-      scope: type === 'candidates' ? state.scope : 'all',
-      year: type === 'candidates' ? state.year : '',
+      scope: type === 'candidates' ? scope : 'all',
+      year: type === 'candidates' ? year : '',
       sort,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,

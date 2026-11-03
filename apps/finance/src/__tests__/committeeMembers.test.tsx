@@ -194,7 +194,7 @@ describe('Committee members’ campaign accounts', () => {
     expect(casey.textContent).toContain('Total contributionsReport total unavailable');
     expect(casey.textContent).toContain('Expenditures$0');
     expect(casey.textContent).toContain('the filing’s own zero');
-    expect(casey.textContent).toContain(`No report for ${YEAR} is held for this account`);
+    expect(casey.textContent).toContain(`No ${YEAR} report held`);
   });
 
   it('gives a member with no confirmed account its own line, whatever the reason', async () => {

@@ -465,6 +465,19 @@ describe('Lobbying directory', () => {
     expect(new URL(requests.at(-1)!).searchParams.get('year')).toBeNull();
   });
 
+  it('ignores an address year the server does not accept', async () => {
+    await render(
+      '/lobbying?tab=principals&year=2005',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () => json(lobbyistsPage()),
+        () => json(principalsPage()),
+      ),
+    );
+    const request = requests.find((url) => url.includes('/principals'))!;
+    expect(new URL(request).searchParams.get('year')).toBeNull();
+  });
+
   it('searches the open tab on the server and says when nothing matches', async () => {
     await render(
       '/lobbying?q=zzzz',

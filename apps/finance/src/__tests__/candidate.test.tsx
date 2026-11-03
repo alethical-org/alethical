@@ -179,6 +179,27 @@ describe('Candidate profile', () => {
     expect(official?.getAttribute('target')).toBe('_blank');
   });
 
+  it('prints each seat fact once when the served office repeats the voting area', async () => {
+    // The live record's shape: the office carries the district, and the voting
+    // area names it again with its chamber.
+    await render(
+      `/candidates/${ID}`,
+      answering({
+        ...UPCOMING,
+        office: 'State Representative District 56A',
+        votingArea: 'House District 56A',
+      }),
+    );
+    const facts = [...container.querySelectorAll('dt')].map((dt) => [
+      dt.textContent,
+      dt.nextElementSibling?.textContent,
+    ]);
+    expect(facts).toContainEqual(['Office', 'State Representative']);
+    expect(facts).toContainEqual(['District', 'District 56A']);
+    expect(text()).toContain('State Representative · District 56A · Minnesota Secretary of State');
+    expect(text()).not.toContain('House District 56A');
+  });
+
   it('shows a past election’s certified result and an unrecorded party (Past election, No confirmed links)', async () => {
     await render(`/candidates/${ID}`, answering(PAST));
     expect(text()).toContain('Official candidate record · Candidate for');
