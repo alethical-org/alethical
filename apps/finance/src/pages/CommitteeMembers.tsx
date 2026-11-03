@@ -386,7 +386,7 @@ function Account({
         </span>
       </div>
       {result.state === 'none' ? (
-        <p className="cmm-line">No report for {year} is held for this account</p>
+        <p className="cmm-line">No {year} report held</p>
       ) : (
         <>
           <dl className="cmm-figures">
