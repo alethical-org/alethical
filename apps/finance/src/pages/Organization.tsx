@@ -36,6 +36,7 @@ import type {
   IdentitySummary,
   PaidPayment,
 } from './organization/types';
+import { splitPartSub, splitPartTarget } from './organization/split';
 import { useLoad, type Load } from './organization/useLoad';
 import './organization.css';
 
@@ -51,20 +52,8 @@ function NotFound() {
 }
 
 function SplitPart({ part, from }: { part: IdentitySummary; from: string | null }) {
-  // The served count, in the unit of "Confirmed for k of n records"; a part with no
-  // count held (a file not held, or a part later merged) shows its reference alone,
-  // never 0. The internal id is never printed.
-  const counted = part.status === 'active' ? (part.confirmed_records ?? null) : null;
-  const sub = [
-    part.reference,
-    counted === null
-      ? null
-      : `${counted.toLocaleString('en-US')} confirmed ${counted === 1 ? 'record' : 'records'}`,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  // A part later merged opens the record it became.
-  const target = part.status === 'merged' && part.redirect_to ? part.redirect_to : part.id;
+  const sub = splitPartSub(part);
+  const target = splitPartTarget(part);
   const organization = part.kind === 'organization';
   const text = (
     <span className="org-split-text">
