@@ -10,6 +10,7 @@ import {
   sourceStamp,
   type CandidateRecord,
 } from '../pages/Candidate';
+import * as routes from '../routes';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -252,6 +253,112 @@ describe('Candidate profile', () => {
     expect(
       [...container.querySelectorAll('button')].some((b) => b.textContent === 'Try again'),
     ).toBe(true);
+  });
+});
+
+describe('Candidate profile, Media buys card', () => {
+  const VERSION = 'b'.repeat(64);
+  const row = (key: string, kind: string, role: string) => ({
+    key,
+    name: `${key}.pdf`,
+    label: `${key}.pdf`,
+    station: 'KSTP-TV',
+    year: 2026,
+    category: 'Local',
+    kind,
+    uploaded_at: '2026-03-04',
+    version_id: VERSION,
+    version_count: 1,
+    source_changed: false,
+    role,
+  });
+  /** The candidacy's reads, with the connections read answered as given. */
+  function withConnections(connections: (url: URL) => Response) {
+    const base = answering(UPCOMING);
+    return (url: string) =>
+      url.includes('/finance/media-buys/connections') ? connections(new URL(url)) : base(url);
+  }
+  const card = () => container.querySelector('.mb-buys-card');
+  const reads = () =>
+    (fetch as unknown as { mock: { calls: [string][] } }).mock.calls
+      .map(([url]) => new URL(url))
+      .filter((url) => url.pathname.endsWith('/finance/media-buys/connections'));
+
+  it('reads this candidacy’s files and lists its committees’ files before those naming it', async () => {
+    await render(
+      `/candidates/${ID}`,
+      withConnections(() =>
+        wrapped({
+          agency_key: null,
+          exact_name_count: 0,
+          files: [],
+          total: 2,
+          groups: [
+            {
+              label: 'Files with a checked connection to Acomb, Patty House Committee',
+              files: [row('kstp-1', 'Invoice', 'Advertiser, as printed')],
+            },
+            {
+              label: 'Station files that name this candidate',
+              files: [row('kstp-2', 'Order', 'Named on page 2')],
+            },
+          ],
+        }),
+      ),
+    );
+    expect(
+      reads().map((url) => [url.searchParams.get('kind'), url.searchParams.get('target')]),
+    ).toEqual([['candidate', ID]]);
+    const titles = [...(card()?.querySelectorAll('h3') ?? [])].map((h) => h.textContent);
+    expect(titles).toEqual([
+      'Files with a checked connection to Acomb, Patty House Committee',
+      'TV station files that name this candidate',
+    ]);
+    const groups = [...(card()?.querySelectorAll('.mb-buys-group') ?? [])];
+    expect(groups[0].textContent).toContain('Advertiser, as printed');
+    expect(groups[1].textContent).toContain('Named on page 2');
+    // Drawn between Campaign finance and Election in the main column.
+    const main = [...container.querySelectorAll('.lg2-main > section h2')].map(
+      (h) => h.textContent,
+    );
+    expect(main.indexOf('Media buys')).toBe(main.indexOf('Election') - 1);
+    expect(card()?.querySelector('a')?.getAttribute('href')).toBe(
+      `/media-buys/files/kstp-1?version=${VERSION}&from=%2Fcandidates%2F${ID}`,
+    );
+  });
+
+  it('says no file is connected to the candidate by name', async () => {
+    await render(
+      `/candidates/${ID}`,
+      withConnections(() =>
+        wrapped({ agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] }),
+      ),
+    );
+    expect(card()?.textContent).toContain(
+      'No TV station files have a checked connection to Patty Acomb',
+    );
+  });
+
+  it('says the files could not be loaded, with Try again', async () => {
+    await render(
+      `/candidates/${ID}`,
+      withConnections(() => raw({}, 500)),
+    );
+    expect(card()?.textContent).toContain('We couldn’t load these TV station files');
+    expect(card()?.textContent).toContain('Try again');
+    expect(card()?.textContent).not.toContain('problem on our side');
+  });
+
+  it('is left off while the TV station file page is off', async () => {
+    const real = routes.isBuilt;
+    const spy = vi
+      .spyOn(routes, 'isBuilt')
+      .mockImplementation((name) => name !== 'station-file' && real(name));
+    await render(`/candidates/${ID}`, answering(UPCOMING));
+    expect(container.querySelector('h1')?.textContent).toBe('Patty Acomb');
+    expect(card()).toBeNull();
+    expect(reads()).toHaveLength(0);
+    spy.mockRestore();
   });
 });
 

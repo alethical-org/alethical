@@ -40,6 +40,7 @@ import {
   spendingFigure,
 } from '../pages/Principal';
 import { notFoundLine, recordNumber } from '../pages/lobbying/parts';
+import * as routes from '../routes';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -1110,7 +1111,7 @@ describe('Principal record', () => {
       'Lobbying records copied Oct 29, 2026. The copy date is when Alethical obtained the source, not the end date of every filing.',
     ]);
     expect(text()).toContain('View the Board’s Lobbying Organizations Search Tool');
-    expect(text()).not.toMatch(/media buys|illustrative|example|sample|fixture|demo/i);
+    expect(text()).not.toMatch(/illustrative|example|sample|fixture|demo/i);
   });
 
   it('keeps failed spending rows and a failed lobbyist list apart from empty ones', async () => {
@@ -1168,6 +1169,97 @@ describe('Principal record', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.',
     );
+  });
+
+  describe('Media buys card', () => {
+    const CONNECTIONS = '/finance/media-buys/connections';
+    const ROW = {
+      key: 'kmsp-7',
+      name: 'contract.pdf',
+      label: 'contract.pdf',
+      station: 'KMSP-TV',
+      year: 2026,
+      category: 'Local',
+      kind: 'Contract',
+      uploaded_at: '2026-03-30',
+      version_id: 'c'.repeat(64),
+      version_count: 1,
+      source_changed: false,
+    };
+    const connections = (answer: () => Response) => (url: string) =>
+      url.includes(CONNECTIONS) ? answer() : ANSWER(principal())(url);
+    const card = () => container.querySelector('.mb-buys-card');
+    const reads = () =>
+      requests.map((url) => new URL(url)).filter((url) => url.pathname.endsWith(CONNECTIONS));
+
+    it('reads the files connected to this entity number, under the page’s sections', async () => {
+      await render(
+        '/lobbying/principals/8450',
+        (match) => <Principal match={match} />,
+        connections(() =>
+          json({
+            agency_key: null,
+            exact_name_count: 0,
+            files: [ROW],
+            total: 1,
+            groups: [{ label: '', files: [{ ...ROW, role: 'Advertiser, as printed' }] }],
+          }),
+        ),
+      );
+      expect(reads().map((url) => [...url.searchParams])).toEqual([
+        [
+          ['kind', 'principal'],
+          ['target', '8450'],
+        ],
+      ]);
+      expect(card()?.parentElement?.className).toBe('mb-buys-after');
+      expect(card()?.parentElement?.previousElementSibling?.className).toBe('lb-main');
+      expect(card()?.textContent).toContain('KMSP-TV contract ·');
+      expect(card()?.textContent).toContain('Advertiser, as printed');
+      expect(card()?.querySelector('a')?.getAttribute('href')).toBe(
+        `/media-buys/files/kmsp-7?version=${'c'.repeat(64)}&from=%2Flobbying%2Fprincipals%2F8450`,
+      );
+    });
+
+    it('says no file is connected to the principal by name', async () => {
+      await render(
+        '/lobbying/principals/8450',
+        (match) => <Principal match={match} />,
+        connections(() =>
+          json({ agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] }),
+        ),
+      );
+      expect(card()?.textContent).toContain(
+        'No TV station files have a checked connection to Health Association',
+      );
+    });
+
+    it('says the files could not be loaded, with Try again', async () => {
+      await render(
+        '/lobbying/principals/8450',
+        (match) => <Principal match={match} />,
+        connections(() => new Response('', { status: 500 })),
+      );
+      expect(card()?.textContent).toContain('We couldn’t load these TV station files');
+      expect(card()?.textContent).toContain('Try again');
+      expect(card()?.textContent).not.toContain('problem on our side');
+    });
+
+    it('is left off while the TV station file page is off', async () => {
+      const real = routes.isBuilt;
+      const spy = vi
+        .spyOn(routes, 'isBuilt')
+        .mockImplementation((name) => name !== 'station-file' && real(name));
+      await render(
+        '/lobbying/principals/8450',
+        (match) => <Principal match={match} />,
+        ANSWER(principal()),
+      );
+      expect(container.querySelector('h1')?.textContent).toBe('Health Association');
+      expect(card()).toBeNull();
+      expect(reads()).toHaveLength(0);
+      spy.mockRestore();
+    });
   });
 
   it('formats figures and lists each lobbyist once', () => {

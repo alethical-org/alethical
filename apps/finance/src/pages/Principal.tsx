@@ -29,6 +29,7 @@ import {
   recordNumber,
   useConfirmedIdentity,
 } from './lobbying/parts';
+import { MediaBuysCard } from './media/MediaBuysCard';
 import './lobbying.css';
 
 const FAILED =
@@ -337,6 +338,13 @@ export function Principal({ match }: { match: RouteMatch }) {
                   </>
                 )}
               </section>
+            </div>
+            <div className="mb-buys-after">
+              <MediaBuysCard
+                kind="principal"
+                target={String(shown.entity_id)}
+                name={shown.name ?? ''}
+              />
             </div>
           </>
         )}
