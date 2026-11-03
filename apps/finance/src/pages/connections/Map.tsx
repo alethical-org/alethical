@@ -28,7 +28,41 @@ export function wrapLabel(
   if (line) lines.push(line);
   return lines;
 }
-const heads = ['Giving and representation', 'Committees and registrations', 'Recipients'];
+
+const HEADS = ['Giving and representation', 'Committees and registrations', 'Recipients'];
+
+/** The column a node sits in (Money connections map, 27 Oct): committees,
+ * principals and represented organizations in the middle; givers on the left;
+ * everyone else on the right. */
+export function columnOf(node: GraphNode, edges: ReadonlyArray<GraphEdge>) {
+  const middle =
+    node.kind === 'committee' ||
+    node.kind === 'principal' ||
+    edges.some((e) => e.to === node.key && e.relationship === 'lobbying_representation');
+  return middle ? 1 : edges.some((e) => e.from === node.key) ? 0 : 2;
+}
+
+const MARKS: Record<string, string> = {
+  person: 'M12 12 a4 4 0 1 0 0-8 a4 4 0 1 0 0 8 M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21',
+  org: 'M5 3 H19 V21 H5 Z M9 8 H10 M14 8 H15 M9 12 H10 M14 12 H15 M10 21 V17 H14 V21',
+  cmte: 'M4 10 H20 V20 H4 Z M8 10 V6 H16 V10 M9 14 H15',
+  filing: 'M6 3 H15 L19 7 V21 H6 Z M9 12 H16 M9 16 H14',
+};
+function markOf(node: GraphNode) {
+  if (node.kind === 'committee') return 'cmte';
+  if (/person|lobbyist|candidate|legislator/.test(node.kind)) return 'person';
+  if (node.kind === 'file') return 'filing';
+  return 'org';
+}
+
+/**
+ * The map (Money connections map, 27 Oct; Round 34): fluid to its container,
+ * 3 columns sharing the width, labels wrapping at 12.5px, the PRINTED tag on
+ * its own line. Below a 600px container the columns stack with lines down the
+ * left edge, so nothing is ever cropped; the box grows instead. Hover tints a
+ * node, a press tints it on touch, selection is a 3px teal border and keyboard
+ * focus a separate purple ring 4px outside.
+ */
 export function ConnectionsMap({
   nodes,
   edges,
@@ -52,7 +86,7 @@ export function ConnectionsMap({
   useEffect(() => {
     const el = holder.current;
     if (!el) return;
-    const measure = () => setWidth(el.clientWidth || 600);
+    const measure = () => setWidth(Math.max(280, el.clientWidth || 600));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
@@ -67,8 +101,13 @@ export function ConnectionsMap({
   }, []);
   const canvas = typeof document === 'undefined' ? null : document.createElement('canvas');
   const ctx = canvas?.getContext('2d');
-  if (ctx) ctx.font = '600 12.5px Inter, sans-serif';
-  const measure = (s: string) => ctx?.measureText(s).width ?? s.length * 8;
+  const measureWith = (font: string) => (s: string) => {
+    if (!ctx) return s.length * 8;
+    ctx.font = font;
+    return ctx.measureText(s).width;
+  };
+  const measureLabel = measureWith('600 12.5px Inter, sans-serif');
+  const measureHead = measureWith('700 11px Inter, sans-serif');
   const stacked = width < 600,
     pad = 16,
     gap = 56,
@@ -77,13 +116,7 @@ export function ConnectionsMap({
     ? width - pad * 2 - indent * 2
     : Math.floor((width - pad * 2 - gap * 2) / 3);
   const columns: GraphNode[][] = [[], [], []];
-  for (const node of nodes) {
-    const middle =
-      node.kind === 'committee' ||
-      node.kind === 'principal' ||
-      edges.some((e) => e.to === node.key && e.relationship === 'lobbying_representation');
-    columns[middle ? 1 : edges.some((e) => e.from === node.key) ? 0 : 2].push(node);
-  }
+  for (const node of nodes) columns[columnOf(node, edges)].push(node);
   columns.forEach((col) => col.sort((a, b) => a.label.localeCompare(b.label)));
   const positions = new Map<string, { x: number; y: number; height: number; lines: string[] }>();
   const labels: Array<{ x: number; y: number; lines: string[] }> = [];
@@ -92,19 +125,22 @@ export function ConnectionsMap({
   columns.forEach((col, index) => {
     if (!col.length) return;
     const x = pad + index * (stacked ? indent : boxWidth + gap);
-    const title = wrapLabel(heads[index], boxWidth, measure);
+    const title = wrapLabel(HEADS[index], boxWidth, measureHead);
     let y = stacked ? top : 8;
     labels.push({ x, y: y + 14, lines: title });
     y += 12 + title.length * 16;
     col.forEach((node) => {
-      const lines = wrapLabel(node.label, boxWidth - 42, measure);
-      const h = Math.max(44, 12 + lines.length * 16 + (node.unresolved ? 16 : 0));
+      const lines = wrapLabel(node.label, boxWidth - 42, measureLabel);
+      const natural = 12 + lines.length * 16 + (node.unresolved ? 16 : 0);
+      // A phone target is at least 44px tall (eug-8, the brief's touch rule).
+      const h = stacked ? Math.max(44, natural) : natural;
       positions.set(node.key, { x, y, height: h, lines });
       y += h + 10;
     });
     top = y + 10;
     height = Math.max(height, y);
   });
+  height += 8;
   const active = (edge: GraphEdge) =>
     edge.id === selectedEdge ||
     Boolean(selectedNode && (edge.from === selectedNode || edge.to === selectedNode));
@@ -112,16 +148,20 @@ export function ConnectionsMap({
     (!selectedNode && !selectedEdge) ||
     node.key === selectedNode ||
     edges.some((e) => active(e) && (e.from === node.key || e.to === node.key));
-  const hovered = nodes.find((node) => node.key === hover);
+  const byKey = new Map(nodes.map((node) => [node.key, node]));
+  const hovered = hover ? byKey.get(hover) : undefined;
   const hoveredEdges = hovered
     ? edges.filter((e) => e.from === hovered.key || e.to === hovered.key)
     : [];
+  const hoveredAt = hovered && positions.get(hovered.key);
+  const single = hoveredEdges.length === 1 ? edgeAmount(hoveredEdges[0]) : '';
+  const cardHeight = single ? 70 : 52;
   return (
     <div className="mc-map" ref={holder} data-font-ready={fontReady}>
       <svg
         width={width}
-        height={height + 16}
-        viewBox={`0 0 ${width} ${height + 16}`}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
         role="group"
         aria-label="Map of the connections listed in the table"
       >
@@ -151,12 +191,14 @@ export function ConnectionsMap({
           const a = positions.get(edge.from),
             b = positions.get(edge.to);
           if (!a || !b) return null;
-          const ya = a.y + 15,
-            yb = b.y + 15;
+          const ya = a.y + Math.min(15, a.height / 2),
+            yb = b.y + Math.min(15, b.height / 2);
           const forward = a.x < b.x,
             x1 = a.x + (forward ? boxWidth : 0),
             x2 = b.x + (forward ? 0 : boxWidth),
             mid = (x1 + x2) / 2;
+          // A line between 2 names in 1 column loops outside it, on whichever
+          // side has room, so it never leaves the drawing.
           const loopLeft = a.x + boxWidth + 40 >= width - pad;
           const loopX = loopLeft ? a.x : a.x + boxWidth;
           const curveX = loopX + (loopLeft ? -40 : 40);
@@ -165,8 +207,9 @@ export function ConnectionsMap({
             : a.x === b.x
               ? `M${loopX},${ya} C${curveX},${ya} ${curveX},${yb} ${loopX},${yb}`
               : `M${x1},${ya} C${mid},${ya} ${mid},${yb} ${x2},${yb}`;
-          const from = nodes.find((n) => n.key === edge.from),
-            to = nodes.find((n) => n.key === edge.to);
+          const from = byKey.get(edge.from),
+            to = byKey.get(edge.to);
+          const name = `${from?.label} · ${RELATIONSHIPS[edge.relationship] ?? edge.relationship} · ${to?.label}`;
           return (
             <g
               key={edge.id}
@@ -182,7 +225,7 @@ export function ConnectionsMap({
                 role="button"
                 tabIndex={0}
                 aria-pressed={edge.id === selectedEdge}
-                aria-label={`${from?.label}, ${RELATIONSHIPS[edge.relationship] ?? edge.relationship}, ${to?.label}`}
+                aria-label={name}
                 onClick={() => onEdge(edge.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -190,12 +233,15 @@ export function ConnectionsMap({
                     onEdge(edge.id);
                   }
                 }}
-              />
+              >
+                <title>{name}</title>
+              </path>
             </g>
           );
         })}
         {nodes.map((node) => {
           const p = positions.get(node.key)!;
+          const mark = markOf(node);
           return (
             <g
               key={node.key}
@@ -230,37 +276,44 @@ export function ConnectionsMap({
                 rx={9}
               />
               <rect className="mc-node-box" width={boxWidth} height={p.height} rx={6} />
-              <g aria-hidden="true" transform="translate(8,7)">
-                <rect
-                  width={18}
-                  height={18}
-                  rx={node.kind === 'person' ? 9 : 4}
-                  fill="#EAF4F7"
-                  stroke={node.unresolved ? '#5F6B76' : 'none'}
-                  strokeDasharray={node.unresolved ? '2 2' : undefined}
-                />
-                {node.unresolved ? (
-                  <text x={9} y={12.5} textAnchor="middle" fontSize={8.5} fill="#4A5661">
+              {node.unresolved ? (
+                <g aria-hidden="true">
+                  <rect
+                    x={8}
+                    y={6}
+                    width={18}
+                    height={18}
+                    rx={4}
+                    fill="none"
+                    stroke="rgba(20,27,34,0.45)"
+                    strokeDasharray="2 2"
+                  />
+                  <text x={17} y={18.5} textAnchor="middle" className="mc-node-aa">
                     Aa
                   </text>
-                ) : (
-                  <path
-                    transform="translate(2,2) scale(.6)"
-                    d={
-                      node.kind === 'committee'
-                        ? 'M4 10 H20 V20 H4 Z M8 10 V6 H16 V10 M9 14 H15'
-                        : /person|lobbyist|candidate|legislator/.test(node.kind)
-                          ? 'M12 12 a4 4 0 1 0 0-8 a4 4 0 1 0 0 8 M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21'
-                          : node.kind === 'file'
-                            ? 'M6 3 H15 L19 7 V21 H6 Z M9 12 H16 M9 16 H14'
-                            : 'M5 3 H19 V21 H5 Z M9 8 H10 M14 8 H15 M9 12 H10 M14 12 H15 M10 21 V17 H14 V21'
-                    }
-                    fill="none"
-                    stroke="#0B5C72"
-                    strokeWidth={2}
+                </g>
+              ) : (
+                <g aria-hidden="true" transform="translate(8,6) scale(0.75)">
+                  <rect
+                    width={24}
+                    height={24}
+                    rx={mark === 'person' ? 12 : 5}
+                    fill="#EAF4F7"
+                    stroke={mark === 'cmte' ? '#0E6A82' : 'none'}
+                    strokeWidth={1.3}
                   />
-                )}
-              </g>
+                  <g transform="translate(4.8,4.8) scale(0.6)">
+                    <path
+                      d={MARKS[mark]}
+                      fill="none"
+                      stroke="#0B5C72"
+                      strokeWidth={2.6}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </g>
+                </g>
+              )}
               {p.lines.map((line, i) => (
                 <text key={i} x={32} y={19.5 + i * 16} className="mc-node-label">
                   {line}
@@ -275,16 +328,16 @@ export function ConnectionsMap({
           );
         })}
       </svg>
-      {hovered && (
+      {hovered && hoveredAt && (
         <div
           className="mc-map-tip"
           role="tooltip"
           style={{
-            left: Math.max(4, Math.min(positions.get(hovered.key)!.x + 12, width - 240)),
-            top: Math.max(
-              4,
-              positions.get(hovered.key)!.y + positions.get(hovered.key)!.height + 8,
-            ),
+            left: Math.max(4, Math.min(hoveredAt.x + 12, width - 232)),
+            top:
+              hoveredAt.y - cardHeight - 8 >= 0
+                ? hoveredAt.y - cardHeight - 8
+                : hoveredAt.y + hoveredAt.height + 8,
           }}
         >
           <strong>{hovered.label}</strong>
@@ -292,9 +345,7 @@ export function ConnectionsMap({
             {nodeKind(hovered)} · {hoveredEdges.length}{' '}
             {hoveredEdges.length === 1 ? 'connection' : 'connections'}
           </span>
-          {hoveredEdges.length === 1 && edgeAmount(hoveredEdges[0]) && (
-            <span>{edgeAmount(hoveredEdges[0])}</span>
-          )}
+          {single && <b className="f-num">{single}</b>}
         </div>
       )}
     </div>

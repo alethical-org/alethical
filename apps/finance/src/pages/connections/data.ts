@@ -1,5 +1,5 @@
 import { formatMoney } from '@alethical/shared/moneyFormat';
-import { hrefFor } from '../../routes';
+import { hrefFor, isBuilt, type RouteName } from '../../routes';
 import type { Evidence } from '../../ui/controls';
 import { day } from '../media/shared';
 import { periodOf } from '../organization/data';
@@ -121,27 +121,39 @@ export function nodeSub(node: GraphNode): string {
   }
 }
 
+/** A Finance address, or null while its screen is off (nothing links to an unbuilt page). */
+function built(
+  name: RouteName,
+  params: Record<string, string>,
+  query: Record<string, string | null | undefined> = {},
+): string | null {
+  return isBuilt(name) ? hrefFor(name, params, query) : null;
+}
+
+/** A node's own page, only from the explicit target the server supplies: a
+ * printed name never opens a profile, and an identity opens only when the
+ * server resolved every record in the group to it. */
 export function nodeHref(node: GraphNode): string | null {
   const target = node.target;
   if (!target) return null;
   switch (target.kind) {
     case 'identity':
       return node.kind === 'person' || node.kind === 'organization'
-        ? hrefFor(node.kind, { id: target.id })
+        ? built(node.kind, { id: target.id })
         : null;
     case 'committee':
     case 'legislator':
     case 'candidate':
     case 'lobbyist':
     case 'principal':
-      return hrefFor(target.kind, { id: target.id });
+      return built(target.kind, { id: target.id });
     case 'file':
-      return hrefFor('station-file', { key: target.id }, { version: target.version });
+      return built('station-file', { key: target.id }, { version: target.version });
     case 'agency':
-      return hrefFor('printed-agency-name', { name: target.id });
+      return built('printed-agency-name', { name: target.id });
     case 'printed_name':
       return ['donor', 'vendor', 'independent_vendor'].includes(target.role ?? '')
-        ? hrefFor(
+        ? built(
             'payments-under-name',
             { query: target.id },
             {
@@ -171,7 +183,8 @@ export function edgeYear(edge: GraphEdge): string | null {
 /**
  * Where a committee node opens from an edge (rule eug-19/77: the tab holding
  * the record's kind, the year and the printed name). A payment to a vendor
- * opens the committee's Expenditures tab searched for that payee; the donor's
+ * opens the committee's Expenditures tab searched for that payee, an
+ * independent expenditure its Independent expenditures card (Round 9); the donor's
  * tab for a contribution needs the donor's kind, which the edge does not carry,
  * so a contribution opens the committee at the year alone.
  */
@@ -179,13 +192,17 @@ export function committeeEdgeHref(edge: GraphEdge, committee: GraphNode, other: 
   const href = nodeHref(committee);
   if (!href || committee.kind !== 'committee') return href;
   const year = edgeYear(edge);
-  if (edge.relationship === 'payments' && edge.from === committee.key && other.role === 'vendor')
-    return hrefFor(
-      'committee',
-      { id: committee.record_id },
-      { tab: 'expenditures', year, q: other.label },
-    );
-  return hrefFor('committee', { id: committee.record_id }, { year });
+  if (edge.relationship === 'payments' && edge.from === committee.key) {
+    if (other.role === 'vendor')
+      return built(
+        'committee',
+        { id: committee.record_id },
+        { tab: 'expenditures', year, q: other.label },
+      );
+    if (other.role === 'independent_vendor')
+      return built('committee', { id: committee.record_id }, { tab: 'independent', year });
+  }
+  return built('committee', { id: committee.record_id }, { year });
 }
 
 /**
@@ -233,7 +250,9 @@ export function edgePeriod(edge: GraphEdge) {
     return edge.source.copied_at
       ? `Listed ${day(edge.source.copied_at)}`
       : 'Date not given in the public file';
-  return yearSpan(edge.source.first_year, edge.source.last_year) ?? 'Date not given in the public file';
+  return (
+    yearSpan(edge.source.first_year, edge.source.last_year) ?? 'Date not given in the public file'
+  );
 }
 
 /** The source's name as the drawings print it (finance-data SNAPSHOTS labels). */
@@ -279,14 +298,14 @@ export function edgeEvidence(edge: GraphEdge, from: GraphNode, to: GraphNode): E
         ? 'Checked'
         : 'Not checked',
     sourceHref: edge.source.file_key
-      ? hrefFor(
+      ? (built(
           'station-file',
           { key: edge.source.file_key },
           {
             version: edge.source.version_id,
             page: edge.source.page ? String(edge.source.page) : null,
           },
-        )
+        ) ?? undefined)
       : (edge.source.url ?? undefined),
     sourceLabel: edge.source.file_key ? 'View page image' : 'Open source file',
   };
