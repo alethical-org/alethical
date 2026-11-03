@@ -251,11 +251,31 @@ figure is ever added across committees or members.
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
+- **Confirm identities (`/money/identities`)**: "Names to review" lists exact printed names
+  (donor, campaign payee and outside-spending payee, each file its own row) by money recorded
+  under the name, with All names, Donor names or Payee names and Not confirmed, Confirmed or All,
+  20 a page; a total follows the shared money rule ("Missing payment amount", "Reporting period
+  incomplete", "Filing year 2025"). Opening a name shows every identity confirmed for some of its
+  records ("Confirmed for {k} of {n} records"), the remaining records and "Suggested matches"
+  (only identities already holding records of that spelling; Alethical never suggests by
+  name), then "Records under this exact spelling", 50 a page on 1 copy of the Board's file, and
+  the name's history with "View evidence". Every account can confirm selected records to an
+  identity, create a person or organization, withdraw (with a reason), merge another record in
+  after previewing the links that move, or split 1 into 2; each needs an evidence note that
+  says more than the shared name, and a source. A selection is the server's record
+  fingerprints, or "All records" / "{year} records", which the server resolves. "Saved" appears
+  only after the server accepts; otherwise "Not saved. Your entries are kept." with Try again,
+  "These records changed since this form opened…" or, after the Board's file is replaced,
+  "Reload the records", which keeps the words and clears the selection. Unfinished entries are
+  kept as 1 draft per name, role, action and target ("Unsaved draft", "Discard draft"). A
+  contextual arrival names the spelling and its role (`?name=&role=`); a spelling with no
+  records reads "This record is not held". It is entered only from its context, never from
+  Finance Home.
 - **Not built yet:** Vendors and payees (`/money/recipients`), Person profile (`/people/:id`),
   Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
-  `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
-  identities (`/money/identities`) each have a screen in the code but answer "not found"
+  `/media-buys/stations/:id`) and Check TV station files (`/media-buys/check`) each have a
+  screen in the code but answer "not found"
   and are linked from nowhere until the pull request that aligns that screen with Design's
   current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
@@ -275,13 +295,13 @@ none.
 
 ## Limits and privacy
 
-The read sections for Check station files and Confirm identities are implemented as
-independent components in `apps/finance/src/pages/checking/`. They read paged queues,
-exact source versions, machine suggestions and pinned identity record pages. Preparing
-or dismissing a suggestion is local only. Their product routes remain unavailable until
-the required write forms are drawn, reviewed and built; neither queue makes a check or
-confirmation. Filer names and links use explicit display metadata; absent metadata shows
-the printed registration without assuming that a committee page exists.
+The read sections for Check station files are implemented as independent components in
+`apps/finance/src/pages/checking/`. They read paged queues, exact source versions and machine
+suggestions. Preparing or dismissing a suggestion is local only, and the queue makes no check
+until its write form is built. Filer names and links use explicit display metadata; absent
+metadata shows the printed registration without assuming that a committee page exists.
+Confirm identities writes through the server's identity routes; every account reads every
+note, reason and name typed there.
 
 - Finance never links to alethical.com; a CI test fails if any app file names an
   alethical.com page. A check of the production build (`pnpm run check:built-links`) reads

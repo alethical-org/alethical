@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 
 import { apiPath, useRead } from '../../api/read';
 import { useAddressState } from '../../ui/addressState';
-import { Chips, LoadingRows, Refused, Updating } from '../../ui/controls';
+import { Chips, Refused, Updating } from '../../ui/controls';
+import { LoadingLine } from '../../ui/parts';
 import { hasDraft } from '../../ui/drafts';
 import { Pager } from '../media/shared';
 import { draftPrefix, plural, queueAmount, queueKind, queuePeriod } from './words';
@@ -86,7 +87,7 @@ export function Queue({
       </div>
       {read.loading && (
         <div className="ci-pad">
-          <LoadingRows label="Loading names to review…" />
+          <LoadingLine>Loading names to review…</LoadingLine>
         </div>
       )}
       {read.updating && (

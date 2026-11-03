@@ -648,7 +648,7 @@ export function Detail({
     else if (pickRead.failed)
       mergePreview = (
         <Refused onRetry={pickRead.retry} retrying={pickRead.pending}>
-          We couldn’t load this record. This is a problem on our side.
+          We couldn’t load these links. This is a problem on our side.
         </Refused>
       );
     else if (pickRead.data) {
@@ -849,7 +849,7 @@ export function Detail({
           </div>
           {reads.failed && (
             <Refused onRetry={reads.retry}>
-              We couldn’t load this identity’s confirmations. This is a problem on our side.
+              We couldn’t load these confirmations. This is a problem on our side.
             </Refused>
           )}
           {groups.length > 1 && (
