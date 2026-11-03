@@ -269,9 +269,9 @@ describe('Donors by employer', () => {
       answer(page(GIFTS), records([{ id: 'p-1', kind: 'person', name: 'Wen', confirmed: 1 }])),
     );
     const line = container.querySelector('.de-confirm')!;
-    expect(line.textContent).toBe('No organization record confirms this spelling');
-    // The confirm-identities page is not built yet, so no link to it.
-    expect(line.querySelector('a')).toBeNull();
+    expect(line.textContent).toContain('No organization record confirms this spelling');
+    // Confirm identities is on, so the spelling can be confirmed from here.
+    expect(line.querySelector('a')?.getAttribute('href')).toMatch(/^\/money\/identities\?/);
   });
 
   it('says the check could not be read rather than that nothing confirms', async () => {

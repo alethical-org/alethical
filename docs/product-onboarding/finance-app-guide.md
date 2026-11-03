@@ -153,7 +153,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
 Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
-`/money/races/:id`, `/money/employers`, `/money/employers/:name`,
+`/money/races/:id`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id` and `/votes/:id`
 (§ Research pages). Every other address answers "We
