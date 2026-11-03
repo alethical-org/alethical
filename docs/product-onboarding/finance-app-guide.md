@@ -113,8 +113,7 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
 - **Finance Home (`/home`)**: "Research public records" with the search field, and the 1
   header-corner action "Explore money connections" (a filled button beside the eyebrow and
-  heading, dropping under the heading on a tablet or phone), shown once Money connections is
-  built; under "Browse records", entrances into each built directory (Legislators,
+  heading where they share a line, under the heading where they do not); under "Browse records", entrances into each built directory (Legislators,
   Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
   organizations), each shown once its page is built; a card per built record family; and
   "Sources and updates" naming each family's source with its copy or update date, read from
@@ -134,7 +133,8 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   focus to its field.
 - A link to a record carries the earlier page's own address (`?from=`), so the record's
   "Back to {page}" link reopens exactly that page, its tab, year and search included; up to
-  3 earlier pages are kept. In-page choices (tab, year, sort, page, search) are kept in the
+  3 earlier pages are kept. A link back to Finance Home names it by its heading, "Back to
+  Research public records". In-page choices (tab, year, sort, page, search) are kept in the
   address, so a copied link or a new tab opens the same view.
 
 ## Addresses
@@ -150,7 +150,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
-`/money/races/:id`, `/money/recipients`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
+`/money/races/:id`, `/money/recipients`, `/money/connections`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
 `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
@@ -161,6 +161,40 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 `/auth/return` answer (§ The public site).
 
 ## Research pages
+
+Money connections (`/money/connections`), opened from Finance Home's and Campaign money's
+"Explore money connections", reads direct recorded
+relationships from `GET /api/v1/finance/connections`. Search, year, relationship and the
+selected name (`focus`) are server filters; a selected line stays in the address (`edge`),
+with how many pages were loaded (`pages`, up to 10), so a return from a record reloads those
+pages and restores it. Opened with no earlier page, it reads "Back to Research public
+records", Finance Home. The page loads 100 relationships at a time: "Show
+{n} more connections" adds the next min(100, remaining), and "{loaded} of {total}
+connections loaded" appears once the selection is larger than 1 page. Map and Table read
+the same loaded set. Map opens at every band, phone included, where the 3 columns stack
+into 1 list so no name or line is cut; an explicit Table choice stays in the address
+(`view=table`). Names and lines show hover, keyboard focus and a pressed state on touch,
+and Enter or Space selects them; the selection panel lists the chosen name's own
+connections with "Show connections" and "View source".
+
+Each relationship keeps its own source, record count and date or filing-year period
+("Filing year 2025"). A total is shown only when every amount is held and every date or
+every filing year is; otherwise it reads "Incomplete" in the Amount column, "Missing
+payment amount" elsewhere, or "Reporting period incomplete". Station-file lines carry no
+amount. Sources are never added together and a line never claims that one payment funded
+another. Printed names stay separate from confirmed people and organizations; only an
+explicit target from the server opens a profile. Totals and counts cover only the
+available sources; unavailable ones are named in "Some sources are unavailable · …". A
+failed first load reads "We couldn’t load these connections", a failed next page "Some
+connections could not be loaded", each with Try again and the loaded rows kept. When the
+server stays busy through every retry while rows are on screen, "The service is busy. The
+connections shown are the last loaded." keeps them with Try again. A selection the server
+does not hold reads "This record is not held in the connections". Sources and updates
+names each loaded payment file with its own copy date ("contribution file, copied Nov 3,
+2026; expenditure file, copied Oct 9, 2026"), a copy date, not a reporting period. Under
+each name and row, only the registration prints; the drawn record kind, printed spelling,
+saved date and "Position as filed" wait on the server. These reads do not write checks or
+confirmations.
 
 Each page is built from its approved Design drawing and reads alethical.com's own records
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
@@ -350,9 +384,6 @@ figure is ever added across committees or members.
   contextual arrival names the spelling and its role (`?name=&role=`); a spelling with no
   records reads "This record is not held". It is entered only from its context, never from
   Finance Home.
-- **Not built yet:** Money connections (`/money/connections`) has a screen in the code but
-  answers "not found" and is linked from nowhere until the pull request that aligns that screen with Design's
-  current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page. The Session menu lists the sessions the server holds, the
   current one first; with 1 session held it shows 1 option.

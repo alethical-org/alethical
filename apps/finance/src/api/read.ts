@@ -13,7 +13,10 @@ export interface PageInfo {
 }
 
 export type ReadAnswer<T> =
-  { state: 'ok'; data: T; page?: PageInfo | null } | { state: 'not-found' } | { state: 'failed' };
+  | { state: 'ok'; data: T; page?: PageInfo | null }
+  | { state: 'not-found' }
+  /** `busy`: the server was still busy (503) after every suggested wait. */
+  | { state: 'failed'; busy?: boolean };
 
 type Fetch = typeof fetch;
 
@@ -122,6 +125,7 @@ export async function apiGet<T>(
       await pause((Number.isFinite(seconds) && seconds > 0 ? seconds : 1) * 1000, signal);
       continue;
     }
+    if (response.status === 503 && retryAfter !== null) return { state: 'failed', busy: true };
     if (response.status === 404) return { state: 'not-found' };
     if (!response.ok) return { state: 'failed' };
     try {
@@ -146,6 +150,8 @@ export interface Read<T> {
   updating: boolean;
   /** The latest request failed; a result view keeps its earlier results. */
   failed: boolean;
+  /** The failure was the server staying busy through every retry. */
+  busy: boolean;
   notFound: boolean;
   /** A request is in flight, including a retry. */
   pending: boolean;
@@ -256,6 +262,7 @@ export function useRead<T>(
       prior !== null &&
       (current === null || pending),
     failed: current?.state === 'failed' && !pending,
+    busy: current?.state === 'failed' && current.busy === true && !pending,
     notFound: current?.state === 'not-found',
     pending,
     retry,

@@ -10,11 +10,15 @@ describe('return context', () => {
     );
   });
 
-  it('names the earlier page by its title and opens exactly that address', () => {
+  it('names Home by its heading and opens exactly that address', () => {
     expect(returnTarget('?from=%2Fhome%3Fq%3Dhortman')).toEqual({
       to: '/home?q=hortman',
-      name: 'Finance Home',
+      name: 'Research public records',
     });
+  });
+
+  it('names any other page by its title', () => {
+    expect(returnTarget('?from=%2Fmoney')?.name).toBe('Campaign money');
   });
 
   it.each([

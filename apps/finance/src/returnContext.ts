@@ -53,5 +53,5 @@ export function returnTarget(search: string): { to: string; name: string } | nul
   const earlier = safeFrom(new URLSearchParams(search).get('from'));
   if (!earlier) return null;
   const match = matchRoute(earlier.split(/[?#]/, 1)[0]);
-  return match ? { to: earlier, name: match.route.title } : null;
+  return match ? { to: earlier, name: match.route.returnName ?? match.route.title } : null;
 }
