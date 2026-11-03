@@ -104,10 +104,10 @@ export function paymentDateRangeLabel(
   return `Payments dated ${first} to ${last}`;
 }
 
-/** "The committee's own report, covering through Dec 31, 2025". */
+/** "The committee’s own report, covering through Dec 31, 2025". */
 export function reportedThroughLabel(through: string | null | undefined): string | null {
   const day = formatDay(through);
-  return day ? `The committee's own report to the state, covering through ${day}` : null;
+  return day ? `The committee’s own report to the state, covering through ${day}` : null;
 }
 
 /**
