@@ -48,6 +48,11 @@ function NotFound() {
       <h1 tabIndex={-1} className="org-gone-title">
         No organization with this reference is in the current copy
       </h1>
+      {isBuilt('recipients') && (
+        <p>
+          Open <Link to={hrefFor('recipients')}>Vendors and payees</Link> to search the held records
+        </p>
+      )}
     </section>
   );
 }

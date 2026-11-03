@@ -4,7 +4,8 @@ import { Link, useLocation } from '../router';
 import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt } from '../routes';
 import { useAddressState } from '../ui/addressState';
-import { ClearAll, Dropdown, Empty, Tabs } from '../ui/controls';
+import { ClearAll, Dropdown, Empty } from '../ui/controls';
+import { ScrollingTabs } from '../ui/scrollingTabs';
 import { Arrow, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   Pager,
@@ -193,7 +194,7 @@ export function MediaBuys() {
           </button>
         </form>
         <section className="mb-browse" aria-label="Browse TV station files">
-          <Tabs
+          <ScrollingTabs
             label="Browse"
             value={tab}
             tabs={TABS}
@@ -248,6 +249,8 @@ export function MediaBuys() {
                 <p aria-live="polite" className="f-count-line mb-count">
                   {data.capped ? 'At least ' : ''}
                   {data.total.toLocaleString('en-US')} {data.total === 1 ? noun[0] : noun[1]}
+                  {/* A search lists TV station files, whatever tab is open. */}
+                  {searching ? ` matching “${data.q}”` : ''}
                 </p>
                 {rows.length === 0 ? (
                   <Empty title="No TV station files match this search" />

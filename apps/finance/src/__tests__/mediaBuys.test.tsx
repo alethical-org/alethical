@@ -194,6 +194,8 @@ describe('Media buys', () => {
     await render('/media-buys?tab=agencies', () => <MediaBuys />);
     const text = container.textContent ?? '';
     expect(text).toContain('At least 500 agency names');
+    // The shared scrolling tab row (Round 35): 1 line, with a cue on phone.
+    expect(document.querySelector('.f-scroll-tabs [role="tablist"]')).not.toBeNull();
     expect(text).toContain('Names as printed, with each spelling listed separately');
     expect(text).toContain('KARE, KSTP-TV');
     expect(text).toContain('Not checked');
@@ -209,6 +211,28 @@ describe('Media buys', () => {
       .find((url) => url.includes('/browse'));
     expect(browse).toContain('tab=agencies');
     expect(browse).not.toContain('station=');
+  });
+
+  it('says a word search lists TV station files, naming the words', async () => {
+    serve(() =>
+      json({
+        tab: 'folders',
+        q: 'walz',
+        page: 1,
+        page_size: 12,
+        total: 0,
+        capped: false,
+        years: [],
+        categories: [],
+        rows: [],
+      }),
+    );
+    await render('/media-buys?q=walz', () => <MediaBuys />);
+    expect(container.querySelector('.mb-count')?.textContent).toBe(
+      '0 TV station files matching “walz”',
+    );
+    act(() => root.unmount());
+    root = createRoot(container);
   });
 
   it('shows the checking entrance only once its page is built', async () => {
@@ -389,6 +413,20 @@ describe('TV station folder, station and printed agency name', () => {
     expect(text).toContain('None held');
     expect(text).toContain('Other stations held');
     expect(text).toContain('Latest station upload held');
+    // The station-wide counts, once, for all years, with the drawn notes: gaps in
+    // the collection are never hidden.
+    const all = container.querySelector('[aria-label="All years"]')!;
+    const metrics = [...all.querySelectorAll('.mb-metrics > div')].map((d) => d.textContent);
+    expect(metrics).toEqual([
+      'TV station files held3',
+      'Unique file contents3',
+      'Files whose text could not be fully read0',
+      'Files we couldn’t download0',
+      'Folders we couldn’t list0',
+    ]);
+    expect(text).toContain(
+      'Files we couldn’t download and folders we couldn’t list are collection gaps on our side, not statements about the station',
+    );
     expect(
       container.querySelector('a[href^="/media-buys?station=KARE&year=2026&from="]'),
     ).toBeTruthy();
