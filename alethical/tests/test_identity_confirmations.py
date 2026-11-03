@@ -620,6 +620,125 @@ def test_names_are_listed_and_identifiers_looked_up(finance_api, board):  # noqa
     assert by_number.status_code == 422
 
 
+@pytest.mark.parametrize("kind", sorted(FINGERPRINTED))
+def test_surrounding_spaces_are_part_of_a_printed_record_key(
+    finance_api, finance_db, board, kind
+):
+    plain = (
+        EMPLOYER if kind == "employer_name" else VENDOR if "payee" in kind else DONOR
+    )
+    exact = f" {plain} "
+    model, snapshot, locator, field = {
+        "donor_name": (
+            m.CampaignFinanceContributionRow,
+            board.contributions_snapshot_id,
+            31,
+            "contributor",
+        ),
+        "employer_name": (
+            m.CampaignFinanceContributionRow,
+            board.contributions_snapshot_id,
+            31,
+            "contrib_employer_name",
+        ),
+        "payee_name": (
+            m.CampaignFinanceExpenditureRow,
+            board.expenditures_snapshot_id,
+            52,
+            "vendor_name",
+        ),
+        "independent_payee_name": (
+            m.CampaignFinanceIndependentExpenditureRow,
+            board.independent_expenditures_snapshot_id,
+            7,
+            "vendor_name",
+        ),
+    }[kind]
+    finance_db.execute(
+        update(model)
+        .where(model.snapshot_id == snapshot, model.row_number == locator)
+        .values({field: exact})
+    )
+    finance_db.commit()
+    first = listing(finance_api, kind, exact)
+    assert first["record_key"] == exact and first["records"] == 1
+    confirmation = (
+        donor(board, None)
+        if kind == "donor_name"
+        else employer(board, None)
+        if kind == "employer_name"
+        else payee(board, None)
+    )
+    confirmation.update(
+        record_kind=kind,
+        record_key=exact,
+        evidence_snapshot_id=str(snapshot),
+        evidence_locator=locator,
+    )
+    if kind == "independent_payee_name":
+        confirmation["evidence_source"] = "cf_independent_expenditure_row"
+    confirmation["record_selection"] = {"snapshot_id": first["snapshot_id"]}
+    person = create(finance_api, "organization", "Exact printed record", confirmation)
+    assert person["confirmations"][0]["record_key"] == exact
+    assert listing(finance_api, kind, exact)["confirmed"] == 1
+    assert listing(finance_api, kind, plain)["confirmed"] == 0
+    duplicate = post(
+        finance_api,
+        "",
+        {"kind": "organization", "name": "Duplicate", "confirmation": confirmation},
+    )
+    assert duplicate.status_code == 422
+    assert "at least 1 unconfirmed record" in duplicate.json()["detail"]
+
+
+def test_fully_withdrawn_spelling_keeps_its_history_owners_only(finance_api, board):
+    rows = prints(finance_api)
+    person = create(finance_api, "person", DONOR, donor(board, [rows[31], rows[32]]))
+    confirmation_id = person["confirmations"][0]["id"]
+    assert (
+        post(
+            finance_api,
+            f"/confirmations/{confirmation_id}/withdraw",
+            {"reason": "These records belong to someone else."},
+        ).status_code
+        == 200
+    )
+    fresh = listing(finance_api)
+    assert fresh["identities"] == [] and fresh["confirmed"] == 0
+    assert [entry["id"] for entry in fresh["history_identities"]] == [person["id"]]
+    history = get(finance_api, fresh["history_identities"][0]["id"])
+    assert history["confirmations"][0]["status"] == "withdrawn"
+    assert history["history"][-1]["action"] == "withdrawn"
+    assert (
+        listing(finance_api, "donor_name", "Example, Morgan")["history_identities"]
+        == []
+    )
+    assert listing(finance_api, "employer_name", EMPLOYER)["history_identities"] == []
+    # History belongs to the exact spelling, not just this page's visible year.
+    filtered = finance_api.get(
+        f"{BASE}/records",
+        params={"record_kind": "donor_name", "record_key": DONOR, "year": 2024},
+    ).json()["data"]
+    assert filtered["records"] == 0
+    assert filtered["history_identities"] == fresh["history_identities"]
+    next_owner = create(finance_api, "person", "Jordan B", donor(board, [rows[31]]))
+    assert (
+        post(
+            finance_api,
+            f"/{person['id']}/merge",
+            {
+                "into": next_owner["id"],
+                "reason": "Both identities refer to this person.",
+            },
+        ).status_code
+        == 200
+    )
+    merged = listing(finance_api)
+    assert [entry["id"] for entry in merged["identities"]] == [next_owner["id"]]
+    assert [entry["id"] for entry in merged["history_identities"]] == [person["id"]]
+    assert get(finance_api, person["id"])["status"] == "merged"
+
+
 # A registration number or held record is an identity for all time.
 
 
@@ -797,7 +916,7 @@ def test_a_confirmation_keeps_its_evidence_and_never_names_who_made_it(
     ("change", "message"),
     [
         ({"record_key": "EXAMPLE, JORDAN"}, "does not print this exact record"),
-        ({"record_key": " Example, Jordan A"}, "exactly as printed"),
+        ({"record_key": " Example, Jordan A"}, "does not print this exact record"),
         ({"evidence_quote": "SOMEONE ELSE"}, "must appear in the evidence row"),
         ({"evidence_quote": "Jo"}, "at least 3 characters"),
         # The contributor ends, then the receipt type begins: 2 values, not 1.
