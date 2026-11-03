@@ -143,6 +143,12 @@ def test_grouped_route_has_one_list_and_raw_route_keeps_its_existing_shape(clien
             "amount": "5.0000",
             "row_count": 2,
             "grouping_basis": "registration_number",
+            "amount_state": "reported",
+            "first_paid_on": "2025-06-01",
+            "last_paid_on": "2025-06-01",
+            "undated_count": 0,
+            "first_year": 2025,
+            "last_year": 2025,
         }
     ]
     assert grouped["figures"]["supporting_spender_count"] == 1
@@ -159,3 +165,55 @@ def test_grouped_route_has_one_list_and_raw_route_keeps_its_existing_shape(clien
 def test_grouping_requires_one_about_committee_and_one_year(client, params):
     response = client.get(URL, params={**params, "group_by": "spender"})
     assert response.status_code == 422
+
+
+def test_each_group_states_its_net_its_amount_state_and_its_own_period(db):
+    from datetime import date
+
+    from sqlalchemy import update
+
+    from alethical.db import models
+
+    published = Published(db, published_rows=6)
+    snap = published.independent
+    _independent(db, snap, amount="500", on=date(2025, 3, 1))
+    _independent(db, snap, amount="-120", on=date(2025, 9, 9))
+    undated = _independent(db, snap, amount="20")
+    _independent(db, snap, direction="Against", amount="40", on=date(2025, 5, 5))
+    _independent(db, snap, direction="Against", amount=None, on=date(2025, 7, 7))
+    _independent(
+        db, snap, spender_reg=CAUCUS, spender="Caucus Fund", amount="15", year=2025
+    )
+    db.flush()
+    db.execute(
+        update(models.CampaignFinanceIndependentExpenditureRow)
+        .where(
+            models.CampaignFinanceIndependentExpenditureRow.snapshot_id == snap.id,
+            models.CampaignFinanceIndependentExpenditureRow.row_number == undated,
+        )
+        .values(transaction_date=None)
+    )
+    db.commit()
+    page = outside_spending(
+        db, _release(db), about=CANDIDATE, year=2025, group_by_spender=True
+    )
+    groups = {(g.spender_registration_number, g.direction): g for g in page.groups}
+    supporting = groups[(FUND, "For")]
+    # A refund counts against the net; an undated payment still has its filed year,
+    # so the period is complete and the net is shown.
+    assert (supporting.amount, supporting.amount_state) == (Decimal("400"), "reported")
+    assert (supporting.first_paid_on, supporting.last_paid_on) == (
+        date(2025, 3, 1),
+        date(2025, 9, 9),
+    )
+    assert (supporting.undated_count, supporting.first_year, supporting.last_year) == (
+        1,
+        2025,
+        2025,
+    )
+    opposing = groups[(FUND, "Against")]
+    assert (opposing.amount, opposing.amount_state) == (None, "incomplete")
+    assert opposing.row_count == 2
+    assert groups[(CAUCUS, "For")].amount_state == "reported"
+    # A withheld net sorts after every shown one.
+    assert page.groups[-1] is opposing
