@@ -98,9 +98,49 @@ async function render(path: string, answer: (url: string) => Response) {
 
 const text = () => container.textContent ?? '';
 
+function wrapped(data: unknown) {
+  return raw({ data });
+}
+
+/** The candidacy, plus the connected legislator's campaign-account reads. */
+function answering(record: CandidateRecord, confirmed = false) {
+  return (url: string): Response => {
+    if (url.includes('/campaign-finance/years'))
+      return wrapped(
+        confirmed
+          ? {
+              link_state: 'confirmed',
+              years: [{ year: 2026, committees: [{ registration_number: '18272' }] }],
+            }
+          : { link_state: 'unconfirmed', years: [] },
+      );
+    if (url.includes('/campaign-finance?year=2026'))
+      return wrapped({
+        year: 2026,
+        committees: [
+          {
+            registration_number: '18272',
+            committee_name: 'Acomb, Patty House Committee',
+            register_kind: 'candidate_committee',
+            split: {
+              state: 'shown',
+              reported_total: '1200.0000',
+              reported_through: '2026-07-20',
+            },
+            money_in: { state: 'reported', itemized_contribution_total: '900.0000' },
+            money_out: { state: 'not_reported' },
+          },
+        ],
+      });
+    if (url.includes('/outside-spending'))
+      return wrapped({ state: 'not_reported', year: 2026, groups: [] });
+    return raw(record);
+  };
+}
+
 describe('Candidate profile', () => {
   it('shows the held candidacy facts and confirmed links (Confirmed links)', async () => {
-    await render(`/candidates/${ID}`, () => raw(UPCOMING));
+    await render(`/candidates/${ID}`, answering(UPCOMING));
     expect(container.querySelector('h1')?.textContent).toBe('Patty Acomb');
     expect(text()).toContain('CANDIDATE PROFILE');
     expect(text()).toContain(
@@ -112,8 +152,9 @@ describe('Candidate profile', () => {
       'Candidate records from the Minnesota Secretary of State · Checked Oct 20, 2026.',
     );
     expect(text()).toContain('Election results pending');
+    // Accounts come from the connected legislator record; none confirmed here.
     expect(text()).toContain('No campaign committee is confirmed for this candidacy');
-    expect(text()).toContain('No confirmed records are held for this section');
+    expect(text()).toContain('No confirmed records held');
     const legislator = [...container.querySelectorAll('a')].find((a) =>
       a.textContent?.includes('View legislator profile'),
     );
@@ -121,9 +162,15 @@ describe('Candidate profile', () => {
       `/legislators/patty-acomb?from=%2Fcandidates%2F${ID}`,
     );
     expect(legislator?.textContent).toContain(
-      'Currently serving as State Representative, District 45B',
+      'Serving as State Representative, District 45B',
     );
-    expect(container.querySelector('a[href^="/people/p1"]')?.textContent).toContain('Patty Acomb');
+    // The related rows are stacked two-line links (eug-8).
+    expect(legislator?.className).toContain('f-row-link');
+    expect(legislator?.querySelector('.f-row-link-name')?.textContent).toBe(
+      'View legislator profile',
+    );
+    // Person profile is not turned on yet, so nothing links to it.
+    expect(container.querySelector('a[href^="/people/"]')).toBeNull();
     const official = [...container.querySelectorAll('a')].find((a) =>
       a.textContent?.replace(/\u00a0/g, ' ').includes('Official source website'),
     );
@@ -132,13 +179,29 @@ describe('Candidate profile', () => {
   });
 
   it('shows a past election’s certified result and an unrecorded party (Past election, No confirmed links)', async () => {
-    await render(`/candidates/${ID}`, () => raw(PAST));
+    await render(`/candidates/${ID}`, answering(PAST));
     expect(text()).toContain('Official candidate record · Candidate for');
     expect(text()).toContain('Party not recorded');
     expect(text()).toContain('Not elected · Election results');
     expect(text()).toContain('Checked Nov 26, 2024 · 2024 general election results');
     expect(text()).toContain(
       'No confirmed person or legislator record is connected to this candidacy',
+    );
+  });
+
+  it('shows the connected legislator’s confirmed account, linked to the report it summarizes', async () => {
+    await render(`/candidates/${ID}`, answering(UPCOMING, true));
+    const card = container.querySelector('.cf-account')!;
+    expect(card.textContent).toContain('Acomb, Patty House Committee');
+    expect(card.textContent).toContain('$1,200');
+    const open = [...card.querySelectorAll('a')].find((a) =>
+      a.textContent?.includes('Open campaign'),
+    );
+    expect(open?.getAttribute('href')).toBe(
+      `/money/committees/18272?year=2026&report=2026-07-20&from=%2Fcandidates%2F${ID}`,
+    );
+    expect(container.querySelector('.cf-key')?.textContent).toContain(
+      'Acomb, Patty House Committee · Year 2026',
     );
   });
 

@@ -123,14 +123,14 @@ describe('People', () => {
     expect(rows).toHaveLength(10);
     expect(rows[0].querySelector('.f-mark')).not.toBeNull();
     expect(rows[0].textContent).toContain('Member 01');
-    expect(rows[0].textContent).toContain('Senate District 1A · Currently serving');
+    expect(rows[0].textContent).toContain('Senate District 1A · Serving');
     expect(rows[0].textContent).toContain('LEGISLATOR');
     expect(rows[0].getAttribute('href')).toBe(
       '/legislators/member-01?from=%2Fpeople%3Ftype%3Dlegislators%26service%3Dcurrent',
     );
     // The Home entrance's choices are honoured.
     expect(button('Legislators').getAttribute('aria-pressed')).toBe('true');
-    expect(button('Current').getAttribute('aria-pressed')).toBe('true');
+    expect(text()).toContain('Service: Current');
     expect(text()).toContain('Page 1 of 3');
   });
 
@@ -193,7 +193,8 @@ describe('People', () => {
     expect(params.get('year')).toBe('2024');
     expect(params.get('sort')).toBe('election_year');
     expect(button('Candidates').getAttribute('aria-pressed')).toBe('true');
-    expect(button('Past candidates').getAttribute('aria-pressed')).toBe('true');
+    expect(text()).toContain('Election year: Past candidates');
+    expect(text()).toContain('Sort by: Election year');
   });
 
   it('keeps person and candidacy records separate even for the same name', async () => {

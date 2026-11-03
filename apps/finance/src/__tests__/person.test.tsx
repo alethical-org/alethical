@@ -74,7 +74,8 @@ it('shows elections and service without treating a result as current service', a
   );
   expect(container.textContent).toContain('Example Person');
   expect(container.textContent).toContain('Formerly served as State Representative');
-  expect(container.textContent).toContain('Not elected · Election results');
+  expect(container.textContent).toContain('Not elected · State Representative');
+  expect(container.textContent).toContain('General election · District 1A · Election results');
   expect(container.textContent).not.toContain('Currently serving');
   expect(container.querySelector('a[href^="/candidates/c"]')).toBeTruthy();
   expect(container.querySelector('a[href^="/legislators/example-person"]')).toBeTruthy();

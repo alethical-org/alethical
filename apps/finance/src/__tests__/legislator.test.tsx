@@ -240,7 +240,7 @@ describe('Legislator profile', () => {
     await render('/legislators/patty-acomb', answering(CURRENT));
     expect(container.querySelector('h1')?.textContent).toBe('Patty Acomb');
     expect(text()).toContain(
-      'Currently serving as State Representative · House District 45B · DFL',
+      'Serving as State Representative · House District 45B · DFL',
     );
     expect(text()).toContain('Party as recorded: DFL');
     expect(text()).toContain('Elected to the House');
@@ -290,7 +290,7 @@ describe('Legislator profile', () => {
       a.textContent?.includes('Open campaign'),
     );
     expect(open?.getAttribute('href')).toBe(
-      '/money/committees/18272?year=2025&from=%2Flegislators%2Fpatty-acomb',
+      '/money/committees/18272?year=2025&report=2025-12-31&from=%2Flegislators%2Fpatty-acomb',
     );
   });
 
@@ -303,8 +303,8 @@ describe('Legislator profile', () => {
     expect(contest.textContent).toContain('For');
     expect(contest.textContent).toContain('$5,297');
     expect(contest.textContent).toContain('8 payment records');
-    expect(contest.textContent).toContain('Incomplete: a payment amount is missing');
-    expect(text()).not.toContain('No confirmed records are held for this section');
+    expect(contest.textContent).toContain('Missing payment amount');
+    expect(text()).not.toContain('No confirmed records held');
   });
 
   it('a year with no report total and no itemized rows says so, never $0', async () => {
@@ -315,7 +315,7 @@ describe('Legislator profile', () => {
     expect(card.textContent).toContain('Not reported');
     expect(card.textContent).not.toContain('$0');
     expect(card.textContent).toContain('We do not hold an official contribution total');
-    expect(text()).toContain('No confirmed records are held for this section');
+    expect(text()).toContain('No confirmed records held');
   });
 
   it('a requested year the account does not hold gets its own Not held chip', async () => {
@@ -335,11 +335,11 @@ describe('Legislator profile', () => {
       }),
     );
     expect(container.querySelector('h1')?.textContent).toBe('Former Member');
-    expect(text()).not.toContain('Currently serving');
+    expect(text()).not.toContain('Serving as');
     expect(text()).not.toContain('Party as recorded');
     expect(text()).toContain('Committee assignments are held for current service only');
     expect(text()).toContain('No campaign committee is confirmed for this service record');
-    expect(text()).toContain('No chief-authored bills are held for this service');
+    expect(text()).toContain('No chief-authored bills held for this service');
     expect(text()).not.toContain('Official source website');
     expect(requests.some((url) => url.includes('/finance/legislative-committees'))).toBe(false);
   });
@@ -381,7 +381,7 @@ describe('Legislator profile', () => {
 describe('Legislator helpers', () => {
   it('names a current seat and never a former one', () => {
     expect(serviceLine(CURRENT)).toBe(
-      'Currently serving as State Representative · House District 45B · DFL',
+      'Serving as State Representative · House District 45B · DFL',
     );
     expect(serviceLine(FORMER)).toBeNull();
   });
