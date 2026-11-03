@@ -16,8 +16,15 @@ export const mediaPath = (
   query: Record<string, string | number | null | undefined> = {},
 ) => apiPath(['finance', 'media-buys', ...parts], query);
 
-/** A date as the drawings print it ("Mar 5, 2026"), or "Unavailable". */
-export const day = (value?: string | null) => formatDay(value ?? null) ?? 'Unavailable';
+const FCC_DAY = /^(\d{2})\/(\d{2})\/(\d{4})\b/;
+
+/** A date as the drawings print it ("Mar 5, 2026"), or "Unavailable". Station upload
+ * dates arrive in the FCC's own form ("09/02/2026 11:46 AM"); only the date is kept. */
+export const day = (value?: string | null) => {
+  const fcc = value ? FCC_DAY.exec(value) : null;
+  const iso = fcc ? `${fcc[3]}-${fcc[1]}-${fcc[2]}` : (value ?? null);
+  return formatDay(iso) ?? 'Unavailable';
+};
 
 /** "Mar 5, 2026, 09:14 CT": when Alethical first saved a version, in Central Time. */
 export function savedAt(value: string | null | undefined): string {

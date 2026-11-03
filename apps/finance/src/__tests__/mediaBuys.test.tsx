@@ -5,7 +5,7 @@ import { clearReadCache } from '../api/read';
 import { MediaBuys, browseRow } from '../pages/MediaBuys';
 import { StationFile } from '../pages/StationFile';
 import { PrintedAgency, StationFolder, TVStation } from '../pages/StationRecords';
-import { copiedLines, savedAt } from '../pages/media/shared';
+import { copiedLines, day, savedAt } from '../pages/media/shared';
 import { markQuote } from '../pages/media/evidence';
 import * as routes from '../routes';
 import { matchRoute } from '../routes';
@@ -723,5 +723,15 @@ describe('Media buys card', () => {
     ));
     expect(container.querySelector('.mb-buys-card')).toBeNull();
     expect(fetcher.mock.calls.some(([url]) => String(url).includes('/connections'))).toBe(false);
+  });
+});
+
+describe('Upload dates', () => {
+  it('reads the FCC form production sends, and an ISO date', () => {
+    // Production: `uploaded_at: "09/02/2026 11:46 AM"`.
+    expect(day('09/02/2026 11:46 AM')).toBe('Sep 2, 2026');
+    expect(day('2026-09-02')).toBe('Sep 2, 2026');
+    expect(day(null)).toBe('Unavailable');
+    expect(day('not a date')).toBe('Unavailable');
   });
 });
