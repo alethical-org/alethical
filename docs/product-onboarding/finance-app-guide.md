@@ -113,8 +113,7 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
 - **Finance Home (`/home`)**: "Research public records" with the search field, and the 1
   header-corner action "Explore money connections" (a filled button beside the eyebrow and
-  heading, dropping under the heading on a tablet or phone), shown once Money connections is
-  built; under "Browse records", entrances into each built directory (Legislators,
+  heading where they share a line, under the heading where they do not); under "Browse records", entrances into each built directory (Legislators,
   Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
   organizations), each shown once its page is built; a card per built record family; and
   "Sources and updates" naming each family's source with its copy or update date, read from
@@ -150,7 +149,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
-`/money/races/:id`, `/money/recipients`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
+`/money/races/:id`, `/money/recipients`, `/money/connections`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
 `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
@@ -162,8 +161,8 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 
 ## Research pages
 
-Money connections (`/money/connections`, in the code but not built yet: its route answers
-"not found" until the pull request that aligns it turns it on) reads direct recorded
+Money connections (`/money/connections`), opened from Finance Home's and Campaign money's
+"Explore money connections", reads direct recorded
 relationships from `GET /api/v1/finance/connections`. Search, year, relationship and the
 selected name (`focus`) are server filters; a selected line stays in the address (`edge`)
 so a return from a record restores it. The page loads 100 relationships at a time: "Show
@@ -352,9 +351,6 @@ figure is ever added across committees or members.
   ("Unsaved draft", "Discard draft"). A contextual arrival names the spelling and its role
   (`?name=&role=`); a spelling with no records reads "This record is not held". It is
   entered only from its context, never from Finance Home.
-- **Not built yet:** Money connections (`/money/connections`) has a screen in the code but
-  answers "not found" and is linked from nowhere until the pull request that aligns that screen with Design's
-  current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page. The Session menu lists the sessions the server holds, the
   current one first; with 1 session held it shows 1 option.
