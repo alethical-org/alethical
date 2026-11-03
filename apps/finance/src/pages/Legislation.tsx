@@ -7,7 +7,7 @@ import { REQUEST_TIMEOUT_MS } from '../api/client';
 import { useRead } from '../api/read';
 import { useFinanceSession } from '../auth/session';
 import type { ServedCounts } from '../landing/counts';
-import { returnTarget, withFrom } from '../returnContext';
+import { withFrom } from '../returnContext';
 import { Link, useLocation } from '../router';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { billSession } from '../search/suggestions';
@@ -21,7 +21,7 @@ import {
   Updating,
   type Option,
 } from '../ui/controls';
-import { Arrow, BackLink, Chevron, SourcesAndUpdates, WithArrow } from '../ui/parts';
+import { Arrow, Chevron, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   billCode,
   billHeading,
@@ -216,7 +216,6 @@ export function clearBillListCache() {
 export function Legislation(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
   const [address, setAddress] = useAddressState({
     q: '',
     session: '',
@@ -294,7 +293,6 @@ export function Legislation(_props: { match: RouteMatch }) {
   return (
     <main id="main" className="f-page">
       <div className="f-content">
-        {back && <BackLink to={back.to} name={back.name} />}
         <header>
           <h1 tabIndex={-1} className="f-page-title">
             Legislation
@@ -469,7 +467,8 @@ function BillRow({
       {code && <span className="f-code lg-code">{code}</span>}
       <span className="lg-row-text">
         <span className="lg-row-title">{billHeading(bill.ai_analysis?.short_title, code)}</span>
-        <span className="lg-row-meta">{meta.join(' · ')}</span>
+        {/* Each dot ends its line, so a wrapped fact never starts with one (eug-8). */}
+        <span className="lg-row-meta">{meta.join('\u00a0· ')}</span>
       </span>
       <Arrow />
     </>
