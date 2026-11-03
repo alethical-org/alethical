@@ -8,6 +8,7 @@ under ``/api/v1/finance/`` private, so 1 account's answer never reaches another.
 from __future__ import annotations
 
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -28,6 +29,7 @@ from alethical.api.services import (
     finance_people,
     finance_connections,
     finance_payments_under_name as under_name,
+    finance_versions,
 )
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
@@ -44,8 +46,16 @@ def money_connections(
     focus: str | None = Query(None, max_length=2000, pattern=r"^[^\x00]*$"),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0, le=2147483647),
+    version: str | None = Query(
+        default=None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
     db: Session = Depends(get_db),
 ) -> dict | JSONResponse:
+    token = finance_versions.check(
+        db, version, "money", "identity", "accounts", "lobbying", "station"
+    )
     try:
         data = finance_connections.connections(
             db,
@@ -70,7 +80,7 @@ def money_connections(
             ),
             headers={"Cache-Control": "private, no-store", "Retry-After": "10"},
         )
-    return {"data": data}
+    return {"data": {**data, "version": token}}
 
 
 @router.get("/payments-under-name")
@@ -277,20 +287,29 @@ def payees(
     sort: finance_payees.PayeeSort = "name",
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    version: str | None = Query(
+        default=None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
     db: Session = Depends(get_db),
 ) -> dict:
     """Itemized payee rows, keeping source files and confirmation coverage separate."""
+    token = finance_versions.check(db, version, "money", "identity")
     return {
-        "data": finance_payees.directory(
-            db,
-            query=q,
-            year=year,
-            payment_type=payment_type,
-            tab=tab,
-            sort=sort,
-            limit=limit,
-            offset=offset,
-        )
+        "data": {
+            "version": token,
+            **finance_payees.directory(
+                db,
+                query=q,
+                year=year,
+                payment_type=payment_type,
+                tab=tab,
+                sort=sort,
+                limit=limit,
+                offset=offset,
+            ),
+        }
     }
 
 
@@ -304,18 +323,34 @@ def people(
     sort: finance_people.PeopleSort = "name",
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    version: str | None = Query(
+        default=None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
     db: Session = Depends(get_db),
 ) -> dict:
+    now = finance_people.read_time()
+    token = finance_versions.check(
+        db,
+        version,
+        "people",
+        on_date=now.astimezone(ZoneInfo("America/Chicago")).date(),
+    )
     return {
-        "data": finance_people.directory(
-            db,
-            query=q,
-            type=type,
-            scope=scope,
-            year=year,
-            service=service,
-            sort=sort,
-            limit=limit,
-            offset=offset,
-        )
+        "data": {
+            "version": token,
+            **finance_people.directory(
+                db,
+                now=now,
+                query=q,
+                type=type,
+                scope=scope,
+                year=year,
+                service=service,
+                sort=sort,
+                limit=limit,
+                offset=offset,
+            ),
+        }
     }

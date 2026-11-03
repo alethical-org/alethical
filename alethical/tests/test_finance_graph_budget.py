@@ -28,7 +28,9 @@ def test_success_keeps_its_existing_timestamp_encoding_and_response_schema(
     )
     response = finance_api.get(BASE)
     assert response.status_code == 200
-    assert response.json() == {"data": {"copied_at": "2026-10-29T00:00:00Z"}}
+    data = response.json()["data"]
+    assert data.pop("copied_at") == "2026-10-29T00:00:00Z"
+    assert set(data) == {"version"} and len(data["version"]) == 16
     success = finance_api.app.openapi()["paths"][BASE]["get"]["responses"]["200"]
     assert success["content"]["application/json"]["schema"]["type"] == "object"
 

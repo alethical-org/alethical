@@ -89,6 +89,8 @@ class FinanceQueueRow(FinanceFileRow):
 
 
 class FinanceQueue(Model):
+    #: Names the sources this page read; send it back to refuse a changed state.
+    version: str | None = None
     rows: list[FinanceQueueRow]
     total: int
     has_more: bool
@@ -130,6 +132,8 @@ class FinanceBrowseGroup(Model):
 
 
 class FinanceBrowse(Model):
+    #: Names the sources this page read; send it back to refuse a changed state.
+    version: str | None = None
     tab: str
     q: str
     station: str

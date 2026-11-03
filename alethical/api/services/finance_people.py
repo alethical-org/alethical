@@ -35,6 +35,11 @@ PeopleSort = Literal["name", "election_year"]
 Service = Literal["current", "former"]
 
 
+def read_time() -> datetime:
+    """One clock reading shared by the page and its membership version."""
+    return datetime.now(UTC)
+
+
 def directory(
     db: Session,
     *,
@@ -46,8 +51,9 @@ def directory(
     sort: PeopleSort = "name",
     limit: int = 50,
     offset: int = 0,
+    now: datetime | None = None,
 ) -> dict:
-    now = datetime.now(UTC)
+    now = now or read_time()
     today = now.astimezone(ZoneInfo("America/Chicago")).date()
     candidate, person, member, period, session = (
         m.CandidateRecord,

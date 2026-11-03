@@ -60,6 +60,8 @@ def build(db, board, datasets=tuple(Dataset)):
 
 
 def digest(data):
+    # The version names the source state, which a withdrawal changes on purpose.
+    data = {key: value for key, value in data.items() if key != "version"}
     return hashlib.sha256(
         json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
