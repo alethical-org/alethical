@@ -244,7 +244,9 @@ figure is ever added across committees or members.
   spender as a chart (For to the right, Against to the left) or a table, never added across
   committees. Each spender's amount is shown only when every payment has an amount and a date,
   and its link opens that spender's own payment year. The address names the contest (`house-34b`,
-  `senate-41`, `governor`).
+  `senate-41`, `governor`). The contest line names the office by its title ("State
+  Representative · District 34B · 2026", "State Senator", "Governor" and the other statewide
+  offices); a court seat keeps its seat label ("District Court · District 2 · Seat 14").
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
   server. Lobbyists use name order. Principals add year and name or reported-spending
   order, with one filed total per organization for that year. Missing figures and

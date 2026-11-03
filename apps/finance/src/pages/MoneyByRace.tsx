@@ -208,8 +208,29 @@ export function keepDates(text: string): string {
 
 /** "District 1A · 2026" kept together (Round 34): the seat words and the year
  * never break apart. */
+/**
+ * The title each Minnesota state office's holder is known by, keyed by the race
+ * read's office code (`OFFICE_ORDER` in alethical/api/services/campaign_finance_races.py).
+ * A fixed label for the office, not a fact about any person. Courts and any office
+ * not listed keep the seat label.
+ */
+export const OFFICE_TITLES: Readonly<Record<string, string>> = {
+  House: 'State Representative',
+  Senate: 'State Senator',
+  Governor: 'Governor',
+  'Lieutenant Governor': 'Lieutenant Governor',
+  'Attorney General': 'Attorney General',
+  'Secretary of State': 'Secretary of State',
+  'State Auditor': 'State Auditor',
+};
+
+/** The contest line (Money by Race drawing): "State Representative · District
+ * 99A · 2026" where the office has a title, else the seat label with its year.
+ * "District 99A" and its year never break apart. */
 export function contestHeading(contest: { office: string; district: string | null }, year: number) {
-  return `${contestSeatLabel(contest).replace(/District (\S)/g, 'District\u00a0$1')}\u00a0·\u00a0${year}`;
+  const title = OFFICE_TITLES[contest.office];
+  const label = title ? `${title}\u00a0·\u00a0${seatPart(contest)}` : contestSeatLabel(contest);
+  return `${label.replace(/District (\S)/g, 'District\u00a0$1')}\u00a0·\u00a0${year}`;
 }
 
 /**

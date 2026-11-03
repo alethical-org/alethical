@@ -296,7 +296,27 @@ describe('Money by race helpers', () => {
     const [forRow] = outsideGroups([row({ amount: '500.0000' })], ['18558']);
     expect(outsideBar(forRow).amount).toBe(500);
     expect(contestHeading({ office: 'House', district: '1A' }, 2026)).toBe(
-      'House District\u00a01A\u00a0·\u00a02026',
+      'State Representative\u00a0·\u00a0District\u00a01A\u00a0·\u00a02026',
+    );
+  });
+
+  it('titles each state office from its code and keeps the seat label for the rest', () => {
+    const nb = (text: string) => text.replace(/\u00a0/g, ' ');
+    expect(nb(contestHeading({ office: 'Senate', district: '41' }, 2026))).toBe(
+      'State Senator · District 41 · 2026',
+    );
+    expect(nb(contestHeading({ office: 'Governor', district: null }, 2026))).toBe(
+      'Governor · Statewide · 2026',
+    );
+    expect(nb(contestHeading({ office: 'Attorney General', district: null }, 2026))).toBe(
+      'Attorney General · Statewide · 2026',
+    );
+    // Courts, and any office code the table does not know, keep the shipped form.
+    expect(nb(contestHeading({ office: 'District Court', district: '2-14' }, 2026))).toBe(
+      'District Court · District 2 · Seat 14 · 2026',
+    );
+    expect(nb(contestHeading({ office: 'Soil and Water', district: '3' }, 2026))).toBe(
+      'Soil and Water · 3 · 2026',
     );
   });
 
@@ -323,7 +343,7 @@ describe('Money by race page', () => {
     expect(container.querySelector('h1')?.textContent).toBe('Money by race');
     expect(requests).toContain(`${API}/api/v1/campaign-finance/races?year=2026&office=House`);
     expect(container.querySelector('h2')?.textContent).toBe(
-      'House District\u00a01A\u00a0·\u00a02026',
+      'State Representative\u00a0·\u00a0District\u00a01A\u00a0·\u00a02026',
     );
     // The caveat joins the end note, so it ends with a period there.
     expect(container.querySelector('.mr-end-note')?.textContent).toContain(
