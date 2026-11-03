@@ -16,7 +16,8 @@ import { Link, useLocation } from '../router';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { billSession } from '../search/suggestions';
 import { useAddressState } from '../ui/addressState';
-import { Empty, LoadingRows, Refused, Tabs, type Tab } from '../ui/controls';
+import { Empty, LoadingRows, Refused, type Tab } from '../ui/controls';
+import { ScrollingTabs } from '../ui/scrollingTabs';
 import { Arrow, BackLink, LoadingLine, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   actionRow,
@@ -219,7 +220,7 @@ export function Bill({ match }: { match: RouteMatch }) {
       <div className="bl-layout">
         <div className="bl-main">
           <div className="bl-tabs">
-            <Tabs
+            <ScrollingTabs
               label="Bill sections"
               value={tab}
               tabs={tabs}
