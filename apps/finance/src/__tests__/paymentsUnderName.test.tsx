@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
 import {
-  confirmedIdentities,
+  committeeHref,
   copyLines,
   countLine,
+  coverageLine,
+  identityCoverage,
   emptyLine,
   PaymentsUnderName,
   positionNote,
@@ -213,7 +215,7 @@ describe('Payments under this name', () => {
     expect(campaign.textContent).not.toContain('$1,250.50');
     expect(campaign.textContent).toContain('Media buy');
     expect(campaign.querySelector('a')?.getAttribute('href')).toBe(
-      '/money/committees/30558?year=2026&tab=expenditures&from=%2Fmoney%2Fnames%2FExample%2520Media%2520LLC%3Frole%3Dpayee',
+      '/money/committees/30558?year=2026&tab=expenditures&q=Example+Media+LLC&from=%2Fmoney%2Fnames%2FExample%2520Media%2520LLC%3Frole%3Dpayee',
     );
     expect(campaign.textContent).toContain(
       'Each record comes from the paying committee’s filing. A payee is not necessarily a commercial vendor.',
@@ -230,21 +232,39 @@ describe('Payments under this name', () => {
     expect(container.textContent).toContain(
       'Minnesota’s payment files copied Oct 29, 2026. This is a copy date, not a reporting period.',
     );
-    expect(container.textContent).toContain(
-      'Different spellings appear separately, and a matching name alone does not establish identity.',
+    // The similar-names section carries this caveat in the drawing (Round 29).
+    expect(container.textContent).not.toContain('Different spellings appear separately');
+    // Nothing confirms the spelling, in either file.
+    expect(container.querySelector('[aria-label="Identity"]')?.textContent).toBe(
+      'No confirmed identity for this spelling',
     );
   });
 
-  it('opens the source evidence titled payer to recipient', async () => {
+  it('opens the held locators of the source row', async () => {
     await render('/money/names/Example%20Media%20LLC', payee);
     const view = section('Campaign payments').querySelector<HTMLButtonElement>('.pn-view')!;
     await act(async () => view.click());
     const dialog = document.querySelector('[role="dialog"]')!;
-    expect(dialog.querySelector('h2')?.textContent).toBe('Education Minn PAC to Example Media LLC');
-    expect(dialog.textContent).toContain('Itemized expenditures file');
+    expect(dialog.querySelector('h2')?.textContent).toBe('Example Media LLC · $1,250');
+    const rows = Object.fromEntries(
+      [...dialog.querySelectorAll('.f-sources-row')].map((item) => [
+        item.querySelector('dt')?.textContent,
+        item.querySelector('dd')?.textContent,
+      ]),
+    );
+    expect(rows).toEqual({
+      'Saved source': 'Expenditure file',
+      'Source version': 'Copy of Oct 29, 2026',
+      Row: '11',
+      Filer: 'Education Minn PAC',
+      Date: 'Jul 20, 2026',
+      Amount: '$1,250',
+      Type: 'Media buy',
+    });
+    expect(dialog.textContent).toContain('SOURCE TEXT');
+    expect(dialog.textContent).toContain('No saved source excerpt held');
     expect(dialog.textContent).toContain('Not checked');
-    expect(dialog.textContent).toContain('Copied');
-    expect(dialog.textContent).toContain('Oct 29, 2026');
+    // No excerpt is held, so the Board's own file is linked.
     expect(dialog.querySelector('a')?.getAttribute('href')).toBe(
       'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=1',
     );
@@ -262,7 +282,7 @@ describe('Payments under this name', () => {
     expect(container.textContent).not.toContain('Outside spending payments');
     const campaign = section('Campaign payments');
     expect(campaign.querySelector('a')?.getAttribute('href')).toContain(
-      '/money/committees/19369?year=2026&tab=individuals',
+      '/money/committees/19369?year=2026&tab=individuals&q=Example%2C+Wen',
     );
     expect(campaign.textContent).toContain(
       'The count is of matching records, not a confirmed count of separate donations.',
@@ -270,6 +290,8 @@ describe('Payments under this name', () => {
     const identity = requests.find((url) => url.pathname.endsWith('/finance/identities/records'))!;
     expect(identity.searchParams.get('record_kind')).toBe('donor_name');
     expect(identity.searchParams.get('record_key')).toBe('Example, Wen');
+    // Counted over the selected year's records only.
+    expect(identity.searchParams.get('year')).toBe('2026');
   });
 
   it('keeps each donor on an employer row and the money theirs', async () => {
@@ -278,15 +300,21 @@ describe('Payments under this name', () => {
       return json(page('employer', [receivedRow()], { name: 'Example Health Association' }));
     });
     expect(container.textContent).toContain('Employer name as reported');
-    expect(container.textContent).toContain(
-      'This is the employer name written in contribution records, not the organisation’s giving',
+    expect(container.querySelector('.pn-notice')?.textContent).toBe(
+      'Employer name as written in contribution records, not the organization’s giving',
     );
     expect(section('Campaign payments').textContent).toContain('· Donor: Example, Wen');
+    // The Committee link filters to the donor who printed the employer.
+    expect(section('Campaign payments').querySelector('a')?.getAttribute('href')).toContain(
+      'tab=individuals&q=Example%2C+Wen',
+    );
     const view = section('Campaign payments').querySelector<HTMLButtonElement>('.pn-view')!;
     await act(async () => view.click());
-    expect(document.querySelector('[role="dialog"] h2')?.textContent).toBe(
-      'Example, Wen to Example Candidate Committee',
-    );
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.querySelector('h2')?.textContent).toBe('Example Health Association · $250');
+    expect(dialog.textContent).toContain('Employer as filed');
+    expect(dialog.textContent).toContain('Example Health Association');
+    expect(dialog.textContent).toContain('Contribution file');
   });
 
   it('says a missing amount and date are missing, never zero', async () => {
@@ -367,35 +395,78 @@ describe('Payments under this name', () => {
     expect(section('Campaign payments').querySelector('.pn-more-btn')).toBeNull();
   });
 
-  it('shows a confirmed identity only where its record confirms this spelling', async () => {
-    await render('/money/names/Example%20Media%20LLC', (url) => {
+  it('lists every identity holding records of the spelling, each with its own count', async () => {
+    await render('/money/names/Example%20Media%20LLC?year=2026', (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) {
         return url.searchParams.get('record_kind') === 'payee_name'
           ? json({
               ...NO_IDENTITY,
               records: 4,
+              confirmed: 3,
+              identities: [
+                { id: 'org-uuid-1', kind: 'organization', name: 'Example Media', confirmed: 2 },
+                { id: 'org-uuid-2', kind: 'organization', name: 'Example Duluth', confirmed: 1 },
+              ],
+            })
+          : json({
+              ...NO_IDENTITY,
+              records: 1,
               confirmed: 1,
               identities: [
                 { id: 'org-uuid-1', kind: 'organization', name: 'Example Media', confirmed: 1 },
               ],
-            })
-          : json(NO_IDENTITY);
+            });
       }
+      if (url.pathname.endsWith('/finance/identities/org-uuid-1')) {
+        return json({
+          id: 'org-uuid-1',
+          kind: 'organization',
+          name: 'Example Media',
+          confirmations: [
+            {
+              record_kind: 'payee_name',
+              record_key: 'Example Media LLC',
+              status: 'confirmed',
+              checked_at: '2026-10-02T15:00:00Z',
+            },
+            {
+              record_kind: 'payee_name',
+              record_key: 'Another spelling',
+              status: 'confirmed',
+              checked_at: '2026-09-01T15:00:00Z',
+            },
+          ],
+        });
+      }
+      if (url.pathname.endsWith('/finance/identities/org-uuid-2')) return json(null, 500);
       return payee(url);
     });
     const box = container.querySelector('[aria-label="Confirmed identity"]')!;
-    expect(box.textContent).toContain('CONFIRMED IDENTITY');
-    expect(box.textContent).toContain('Example Media');
-    expect(box.textContent).toContain('Organization profile');
-    expect(box.textContent).toContain('Campaign payments: Confirmed for 1 of 4 records');
+    expect(box.querySelector('.pn-identity-label')?.textContent).toBe('CONFIRMED IDENTITIES');
+    const items = [...box.querySelectorAll('.pn-identity-item')].map((item) => item.textContent);
+    // Counts cover both payee files, in the selected year; the checked day shows only
+    // where it was read.
+    expect(items).toEqual([
+      'Example MediaConfirmed for 3 of 5 records in 2026 · Checked on Oct 2, 2026',
+      'Example DuluthConfirmed for 1 of 5 records in 2026',
+    ]);
     expect(box.querySelector('a')?.getAttribute('href')).toMatch(
       /^\/organizations\/org-uuid-1\?from=/,
     );
+    // Confirm identities is not built yet, so no entrance to it.
+    expect(box.textContent).not.toContain('Review confirmation');
   });
 
-  it('shows no identity box when nothing confirms the spelling', async () => {
-    await render('/money/names/Example%20Media%20LLC', payee);
-    expect(container.querySelector('[aria-label="Confirmed identity"]')).toBeNull();
+  it('makes no identity claim while a file’s identity read has failed', async () => {
+    await render('/money/names/Example%20Media%20LLC', (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) {
+        return url.searchParams.get('record_kind') === 'payee_name'
+          ? json(NO_IDENTITY)
+          : json(null, 500);
+      }
+      return payee(url);
+    });
+    expect(container.querySelector('.pn-identity')).toBeNull();
   });
 
   it('changes the record type in the address', async () => {
@@ -468,39 +539,40 @@ describe('Payments under this name helpers', () => {
     );
   });
 
-  it('keeps only identities whose confirmations cover records, without adding files', () => {
-    const identities = confirmedIdentities([
-      {
-        title: 'Campaign payments',
-        records: {
-          record_kind: 'payee_name',
-          record_key: 'X',
-          records: 2,
-          confirmed: 2,
-          identities: [
-            { id: 'a', kind: 'organization', name: 'A', confirmed: 2 },
-            { id: 'b', kind: 'person', name: 'B', confirmed: 0 },
-          ],
-        },
-      },
-      {
-        title: 'Outside spending payments',
-        records: {
-          record_kind: 'independent_payee_name',
-          record_key: 'X',
-          records: 5,
-          confirmed: 1,
-          identities: [{ id: 'a', kind: 'organization', name: 'A', confirmed: 1 }],
-        },
-      },
-    ]);
-    expect(identities).toEqual([
-      {
-        id: 'a',
-        kind: 'organization',
-        name: 'A',
-        partial: ['Outside spending payments: Confirmed for 1 of 5 records'],
-      },
-    ]);
+  it('counts each identity over every file the role reads, and waits for all of them', () => {
+    const first = {
+      record_kind: 'payee_name',
+      record_key: 'X',
+      records: 2,
+      confirmed: 2,
+      identities: [
+        { id: 'a', kind: 'organization', name: 'A', confirmed: 2 },
+        { id: 'b', kind: 'person', name: 'B', confirmed: 0 },
+      ],
+    };
+    const second = {
+      record_kind: 'independent_payee_name',
+      record_key: 'X',
+      records: 5,
+      confirmed: 1,
+      identities: [{ id: 'a', kind: 'organization', name: 'A', confirmed: 1 }],
+    };
+    expect(identityCoverage([first, second])).toEqual({
+      records: 7,
+      identities: [{ id: 'a', kind: 'organization', name: 'A', confirmed: 3 }],
+    });
+    expect(identityCoverage([first, null])).toBeNull();
+  });
+
+  it('words the coverage with its year', () => {
+    expect(coverageLine(2, 4, null)).toBe('Confirmed for 2 of 4 records');
+    expect(coverageLine(1, 1, 2025)).toBe('Confirmed for 1 of 1 record in 2025');
+  });
+
+  it('links a record to its committee’s tab, year and name, and leaves an unknown year out', () => {
+    expect(committeeHref('5', new Set(['5']), null, 'party', 'A B', '/x')).toBe(
+      '/money/committees/5?tab=party&q=A+B',
+    );
+    expect(committeeHref('5', new Set(), 2025, 'party', 'A B', '/x')).toBeNull();
   });
 });

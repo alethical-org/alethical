@@ -31,6 +31,8 @@ export interface ReceivedRow {
   year: number | null;
   receipt_type: string | null;
   record_number: number;
+  /** The ZIP exactly as filed; never padded or repaired. */
+  contributor_zip?: string | null;
 }
 
 /** An expenditures row (role `vendor`). */
@@ -278,13 +280,62 @@ export interface IdentityRecords {
   identities: IdentitySummary[];
 }
 
-/** The identities that confirm records printing exactly this name, for 1 kind. */
-export function useIdentityRecords(kind: PrintedKind, name: string | null) {
+/** The identities that confirm records printing exactly this name, for 1 kind,
+ * counted over 1 year's records when a year is given. Only the counts are read, so
+ * 1 fingerprint is asked for. */
+export function useIdentityRecords(
+  kind: PrintedKind,
+  name: string | null,
+  year: number | null = null,
+) {
   return useRead<IdentityRecords>(
     name
-      ? apiPath(['finance', 'identities', 'records'], { record_kind: kind, record_key: name })
+      ? apiPath(['finance', 'identities', 'records'], {
+          record_kind: kind,
+          record_key: name,
+          year,
+          page_size: 1,
+        })
       : null,
   );
+}
+
+/** 1 confirmation as `GET /finance/identities/{id}` serves it (only what is printed). */
+export interface IdentityConfirmationRead {
+  record_kind: string;
+  record_key: string;
+  status: 'confirmed' | 'withdrawn' | string;
+  checked_at: string | null;
+}
+
+export interface IdentityRead {
+  id: string;
+  kind: string;
+  name: string;
+  confirmations?: IdentityConfirmationRead[];
+}
+
+/** The day this identity's standing confirmations of exactly this spelling were
+ * checked, only when they were all checked the same day; several days are not
+ * folded into 1. */
+export function checkedDay(
+  identity: IdentityRead | null,
+  kinds: readonly string[],
+  name: string,
+  dayOf: (iso: string) => string,
+): string | null {
+  const days = new Set(
+    (identity?.confirmations ?? [])
+      .filter(
+        (item) =>
+          item.status === 'confirmed' &&
+          kinds.includes(item.record_kind) &&
+          item.record_key === name &&
+          item.checked_at,
+      )
+      .map((item) => dayOf(item.checked_at!)),
+  );
+  return days.size === 1 ? [...days][0] : null;
 }
 
 /** "Confirmed for {k} of {n} records" (Confirm Identities wording, build notes

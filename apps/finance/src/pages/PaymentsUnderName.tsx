@@ -12,9 +12,9 @@ import {
   paymentsShowingLine,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
-  UNKNOWN_FILING_YEAR,
 } from '@alethical/shared/paymentsUnderName';
 
+import { apiPath, useRead } from '../api/read';
 import { cameByHistory, Link, navigate, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
@@ -25,14 +25,16 @@ import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import { useRevealFocus } from '../ui/revealFocus';
 import { tabOfKind } from './committee/data';
 import {
+  checkedDay,
   namePaymentsQuery,
-  partialLine,
   useIdentityRecords,
   useNamePayments,
+  type IdentityRead,
   type IdentityRecords,
   type NamePayments,
   type NamePaymentsRead,
   type OutsideRow,
+  type PrintedKind,
   type ReceivedRow,
   type ServerRole,
   type SpentRow,
@@ -139,21 +141,41 @@ interface RowContext {
   here: string;
 }
 
-function committeeHref(
+/** The committee's page at the tab holding this record's kind, the record's own
+ * filing year and the printed name filled in (Design Round 32). Committee's name
+ * filter is its `q`. A year the record does not hold stays unclaimed. */
+export function committeeHref(
   registration: string | null,
   linkable: ReadonlySet<string>,
   year: number | null,
   tab: string,
+  name: string,
   here: string,
 ): string | null {
   if (!registration || !linkable.has(registration) || !isBuilt('committee')) return null;
   return withFrom(
-    hrefFor('committee', { id: registration }, { year: year === null ? null : String(year), tab }),
+    hrefFor(
+      'committee',
+      { id: registration },
+      { year: year === null ? null : String(year), tab, q: name },
+    ),
     here,
   );
 }
 
-const ROLE_LABEL: Record<Role, string> = { payee: 'Payee', donor: 'Donor', employer: 'Employer' };
+/** The saved source each section's rows come from, as the evidence drawer names it. */
+/** The printed-name kinds a role's confirmations are kept under. */
+const KINDS: Record<Role, PrintedKind[]> = {
+  payee: ['payee_name', 'independent_payee_name'],
+  donor: ['donor_name'],
+  employer: ['employer_name'],
+};
+
+const SAVED_SOURCE: Record<SectionSpec['file'], string> = {
+  contributions: 'Contribution file',
+  expenditures: 'Expenditure file',
+  independentExpenditures: 'Independent expenditure file',
+};
 
 function row(
   context: RowContext,
@@ -167,8 +189,10 @@ function row(
     kind: string | null;
     note: string | null;
     tab: string;
-    payer: string;
-    recipient: string;
+    /** The printed name the Committee link filters to. */
+    filterName: string;
+    employer?: string | null;
+    zip?: string | null;
   },
 ): PaymentRow {
   const date = formatDay(fields.date);
@@ -184,28 +208,34 @@ function row(
       context.linkable,
       fields.year,
       fields.tab,
+      fields.filterName,
       context.here,
     ),
     amount,
     kind,
     note: fields.note,
     evidence: {
-      // "{payer} to {recipient}" (Design Round 23), never a typed arrow.
-      title: `${fields.payer} to ${fields.recipient}`,
+      title: `${context.name} · ${amount ?? AMOUNT_MISSING}`,
       authority: BOARD,
+      // The held locators (Design Round 37): the saved source, the copy it was read
+      // from and the row in it, then the row's fields as filed.
       rows: [
-        { label: 'Dataset', value: context.spec.dataset },
-        { label: 'Name as reported', value: context.name },
-        { label: 'Role', value: ROLE_LABEL[context.role] },
+        { label: 'Saved source', value: SAVED_SOURCE[context.spec.file] },
+        ...(context.fetchedAt
+          ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(context.fetchedAt)}` }]
+          : []),
+        { label: 'Row', value: String(fields.recordNumber) },
         { label: 'Filer', value: committee },
         { label: 'Date', value: date ?? DATE_MISSING },
         { label: 'Amount', value: amount ?? AMOUNT_MISSING },
         ...(kind ? [{ label: 'Type', value: kind }] : []),
-        { label: 'Year', value: fields.year === null ? UNKNOWN_FILING_YEAR : String(fields.year) },
-        ...(context.fetchedAt
-          ? [{ label: 'Copied', value: centralDateLabel(context.fetchedAt) }]
-          : []),
+        ...(fields.employer ? [{ label: 'Employer as filed', value: fields.employer }] : []),
+        ...(fields.zip ? [{ label: 'ZIP as filed', value: fields.zip }] : []),
       ],
+      // No excerpt of the source row is held, so the drawer says so and links the
+      // Board's file instead.
+      quote: 'No saved source excerpt held',
+      quoteLabel: 'SOURCE TEXT',
       checked: 'Not checked',
       sourceHref: context.sourceUrl ?? BOARD_FILES_URL,
       sourceLabel: 'View the Board’s payment file',
@@ -215,7 +245,6 @@ function row(
 
 /** A committee's payment to a payee (the expenditures file). */
 export function spentRow(payment: SpentRow, context: RowContext): PaymentRow {
-  const committee = payment.committee_name ?? UNNAMED_PAYMENT_PARTY;
   return row(context, {
     recordNumber: payment.record_number,
     date: payment.paid_on,
@@ -226,8 +255,7 @@ export function spentRow(payment: SpentRow, context: RowContext): PaymentRow {
     kind: payment.purpose || payment.expenditure_type,
     note: null,
     tab: 'expenditures',
-    payer: committee,
-    recipient: context.name,
+    filterName: context.name,
   });
 }
 
@@ -242,7 +270,6 @@ export function positionNote(payment: OutsideRow): string | null {
 
 /** A spender's independent-expenditure payment to a payee. */
 export function outsideRow(payment: OutsideRow, context: RowContext): PaymentRow {
-  const spender = payment.spender ?? UNNAMED_PAYMENT_PARTY;
   return row(context, {
     recordNumber: payment.record_number,
     date: payment.paid_on,
@@ -253,15 +280,14 @@ export function outsideRow(payment: OutsideRow, context: RowContext): PaymentRow
     kind: payment.purpose || payment.expenditure_type,
     note: positionNote(payment),
     tab: 'independent',
-    payer: spender,
-    recipient: context.name,
+    filterName: context.name,
   });
 }
 
 /** A received payment: under the donor's printed name, or under the employer the
  * donor printed, where the donor stays named on the row and the money stays theirs. */
 export function receivedRow(payment: ReceivedRow, context: RowContext): PaymentRow {
-  const recipient = payment.recipient_name ?? UNNAMED_PAYMENT_PARTY;
+  // On an employer row the Committee link filters to the donor who printed it.
   const donor = context.role === 'employer' ? payment.contributor : context.name;
   return row(context, {
     recordNumber: payment.record_number,
@@ -274,8 +300,9 @@ export function receivedRow(payment: ReceivedRow, context: RowContext): PaymentR
     note:
       context.role === 'employer' && payment.contributor ? `Donor: ${payment.contributor}` : null,
     tab: tabOfKind(payment.contributor_type),
-    payer: donor ?? UNNAMED_PAYMENT_PARTY,
-    recipient,
+    filterName: donor ?? '',
+    employer: payment.employer,
+    zip: payment.contributor_zip ?? null,
   });
 }
 
@@ -303,33 +330,46 @@ export interface ConfirmedIdentity {
   id: string;
   kind: string;
   name: string;
-  /** "{section}: Confirmed for {k} of {n} records" where only some are covered. */
-  partial: string[];
+  /** Records of this spelling, in the selected year, that this identity's
+   * confirmations cover, over every file the role reads. */
+  confirmed: number;
 }
 
-/** The identities whose confirmations cover records printing exactly this name, in
- * each file the role reads. Nothing is inferred from a matching name. */
-export function confirmedIdentities(
-  reads: Array<{ title: string; records: IdentityRecords | null }>,
-): ConfirmedIdentity[] {
+export interface IdentityCoverage {
+  /** Every record of this spelling in the selected year, over every file the role reads. */
+  records: number;
+  identities: ConfirmedIdentity[];
+}
+
+/** Every identity holding records of exactly this spelling, each with its own
+ * count, never 1 union under 1 name (Design Round 39). Null until every file's
+ * answer is held, so a count is never over part of the role. Nothing is inferred
+ * from a matching name. */
+export function identityCoverage(reads: Array<IdentityRecords | null>): IdentityCoverage | null {
+  if (reads.some((read) => read === null)) return null;
   const found = new Map<string, ConfirmedIdentity>();
-  const labelled = reads.length > 1;
-  for (const read of reads) {
-    if (!read.records) continue;
-    for (const identity of read.records.identities ?? []) {
+  let records = 0;
+  for (const read of reads as IdentityRecords[]) {
+    records += read.records;
+    for (const identity of read.identities ?? []) {
       if (!(identity.confirmed > 0)) continue;
       const entry = found.get(identity.id) ?? {
         id: identity.id,
         kind: identity.kind,
         name: identity.name,
-        partial: [],
+        confirmed: 0,
       };
-      const partial = partialLine(identity, read.records.records);
-      if (partial) entry.partial.push(labelled ? `${read.title}: ${partial}` : partial);
+      entry.confirmed += identity.confirmed;
       found.set(identity.id, entry);
     }
   }
-  return [...found.values()];
+  return { records, identities: [...found.values()] };
+}
+
+/** "Confirmed for {k} of {n} records[ in {year}]" (Design Rounds 30 and 39). */
+export function coverageLine(confirmed: number, records: number, year: number | null): string {
+  const of = `Confirmed for ${formatCount(confirmed)} of ${formatCount(records)} ${records === 1 ? 'record' : 'records'}`;
+  return year === null ? of : `${of} in ${year}`;
 }
 
 /** The page role a server role answers for. */
@@ -403,20 +443,15 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   );
   const reads: NamePaymentsRead<unknown>[] = sections[1] ? [campaign, outside] : [campaign];
 
-  const kinds =
-    role === 'donor' ? 'donor_name' : role === 'employer' ? 'employer_name' : 'payee_name';
-  const firstIdentity = useIdentityRecords(kinds, name || null);
+  const kinds = KINDS[role];
+  const firstIdentity = useIdentityRecords(kinds[0], name || null, year);
   const secondIdentity = useIdentityRecords(
     'independent_payee_name',
     role === 'payee' && name ? name : null,
+    year,
   );
-  const identities = confirmedIdentities(
-    role === 'payee'
-      ? [
-          { title: sections[0].title, records: firstIdentity.data },
-          { title: sections[1].title, records: secondIdentity.data },
-        ]
-      : [{ title: sections[0].title, records: firstIdentity.data }],
+  const coverage = identityCoverage(
+    role === 'payee' ? [firstIdentity.data, secondIdentity.data] : [firstIdentity.data],
   );
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -500,13 +535,19 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
             </div>
             <p className="pn-notice">
               {role === 'employer'
-                ? 'This is the employer name written in contribution records, not the organization’s giving'
+                ? 'Employer name as written in contribution records, not the organization’s giving'
                 : 'Records are grouped by the name printed in the source'}
             </p>
           </form>
-          {identities.map((identity) => (
-            <IdentityBox key={identity.id} identity={identity} here={here} />
-          ))}
+          {coverage && (
+            <IdentityCard
+              coverage={coverage}
+              name={name}
+              role={role}
+              year={year}
+              here={here}
+            />
+          )}
         </header>
 
         {updating && !allLoading && (
@@ -550,10 +591,6 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
             {line}
           </p>
         ))}
-        <p className="pn-source-line">
-          Different spellings appear separately, and a matching name alone does not establish
-          identity.
-        </p>
         <a
           href={BOARD_FILES_URL}
           target="_blank"
@@ -571,36 +608,118 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   );
 }
 
-function IdentityBox({ identity, here }: { identity: ConfirmedIdentity; here: string }) {
-  const organization = identity.kind === 'organization';
-  const href =
-    organization && isBuilt('organization')
-      ? withFrom(hrefFor('organization', { id: identity.id }), here)
-      : !organization && isBuilt('person')
-        ? withFrom(hrefFor('person', { id: identity.id }), here)
-        : null;
+/** Where "Review confirmation" and "Confirm identity" open: Confirm identities for
+ * exactly this spelling, role and year, only once that screen is built. */
+export function confirmHref(
+  name: string,
+  role: Role,
+  year: number | null,
+  here: string,
+): string | null {
+  if (!isBuilt('identities')) return null;
+  return withFrom(
+    hrefFor('identities', {}, { name, role, year: year === null ? null : String(year) }),
+    here,
+  );
+}
+
+function IdentityCard({
+  coverage,
+  name,
+  role,
+  year,
+  here,
+}: {
+  coverage: IdentityCoverage;
+  name: string;
+  role: Role;
+  year: number | null;
+  here: string;
+}) {
+  const confirm = confirmHref(name, role, year, here);
+  if (coverage.identities.length === 0) {
+    return (
+      <section aria-label="Identity" className="pn-identity">
+        <span className="pn-identity-none">No confirmed identity for this spelling</span>
+        {confirm && (
+          <Link to={confirm} className="f-dest pn-identity-link">
+            <span>
+              <WithArrow>Confirm identity</WithArrow>
+            </span>
+          </Link>
+        )}
+      </section>
+    );
+  }
   return (
     <section aria-label="Confirmed identity" className="pn-identity">
       <span className="pn-identity-text">
-        <span className="f-label pn-identity-label">CONFIRMED IDENTITY</span>
-        <span className="pn-identity-name">{identity.name}</span>
-        <span className="pn-identity-note">
-          {organization ? 'Organization profile' : 'Person profile'}
+        <span className="f-label pn-identity-label">
+          {coverage.identities.length > 1 ? 'CONFIRMED IDENTITIES' : 'CONFIRMED IDENTITY'}
         </span>
-        {identity.partial.map((line) => (
-          <span key={line} className="pn-identity-note f-num">
-            {line}
-          </span>
+        {coverage.identities.map((identity) => (
+          <IdentityLine
+            key={identity.id}
+            identity={identity}
+            records={coverage.records}
+            name={name}
+            role={role}
+            year={year}
+            here={here}
+          />
         ))}
       </span>
-      {href && (
-        <Link to={href} className="f-dest pn-identity-link">
+      {confirm && (
+        <Link to={confirm} className="f-dest pn-identity-link">
           <span>
-            <WithArrow>Open profile</WithArrow>
+            <WithArrow>Review confirmation</WithArrow>
           </span>
         </Link>
       )}
     </section>
+  );
+}
+
+function IdentityLine({
+  identity,
+  records,
+  name,
+  role,
+  year,
+  here,
+}: {
+  identity: ConfirmedIdentity;
+  records: number;
+  name: string;
+  role: Role;
+  year: number | null;
+  here: string;
+}) {
+  const read = useRead<IdentityRead>(apiPath(['finance', 'identities', identity.id]));
+  const checked = checkedDay(read.data, KINDS[role], name, centralDateLabel);
+  const organization = identity.kind === 'organization';
+  const href =
+    organization && isBuilt('organization')
+      ? withFrom(hrefFor('organization', { id: identity.id }), here)
+      : !organization && identity.kind === 'person' && isBuilt('person')
+        ? withFrom(hrefFor('person', { id: identity.id }), here)
+        : null;
+  return (
+    <span className="pn-identity-item">
+      <span className="pn-identity-name">
+        {href ? (
+          <Link to={href} className="pn-identity-name-link">
+            {identity.name}
+          </Link>
+        ) : (
+          identity.name
+        )}
+      </span>
+      <span className="pn-identity-note f-num">
+        {coverageLine(identity.confirmed, records, year)}
+        {checked ? ` · Checked on ${checked}` : ''}
+      </span>
+    </span>
   );
 }
 
@@ -722,7 +841,7 @@ function Section({
               ),
             )}
           </div>
-          <p className="pn-section-note">{sectionOf(data!.role).note}</p>
+          <p className="f-section-note pn-section-note">{sectionOf(data!.role).note}</p>
           {data?.hasMore && (
             <div className="pn-more">
               <p className="pn-more-note">{CAP_NOTE}</p>
