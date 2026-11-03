@@ -127,7 +127,7 @@ it('carries the selected year into a printed name’s payments link', async () =
   await render('/money/recipients?year=2026');
   const link = container.querySelector<HTMLAnchorElement>('a.vp-name-link')!;
   expect(link.getAttribute('href')).toBe(
-    '/money/names/Same%20Printed%20Name?role=payee&year=2026&section=campaign-payments',
+    '/money/names/Same%20Printed%20Name?role=payee&year=2026&section=campaign-payments&from=%2Fmoney%2Frecipients%3Fyear%3D2026',
   );
   // `from=` joins once the recipients route is on in BUILT (returnContext accepts
   // only built pages); the row link is built with withFrom either way.

@@ -153,7 +153,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
 Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
-`/money/races/:id`, `/money/employers`, `/money/employers/:name`,
+`/money/races/:id`, `/money/recipients`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id` and `/votes/:id`
 (§ Research pages). Every other address answers "We
@@ -259,10 +259,13 @@ figure is ever added across committees or members.
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
-- **Not built yet:** Vendors and payees (`/money/recipients`; built to Design's drawing:
-  server search, tabs, year, payment type and sort, each total under the shared rule, "Filing
-  year" labels and the source file under each kind), Person profile (`/people/:id`),
-  Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
+- **Vendors and payees (`/money/recipients`)**: the server-paged directory of payees, searched
+  by name, with All recipients, Confirmed vendors and Printed names, year, payment type and
+  sort; each total under the shared rule ("Incomplete" under the amount heading, "Missing
+  payment amount" on a phone row, "Reporting period incomplete", "Filing year" labels) and the
+  source file under each kind. A printed name opens its payments in the payee role for the
+  selected year. Minimum and maximum amount wait for the server's range filter.
+- **Not built yet:** Person profile (`/people/:id`), Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
   `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
   identities (`/money/identities`) each have a screen in the code but answer "not found"

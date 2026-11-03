@@ -218,7 +218,7 @@ describe('Payments under this name', () => {
     expect(campaign.textContent).not.toContain('$1,250.50');
     expect(campaign.textContent).toContain('Media buy');
     expect(campaign.querySelector('a')?.getAttribute('href')).toBe(
-      '/money/committees/30558?year=2026&tab=expenditures&q=Example+Media+LLC&from=%2Fmoney%2Fnames%2FExample%2520Media%2520LLC%3Frole%3Dpayee',
+      '/money/committees/30558?year=2026&tab=expenditures&name=Example+Media+LLC&from=%2Fmoney%2Fnames%2FExample%2520Media%2520LLC%3Frole%3Dpayee',
     );
     expect(campaign.textContent).toContain(
       'Each record comes from the paying committee’s filing. A payee is not necessarily a commercial vendor.',
@@ -285,7 +285,7 @@ describe('Payments under this name', () => {
     expect(container.textContent).not.toContain('Outside spending payments');
     const campaign = section('Campaign payments');
     expect(campaign.querySelector('a')?.getAttribute('href')).toContain(
-      '/money/committees/19369?year=2026&tab=individuals&q=Example%2C+Wen',
+      '/money/committees/19369?year=2026&tab=individuals&name=Example%2C+Wen',
     );
     expect(campaign.textContent).toContain(
       'The count is of matching records, not a confirmed count of separate donations.',
@@ -309,7 +309,7 @@ describe('Payments under this name', () => {
     expect(section('Campaign payments').textContent).toContain('· Donor: Example, Wen');
     // The Committee link filters to the donor who printed the employer.
     expect(section('Campaign payments').querySelector('a')?.getAttribute('href')).toContain(
-      'tab=individuals&q=Example%2C+Wen',
+      'tab=individuals&name=Example%2C+Wen',
     );
     const view = section('Campaign payments').querySelector<HTMLButtonElement>('.pn-view')!;
     await act(async () => view.click());
@@ -635,7 +635,7 @@ describe('Payments under this name helpers', () => {
 
   it('links a record to its committee’s tab, year and name, and leaves an unknown year out', () => {
     expect(committeeHref('5', new Set(['5']), null, 'party', 'A B', '/x')).toBe(
-      '/money/committees/5?tab=party&q=A+B',
+      '/money/committees/5?tab=party&name=A+B',
     );
     expect(committeeHref('5', new Set(), 2025, 'party', 'A B', '/x')).toBeNull();
   });

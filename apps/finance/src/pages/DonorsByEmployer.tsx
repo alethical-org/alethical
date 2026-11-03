@@ -151,7 +151,7 @@ export function paymentHref(payment: DonorPaymentRow, donor: string | null, here
       {
         year: payment.year === null ? null : String(payment.year),
         tab: tabOfKind(payment.contributor_type),
-        q: donor,
+        name: donor,
       },
     ),
     here,

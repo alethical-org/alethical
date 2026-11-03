@@ -170,7 +170,7 @@ export function committeeHref(
     hrefFor(
       'committee',
       { id: registration },
-      { year: year === null ? null : String(year), tab, q: name },
+      { year: year === null ? null : String(year), tab, name },
     ),
     here,
   );

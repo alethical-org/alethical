@@ -278,7 +278,7 @@ describe('Donors by employer', () => {
     );
     // Each payment opens its committee at the record's year, its kind's tab and the donor.
     expect(wen.querySelector('.de-recipient-link')?.getAttribute('href')).toMatch(
-      /^\/money\/committees\/90001\?year=2026&tab=individuals&q=Example%2C\+Wen&from=/,
+      /^\/money\/committees\/90001\?year=2026&tab=individuals&name=Example%2C\+Wen&from=/,
     );
     const priya = donor('Example, Priya');
     expect(priya.textContent).toContain('Date not given');
@@ -426,7 +426,7 @@ describe('Donors by employer helpers', () => {
 
   it('links a payment only to a held filer, leaving an unknown year unclaimed', () => {
     expect(paymentHref(gift(9, '5.0000', null), 'A', '/x')).toBe(
-      '/money/committees/90001?tab=individuals&q=A',
+      '/money/committees/90001?tab=individuals&name=A',
     );
     expect(paymentHref(gift(9, '5.0000', null, 'X', '90001', false), 'A', '/x')).toBeNull();
     expect(donorHref(null, '/x')).toBeNull();
