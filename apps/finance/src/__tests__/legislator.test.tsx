@@ -239,9 +239,7 @@ describe('Legislator profile', () => {
   it('shows current service, committees with their members’ accounts links, and chief-authored bills', async () => {
     await render('/legislators/patty-acomb', answering(CURRENT));
     expect(container.querySelector('h1')?.textContent).toBe('Patty Acomb');
-    expect(text()).toContain(
-      'Serving as State Representative · House District 45B · DFL',
-    );
+    expect(text()).toContain('Serving as State Representative · House District 45B · DFL');
     expect(text()).toContain('Party as recorded: DFL');
     expect(text()).toContain('Elected to the House');
     const links = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
@@ -380,9 +378,7 @@ describe('Legislator profile', () => {
 
 describe('Legislator helpers', () => {
   it('names a current seat and never a former one', () => {
-    expect(serviceLine(CURRENT)).toBe(
-      'Serving as State Representative · House District 45B · DFL',
-    );
+    expect(serviceLine(CURRENT)).toBe('Serving as State Representative · House District 45B · DFL');
     expect(serviceLine(FORMER)).toBeNull();
   });
 

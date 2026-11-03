@@ -343,7 +343,9 @@ function AccountCard({
           { id: account.registrationNumber },
           {
             year: String(year),
-            report: committee?.split?.reported_total ? (committee.split.reported_through ?? '') : '',
+            report: committee?.split?.reported_total
+              ? (committee.split.reported_through ?? '')
+              : '',
           },
         ),
         from,

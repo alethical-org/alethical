@@ -161,9 +161,7 @@ describe('Candidate profile', () => {
     expect(legislator?.getAttribute('href')).toBe(
       `/legislators/patty-acomb?from=%2Fcandidates%2F${ID}`,
     );
-    expect(legislator?.textContent).toContain(
-      'Serving as State Representative, District 45B',
-    );
+    expect(legislator?.textContent).toContain('Serving as State Representative, District 45B');
     // The related rows are stacked two-line links (eug-8).
     expect(legislator?.className).toContain('f-row-link');
     expect(legislator?.querySelector('.f-row-link-name')?.textContent).toBe(

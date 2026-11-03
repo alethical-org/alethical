@@ -159,7 +159,8 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
   const sourceUrl = record?.result?.source?.url ?? record?.source.url ?? null;
   const leg = record?.legislator;
   const people = record?.people ?? [];
-  const hasRelated = Boolean(leg && isBuilt('legislator')) || (people.length > 0 && isBuilt('person'));
+  const hasRelated =
+    Boolean(leg && isBuilt('legislator')) || (people.length > 0 && isBuilt('person'));
 
   return (
     <main id="main" className="f-page">
@@ -282,23 +283,23 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                       {isBuilt('person') &&
                         people.map((person) => (
                           <li key={person.id}>
-                          <Link
-                            to={withFrom(hrefFor('person', { id: person.id }), here)}
-                            className="f-row-link lg2-related-link"
-                          >
-                            <span>
-                              <span className="f-row-link-name">View person profile</span>
-                              {people.length > 1 && (
-                                <>
-                                  <br />
-                                  <span className="f-row-link-note">{person.name}</span>
-                                </>
-                              )}
-                            </span>
-                            <Arrow />
-                          </Link>
-                        </li>
-                      ))}
+                            <Link
+                              to={withFrom(hrefFor('person', { id: person.id }), here)}
+                              className="f-row-link lg2-related-link"
+                            >
+                              <span>
+                                <span className="f-row-link-name">View person profile</span>
+                                {people.length > 1 && (
+                                  <>
+                                    <br />
+                                    <span className="f-row-link-note">{person.name}</span>
+                                  </>
+                                )}
+                              </span>
+                              <Arrow />
+                            </Link>
+                          </li>
+                        ))}
                     </ul>
                   ) : (
                     <p className="lg2-muted">

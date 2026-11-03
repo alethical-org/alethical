@@ -106,9 +106,7 @@ export function serviceLine(record: LegislatorRecord): string | null {
   if (!servesNow(chamber)) return null;
   const district = legislatorDistrictLine(chamber, record.current_service?.district?.code);
   const party = record.current_service?.party;
-  return [`Serving as ${seatTitle(chamber)}`, district, party]
-    .filter(Boolean)
-    .join(' · ');
+  return [`Serving as ${seatTitle(chamber)}`, district, party].filter(Boolean).join(' · ');
 }
 
 /**

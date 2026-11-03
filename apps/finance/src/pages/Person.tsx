@@ -153,10 +153,7 @@ export function timelineRows(
       href,
       link: 'View legislator profile',
       source: 'Service records from the Minnesota Legislature',
-      note: [
-        s.votingArea,
-        confirmedNote(identity, 'legislator', record?.legislator?.slug ?? ''),
-      ]
+      note: [s.votingArea, confirmedNote(identity, 'legislator', record?.legislator?.slug ?? '')]
         .filter(Boolean)
         .join(' · '),
     });
@@ -343,8 +340,7 @@ export function Person({ match }: { match: RouteMatch }) {
       : null;
   const deadMerge = identity?.status === 'merged' && redirect === null;
   const notFound =
-    (initial.notFound && (identityRead.notFound || (identityRead.data && !identity))) ||
-    deadMerge;
+    (initial.notFound && (identityRead.notFound || (identityRead.data && !identity))) || deadMerge;
   const split = identity?.status === 'split' ? (identity.split_into ?? []) : null;
   const from = location.searchParams.get('from');
   useEffect(() => {
