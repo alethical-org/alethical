@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiPath, useRead } from '../api/read';
 import { Link, navigate, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
+import { hrefFor } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
 import { Dropdown, EvidencePanel, Refused, Tabs, Updating, type Evidence } from '../ui/controls';
@@ -53,7 +54,8 @@ function nodeLinkLabel(node: GraphNode) {
 export function MoneyConnections() {
   const location = useLocation(),
     here = location.pathname + location.search;
-  const back = returnTarget(location.search);
+  // With no usable earlier page, the drawn fallback: Finance Home (contextual page-return rule).
+  const back = returnTarget(location.search) ?? { to: hrefFor('home'), name: 'Finance Home' };
   const band = useBand();
   const [address, setAddress] = useAddressState({
     q: '',
@@ -61,6 +63,9 @@ export function MoneyConnections() {
     rel: '',
     focus: '',
     edge: '',
+    // How many pages were loaded when a line was opened, so a return can reload
+    // them and restore a selected line beyond the first page.
+    pages: '',
   });
   const [view, setView] = useView('view');
   const [typed, setTyped] = useState(address.q);
@@ -102,6 +107,14 @@ export function MoneyConnections() {
       return { scope, pages: [...pages, arrived] };
     });
   }, [arrived, scope, count]);
+  // A return names how many pages were loaded (at most 10): load them again in
+  // order, so a line selected beyond the first page is on screen once more.
+  const restoreTo = Math.min(10, Math.max(1, Math.trunc(Number(address.pages) || 1)));
+  useEffect(() => {
+    if (!arrived || held?.scope !== scope || held.pages.length !== count) return;
+    const more = arrived.offset + arrived.edges.length < arrived.total;
+    if (count < restoreTo && more) setWanted({ scope, count: count + 1 });
+  }, [arrived, held, scope, count, restoreTo]);
   const current = held?.scope === scope;
   const shown = held ? combinePages(held.pages) : null;
   const last = held?.pages.at(-1) ?? null;
@@ -120,6 +133,8 @@ export function MoneyConnections() {
     const params = new URLSearchParams(location.search);
     params.set('edge', edgeId);
     params.delete('focus');
+    if (count > 1) params.set('pages', String(count));
+    else params.delete('pages');
     return `${location.pathname}?${params.toString()}`;
   }
   function openSource(edge: GraphEdge) {
@@ -208,7 +223,7 @@ export function MoneyConnections() {
           role="search"
           onSubmit={(e) => {
             e.preventDefault();
-            setAddress({ q: typed.trim(), focus: '', edge: '' });
+            setAddress({ q: typed.trim(), focus: '', edge: '', pages: '' });
           }}
         >
           <label htmlFor="conn-q" className="f-visually-hidden">
@@ -239,7 +254,7 @@ export function MoneyConnections() {
                 { value: '', label: 'All years' },
                 ...yearOptions.map((value) => ({ value: String(value), label: String(value) })),
               ]}
-              onChange={(value) => setAddress({ year: value, focus: '', edge: '' })}
+              onChange={(value) => setAddress({ year: value, focus: '', edge: '', pages: '' })}
             />
             <Dropdown
               name="Relationship"
@@ -248,14 +263,14 @@ export function MoneyConnections() {
                 { value: '', label: 'All relationships' },
                 ...RELATION_KEYS.map((value) => ({ value, label: RELATIONSHIPS[value] })),
               ]}
-              onChange={(value) => setAddress({ rel: value, focus: '', edge: '' })}
+              onChange={(value) => setAddress({ rel: value, focus: '', edge: '', pages: '' })}
             />
             <button
               type="button"
               className="f-btn f-btn-secondary"
               onClick={() => {
                 setTyped('');
-                setAddress({ q: '', year: '', rel: '', focus: '', edge: '' });
+                setAddress({ q: '', year: '', rel: '', focus: '', edge: '', pages: '' });
               }}
             >
               Reset view
