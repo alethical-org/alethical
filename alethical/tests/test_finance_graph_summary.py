@@ -484,3 +484,71 @@ def test_a_rebuilt_summary_replaces_the_old_rows(finance_db, varied):
         varied.expenditures_snapshot_id,
         varied.independent_expenditures_snapshot_id,
     }
+
+
+def test_summary_edges_print_the_filed_figures(finance_api, finance_db, varied):
+    """Fixed figures, so a mistake shared by the summary and the raw path still fails."""
+    build(finance_db, varied)
+    data = get(finance_api, limit=200)
+    edges = {
+        (edge["from"], edge["to"], edge["source"]["dataset"]): edge
+        for edge in data["edges"]
+    }
+
+    def edge(start, end, dataset):
+        found = edges[(start, end, dataset)]
+        return (
+            found["amount"],
+            found["amount_state"],
+            found["record_count"],
+            found["period_basis"],
+            found["first_date"],
+            found["last_date"],
+            found["undated_count"],
+            found["first_year"],
+            found["last_year"],
+        )
+
+    # 2 identical gifts and a refund: 3 records, the refund keeps its sign.
+    assert edge(
+        "printed_name:donor:Example, Casey", "committee:18135", "contributions"
+    ) == ("80.0000", "reported", 3, "dates", "2026-03-03", "2026-04-01", 0, 2026, 2026)
+    # A missing amount withholds the sum and is never read as zero.
+    assert edge(
+        "printed_name:donor:Example, Dana", "committee:18135", "contributions"
+    ) == (None, "incomplete", 2, "years", "2026-03-02", "2026-03-02", 1, 2025, 2025)
+    # No date and no year: the period is unknown and the sum is withheld.
+    assert edge(
+        "printed_name:donor:Example, Eli", "committee:18135", "contributions"
+    ) == (None, "incomplete_period", 1, "unknown", None, None, 1, None, None)
+    # A recipient printed by name only stays a printed name.
+    assert edge(
+        "printed_name:donor:Example, Casey",
+        "printed_name:recipient:Unregistered Fund",
+        "contributions",
+    )[:3] == ("75.0000", "reported", 1)
+    # An outgoing contribution names its filed recipient, never a processor;
+    # a "0" number is no number, and a refund keeps its sign.
+    assert edge(
+        "committee:18135", "printed_name:recipient:Named Only PAC", "expenditures"
+    )[:3] == ("-60.0000", "reported", 1)
+    assert edge(
+        "committee:18135", "printed_name:recipient:Example Fund", "expenditures"
+    )[:3] == ("250.0000", "reported", 1)
+    # A recipient number the release holds as a filer becomes that committee.
+    assert edge("committee:20010", "committee:18135", "expenditures")[:3] == (
+        "1000.0000",
+        "reported",
+        1,
+    )
+    # 2 identical outside payments stay 2 records in 1 edge.
+    assert edge(
+        "committee:40100",
+        f"printed_name:independent_vendor:{VENDOR}",
+        "independent_expenditures",
+    )[:3] == ("1800.0000", "reported", 2)
+    # A loan is not a contribution, so it forms no edge at all.
+    assert not any(
+        e["amount"] == "1000.0000" and e["source"]["dataset"] == "contributions"
+        for e in data["edges"]
+    )

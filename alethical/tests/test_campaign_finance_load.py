@@ -2700,3 +2700,57 @@ def test_publishing_writes_the_graph_summary_and_pruning_removes_it(
         db,
         [getattr(live_now, column) for column in cf.RELEASE_SNAPSHOT_COLUMN.values()],
     ) == {getattr(live_now, column) for column in cf.RELEASE_SNAPSHOT_COLUMN.values()}
+
+
+def test_rolling_back_writes_any_graph_summary_the_restored_release_lacks(
+    db, board, store
+) -> None:
+    """A restored release's files get their summary before the pointer moves back.
+
+    A release published before the summary existed, or whose summary was cleared,
+    still answers through the raw rows; rollback writes the missing summary in the
+    same transaction that restores the pointer, so the graph reads it at once.
+    """
+    from alethical.pipeline import campaign_finance_graph_summary as graph_summary
+
+    summary = models.CampaignFinanceGraphMoneySummary
+    first = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, first.release_id)
+    slots = {
+        spec.dataset: getattr(release, cf.RELEASE_SNAPSHOT_COLUMN[spec.dataset])
+        for spec in cf.DATASETS
+    }
+    before = {
+        snapshot_id: db.scalar(
+            select(func.count())
+            .select_from(summary)
+            .where(summary.snapshot_id == snapshot_id)
+        )
+        for snapshot_id in slots.values()
+    }
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("250.0000", "251.0000") for row in CONTRIBUTION_ROWS],
+    )
+    assert run(db, board, store).published
+    db.execute(
+        summary.__table__.delete().where(
+            summary.snapshot_id == slots[Dataset.contributions]
+        )
+    )
+    db.commit()
+    assert slots[Dataset.contributions] not in graph_summary.held(db, slots.values())
+
+    cf.rollback_release(db, first.release_id)
+    db.expire_all()
+    assert live(db).id == first.release_id
+    assert graph_summary.held(db, slots.values()) == set(slots.values())
+    for snapshot_id, count in before.items():
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(summary)
+                .where(summary.snapshot_id == snapshot_id)
+            )
+            == count
+        )

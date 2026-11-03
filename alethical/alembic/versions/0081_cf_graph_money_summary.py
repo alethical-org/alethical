@@ -4,8 +4,9 @@ Grouping every live payment row on each graph request read 469 MB against a
 256 MB buffer pool and spilled to temp files, so the first signed-in broad page
 took 14 s (2 Nov 2026). This table holds 1 row per distinct set of node inputs
 and filing year for a saved file, written inside the publish transaction and
-deleted with the file's pruned rows. No source row changes; dropping the table
-returns every read to grouping the raw rows.
+deleted with the file's pruned rows. No source row changes. To undo: empty the
+table (every read then groups the raw rows), revert the code, then downgrade;
+the code that reads the table fails if the table is dropped first.
 
 Revision ID: 0081_cf_graph_money_summary
 Revises: 0080_cf_graph_metadata_index
