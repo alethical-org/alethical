@@ -227,8 +227,11 @@ figure is ever added across committees or members.
   `/finance/payments-under-name`, 200 at a time with the server's count of every record in
   scope. Each record shows its date, amount, committee, "Confirmed as {identity}" when its own
   fingerprint is confirmed, and source evidence (the saved source, its copy, the row, the
-  employer and ZIP as filed where held, and the record's fingerprinted fields as SOURCE TEXT;
-  the Board's file is linked only when no excerpt is held). Each committee link opens the tab
+  employer and ZIP as filed where held, and the whole source row as SOURCE TEXT, 1 "label:
+  value" line per column in the file's order, a date as the page prints dates and a blank cell
+  as "Not given"; the Board's file is linked only when no excerpt is held). A file our copy
+  cannot read shows "We could not read this part of our records just now" in its section,
+  never the failure line. Each committee link opens the tab
   holding that record's kind, the record's own filing year and the printed name. A card lists
   every identity whose confirmations cover records of the spelling, each "Confirmed for {k} of
   {n} records" over the selected year and filer, with its reference where one is held, or "No
@@ -242,8 +245,10 @@ figure is ever added across committees or members.
   with its donor names and any confirmed records, and for the chosen spelling the donors who
   printed it, each donor's payments listed apart with "Employer name as printed" on every row.
   On a computer the list stays beside the chosen spelling; on a tablet or phone the spelling
-  opens on its own with "Back to Employer spellings". No total is ever added across donors,
-  and a donor's payments are never the employer's money.
+  opens on its own with "Back to Employer spellings". Later donors and payments come from the
+  same copy of the Board's file; if it has changed, "The Board’s file changed. Reload the
+  records." offers a reload. No total is ever added across donors, and a donor's payments are
+  never the employer's money.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
   spender, never added across committees. The address names the contest (`house-34b`,
@@ -266,7 +271,11 @@ figure is ever added across committees or members.
   sort; each total under the shared rule ("Incomplete" under the amount heading, "Missing
   payment amount" on a phone row, "Reporting period incomplete", "Filing year" labels) and the
   source file under each kind. A printed name opens its payments in the payee role for the
-  selected year. Minimum and maximum amount wait for the server's range filter.
+  selected year. Where the server bounds totals, "Minimum amount ($)" and "Maximum amount ($)"
+  narrow the whole set (each sent as the typed amount, "$" and commas stripped), with "Smallest
+  total first"; text that is not an amount reads "Enter a valid amount", a reversed range
+  "Minimum is more than maximum", and both keep the last valid results. Recipients whose
+  totals are withheld are left out of a range and counted under the count line.
 - **Not built yet:** Person profile (`/people/:id`), Money connections (`/money/connections`),
   the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
