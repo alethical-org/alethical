@@ -319,7 +319,7 @@ describe('People wording', () => {
     for (const [office, area, seat] of seats) expect(candidateSeat(office, area)).toBe(seat);
     expect(candidateSeat('Governor', 'Statewide')).toBe('Governor, Statewide');
     expect(candidateSeat('County Commissioner', undefined)).toBe('County Commissioner');
-    expect(candidateSeat(undefined, 'House District 56A')).toBe('District 56A');
+    expect(candidateSeat(undefined, 'House District 56A')).toBe('House District 56A');
     expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'unknown' })).toBe(
       'Current service not confirmed',
     );

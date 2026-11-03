@@ -88,7 +88,11 @@ export function candidateSeat(office?: string, area?: string): string {
       original && part.startsWith(original) ? part.slice(original.length).trim() : part,
     )
     // "House District 56A" says no more than the office's "District 56A".
-    .map((part) => part.replace(/^(House|Senate|Congressional|Judicial)\s+(?=District\b)/i, ''))
+    .map((part) =>
+      original
+        ? part.replace(/^(House|Senate|Congressional|Judicial)\s+(?=District\b)/i, '')
+        : part,
+    )
     .filter(Boolean);
   const areaText = parts.join(' ').toLowerCase();
   // An office's parenthesis the area repeats ("(ISD #272)") is said by the area.
