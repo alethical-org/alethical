@@ -2664,12 +2664,18 @@ class MinnesotaIngestionPipeline:
                 )
                 self.db.add(committee)
                 self.db.flush()
+            # Any row for this seat, with or without a role: the committee
+            # refresh (committee_memberships.py) owns roles and stores an
+            # officer's seat once, under the role. Checking only for a plain row
+            # added a second, role-less row beside every officer's (159 members
+            # in 45 committees until the next committee rebuild).
             membership = self.db.scalar(
-                select(CommitteeMembership).where(
+                select(CommitteeMembership.id)
+                .where(
                     CommitteeMembership.committee_id == committee.id,
                     CommitteeMembership.legislator_id == legislator.id,
-                    CommitteeMembership.role.is_(None),
                 )
+                .limit(1)
             )
             if membership is None:
                 self.db.add(
@@ -4000,6 +4006,11 @@ class MinnesotaIngestionPipeline:
                 ]
             )
             stats.vote_record_count = 0
+            # Committees, not rows: an officer's seat can be held as 2 rows.
             stats.committee_count = len(
-                [item for item in legislator.committee_memberships if item.is_current]
+                {
+                    item.committee_id
+                    for item in legislator.committee_memberships
+                    if item.is_current
+                }
             )

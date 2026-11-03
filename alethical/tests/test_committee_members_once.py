@@ -1,10 +1,11 @@
-"""An officer is 1 committee member, never 2: the plain listing and the role are 1 seat.
+"""An officer is 1 committee member, never 2: the plain row and the role are 1 seat.
 
-A member page lists an officer's committee twice, once plainly and once under the
-role, and both were stored: on 3 Nov 2026, 159 members in 45 current committees
-were held twice, and House Ethics read 10 members for 6 people. The parser keeps the
-role only, the stored committee count counts committees, and every reader lists a
-member once until the next committee refresh rebuilds the stored rows.
+Member pages list each officer once, under the role. The roster import, which runs
+before the committee rebuild, checked only for a plain row before writing one, so it
+added a plain row beside every officer's role row: on 3 Nov 2026 159 members in 45
+current committees were held twice until the rebuild cleared them, and House Ethics
+read 10 members for 6 people. The roster import now leaves a seat that has any row
+alone, both stored counts count committees, and every reader lists a member once.
 """
 
 # ruff: noqa: F811
@@ -18,28 +19,10 @@ from alethical.api.routers.public import (
     current_committee_names,
 )
 from alethical.db import models as m
-from alethical.pipeline.committee_memberships import (
-    parse_committee_assignments,
-    refresh_committee_stats,
-)
+from alethical.pipeline.committee_memberships import refresh_committee_stats
+from alethical.pipeline.minnesota import MinnesotaIngestionPipeline
 from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F401
 from alethical.tests.test_finance_records import COMMITTEES, _committee, _legislators
-
-PROFILE = """
-<h4>Committee Assignments:</h4>
-<ul>
-  <li><a href="/committees/committee_info?comm=1">Ethics</a></li>
-  <li><strong>Chair</strong> <a href="/committees/committee_info?comm=1">Ethics</a></li>
-  <li><a href="/committees/committee_info?comm=2">Taxes</a></li>
-</ul>
-"""
-
-
-def test_the_parser_keeps_the_role_and_drops_the_plain_duplicate():
-    found = parse_committee_assignments(
-        PROFILE, "https://www.house.mn.gov/members/profile/1", "house"
-    )
-    assert [(a.name, a.role) for a in found] == [("Ethics", "Chair"), ("Taxes", None)]
 
 
 def _seat_twice(db):
@@ -56,6 +39,35 @@ def _seat_twice(db):
         )
     db.flush()
     return committee, session, officer, member
+
+
+def test_the_roster_import_adds_no_plain_row_beside_a_role(finance_db):
+    committee, session = _committee(finance_db)
+    officer, member = _legislators(finance_db, 2)
+    finance_db.add(
+        m.CommitteeMembership(
+            committee_id=committee.id,
+            legislator_id=officer.id,
+            role="Co-Chair",
+            is_current=True,
+        )
+    )
+    finance_db.flush()
+    pipeline = MinnesotaIngestionPipeline(finance_db)
+    profile = {"committees": [committee.name]}
+    for person in (officer, member):
+        pipeline.upsert_committees(
+            {"session": session}, person, committee.chamber, profile
+        )
+    finance_db.flush()
+    rows = finance_db.execute(
+        select(m.CommitteeMembership.legislator_id, m.CommitteeMembership.role).where(
+            m.CommitteeMembership.committee_id == committee.id
+        )
+    ).all()
+    assert sorted(rows, key=lambda row: str(row[0])) == sorted(
+        [(officer.id, "Co-Chair"), (member.id, None)], key=lambda row: str(row[0])
+    )
 
 
 def test_finance_lists_each_member_once_with_their_roles(finance_api, finance_db):
@@ -100,20 +112,31 @@ def test_2_different_roles_stay_2_entries():
     ]
 
 
-def test_the_stored_committee_count_counts_committees(finance_db):
-    committee, session, officer, _ = _seat_twice(finance_db)
-    refresh_committee_stats(finance_db, session.id)
-    finance_db.flush()
-    stats = finance_db.scalar(
-        select(m.LegislatorStats).where(
-            m.LegislatorStats.legislator_id == officer.id,
+def _stored_count(db, legislator, session):
+    db.expire_all()
+    return db.scalar(
+        select(m.LegislatorStats.committee_count).where(
+            m.LegislatorStats.legislator_id == legislator.id,
             m.LegislatorStats.session_id == session.id,
         )
     )
-    held = finance_db.scalar(
+
+
+def test_both_stored_committee_counts_count_committees(finance_db):
+    committee, session, officer, _ = _seat_twice(finance_db)
+    others = finance_db.scalar(
         select(func.count(m.CommitteeMembership.committee_id.distinct())).where(
             m.CommitteeMembership.legislator_id == officer.id,
             m.CommitteeMembership.is_current.is_(True),
+            m.CommitteeMembership.committee_id != committee.id,
         )
     )
-    assert stats.committee_count == held
+    refresh_committee_stats(finance_db, session.id)
+    finance_db.flush()
+    # The 2 rows of 1 seat count as 1 committee.
+    assert _stored_count(finance_db, officer, session) == others + 1
+    MinnesotaIngestionPipeline(finance_db).refresh_legislator_stats(
+        {"session": session}, {officer.id}
+    )
+    finance_db.flush()
+    assert _stored_count(finance_db, officer, session) == others + 1

@@ -483,8 +483,9 @@ def current_committee_names(db: Session, legislator_ids) -> dict[str, list[str]]
 def committee_entries(memberships) -> list[dict]:
     """1 entry per committee and role; a plain row beside a role row is the same seat.
 
-    A member page lists an officer's committee twice, and both were stored
-    (``alethical/pipeline/committee_memberships.py``); the role replaces the plain row.
+    The roster import used to add a plain row beside an officer's role row
+    (``MinnesotaIngestionPipeline.upsert_committees``); a rebuild interrupted before
+    it clears them can still leave both, and the role replaces the plain row.
     """
     roles: dict[str, set] = {}
     order: list[tuple[str, str | None]] = []

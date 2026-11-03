@@ -166,15 +166,7 @@ def parse_committee_assignments(
                 name=name, role=role, code=code, profile_url=profile_url
             )
         )
-    # A member page lists an officer's committee twice, once plainly and once
-    # under the role ("Chair"), and the plain entry is the same membership: keep
-    # only the role. 159 members in 45 committees were stored twice this way.
-    with_role = {assignment.name for assignment in assignments if assignment.role}
-    return [
-        assignment
-        for assignment in assignments
-        if assignment.role or assignment.name not in with_role
-    ]
+    return assignments
 
 
 def current_legislator_rows(db: Session, session_id: Any) -> list[tuple[Any, Any, str]]:
