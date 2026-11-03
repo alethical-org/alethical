@@ -3,7 +3,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
-import { countLine, People, rowNote, type PersonDirectoryRow } from '../pages/People';
+import {
+  candidateSeat,
+  countLine,
+  People,
+  rowNote,
+  type PersonDirectoryRow,
+} from '../pages/People';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -245,6 +251,75 @@ describe('People wording', () => {
   });
 
   it('never prints a seat the record does not name', () => {
+    // The served candidate row (GET /api/v1/finance/people, 3 Nov 2026): the
+    // election is an object, never interpolated whole ("[object Object]").
+    const candidate = {
+      kind: 'candidate',
+      id: 'c-1',
+      name: 'Example Candidate',
+      year: 2026,
+      election: {
+        date: '2026-11-03',
+        id: '8334',
+        label: 'November 3, 2026 general election',
+        type: 'general',
+      },
+      office: 'State Representative District 56A',
+      voting_area: 'House District 56A',
+      source: { checkedDate: '2026-11-02', url: 'https://myballotmn.sos.mn.gov/' },
+    } as PersonDirectoryRow;
+    // The drawing's row, with the district printed once.
+    expect(rowNote(candidate)).toBe('2026 general · State Representative, District 56A');
+    expect(rowNote(candidate)).not.toContain('[object');
+    expect(rowNote({ ...candidate, party: 'DFL' })).toBe(
+      '2026 general · State Representative, District 56A · DFL',
+    );
+    // Every office and area pair the live People list served on 3 Nov 2026:
+    // each fact once, nothing lost.
+    const seats: Array<[string, string, string]> = [
+      [
+        'State Representative District 56A',
+        'House District 56A',
+        'State Representative, District 56A',
+      ],
+      ['State Senator District 60', 'Senate District 60', 'State Senator, District 60'],
+      [
+        'School Board Member (ISD #272)',
+        'ISD #272 · Whole district',
+        'School Board Member, ISD #272, Whole district',
+      ],
+      ['County Sheriff', 'Cass County', 'County Sheriff, Cass County'],
+      [
+        'County Commissioner District 3',
+        'Hennepin County · District 3',
+        'County Commissioner, District 3, Hennepin County',
+      ],
+      [
+        'School Board Member District 1 (SSD #1)',
+        'SSD #1 · Member district 1',
+        'School Board Member, District 1, SSD #1',
+      ],
+      [
+        'Council Member (Wayzata)',
+        'Council Member (Wayzata) (Elect 2) · Hennepin County',
+        'Council Member (Wayzata), Hennepin County',
+      ],
+      ['Judge - 1st District Court 36', 'Judicial District 1st', 'Judge - 1st District Court 36'],
+      [
+        'School Board Member District 4 (SSD #1)',
+        'Minneapolis Public Schools · SSD #1',
+        'School Board Member, District 4, Minneapolis Public Schools, SSD #1',
+      ],
+      [
+        'School Board Member At Large (SSD #1)',
+        'Minneapolis Public Schools · SSD #1',
+        'School Board Member At Large, Minneapolis Public Schools, SSD #1',
+      ],
+    ];
+    for (const [office, area, seat] of seats) expect(candidateSeat(office, area)).toBe(seat);
+    expect(candidateSeat('Governor', 'Statewide')).toBe('Governor, Statewide');
+    expect(candidateSeat('County Commissioner', undefined)).toBe('County Commissioner');
+    expect(candidateSeat(undefined, 'House District 56A')).toBe('House District 56A');
     expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'unknown' })).toBe(
       'Current service not confirmed',
     );

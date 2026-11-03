@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Literal
+from uuid import UUID
 
 from sqlalchemy import String, case, cast, func, literal, select, union_all
 from sqlalchemy.orm import Session
@@ -313,6 +314,18 @@ def directory(
         .offset(offset)
     ).all()
     source_by_dataset = {source.dataset.value: source for source in sources.values()}
+    shown = {row.identity_id for row in selected if row.identity_id}
+    references = (
+        dict(
+            db.execute(
+                select(
+                    cast(m.IdentityEntity.id, String), m.IdentityEntity.reference
+                ).where(m.IdentityEntity.id.in_([UUID(value) for value in shown]))
+            ).all()
+        )
+        if shown
+        else {}
+    )
     answer = []
     for row in selected:
         source = source_by_dataset[row.dataset]
@@ -327,6 +340,7 @@ def directory(
                 else "printed_name",
                 "identity": {
                     "id": row.identity_id,
+                    "reference": references.get(row.identity_id),
                     "kind": row.identity_kind,
                     "name": row.name,
                 }
