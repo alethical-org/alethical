@@ -111,13 +111,13 @@ export const ROUTES: readonly RouteDefinition[] = [
   {
     name: 'station-folder',
     pattern: '/media-buys/folders/:id',
-    title: 'Station folder',
+    title: 'TV station folder',
     section: 'media-buys',
   },
   {
     name: 'station-file',
     pattern: '/media-buys/files/:key',
-    title: 'Station file',
+    title: 'TV station file',
     section: 'media-buys',
   },
   {
@@ -135,7 +135,7 @@ export const ROUTES: readonly RouteDefinition[] = [
   {
     name: 'check-station-files',
     pattern: '/media-buys/check',
-    title: 'Check station files',
+    title: 'Check TV station files',
     section: 'media-buys',
   },
   { name: 'people', pattern: '/people', title: 'People', section: 'people' },
@@ -171,6 +171,12 @@ export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'legislation',
   'bill',
   'roll-call',
+  'media-buys',
+  'station-folder',
+  'station-file',
+  'printed-agency-name',
+  'station',
+  'check-station-files',
   'payments-under-name',
   'money-by-race',
   'lobbying',

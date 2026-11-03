@@ -201,7 +201,9 @@ describe('Media buys', () => {
     expect(text).toContain('Machine-read names are marked Not checked');
     expect(text).toContain('About these records');
     expect(text).toContain('TV station files copied Oct 22, 2026');
-    expect(container.querySelector('a[href="/media-buys/agencies/opaque-key"]')).toBeTruthy();
+    expect(
+      container.querySelector('a[href^="/media-buys/agencies/opaque-key?from="]'),
+    ).toBeTruthy();
     const browse = fetcher.mock.calls
       .map(([url]) => String(url))
       .find((url) => url.includes('/browse'));
@@ -342,7 +344,7 @@ describe('TV station folder, station and printed agency name', () => {
       'Folder listing read from the FCC public inspection file on Oct 22, 2026',
     );
     expect(
-      container.querySelector(`a[href="/media-buys/files/${KEY}?version=${VERSION}"]`),
+      container.querySelector(`a[href^="/media-buys/files/${KEY}?version=${VERSION}&from="]`),
     ).toBeTruthy();
     expect(container.querySelector('a[href^="/media-buys/stations/KARE"]')).toBeTruthy();
   });
@@ -387,8 +389,10 @@ describe('TV station folder, station and printed agency name', () => {
     expect(text).toContain('None held');
     expect(text).toContain('Other stations held');
     expect(text).toContain('Latest station upload held');
-    expect(container.querySelector('a[href="/media-buys?station=KARE&year=2026"]')).toBeTruthy();
-    expect(container.querySelector('a[href="/media-buys/stations/KSTP-TV"]')).toBeTruthy();
+    expect(
+      container.querySelector('a[href^="/media-buys?station=KARE&year=2026&from="]'),
+    ).toBeTruthy();
+    expect(container.querySelector('a[href^="/media-buys/stations/KSTP-TV?from="]')).toBeTruthy();
   });
 
   it('opens agency address evidence at its quoted page and version, with both payment searches', async () => {
@@ -528,7 +532,10 @@ describe('TV station file', () => {
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
       'Machine-read text is not available for this page',
     );
-    expect(document.querySelector('[role="dialog"] a')).toBeNull();
+    // With Check TV station files on, the panel's actions open it at this check.
+    for (const link of document.querySelectorAll('[role="dialog"] a')) {
+      expect(link.getAttribute('href')).toMatch(/^\/media-buys\/check\?/);
+    }
   });
 
   it('never opens another version for a link naming one that is not held', async () => {
@@ -606,13 +613,14 @@ describe('Media buys card', () => {
     expect(text()).toContain('No TV station files have a checked connection to Example Committee');
   });
 
-  it('stays hidden while the TV station file page is not built', async () => {
+  it('treats an answer without its lists as a failed read, never an empty card', async () => {
     const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
     const fetcher = serve(() => json({}));
     await render('/money/committees/90001', () => (
       <MediaBuysCard kind="committee" target="90001" name="X" />
     ));
-    expect(container.textContent).toBe('');
-    expect(fetcher.mock.calls.some(([url]) => String(url).includes('/connections'))).toBe(false);
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes('/connections'))).toBe(true);
+    expect(text()).toContain('We couldn’t load these TV station files');
+    expect(text()).not.toContain('No TV station files have a checked connection');
   });
 });

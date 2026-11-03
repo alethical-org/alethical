@@ -51,7 +51,10 @@ export function MediaBuysCard({
   const location = useLocation();
   const here = location.pathname + location.search;
   const built = isBuilt('station-file');
-  const read = useRead<Connected>(built ? mediaPath(['connections'], { kind, target }) : null);
+  const read = useRead<Connected>(built ? mediaPath(['connections'], { kind, target }) : null, {
+    // An answer without its 2 lists is a failed read, never an empty card.
+    acceptData: (data) => Array.isArray(data?.files) && Array.isArray(data?.groups),
+  });
   if (!built) return null;
   const data = read.data;
   const groups = data

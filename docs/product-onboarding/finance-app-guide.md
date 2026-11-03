@@ -155,8 +155,9 @@ Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/candida
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
 `/money/races/:id`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
-`/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id` and `/votes/:id`
-(§ Research pages). Every other address answers "We
+`/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
+`/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
+`/media-buys/stations/:id` and `/media-buys/check` (§ Research pages and § Media buys). Every other address answers "We
 couldn’t find that page" until its screen is built (`BUILT` in `apps/finance/src/routes.ts`).
 Every link is built from these patterns (`hrefFor`), is a real link that opens in a new tab and
 copies, and works with Back and Forward. While the screens are off, only `/`, `/sign-in` and
@@ -252,10 +253,8 @@ figure is ever added across committees or members.
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
 - **Not built yet:** Vendors and payees (`/money/recipients`), Person profile (`/people/:id`),
-  Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
-  `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
-  `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
-  identities (`/money/identities`) each have a screen in the code but answer "not found"
+  Money connections (`/money/connections`) and Confirm identities (`/money/identities`)
+  each have a screen in the code but answer "not found"
   and are linked from nowhere until the pull request that aligns that screen with Design's
   current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
@@ -313,8 +312,7 @@ the printed registration without assuming that a committee page exists.
 ## Media buys
 
 The screens at `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
-`/media-buys/agencies/:name`, `/media-buys/stations/:id` and `/media-buys/check` are in the
-code but answer "not found" until the pull request that turns their routes on. They read
+`/media-buys/agencies/:name`, `/media-buys/stations/:id` and `/media-buys/check` read
 Finance's private original-file routes (`/api/v1/finance/media-buys/…`). A TV station file
 is keyed by its station and FCC source file id, never by its filename, and every link to
 one names its exact saved version and page.
