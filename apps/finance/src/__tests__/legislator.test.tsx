@@ -334,6 +334,15 @@ describe('Legislator profile', () => {
     expect(requests.some((url) => url.includes('campaign-finance?year=2019'))).toBe(false);
   });
 
+  it('never says no bills are held when the record counts some the list did not return', async () => {
+    // The live server: stats count 20 chief-authored bills while the list comes back empty.
+    await render(
+      '/legislators/patty-acomb',
+      answering({ ...CURRENT, stats: { chief_bill_count: 20 } }, { '/bills?role': json([]) }),
+    );
+    expect(text()).not.toContain('No chief-authored bills held');
+  });
+
   it('a former legislator inherits no current title, party, district or committees', async () => {
     await render(
       '/legislators/former-member',
