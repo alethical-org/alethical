@@ -53,6 +53,8 @@ export interface ServedAction {
   committee_name?: string | null;
   action_at?: string | null;
   roll_call_text?: string | null;
+  chamber?: string | null;
+  committee_id?: string | null;
 }
 
 export interface ServedVersion {
@@ -118,6 +120,12 @@ export interface ServedVote {
   records?: VoteRecord[] | null;
 }
 
+/** 1 roll call read by its own id (`/votes/{id}`): the vote with the bill it
+ * belongs to. */
+export interface RollCallRecord extends ServedVote {
+  bill_id: string;
+}
+
 /** The bill page's one record read; the roll-call page reads the same address,
  * so returning from a roll call shows the bill at once. */
 export const BILL_INCLUDE = 'ai_analysis,all_sponsors,actions,versions';
@@ -137,6 +145,18 @@ export function billPath(id: string): string {
 
 export function votesPath(id: string): string {
   return billsApi(id, 'votes');
+}
+
+/** The roll call's own read. The server keys a roll call by a UUID, so any
+ * other shape names no record and is never requested. */
+const VOTE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isVoteId(id: string): boolean {
+  return VOTE_ID.test(id);
+}
+
+export function votePath(id: string): string {
+  return ['', 'votes', encodeURIComponent(id)].join('/');
 }
 
 export function versionTextPath(id: string, code: string): string {
@@ -240,6 +260,7 @@ export function billOverviewUrl(officialUrl: string | null | undefined): string 
 export interface ActionRow {
   key: string;
   date: string | null;
+  chamber: 'House' | 'Senate' | null;
   text: string;
   tally: string | null;
   at: string | null;
@@ -257,6 +278,7 @@ export function actionRow(action: ServedAction): ActionRow | null {
   return {
     key: String(action.action_number) + '|' + (action.action_at ?? '') + '|' + label,
     date: dayLabel(action.action_at),
+    chamber: chamberName(action.chamber),
     text: parts.join(' · '),
     tally,
     at: action.action_at ?? null,

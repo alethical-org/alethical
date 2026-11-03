@@ -40,17 +40,20 @@
   align-items: center;
   gap: 8px;
 }
+/* The count line sits 24px below the menus (the shared .f-count-line padding,
+ * eug-26); every other first thing in the results (skeleton, failure, the list
+ * when no count could be read) keeps the drawing's 14px. */
 .lg-results {
-  margin-top: 14px;
+  margin-top: 0;
   max-width: 960px;
-  display: grid;
-  gap: 10px;
+}
+.lg-results > :first-child:not(.lg-count),
+.lg-count:empty + * {
+  margin-top: 14px;
 }
 .lg-count {
-  padding: 0 0 0 2px;
-  font-size: 14px;
-  color: var(--secondary);
-  font-variant-numeric: tabular-nums;
+  padding-bottom: 10px;
+  padding-left: 2px;
 }
 .lg-count:empty {
   display: none;
@@ -114,18 +117,15 @@ a.lg-row:active {
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
 }
+/* End-of-section commentary under a list or table: the shared .f-section-note
+ * gives the 24px above it (eug-26); the drawings set its size and colour. */
 .lg-note {
-  margin: 10px 0 0;
   padding-left: 17px;
-  max-width: 760px;
   font-size: 13px;
-  line-height: 1.5;
   color: var(--muted);
 }
-.lg-results .lg-note {
-  margin-top: 0;
-}
 .lg-pager {
+  margin-top: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -409,7 +409,7 @@ a.lg-row:active {
 }
 .bl-action {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: 120px 80px minmax(0, 1fr);
   gap: 16px;
   padding: 12px 20px;
   border-bottom: 1px solid rgba(20, 27, 34, 0.08);
@@ -424,6 +424,9 @@ a.lg-row:active {
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.bl-action-chamber {
+  color: var(--secondary);
 }
 .bl-action-text {
   min-width: 0;
@@ -671,6 +674,11 @@ a.bl-companion:active {
   margin: 10px 0 0;
   font-size: 14px;
   color: var(--secondary);
+}
+.bl-accounts-note {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
 }
 .bl-accounts-list {
   margin: 6px 0 0;

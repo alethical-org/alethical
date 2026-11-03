@@ -156,6 +156,8 @@ const DETAIL: BillDetail = {
       action_number: 2,
       action_text: 'Referred to',
       committee_name: 'State and Local Government',
+      committee_id: 'c0a8e1d2-1111-4222-8333-444455556666',
+      chamber: 'senate',
       action_at: '2025-01-21T00:00:00Z',
     },
     {
@@ -190,8 +192,10 @@ const DETAIL: BillDetail = {
   ],
 };
 
+const VOTE_ID = '0b0a4d2e-5c7f-4e1a-9b3d-8f2c6a1e7d90';
+
 const VOTE: ServedVote = {
-  id: 'vote-1',
+  id: VOTE_ID,
   motion_text: 'S.F. No. 334 was read the third time, as amended, and placed on its final passage.',
   result_text: 'Third reading Passed as amended',
   chamber: 'senate',
@@ -333,7 +337,7 @@ describe('legislation records', () => {
       'Introduction and first reading',
       'Referred to State and Local Government',
     ]);
-    expect(voteForAction(rows[0]!, [VOTE])?.id).toBe('vote-1');
+    expect(voteForAction(rows[0]!, [VOTE])?.id).toBe(VOTE_ID);
     expect(voteForAction(rows[0]!, [VOTE, { ...VOTE, id: 'vote-2' }])).toBeNull();
     expect(voteForAction(rows[0]!, [{ ...VOTE, occurred_at: '2026-05-17T00:00:00Z' }])).toBeNull();
   });
@@ -457,12 +461,17 @@ function billAnswer(
   overrides: {
     detail?: Answer;
     votes?: Answer;
+    /** The roll call's own read, `/votes/{id}`. */
+    vote?: Answer;
     authors?: Answer;
     text?: Answer;
   } = {},
 ): Answer {
   return (url) => {
     if (url.includes('/finance/bills/')) return (overrides.authors ?? (() => json(AUTHORS)))(url);
+    if (url.includes('/api/v1/votes/')) {
+      return (overrides.vote ?? (() => json({ bill_id: DETAIL.id, ...VOTE })))(url);
+    }
     if (url.includes('/votes')) return (overrides.votes ?? (() => json([VOTE])))(url);
     if (url.includes('/text')) {
       return (
@@ -522,7 +531,14 @@ describe('Bill', () => {
     expect(container.querySelector('.bl-companion')?.getAttribute('href')).toBe(
       '/bills/94-2025-HF744?from=%2Fbills%2F94-2025-SF334%3Ffrom%3D%252Fbills',
     );
-    expect(text()).toContain('State and Local Government');
+    const committee = container.querySelector<HTMLAnchorElement>('.bl-facts a[aria-label]');
+    expect(committee?.textContent).toBe('State and Local Government');
+    expect(committee?.getAttribute('aria-label')).toBe(
+      'Members’ campaign accounts, State and Local Government',
+    );
+    expect(committee?.getAttribute('href')).toBe(
+      '/legislature/committees/c0a8e1d2-1111-4222-8333-444455556666/members?from=%2Fbills%2F94-2025-SF334%3Ffrom%3D%252Fbills',
+    );
     const official = container.querySelector<HTMLAnchorElement>('.bl-official');
     expect(official?.getAttribute('href')).toBe(
       'https://www.revisor.mn.gov/bills/94/2025/0/SF/334/',
@@ -542,12 +558,26 @@ describe('Bill', () => {
     );
     expect(card.textContent).toContain('Chief author');
     expect(card.textContent).toContain('Co-author');
-    expect(card.textContent).toContain('No campaign account is confirmed for this author');
+    expect(card.textContent).toContain('Each author’s own confirmed account');
+    expect(card.textContent).toContain('No confirmed campaign account');
     expect(card.textContent).not.toContain('Kari Rehrauer');
+    // The records-only note closes the section, under the list (Round 34).
+    const note = card.querySelector('.bl-accounts-note');
+    expect(note?.textContent).toBe(
+      'These are records only; they say nothing about why anyone authored this bill',
+    );
+    expect(note?.previousElementSibling?.classList.contains('bl-accounts-list')).toBe(true);
     const name = card.querySelector<HTMLAnchorElement>('.bl-name-link');
     expect(name?.getAttribute('href')).toBe(
       '/legislators/leg-melissa?from=%2Fbills%2F94-2025-SF334',
     );
+  });
+
+  it('says no authors are held, with no records-only note', async () => {
+    await renderBill('/bills/94-2025-SF334', billAnswer({ authors: () => json({ authors: [] }) }));
+    const card = container.querySelector('.bl-accounts')!;
+    expect(card.textContent).toContain('No authors held');
+    expect(card.querySelector('.bl-accounts-note')).toBeNull();
   });
 
   it('keeps the bill when the authors’ accounts fail, with Try again', async () => {
@@ -587,7 +617,7 @@ describe('Bill', () => {
   it('says when a version’s text is not held', async () => {
     await renderBill('/bills/94-2025-SF334?tab=text&version=0', billAnswer({ text: missing }));
     expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/0/text`);
-    expect(text()).toContain('Text of the introduced version is not held in this copy');
+    expect(text()).toContain('Text of the introduced version not held');
   });
 
   it('lists roll calls linking to their own pages', async () => {
@@ -596,7 +626,7 @@ describe('Bill', () => {
     expect(card?.textContent).toContain('S.F. No. 334 was read the third time');
     expect(card?.textContent).toContain('Senate · Feb 10, 2025');
     expect(card?.getAttribute('href')).toBe(
-      '/votes/vote-1?bill=94-2025-SF334&from=%2Fbills%2F94-2025-SF334%3Ftab%3Dvotes',
+      `/votes/${VOTE_ID}?from=%2Fbills%2F94-2025-SF334%3Ftab%3Dvotes`,
     );
   });
 
@@ -614,15 +644,37 @@ describe('Bill', () => {
 
   it('says roll calls are not held when an action records a tally we lack', async () => {
     await renderBill('/bills/94-2025-SF334?tab=votes', billAnswer({ votes: () => json([]) }));
-    expect(text()).toContain('Roll calls for this bill are not held in this copy');
+    expect(text()).toContain('No roll calls held');
   });
 
-  it('links an action to its roll call', async () => {
+  it('links an action to its roll call and shows each action’s chamber', async () => {
     await renderBill('/bills/94-2025-SF334?tab=actions', billAnswer());
     const link = [...container.querySelectorAll<HTMLAnchorElement>('.bl-inline-link')].find(
       (item) => item.textContent === 'Roll call',
     );
-    expect(link?.getAttribute('href')).toContain('/votes/vote-1?bill=94-2025-SF334');
+    expect(link?.getAttribute('href')).toBe(
+      `/votes/${VOTE_ID}?from=%2Fbills%2F94-2025-SF334%3Ftab%3Dactions`,
+    );
+    const chambers = [...container.querySelectorAll('.bl-action-chamber')].map(
+      (cell) => cell.textContent,
+    );
+    // Newest first; only the referral carries a chamber in this copy.
+    expect(chambers).toEqual(['', '', 'Senate']);
+    expect(container.querySelector('.bl-panel .lg-note')?.textContent).toBe(
+      'Actions are recorded events from the Legislature’s journal. The latest action is the bill’s recorded status.',
+    );
+  });
+
+  it('prints the committee as text when the record carries no committee id', async () => {
+    const detail = {
+      ...DETAIL,
+      actions: DETAIL.actions!.map((action) => ({ ...action, committee_id: null })),
+    };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    expect(container.querySelector('.bl-facts a[aria-label]')).toBeNull();
+    expect(container.querySelector('.bl-facts')?.textContent).toContain(
+      'State and Local Government',
+    );
   });
 
   it('shows the unavailable state for a bill the server does not hold', async () => {
@@ -645,9 +697,13 @@ const renderVote = (path: string, answer: Answer) =>
   render(path, () => <RollCall match={matchRoute(path.split('?')[0])!} />, answer);
 
 describe('Roll call', () => {
-  it('shows the exact motion, date, recorded result and members', async () => {
-    await renderVote('/votes/vote-1?bill=94-2025-SF334', billAnswer());
-    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/votes`);
+  it('reads the roll call by its own id and shows the motion, date, result and members', async () => {
+    await renderVote(`/votes/${VOTE_ID}`, billAnswer());
+    expect(requests).toContain(`${API}/api/v1/votes/${VOTE_ID}`);
+    expect(requests).toContain(
+      `${API}/api/v1/bills/94-2025-SF334?include=ai_analysis,all_sponsors,actions,versions`,
+    );
+    expect(requests.some((url) => url.endsWith('/votes'))).toBe(false);
     expect(container.querySelector('h1')?.textContent).toBe(VOTE.motion_text);
     expect(text()).toContain('Senate · Feb 10, 2025');
     expect(text()).toContain('Recorded result · Third reading Passed as amended');
@@ -660,7 +716,13 @@ describe('Roll call', () => {
     expect(rows[0].textContent).toBe('Jim AbelerRYes');
     expect(rows[1].textContent).toContain('Party not recorded');
     expect(rows[0].querySelector('a')?.getAttribute('href')).toBe(
-      '/legislators/leg-jim?from=%2Fvotes%2Fvote-1%3Fbill%3D94-2025-SF334',
+      `/legislators/leg-jim?from=%2Fvotes%2F${VOTE_ID}`,
+    );
+    expect(container.querySelector<HTMLAnchorElement>('.bl-companion')?.getAttribute('href')).toBe(
+      `/bills/94-2025-SF334?from=%2Fvotes%2F${VOTE_ID}`,
+    );
+    expect(container.querySelector('.lg-note')?.textContent).toBe(
+      'Party is as recorded for this roll call. A member’s record here is a vote on one motion, never a position or an opinion. Names link only where a legislator record is confirmed.',
     );
     expect(
       container.querySelector<HTMLAnchorElement>('.f-sources-link')?.getAttribute('href'),
@@ -670,26 +732,52 @@ describe('Roll call', () => {
   });
 
   it('filters members by search', async () => {
-    await renderVote('/votes/vote-1?bill=94-2025-SF334&q=zzz', billAnswer());
+    await renderVote(`/votes/${VOTE_ID}?q=zzz`, billAnswer());
     expect(text()).toContain('No recorded member matches that');
   });
 
-  it('shows the unavailable state for an unknown roll call', async () => {
-    await renderVote('/votes/nope?bill=94-2025-SF334', billAnswer());
-    expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
-    expect(text()).toContain('No roll call with this reference is in the current copy.');
+  it('still opens an older link that names the bill, keeping its address', async () => {
+    await renderVote(`/votes/${VOTE_ID}?bill=94-2025-SF334&recorded=yes`, billAnswer());
+    expect(container.querySelector('h1')?.textContent).toBe(VOTE.motion_text);
+    expect(requests.some((url) => url.endsWith('/votes'))).toBe(false);
+    expect(window.location.search).toBe('?bill=94-2025-SF334&recorded=yes');
+    expect(container.querySelector('.f-chip[aria-pressed="true"]')?.textContent).toBe('Yes');
   });
 
-  it('shows the unavailable state when the address names no bill', async () => {
-    await renderVote('/votes/vote-1', billAnswer());
+  it('shows the unavailable state for a roll call the server does not hold', async () => {
+    await renderVote(`/votes/${VOTE_ID}`, billAnswer({ vote: missing }));
+    expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
+    expect(text()).toContain(
+      'No roll call with this reference is in the current copy. Open the bill’s Votes tab for the recorded roll calls.',
+    );
+  });
+
+  it('shows the unavailable state for a reference that is not a roll call id, without a read', async () => {
+    await renderVote('/votes/nope?bill=94-2025-SF334', billAnswer());
     expect(requests).toEqual([]);
     expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
   });
 
-  it('offers Try again when the roll calls fail to load', async () => {
-    await renderVote('/votes/vote-1?bill=94-2025-SF334', billAnswer({ votes: broken }));
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load this bill’s votes right now. Please try again in a moment.',
+  it('offers Try again when the roll call fails to load, then shows it', async () => {
+    let calls = 0;
+    await renderVote(
+      `/votes/${VOTE_ID}`,
+      billAnswer({
+        vote: () => {
+          calls += 1;
+          return calls === 1 ? broken() : json({ bill_id: DETAIL.id, ...VOTE });
+        },
+      }),
     );
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'We couldn’t load this roll call right now. Please try again in a moment.',
+    );
+    const retry = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Try again',
+    )!;
+    await act(async () => retry.click());
+    await settle();
+    await settle();
+    expect(container.querySelector('h1')?.textContent).toBe(VOTE.motion_text);
   });
 });

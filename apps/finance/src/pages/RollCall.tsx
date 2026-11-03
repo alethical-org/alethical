@@ -12,8 +12,10 @@ import {
   billPath,
   chamberName,
   dayLabel,
-  votesPath,
+  isVoteId,
+  votePath,
   type BillDetail,
+  type RollCallRecord,
   type ServedVote,
   type VoteRecord,
 } from './legislationRecords';
@@ -90,22 +92,24 @@ function sourceHost(url: string | null | undefined): string | null {
 
 /**
  * Roll call (Vote drawing): 1 recorded motion with its exact wording, date,
- * recorded result and members. No route serves a roll call by its own id, so
- * the address names the bill too (`?bill=`), and the roll call is read from
- * that bill's recorded roll calls.
+ * recorded result and members. The server reads a roll call by its own id
+ * (`/votes/{id}`), which names its bill, so the address needs nothing else; an
+ * older link's `?bill=` is carried along untouched and never read.
  */
 export function RollCall({ match }: { match: RouteMatch }) {
   const id = match.params.id ?? '';
   const location = useLocation();
   const here = location.pathname + location.search;
   const back = returnTarget(location.search);
-  const [address, setAddress] = useAddressState({ bill: '', recorded: 'all', q: '' });
-  const billId = address.bill.trim();
-  const votes = useRead<ServedVote[]>(billId ? votesPath(billId) : null);
+  const [address, setAddress] = useAddressState({ recorded: 'all', q: '' });
+  const read = useRead<RollCallRecord>(isVoteId(id) ? votePath(id) : null);
+  const vote: ServedVote | null = read.data;
+  const billId = read.data?.bill_id ?? '';
+  // The bill's own read, for its title and update date; the same address the
+  // bill page reads, so returning to it shows the bill at once.
   const bill = useRead<BillDetail>(billId ? billPath(billId) : null);
-  const vote = votes.data?.find((item) => item.id === id) ?? null;
 
-  if (!billId || votes.notFound || (votes.data && !vote)) {
+  if (!isVoteId(id) || read.notFound) {
     return (
       <Frame back={back}>
         <section className="f-card lg-unavailable">
@@ -120,7 +124,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
       </Frame>
     );
   }
-  if (votes.loading) {
+  if (read.loading) {
     return (
       <Frame back={back}>
         <LoadingLine>Loading…</LoadingLine>
@@ -130,8 +134,8 @@ export function RollCall({ match }: { match: RouteMatch }) {
   if (!vote) {
     return (
       <Frame back={back}>
-        <Refused onRetry={votes.retry} retrying={votes.pending}>
-          We couldn’t load this bill’s votes right now. Please try again in a moment.
+        <Refused onRetry={read.retry} retrying={read.pending}>
+          We couldn’t load this roll call right now. Please try again in a moment.
         </Refused>
       </Frame>
     );
@@ -268,9 +272,10 @@ export function RollCall({ match }: { match: RouteMatch }) {
                   <MemberRow key={member.legislator_id} member={member} here={here} />
                 ))}
               </div>
-              <p className="lg-note">
-                A member’s record here is a vote on one motion, never a position or an opinion.
-                Names link only where a legislator record is confirmed.
+              <p className="f-section-note lg-note">
+                Party is as recorded for this roll call. A member’s record here is a vote on one
+                motion, never a position or an opinion. Names link only where a legislator record is
+                confirmed.
               </p>
             </>
           )}
