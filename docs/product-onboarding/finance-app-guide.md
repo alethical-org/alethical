@@ -327,17 +327,18 @@ figure is ever added across committees or members.
   happened. A split into more than 2 parts lists each part and reads "now opens a choice of
   all {n}". A legislator or public-person link is named by its role ("Legislative service",
   "Official IDs"), never by its internal id. A withdrawal of several confirmations sends 1
-  request each; if a later one fails, the page refreshes, says "Some confirmations were
-  withdrawn. The rest were not saved. Your note is kept below; try again.", and Try again
-  sends only the rest. A selection is the
-  server's record fingerprints, or "All records" / "{year} records", which the server
-  resolves. "Saved" appears only after the server accepts; otherwise "Not saved. Your
-  entries are kept." with Try again, "These records changed since this form opened…" or,
-  after the Board's file is replaced, "Reload the records", which keeps the words and clears
-  the selection. Unfinished entries are kept as 1 draft per name, role, action and target
-  ("Unsaved draft", "Discard draft"). A contextual arrival names the spelling and its role
-  (`?name=&role=`); a spelling with no records reads "This record is not held". It is
-  entered only from its context, never from Finance Home.
+  request each; if a later one fails, the page refreshes (each one withdrawn leaves the
+  confirmed card and gets its History withdrawal row), says "{k} of {n} confirmations were
+  withdrawn. The other {m} were not saved. Your note is kept below." with Try again, and Try
+  again sends only the rest. A selection is the server's record fingerprints, or "All
+  records" / "{year} records", which the server resolves. "Saved" appears only after the
+  server accepts; otherwise "Not saved. Your entries are kept." with Try again, "These
+  records changed since this form opened…" or, after the Board's file is replaced, "Reload
+  the records", which keeps the words and clears the selection. Unfinished entries are kept
+  as 1 draft per name, role, action and target ("Unsaved draft", "Discard draft"). A
+  contextual arrival names the spelling and its role (`?name=&role=`); a spelling with no
+  records reads "This record is not held". It is entered only from its context, never from
+  Finance Home.
 - **Not built yet:** Money connections (`/money/connections`) has a screen in the code but
   answers "not found" and is linked from nowhere until the pull request that aligns that screen with Design's
   current drawing turns its route on in `BUILT`.

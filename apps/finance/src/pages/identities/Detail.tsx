@@ -66,21 +66,22 @@ interface Ui {
   tried: boolean;
   saving: boolean;
   storeFailed: boolean;
-  /** A withdrawal of several confirmations stopped after some were withdrawn. */
-  partial: boolean;
+  /** A withdrawal of several confirmations stopped after {k} of {n} were withdrawn. */
+  partial: { k: number; n: number } | null;
   refused: boolean;
   planError: string;
   stale: boolean;
 }
-/** No drawn words: a withdrawal of several confirmations that stopped part way. */
-const PARTLY_WITHDRAWN =
-  'Some confirmations were withdrawn. The rest were not saved. Your note is kept below; try again.';
+/** A withdrawal of several confirmations that stopped part way (settled wording, #2833). */
+function partlyWithdrawn({ k, n }: { k: number; n: number }): string {
+  return `${k} of ${n} confirmations were withdrawn. The other ${n - k} were not saved. Your note is kept below.`;
+}
 
 const READY: Ui = {
   tried: false,
   saving: false,
   storeFailed: false,
-  partial: false,
+  partial: null,
   refused: false,
   planError: '',
   stale: false,
@@ -190,6 +191,7 @@ export function Detail({
   const [ui, setUi] = useState<Ui>(READY);
   // Confirmations this open withdrawal has already withdrawn: a retry skips them.
   const withdrawn = useRef<Set<string>>(new Set());
+  const withdrawTotal = useRef(0);
   const [histOpen, setHistOpen] = useState<Record<string, boolean>>({});
 
   // Every change to the open form is kept as its draft; an emptied form keeps none.
@@ -204,6 +206,7 @@ export function Detail({
   function open(fields: DraftKeyFields | null) {
     setUi(READY);
     withdrawn.current = new Set();
+    withdrawTotal.current = 0;
     onLive('');
     if (!fields) {
       setForm(null);
@@ -424,6 +427,8 @@ export function Detail({
     }
     // Withdraw: each confirmation of this spelling for the shown identity, 1 request
     // each; a retry skips the ones already withdrawn.
+    // The withdrawal's size is fixed when it starts; a refresh drops withdrawn ones.
+    if (withdrawn.current.size === 0) withdrawTotal.current = groups.length;
     const pending = groups.filter((group) => !withdrawn.current.has(group.id));
     let last: WriteResult<unknown> =
       pending.length || withdrawn.current.size
@@ -487,8 +492,9 @@ export function Detail({
     }
     if (mode === 'withdraw' && withdrawn.current.size > 0) {
       // Part of the withdrawal saved: show what changed and keep the note for the rest.
-      setUi({ ...READY, partial: true });
-      onLive(PARTLY_WITHDRAWN);
+      const partial = { k: withdrawn.current.size, n: withdrawTotal.current };
+      setUi({ ...READY, partial });
+      onLive(partlyWithdrawn(partial));
       setVersion((value) => value + 1);
       onSaved();
     } else if (result.reason === 'source-changed') {
@@ -886,7 +892,7 @@ export function Detail({
       )}
       {ui.partial && (
         <div role="alert" className="ci-failed">
-          <span>{PARTLY_WITHDRAWN}</span>
+          <span>{partlyWithdrawn(ui.partial)}</span>
           <button
             type="button"
             className="f-btn f-btn-secondary ci-btn-s"

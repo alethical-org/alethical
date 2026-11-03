@@ -1292,22 +1292,36 @@ describe('Confirm identities page', () => {
     expect(text()).not.toContain('No confirmations or suggestions yet');
   });
 
-  it('says only part was withdrawn when a later request fails, and retries only the rest', async () => {
-    let fail = true;
+  it('counts what a partly failed withdrawal saved, marks it, and retries only the rest', async () => {
+    const failing = new Set(['c-2', 'c-3']);
+    const done = new Set<string>();
+    const REASON = 'Different registration number on the later filing';
     let reads = 0;
     serve((url, init) => {
       if (init?.method === 'POST') {
-        if (url.pathname.includes('/c-2/') && fail) return new Response('{}', { status: 500 });
+        const id = url.pathname.split('/').at(-2)!;
+        if (failing.has(id)) return new Response('{}', { status: 500 });
+        done.add(id);
         return json({});
       }
       if (url.pathname.endsWith('/queue')) return json(queuePage([]));
       if (url.pathname.endsWith('/records')) return oneIdentityRecords();
       if (url.pathname.endsWith(ORG)) {
         reads += 1;
+        // As the server answers: a withdrawn confirmation keeps its row, withdrawn.
+        const state = (id: string) =>
+          done.has(id)
+            ? {
+                status: 'withdrawn',
+                withdrawn_at: '2026-11-03T12:00:00Z',
+                withdrawal_reason: REASON,
+              }
+            : {};
         return json(
           identity(ORG, 'Example Media LLC', [
-            confirmation('c-1', ORG, [1]),
-            confirmation('c-2', ORG, [2], { checked_at: '2026-09-04T15:00:00Z' }),
+            confirmation('c-1', ORG, [1], state('c-1')),
+            confirmation('c-2', ORG, [2], { checked_at: '2026-09-04T15:00:00Z', ...state('c-2') }),
+            confirmation('c-3', ORG, [3], { checked_at: '2026-09-05T15:00:00Z', ...state('c-3') }),
           ]),
         );
       }
@@ -1319,30 +1333,47 @@ describe('Confirm identities page', () => {
       [...container.querySelectorAll<HTMLButtonElement>('#identity-form button')].find(
         (b) => b.textContent === 'Withdraw confirmation',
       )!;
-    await type(noteField(), 'Different registration number on the later filing');
+    await type(noteField(), REASON);
     await click(submit());
     expect(posts.map((post) => post.path)).toEqual([
       'finance/identities/confirmations/c-1/withdraw',
       'finance/identities/confirmations/c-2/withdraw',
     ]);
     expect(text()).toContain(
-      'Some confirmations were withdrawn. The rest were not saved. Your note is kept below; try again.',
+      '1 of 3 confirmations were withdrawn. The other 2 were not saved. Your note is kept below.',
     );
     expect(text()).not.toContain('Not saved. Your entries are kept.');
-    // The page reads the identity again to show what changed.
+    // The page reads the identity again; the withdrawn one is marked by its drawn
+    // History row and leaves the confirmed card.
     expect(reads).toBeGreaterThan(readsBefore);
-    expect(noteField().value).toBe('Different registration number on the later filing');
+    expect(text()).toContain(
+      `Confirmation as Example Media LLC (ORG-0002) withdrawn for 1 record: ${REASON}`,
+    );
+    expect(container.querySelectorAll('.ci-confirmed dl[data-group]')).toHaveLength(2);
+    expect(noteField().value).toBe(REASON);
 
-    fail = false;
-    posts.length = 0;
-    await click(
+    const tryAgain = () =>
       [...container.querySelectorAll<HTMLButtonElement>('.ci-failed button')].find(
         (b) => b.textContent === 'Try again',
-      )!,
-    );
+      )!;
+    failing.delete('c-2');
+    posts.length = 0;
+    await click(tryAgain());
     expect(posts.map((post) => post.path)).toEqual([
       'finance/identities/confirmations/c-2/withdraw',
+      'finance/identities/confirmations/c-3/withdraw',
     ]);
+    expect(text()).toContain(
+      '2 of 3 confirmations were withdrawn. The other 1 were not saved. Your note is kept below.',
+    );
+
+    failing.clear();
+    posts.length = 0;
+    await click(tryAgain());
+    expect(posts.map((post) => post.path)).toEqual([
+      'finance/identities/confirmations/c-3/withdraw',
+    ]);
+    expect(container.querySelector('#identity-form')).toBeNull();
   });
 
   it('previews the links that move before a merge and merges the chosen record in', async () => {
