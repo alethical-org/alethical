@@ -3147,6 +3147,80 @@ class CampaignFinanceIndependentExpenditureRow(Base):
     )
 
 
+class CampaignFinanceGraphMoneySummary(Base):
+    """The money graph's groups for 1 saved payment file, added up once at publish.
+
+    Finance's connections graph (``alethical/api/services/finance_connections.py``)
+    groups every payment row by the printed names and numbers that form its 2
+    nodes. Grouping the 1.07 million rows of the 3 live files on every request
+    read 469 MB against a 256 MB buffer pool and spilled to temp files, so the
+    first signed-in broad page took 14 s against the client's 10 s limit
+    (measured 2 Nov 2026). This table holds the same groups, 1 row per distinct
+    set of node inputs and filing year, built inside the publish transaction from
+    the rows just loaded, so a read scans about 58 MB that stays cached.
+
+    Keyed on the snapshot, like ``cf_stated_split``: the rows are a fact about
+    *those* payment rows and go with them when they are pruned. Nothing here
+    resolves an identity, and no name is merged: identity confirmations and
+    registered-filer checks are applied when the graph is read, over these
+    inputs, exactly as they are applied over the raw rows. A printed name with
+    an active record-level confirmation is read from its raw rows instead,
+    because a confirmation can cover some of a name's records and not others.
+
+    Every figure keeps rule 12 of ``.claude/rules/grounded-answers.md``:
+    ``amount_sum`` is the signed sum of the amounts that are held, and
+    ``missing_amount_count`` says how many are not, so a reader withholds the
+    sum rather than printing a short one; repeated identical rows count as
+    separate records; a missing date or year is counted, never filled in.
+    """
+
+    __tablename__ = "cf_graph_money_summary"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), nullable=False
+    )
+    dataset: Mapped[CampaignFinanceDataset] = mapped_column(
+        SQLEnum(CampaignFinanceDataset, name="cf_dataset", create_type=False),
+        nullable=False,
+    )
+    # The account that filed the row: recipient on a contribution, paying
+    # committee on an expenditure, spender on an independent expenditure.
+    account_number: Mapped[Optional[str]] = mapped_column(Text)
+    account_name: Mapped[Optional[str]] = mapped_column(Text)
+    # The other printed name: contributor, or vendor. Null only on an outgoing
+    # contribution that names its recipient but prints no vendor.
+    printed_name: Mapped[Optional[str]] = mapped_column(Text)
+    # Contributions: the donor's own registration number, when it has one.
+    donor_number: Mapped[Optional[str]] = mapped_column(Text)
+    # Expenditures: the filed type, and the committee an outgoing contribution
+    # names, as printed (a "0" number is kept as printed and read as none).
+    payment_type: Mapped[Optional[str]] = mapped_column(Text)
+    transfer_number: Mapped[Optional[str]] = mapped_column(Text)
+    transfer_name: Mapped[Optional[str]] = mapped_column(Text)
+    year: Mapped[Optional[int]] = mapped_column(Integer)
+
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount_sum: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 4))
+    missing_amount_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_date: Mapped[Optional[date]] = mapped_column(Date)
+    last_date: Mapped[Optional[date]] = mapped_column(Date)
+    undated_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    __table_args__ = (
+        # Rows are written in year order, so a snapshot's rows are read through this
+        # index page by page, and only that snapshot's pages: a table holding the
+        # previous generation too is never scanned whole.
+        Index("ix_cf_graph_money_summary_snapshot_year", "snapshot_id", "year"),
+        # The amounts for 1 page of edges, found by the filers on that page.
+        Index(
+            "ix_cf_graph_money_summary_snapshot_account",
+            "snapshot_id",
+            "account_number",
+        ),
+    )
+
+
 # --- Campaign finance: what each filer itself reported -----------------------
 #
 # The 3 tables above hold the payments Minnesota itemized. These hold what each

@@ -97,6 +97,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
+from alethical.pipeline import campaign_finance_graph_summary as graph_summary
 from alethical.pipeline.campaign_finance_filings import (
     filings_context,
     pause_before_retry,
@@ -2714,6 +2715,12 @@ def publish(
             )
             db.execute(delete(spec.table).where(spec.table.snapshot_id == snapshot.id))
             copy_rows(db, spec, source)
+        # The Finance graph's groups for these rows, written in this transaction
+        # so the live pointer never names a snapshot with a half-built summary.
+        # A reused snapshot keeps its summary; one loaded before the summary
+        # existed gets it here.
+        if not loaded or snapshot.id not in graph_summary.held(db, [snapshot.id]):
+            graph_summary.rebuild(db, spec.dataset, snapshot.id)
         snapshot.status = SnapshotStatus.loaded
         snapshot.row_count = measured.row_count
         snapshot.column_names = measured.column_names
@@ -2878,6 +2885,10 @@ def rollback_release(db: Session, release_id: uuid.UUID) -> None:
             raise CampaignFinanceRefusal(
                 f"Cannot roll back: {spec.key} rows are not retained"
             )
+    for spec in DATASETS:
+        snapshot_id = getattr(target, RELEASE_SNAPSHOT_COLUMN[spec.dataset])
+        if snapshot_id not in graph_summary.held(db, [snapshot_id]):
+            graph_summary.rebuild(db, spec.dataset, snapshot_id)
     if current is not None:
         current.status = ReleaseStatus.superseded
         current.superseded_at = datetime.now(UTC)
@@ -2957,6 +2968,7 @@ def prune(db: Session) -> tuple[int, int]:
             deleted = db.execute(
                 delete(spec.table).where(spec.table.snapshot_id == snapshot.id)
             ).rowcount
+            graph_summary.remove(db, snapshot.id)
             snapshot.status = SnapshotStatus.pruned
             snapshots += 1
             rows += deleted or 0

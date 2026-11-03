@@ -119,6 +119,9 @@ Totals pruning also keeps any totals snapshot named by those manifests. Exact ro
 restores all 3 slots, receipts, dates, pairings and accepted checks; it verifies retained
 rows before moving the pointer and records follow-up work without inventing a source
 read. Legacy carry requires a real accepted receipt from its original run/window.
+Pruning a snapshot's rows also removes its Finance money-graph summary
+(`cf_graph_money_summary`), and rollback writes the summary a restored file lacks in
+the same transaction that moves the pointer.
 
 ## Acceptance checkpoint
 
