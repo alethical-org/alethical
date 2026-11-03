@@ -249,6 +249,11 @@
   margin-top: 12px;
   max-width: 760px;
 }
+.lb-gone-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
 .lb-header {
   margin-top: 8px;
 }

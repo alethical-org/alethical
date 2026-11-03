@@ -272,13 +272,7 @@ a.lg-row:active {
   display: grid;
   gap: 14px;
 }
-.bl-tabs .f-tabs {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
 .bl-tabs .f-tab {
-  padding: 0 14px;
   white-space: nowrap;
 }
 .bl-panel {

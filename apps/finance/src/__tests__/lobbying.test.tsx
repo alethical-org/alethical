@@ -735,8 +735,9 @@ describe('Lobbyist record', () => {
     expect(container.querySelector('.f-back')?.textContent).toBe('Back to Lobbying');
     expect(container.querySelector('h1')?.textContent).toBe('Kozak, Andrew');
     expect(text()).toContain('LOBBYIST');
-    expect(text()).toContain('Registration 141');
-    expect(text()).toContain('· Registered on the copy date');
+    // The dot ends the registration's line, so a wrapped status never starts with it.
+    expect(container.querySelector('.lb-reg')?.textContent).toBe('Registration 141\u00a0·');
+    expect(container.querySelector('.lb-status')?.textContent).toBe('Registered on the copy date');
 
     // Organisations: the spending file's name, the listed spelling noted, unlinked without spending.
     const orgLinks = [...container.querySelectorAll<HTMLAnchorElement>('.lb-row-link')];
@@ -890,7 +891,7 @@ describe('Lobbyist record', () => {
     gone.principals = { state: 'not_registered_today', total: 0, rows: [] };
     await render('/lobbying/lobbyists/141', (match) => <Lobbyist match={match} />, ANSWER(gone));
     expect(container.querySelector('h1')?.textContent).toBe('Registration 141');
-    expect(text()).toContain('· Not listed on the copy date');
+    expect(container.querySelector('.lb-status')?.textContent).toBe('Not listed on the copy date');
     expect(text()).toContain('7 matching records');
   });
 
@@ -908,9 +909,11 @@ describe('Lobbyist record', () => {
       (match) => <Lobbyist match={match} />,
       ANSWER({ ...unknown, registration_number: '999999' }),
     );
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    // The not-found line is the page's heading, not an alert.
+    expect(container.querySelector('h1')?.textContent).toBe(
       'No lobbying record was found for 999999',
     );
+    expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(button('Try again')).toBeUndefined();
 
     act(() => root.unmount());
@@ -1155,9 +1158,11 @@ describe('Principal record', () => {
       (match) => <Principal match={match} />,
       ANSWER(principal({ entity_id: 8887, state: 'no_spending_rows', name: null })),
     );
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    // The not-found line is the page's heading, not an alert.
+    expect(container.querySelector('h1')?.textContent).toBe(
       'No lobbying record was found for 8887',
     );
+    expect(container.querySelector('[role="alert"]')).toBeNull();
 
     act(() => root.unmount());
     root = createRoot(container);

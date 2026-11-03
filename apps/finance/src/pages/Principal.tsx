@@ -255,7 +255,10 @@ export function Principal({ match }: { match: RouteMatch }) {
         {read.loading && !missing && <LoadingLine>{LOBBYING_RECORD_LOADING}</LoadingLine>}
         {missing && (
           <div className="lb-state">
-            <Refused>{notFoundLine(match.params.id)}</Refused>
+            {/* The page's heading, so focus and heading navigation land on it. */}
+            <h1 tabIndex={-1} className="f-page-title lb-gone-title">
+              {notFoundLine(match.params.id)}
+            </h1>
           </div>
         )}
         {(unavailable || (read.failed && !record)) && !missing && (
