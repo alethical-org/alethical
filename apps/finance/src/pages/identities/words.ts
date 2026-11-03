@@ -124,9 +124,39 @@ export function sourceOf(confirmation: Confirmation): string {
   return evidence.locator ?? evidence.source;
 }
 
-/** The rows a confirmation covers in the Board's current file, and their dates. */
-export function coveredRows(confirmation: Confirmation): number {
-  return (confirmation.records ?? []).reduce((sum, record) => sum + (record.rows ?? 0), 0);
+/** The rows a confirmation covers in the Board's current file (identical repeated rows
+ * each count), or null when the server does not hold that file: a missing count is
+ * never 0 (grounded-answers rule 12), and a partial sum is never the whole. */
+export function coveredRows(confirmation: Confirmation): number | null {
+  let sum = 0;
+  for (const record of confirmation.records ?? []) {
+    if (typeof record.rows !== 'number') return null;
+    sum += record.rows;
+  }
+  return sum;
+}
+
+/** The sum of counts, or null when any of them is not held. */
+export function sumCounts(counts: ReadonlyArray<number | null>): number | null {
+  let sum = 0;
+  for (const count of counts) {
+    if (count === null) return null;
+    sum += count;
+  }
+  return sum;
+}
+
+/** "{n} records · {period} · Checked on {date}"; the count is left out when it is not
+ * held, since no words are drawn for an unknown count. */
+export function coverageLine(confirmation: Confirmation): string {
+  const count = coveredRows(confirmation);
+  return [
+    count === null ? null : plural(count, 'record', 'records'),
+    period(coveredDates(confirmation)),
+    confirmation.checked_at ? `Checked on ${day(confirmation.checked_at)}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 export function coveredDates(confirmation: Confirmation): string[] {

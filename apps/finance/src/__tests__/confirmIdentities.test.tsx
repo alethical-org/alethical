@@ -4,9 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
 import { ConfirmIdentities, sourceLine } from '../pages/ConfirmIdentities';
-import { historyRows } from '../pages/identities/history';
+import { historyOf, historyRows } from '../pages/identities/history';
 import type { Identity, QueuePage, QueueRow, RecordsPage } from '../pages/identities/types';
-import { beyondName, named, queueAmount, queuePeriod, refOf } from '../pages/identities/words';
+import {
+  beyondName,
+  coveredRows,
+  named,
+  queueAmount,
+  queuePeriod,
+  refOf,
+  sumCounts,
+} from '../pages/identities/words';
 import { hasDraft } from '../ui/drafts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -176,6 +184,15 @@ function confirmation(
     ...over,
   };
 }
+/** A confirmation whose printed name's file the server does not hold: every record's
+ * `rows` and `in_board_file` are null (identity_confirmations._payloads). */
+function notHeld(c: ReturnType<typeof confirmation>) {
+  return {
+    ...c,
+    records: c.records!.map((record) => ({ ...record, rows: null, in_board_file: null })),
+  };
+}
+
 function identity(
   id: string,
   name: string,
@@ -600,6 +617,139 @@ describe('history of a split', () => {
     expect(text()).toContain('Example Media Buying Co');
     expect(text()).not.toContain('No confirmations or suggestions yet');
     expect(container.querySelector('#hist-h')).toBeNull();
+    expect(text()).not.toMatch(/\b0 records?\b/);
+  });
+});
+
+describe('counts whose file is not held', () => {
+  it('never sums a missing row count as 0, nor a partial sum as the whole', () => {
+    const held = confirmation('c-1', ORG, [1, 2]);
+    expect(coveredRows(held as never)).toBe(2);
+    expect(coveredRows(notHeld(held) as never)).toBeNull();
+    const mixed = {
+      ...held,
+      records: [held.records[0], { ...held.records[1], rows: null, in_board_file: null }],
+    };
+    expect(coveredRows(mixed as never)).toBeNull();
+    // A record no longer in the Board's file is a held 0, not a missing count.
+    const gone = { ...held, records: [{ ...held.records[0], rows: 0, in_board_file: false }] };
+    expect(coveredRows(gone as never)).toBe(0);
+    expect(sumCounts([1, 2])).toBe(3);
+    expect(sumCounts([1, null])).toBeNull();
+  });
+
+  it('leaves out the history rows whose count is not held', () => {
+    const withdrawn = notHeld(
+      confirmation('c-old', ORG, [3], {
+        status: 'withdrawn',
+        withdrawn_at: '2026-10-01T12:00:00Z',
+        withdrawal_reason: 'Different registration number',
+      }),
+    );
+    const merged = notHeld(confirmation('c-9', DULUTH, [4]));
+    const { rows, withheld } = historyOf(
+      new Map([
+        [
+          ORG,
+          identity(
+            ORG,
+            'Example Media LLC',
+            [
+              confirmation('c-1', ORG, [1, 2]),
+              notHeld(confirmation('c-2', ORG, [5])),
+              withdrawn,
+              merged,
+            ],
+            [
+              {
+                action: 'merged',
+                at: '2026-10-20T12:00:00Z',
+                detail: { from: DULUTH, into: ORG, reason: 'Same registration' },
+                references: { [DULUTH]: 'ORG-0043', [ORG]: 'ORG-0002' },
+              },
+            ],
+          ),
+        ],
+      ]),
+      'payee_name',
+      NAME,
+      4,
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      'Confirmed as Example Media LLC (ORG-0002) for 2 of 4 records, Jan 1, 2026 to Feb 2, 2026',
+    ]);
+    // Each event that would print a count that is not held waits on words: the 3
+    // confirmations (c-2, c-old, the merged-in c-9), the withdrawal and the merge.
+    expect(withheld).toBe(5);
+  });
+
+  it('leaves the count out of Records covered, the split form and the merge preview', async () => {
+    const other = OTHER;
+    serve((url) => {
+      if (url.pathname.endsWith('/queue')) return json(queuePage([]));
+      if (url.pathname.endsWith('/records'))
+        return json(
+          recordsPage({
+            confirmed: 2,
+            identities: [
+              {
+                id: ORG,
+                reference: 'ORG-0002',
+                kind: 'organization',
+                name: 'Example Media LLC',
+                confirmed: 2,
+              },
+            ],
+          }),
+        );
+      if (url.pathname.endsWith(other))
+        return json(
+          identity(other, 'Example Media Group', [
+            {
+              ...notHeld(confirmation('c-9', other, [4, 5])),
+              record_key: 'EXAMPLE MEDIA GROUP INC',
+            },
+          ]),
+        );
+      if (url.pathname.endsWith(ORG))
+        return json(
+          identity(ORG, 'Example Media LLC', [
+            notHeld(confirmation('c-1', ORG, [1])),
+            confirmation('c-2', ORG, [2]),
+          ]),
+        );
+      if (url.pathname.endsWith('/identities'))
+        return json({
+          rows: [
+            { id: other, reference: 'ORG-0042', kind: 'organization', name: 'Example Media Group' },
+          ],
+          total: 1,
+          page: 1,
+          page_size: 20,
+          pages: 1,
+        });
+    });
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
+    const covered = [...container.querySelectorAll('.ci-dl dd.f-num')].map((dd) => dd.textContent);
+    expect(covered).toContain('Jan 1, 2026 · Checked on Aug 2, 2026');
+    expect(covered).toContain('1 record · Feb 2, 2026 · Checked on Aug 2, 2026');
+    expect(text()).not.toMatch(/\b0 records?\b/);
+
+    await click(button('Split this record'));
+    const metas = [...container.querySelectorAll('#identity-form .ci-option')].map(
+      (option) => option.textContent ?? '',
+    );
+    expect(metas.some((meta) => meta.includes('Jan 1, 2026 · Checked on Aug 2, 2026'))).toBe(true);
+    expect(metas.some((meta) => /\b0 records?\b/.test(meta))).toBe(false);
+    // The selected-of-total line would add a missing count, so it is left out.
+    expect(text()).not.toMatch(/selected/);
+
+    await click(button('Merge with another record'));
+    await click(container.querySelector<HTMLInputElement>('input[type="radio"]')!);
+    expect(text()).toContain('Links that will move');
+    expect(text()).toContain('EXAMPLE MEDIA GROUP INC');
+    expect(text()).not.toContain('holds no confirmed records');
+    expect(text()).not.toMatch(/These \d+ confirmed records will move/);
     expect(text()).not.toMatch(/\b0 records?\b/);
   });
 });

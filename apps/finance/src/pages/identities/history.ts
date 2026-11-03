@@ -1,5 +1,15 @@
 import type { Confirmation, Identity, PrintedKind, SplitPart } from './types';
-import { coveredDates, coveredRows, day, named, period, plural, refOf, sourceOf } from './words';
+import {
+  coveredDates,
+  coveredRows,
+  day,
+  named,
+  period,
+  plural,
+  refOf,
+  sourceOf,
+  sumCounts,
+} from './words';
 
 export interface HistoryRow {
   key: string;
@@ -52,8 +62,9 @@ export function historyRows(
   return historyOf(identities, kind, name, total).rows;
 }
 
-/** The printed history rows, and how many events wait on words not drawn yet (a split
- * whose part has no count). A history with a waiting event is never called empty. */
+/** The printed history rows, and how many events wait on words not drawn yet (a count
+ * whose file is not held, or a split whose part has no count). A history with a waiting
+ * event is never called empty. */
 export function historyOf(
   identities: ReadonlyMap<string, Identity>,
   kind: PrintedKind,
@@ -80,7 +91,9 @@ export function historyOf(
       const holder = identities.get(confirmation.identity_id) ?? identity;
       const k = coveredRows(confirmation);
       const scope = `for ${k} of ${total} records, ${period(coveredDates(confirmation))}`;
-      if (!confirmation.replaces && confirmation.checked_at) {
+      // A count whose file is not held has no drawn words yet: the row waits.
+      if (!confirmation.replaces && confirmation.checked_at && k === null) withheld += 1;
+      else if (!confirmation.replaces && confirmation.checked_at) {
         rows.push({
           key: `confirm|${confirmation.id}`,
           at: confirmation.checked_at,
@@ -124,9 +137,15 @@ export function historyOf(
         const fromName = identities.get(from)?.name ?? null;
         const fromLabel = { name: fromName ?? references[from] ?? '', reference: references[from] };
         if (!fromLabel.name) continue;
-        const moved = (identity.confirmations ?? [])
-          .filter((c) => c.identity_id === from && c.status === 'confirmed')
-          .reduce((sum, c) => sum + (c.records ? coveredRows(c) : 1), 0);
+        const moved = sumCounts(
+          (identity.confirmations ?? [])
+            .filter((c) => c.identity_id === from && c.status === 'confirmed')
+            .map((c) => (c.records ? coveredRows(c) : 1)),
+        );
+        if (moved === null) {
+          withheld += 1;
+          continue;
+        }
         rows.push({
           key: `merge|${from}|${identity.id}`,
           at: event.at ?? '',
@@ -163,7 +182,11 @@ export function historyOf(
     }
   }
   for (const [group, entry] of withdrawals) {
-    const k = entry.items.reduce((sum, c) => sum + coveredRows(c), 0);
+    const k = sumCounts(entry.items.map(coveredRows));
+    if (k === null) {
+      withheld += 1;
+      continue;
+    }
     rows.push({
       key: `withdraw|${group}`,
       at: entry.at,

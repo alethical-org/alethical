@@ -28,6 +28,8 @@ import {
   blankDraft,
   coveredDates,
   coveredRows,
+  coverageLine,
+  sumCounts,
   day,
   draftKey,
   evidenceSource,
@@ -327,7 +329,7 @@ export function Detail({
   const active = (confIdentity?.confirmations ?? []).filter((c) => c.status === 'confirmed');
   const printedActive = active.filter((c) => c.records !== null && isPrintedKind(c.record_kind));
   const roleActive = active.filter((c) => !(c.records !== null && isPrintedKind(c.record_kind)));
-  const rowsIn = (list: Confirmation[]) => list.reduce((sum, c) => sum + coveredRows(c), 0);
+  const rowsIn = (list: Confirmation[]) => sumCounts(list.map(coveredRows));
 
   const unconfirmed = (data?.fingerprints ?? []).filter((record) => !record.confirmation);
   const pickedKeys = form ? Object.keys(form.picked) : [];
@@ -607,7 +609,7 @@ export function Detail({
       return {
         key: c.id,
         title: c.record_key,
-        meta: `${plural(coveredRows(c), 'record', 'records')} · ${period(coveredDates(c))}${c.checked_at ? ` · Checked on ${day(c.checked_at)}` : ''}`,
+        meta: coverageLine(c),
         checked,
         toggle: () =>
           update({
@@ -629,7 +631,13 @@ export function Detail({
       };
     });
     const moving = printedActive.filter((c) => form.parts.includes(c.id));
-    recsCount = `${rowsIn(moving)} of ${plural(rowsIn(printedActive), 'record', 'records')} selected${moving.length ? ` · ${period(moving.flatMap(coveredDates))}` : ''}`;
+    const movingRows = rowsIn(moving);
+    const allRows = rowsIn(printedActive);
+    // A count whose file is not held is left out, never summed as 0.
+    recsCount =
+      movingRows === null || allRows === null
+        ? ''
+        : `${movingRows} of ${plural(allRows, 'record', 'records')} selected${moving.length ? ` · ${period(moving.flatMap(coveredDates))}` : ''}`;
   }
 
   const pickOptions =
@@ -673,17 +681,24 @@ export function Detail({
       );
     else if (pickRead.data) {
       const moving = pickRead.data.confirmations.filter((c) => c.status === 'confirmed');
-      const count = moving.reduce((sum, c) => sum + (c.records ? coveredRows(c) : 1), 0);
+      const count = sumCounts(moving.map((c) => (c.records ? coveredRows(c) : 1)));
       const from = named(pickRead.data);
-      const lead = count
-        ? `${count === 1 ? 'This confirmed record' : `These ${count} confirmed records`} will move from ${from} to ${named(conf)}. Each keeps its own evidence. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`
-        : `${from} holds no confirmed records. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`;
+      // A count whose file is not held is never read as 0 or a partial sum: the lead,
+      // which has no drawn words for it, is left out.
+      const lead =
+        count === null
+          ? null
+          : count
+            ? `${count === 1 ? 'This confirmed record' : `These ${count} confirmed records`} will move from ${from} to ${named(conf)}. Each keeps its own evidence. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`
+            : `${from} holds no confirmed records. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`;
       mergePreview = (
         <section aria-labelledby="move-h" className="ci-preview">
           <h4 id="move-h">Links that will move</h4>
-          <p>
-            <Refs>{lead}</Refs>
-          </p>
+          {lead && (
+            <p>
+              <Refs>{lead}</Refs>
+            </p>
+          )}
           {moving.length > 0 && (
             <ul>
               {moving.map((c) => (
@@ -691,7 +706,7 @@ export function Detail({
                   <span className="ci-strong">{c.record_key}</span>
                   <span className="ci-muted f-num">
                     {c.records
-                      ? `${plural(coveredRows(c), 'record', 'records')} · ${period(coveredDates(c))}${c.checked_at ? ` · Checked on ${day(c.checked_at)}` : ''}`
+                      ? coverageLine(c)
                       : `${ROLE_LABELS[c.record_kind] ?? c.record_kind}${c.checked_at ? ` · Checked on ${day(c.checked_at)}` : ''}`}
                   </span>
                   <span>
@@ -885,10 +900,7 @@ export function Detail({
           {groups.map((group) => (
             <dl key={group.id} className="ci-dl" data-group={groups.length > 1 || undefined}>
               <dt>{groups.length > 1 ? 'Confirmation' : 'Records covered'}</dt>
-              <dd className="f-num">
-                {plural(coveredRows(group), 'record', 'records')} · {period(coveredDates(group))}
-                {group.checked_at ? ` · Checked on ${day(group.checked_at)}` : ''}
-              </dd>
+              <dd className="f-num">{coverageLine(group)}</dd>
               <dt>Evidence</dt>
               <dd>{confirmationNote(group)}</dd>
               <dt>Source</dt>
