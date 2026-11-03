@@ -153,9 +153,32 @@ never infers that one payment funded another. Station-file relationships carry n
 Outgoing committee contributions use the separately filed recipient, never a processor's
 confirmed identity. A recipient without held filer evidence remains a printed name.
 
+Money groups are read from `cf_graph_money_summary`, 1 row per distinct set of node
+inputs (filer number and name, printed name, donor number, payment type, named
+transfer) and filing year of each saved payment file, with its record count, signed
+amount sum, missing-amount count, first and last dates and undated count
+(`alethical/pipeline/campaign_finance_graph_summary.py`). A publish writes a file's
+summary inside the same transaction as its rows, a rollback writes any it lacks, and
+pruning a file's rows removes it; a file with no summary rows is grouped from its raw
+rows, so a deploy before the one-time catch-up (`scripts/build_finance_graph_summary.py`)
+is slow and never wrong. Nothing in the summary resolves an identity: registered-filer
+checks and identifier confirmations are applied over its inputs when the graph is read,
+and a printed name with an active record-level confirmation is read from its raw rows
+instead, so a confirmation covering some of a name's records stays exact. On the
+contributions and expenditures files those raw reads are found by each confirmed name's
+index, so their cost grows with the number of confirmed names; the independent-expenditures
+file has no vendor-name index, so a confirmed name there reads that whole file (about
+41,000 rows). The 2 sources answer alike, payload for payload
+(`alethical/tests/test_finance_graph_summary.py`). To undo the summary, empty
+`cf_graph_money_summary` first (reads then group the raw rows), then revert the code,
+then downgrade migration 0081.
+Before the summary, every broad request re-read all 1.07 million payment rows (469 MB
+against a 256 MB buffer pool) and spilled to temp files: 14 s for the first signed-in
+page, 6 to 7 s repeated, against the client's 10 s limit (2 Nov 2026).
+
 Broad money reads first count and page exact relationship keys in SQL, with the same
-complete ordering as the other relationships. Repeated raw node inputs are grouped
-before resolving their names and identities; per-record confirmation joins still happen
+complete ordering as the other relationships. Repeated node inputs are grouped before
+resolving their names and identities; per-record confirmation joins still happen
 before that grouping. A final distinct step combines raw inputs that resolve to the
 same nodes. The key page is merged with non-money relationships before amounts and
 periods are calculated, so only the returned money edges receive those calculations.
@@ -170,11 +193,13 @@ Missing sources are
 reported separately while available relationships remain usable; held station files
 without matching checks are an empty result, not an unavailable source.
 
-Expenditure year choices and transfer registration numbers come from one scan of the
-snapshot, backed by a covering index. Years include rows that cannot form a graph edge;
-only contribution rows supply transfer numbers. Held registration sets use array
-parameters, keeping statement size bounded as the source files grow. These changes do
-not cache relationships or weaken the per-record identity checks.
+Year choices cover every row of each saved file, including rows that cannot form a
+graph edge: a summarized file's years are the years its publish measured
+(`cf_snapshot.rows_by_year`), and a file without them, or without a summary, scans its
+rows (for expenditures, 1 scan backed by a covering index that also yields the transfer
+registration numbers). Only contribution rows supply transfer numbers. Held registration
+sets use array parameters, keeping statement size bounded as the source files grow. None
+of this caches relationships or weakens the per-record identity checks.
 
 An unfiltered, all-year money graph can spill large grouped results to disk. One
 database-wide transaction lock admits such a query to a larger hash budget at a
