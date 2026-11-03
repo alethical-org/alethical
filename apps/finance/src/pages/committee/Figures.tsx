@@ -9,7 +9,8 @@ import { formatDay, formatMoney } from '../../ui/money';
 import type { Read } from '../../api/read';
 import { Dropdown, Refused } from '../../ui/controls';
 import { LoadingLine } from '../../ui/parts';
-import type { ReportFigureRow, ReportFigures } from './types';
+import { KindBreakdown } from './Breakdowns';
+import type { ReportFigureRow, ReportFigures, StatedByKind } from './types';
 
 interface Figure {
   label: string;
@@ -77,11 +78,14 @@ export function Figures({
   year,
   report,
   onReport,
+  byKind,
 }: {
   read: Read<ReportFigures>;
   year: number;
   report: string;
   onReport: (value: string) => void;
+  /** The committee-year's filed contribution lines, for the report they match. */
+  byKind?: StatedByKind;
 }) {
   const data = read.data && read.data.year === year ? read.data : null;
   const held = data ? data.reports.filter((row) => row.figures_state === 'reported') : [];
@@ -140,6 +144,7 @@ export function Figures({
               {note}
             </p>
           ))}
+          <KindBreakdown block={byKind} cutOff={chosen?.cut_off_date ?? null} />
           <p className="cmt-note">
             {period ? `${period}. ` : ''}Figures are as filed in the selected report. Itemized rows
             below follow the year, not the report.
