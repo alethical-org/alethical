@@ -32,6 +32,9 @@ export type WriteResult<T> =
   | { ok: false; reason: 'source-changed' }
   /** Another change claimed a selected record first (409). */
   | { ok: false; reason: 'conflict'; message: string }
+  /** The server would not take this request (another refusal, such as a removed
+   * identity); nothing was changed. */
+  | { ok: false; reason: 'rejected' }
   /** The change may or may not have been saved; nothing is marked saved. */
   | { ok: false; reason: 'failed' };
 
@@ -73,9 +76,17 @@ export async function write<T>(
     return data === undefined ? { ok: false, reason: 'failed' } : { ok: true, data };
   }
   const detail = problemDetail(parsed);
-  if (response.status === 422 && sourceChanged(detail)) return { ok: false, reason: 'source-changed' };
+  if (response.status === 422 && sourceChanged(detail))
+    return { ok: false, reason: 'source-changed' };
   if (response.status === 422 && detail) return { ok: false, reason: 'refused', message: detail };
   if (response.status === 409) return { ok: false, reason: 'conflict', message: detail };
+  if (
+    response.status >= 400 &&
+    response.status < 500 &&
+    response.status !== 408 &&
+    response.status !== 429
+  )
+    return { ok: false, reason: 'rejected' };
   return { ok: false, reason: 'failed' };
 }
 

@@ -58,7 +58,9 @@ export function Queue({
         <div className="ci-queue-title">
           <h2 id="queue-h">Names to review</h2>
           <span className="f-num ci-muted">
-            {data ? `${plural(data.total, 'name', 'names')} · most money recorded under the name first` : ''}
+            {data
+              ? `${plural(data.total, 'name', 'names')} · most money recorded under the name first`
+              : ''}
           </span>
         </div>
         <Chips
@@ -99,7 +101,9 @@ export function Queue({
           </Refused>
         </div>
       )}
-      {data && data.rows.length === 0 && <p className="ci-queue-empty">No names match these choices</p>}
+      {data && data.rows.length === 0 && (
+        <p className="ci-queue-empty">No names match these choices</p>
+      )}
       {data && data.rows.length > 0 && (
         <ul className="ci-queue-list">
           {data.rows.map((row) => {
@@ -114,10 +118,15 @@ export function Queue({
                   onClick={() => !current && onSelect(row)}
                 >
                   <span className="ci-queue-name">{row.name}</span>
-                  <span className="ci-queue-money f-num" data-withheld={row.amount_state !== 'reported' || undefined}>
+                  <span
+                    className="ci-queue-money f-num"
+                    data-withheld={row.amount_state !== 'reported' || undefined}
+                  >
                     {queueAmount(row)}
                   </span>
-                  {periodLabel && <span className="ci-queue-line f-num">Money recorded, {periodLabel}</span>}
+                  {periodLabel && (
+                    <span className="ci-queue-line f-num">Money recorded, {periodLabel}</span>
+                  )}
                   <span className="ci-queue-line f-num">
                     {queueKind(row.record_kind)} · {plural(row.records, 'record', 'records')}
                     {row.missing_amounts

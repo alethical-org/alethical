@@ -140,66 +140,6 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.ck-identity-head {
-  display: grid;
-  gap: 12px;
-  padding: 16px 17px 14px;
-  border-bottom: 1px solid var(--hairline);
-}
-.ck-name-item {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 12px;
-  padding: 12px 17px;
-  border-left: 0;
-}
-.ck-name-item strong {
-  color: var(--link);
-}
-.ck-name-item[aria-current] strong {
-  color: var(--ink);
-}
-.ck-name-period {
-  grid-column: 1/-1;
-}
-.ck-name-amount {
-  font-family: 'Libre Franklin', sans-serif;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
-.ck-name-amount[data-unavailable] {
-  color: var(--muted);
-  font-size: 13px;
-  white-space: normal;
-  max-width: 115px;
-}
-.ck-records {
-  margin-top: 16px;
-}
-.ck-record-row {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) 112px 112px;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--hairline);
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-.ck-record-head {
-  font:
-    600 11px 'Libre Franklin',
-    sans-serif;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.ck-record-amount {
-  text-align: right;
-  font-family: 'Libre Franklin', sans-serif;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
 @media (hover: hover) and (pointer: fine) {
   .ck-queue-item:not([aria-current]):hover {
     background: var(--row-hover);
@@ -227,31 +167,5 @@
   .ck-suggestion-actions .f-btn {
     flex: 1;
     padding-inline: 8px;
-  }
-  .ck-record-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .ck-record-head {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-  .ck-record-row:not(.ck-record-head) > span:first-child {
-    grid-row: 2;
-    grid-column: 1;
-  }
-  .ck-record-row:not(.ck-record-head) > span:nth-child(2) {
-    grid-row: 1;
-    grid-column: 1;
-  }
-  .ck-record-amount {
-    grid-row: 1;
-    grid-column: 2;
-    white-space: nowrap;
-  }
-  .ck-record-row:not(.ck-record-head) > span:last-child {
-    grid-column: 1/-1;
   }
 }

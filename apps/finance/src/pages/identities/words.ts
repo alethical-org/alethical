@@ -101,7 +101,10 @@ export function recordDate(fields: Fields | null | undefined): string | null {
 
 export function recordAmount(fields: Fields | null | undefined): string {
   const value = fields?.amount;
-  return (value === null || value === undefined ? null : formatMoney(String(value))) ?? 'Amount not given';
+  return (
+    (value === null || value === undefined ? null : formatMoney(String(value))) ??
+    'Amount not given'
+  );
 }
 
 export function registrationOf(fields: Fields | null | undefined): string {
@@ -160,6 +163,14 @@ export function beyondName(note: string, names: ReadonlyArray<string | null | un
 
 export type Mode = 'confirm' | 'create' | 'withdraw' | 'merge' | 'split';
 
+/** A selected record: its fingerprint's first saved row (the evidence row), date and
+ * how many identical source rows share it. */
+export interface PickedRecord {
+  row: number | null;
+  date: string | null;
+  count: number;
+}
+
 export interface DraftFields {
   mode: Mode;
   target: string | null;
@@ -168,20 +179,38 @@ export interface DraftFields {
   pick: string | null;
   newName: string;
   note: string;
-  /** Selected fingerprints (confirm, create) or confirmation ids (split). */
-  recs: string[];
-  /** Selected identifier confirmations moving in a split. */
-  roles: string[];
-  /** A quick selection: every unconfirmed record, for 1 year or all. */
+  src: string;
+  /** Selected fingerprints (confirm, create), keyed by the server's fingerprint. */
+  picked: Record<string, PickedRecord>;
+  /** A quick selection: every unconfirmed record, for 1 filing year or all. */
   quick: { year: number | null } | null;
+  /** Split: the printed-name confirmations that move to the new record. */
+  parts: string[];
+  /** Split: the identifier confirmations (roles) that move to the new record. */
+  roles: string[];
+  /** The source copy the selection was made in; a draft from another copy keeps its
+   * words and loses its selection. */
+  snapshot: string | null;
+}
+
+export type DraftKeyFields = Pick<DraftFields, 'mode' | 'target' | 'newKind' | 'ident' | 'pick'>;
+
+export function blankDraft(fields: DraftKeyFields): DraftFields {
+  return {
+    ...fields,
+    newName: '',
+    note: '',
+    src: '',
+    picked: {},
+    quick: null,
+    parts: [],
+    roles: [],
+    snapshot: null,
+  };
 }
 
 /** 1 draft per spelling | role | action | target | new kind | shown identity | merge target. */
-export function draftKey(
-  kind: PrintedKind,
-  key: string,
-  fields: Pick<DraftFields, 'mode' | 'target' | 'newKind' | 'ident' | 'pick'>,
-): string {
+export function draftKey(kind: PrintedKind, key: string, fields: DraftKeyFields): string {
   return [
     'identities',
     kind,
@@ -201,10 +230,31 @@ export function draftPrefix(kind: PrintedKind, key: string): string {
 export function hasEntries(fields: DraftFields): boolean {
   return Boolean(
     fields.note.trim() ||
-      fields.newName.trim() ||
-      fields.recs.length ||
-      fields.roles.length ||
-      fields.quick ||
-      fields.pick,
+    fields.src.trim() ||
+    fields.newName.trim() ||
+    Object.keys(fields.picked).length ||
+    fields.quick ||
+    fields.parts.length ||
+    fields.roles.length,
   );
+}
+
+const SOURCE_MARK = '\nSource: ';
+
+/** The server keeps 1 free-text basis (or reason); the form's evidence note and its
+ * source are stored together in it and read back apart. */
+export function joinBasis(note: string, src: string): string {
+  return src.trim() ? `${note.trim()}${SOURCE_MARK}${src.trim()}` : note.trim();
+}
+
+export function splitBasis(basis: string | null | undefined): { note: string; src: string | null } {
+  const text = basis ?? '';
+  const at = text.lastIndexOf(SOURCE_MARK);
+  return at < 0
+    ? { note: text, src: null }
+    : { note: text.slice(0, at), src: text.slice(at + SOURCE_MARK.length) };
+}
+
+export function identityKindLabel(kind: string): string {
+  return kind === 'person' ? 'Person' : 'Organization';
 }
