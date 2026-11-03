@@ -1,7 +1,17 @@
 """A Finance list names the source state it read, and refuses a page from a changed one."""
 
 # ruff: noqa: F811
+from datetime import UTC, date, datetime, timedelta
+
 import pytest
+from sqlalchemy import select, text
+
+from alethical.api.services import finance_people
+from alethical.db.session import get_session_factory
+from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
+from alethical.tests.test_finance_people import service_member
+from alethical.tests.test_finance_media_buys import held, listed, source  # noqa: F401
+from alethical.tests.test_finance_station_checks import original, _fact, _file  # noqa: F401
 
 from alethical.db import models as m
 from alethical.db.session import get_db
@@ -95,3 +105,146 @@ def test_a_new_release_changes_the_money_version(finance_api, finance_db, board)
     pointer.release_id = None
     finance_db.commit()
     read(finance_api, "/api/v1/finance/payees", status=409, version=version)
+
+
+@pytest.mark.parametrize("source", ["session", "district"])
+def test_people_version_covers_service_reference_changes(
+    finance_api, finance_db, source
+):
+    member = service_member(finance_db, "reference-change")
+    period = member.service_periods[0]
+    finance_db.commit()
+    before = read(finance_api, "/api/v1/finance/people", q=member.full_name)["data"]
+    if source == "session":
+        period.session.slug += "-corrected"
+    else:
+        period.district.code += "-corrected"
+    finance_db.commit()
+    read(finance_api, "/api/v1/finance/people", status=409, version=before["version"])
+
+
+def test_connections_version_covers_legislator_names(finance_api, finance_db, board):
+    before = read(finance_api, "/api/v1/finance/connections")["data"]["version"]
+    member = finance_db.scalar(select(m.Legislator))
+    member.full_name += " corrected"
+    finance_db.commit()
+    read(finance_api, "/api/v1/finance/connections", status=409, version=before)
+
+
+def test_people_version_changes_at_the_local_date_boundary(
+    finance_api, finance_db, monkeypatch
+):
+    class Clock(datetime):
+        instant = datetime(2026, 11, 4, 5, 59, tzinfo=UTC)
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.instant.astimezone(tz)
+
+    member = service_member(finance_db, "date-boundary-member")
+    period = member.service_periods[0]
+    period.is_current = True
+    period.end_date = date(2026, 11, 3)
+    finance_db.commit()
+    monkeypatch.setattr(finance_people, "datetime", Clock)
+    params = {"q": member.full_name, "type": "legislators", "service": "current"}
+    before = read(finance_api, "/api/v1/finance/people", **params)["data"]
+    assert before["total"] == 1
+    Clock.instant += timedelta(minutes=2)  # Midnight in Minnesota, not UTC.
+    assert read(finance_api, "/api/v1/finance/people", **params)["data"]["total"] == 0
+    read(
+        finance_api,
+        "/api/v1/finance/people",
+        status=409,
+        version=before["version"],
+        **params,
+    )
+
+
+def test_station_version_covers_revised_machine_read_facts(finance_api, original):
+    path = "/api/v1/finance/media-buys/queue"
+    before = read(finance_api, path)["data"]
+    extraction = original.db.get(
+        m.FCCExtraction, (original.document.content_hash, EXTRACTOR_VERSION)
+    )
+    extraction.facts = [_fact()]
+    original.db.commit()
+    after = read(finance_api, path)["data"]
+    assert after["rows"] != before["rows"]
+    read(finance_api, path, status=409, version=before["version"])
+
+
+def test_station_version_covers_searchable_page_text(finance_api, original):
+    path = "/api/v1/finance/media-buys/browse"
+    before = read(finance_api, path)["data"]["version"]
+    page = original.db.get(
+        m.FCCPage, (original.document.content_hash, EXTRACTOR_VERSION, 1)
+    )
+    page.text += " Corrected original text"
+    original.db.commit()
+    read(finance_api, path, status=409, version=before)
+
+
+def test_token_and_list_share_one_snapshot_during_a_concurrent_write(seed_database):
+    # Fresh request sessions, unlike the outer-transaction fixtures above. The
+    # writer commits between token and page reads; the old page must stay old.
+    from alethical.api.finance_access import require_finance_access
+    from alethical.api.main import create_app
+    from alethical.api.services.finance_access import FinanceAccount
+    from fastapi.testclient import TestClient
+
+    factory = get_session_factory()
+    name = "Concurrent version record"
+    with factory() as writer:
+        person = m.PublicPerson(name=name, identity_evidence={})
+        writer.add(person)
+        writer.commit()
+        person_id = person.id
+    app = create_app()
+    app.dependency_overrides[require_finance_access] = lambda: FinanceAccount(
+        "test", "test@example.test", False
+    )
+    normal_directory = finance_people.directory
+    try:
+        with pytest.MonkeyPatch.context() as patch:
+
+            def interleaved(db, **kwargs):
+                with factory() as writer:
+                    writer.get(m.PublicPerson, person_id).name = name + " updated"
+                    writer.commit()
+                assert (
+                    db.scalar(text("SHOW transaction_isolation")) == "repeatable read"
+                )
+                return normal_directory(db, **kwargs)
+
+            patch.setattr(finance_people, "directory", interleaved)
+            first = (
+                TestClient(app)
+                .get("/api/v1/finance/people", params={"q": name})
+                .json()["data"]
+            )
+        assert [row["name"] for row in first["rows"]] == [name]
+        second = (
+            TestClient(app)
+            .get("/api/v1/finance/people", params={"q": name})
+            .json()["data"]
+        )
+        assert [row["name"] for row in second["rows"]] == [name + " updated"]
+        assert first["version"] != second["version"]
+    finally:
+        with factory() as writer:
+            writer.delete(writer.get(m.PublicPerson, person_id))
+            writer.commit()
+
+
+def test_station_version_covers_current_document_selection(finance_api, original):
+    path = "/api/v1/finance/media-buys/queue"
+    newer = _file(original.db, original.store, like=original.document)
+    original.db.commit()
+    before = read(finance_api, path)["data"]
+    assert before["rows"][0]["version_id"] == newer.content_hash
+    original.document.last_downloaded_at = newer.last_downloaded_at + timedelta(days=1)
+    original.db.commit()
+    after = read(finance_api, path)["data"]
+    assert after["rows"][0]["version_id"] == original.document.content_hash
+    read(finance_api, path, status=409, version=before["version"])

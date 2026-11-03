@@ -8,6 +8,7 @@ under ``/api/v1/finance/`` private, so 1 account's answer never reaches another.
 from __future__ import annotations
 
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -329,12 +330,19 @@ def people(
     ),
     db: Session = Depends(get_db),
 ) -> dict:
-    token = finance_versions.check(db, version, "people")
+    now = finance_people.read_time()
+    token = finance_versions.check(
+        db,
+        version,
+        "people",
+        on_date=now.astimezone(ZoneInfo("America/Chicago")).date(),
+    )
     return {
         "data": {
             "version": token,
             **finance_people.directory(
                 db,
+                now=now,
                 query=q,
                 type=type,
                 scope=scope,
