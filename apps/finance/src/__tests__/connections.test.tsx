@@ -151,6 +151,26 @@ describe('names and links', () => {
     expect(evidence.sourceHref).toBe('/media-buys/files/f?version=v&page=3');
     expect(evidence.quote).toBe('Q');
   });
+
+  it('names a source copy by its date, never by an internal id', () => {
+    const evidence = edgeEvidence(
+      {
+        ...payment,
+        source: {
+          dataset: 'contributions',
+          snapshot_id: '44187155-f738-4b63-a455-9f026c0789f3',
+          version_id: 'abc123',
+          copied_at: '2026-10-28T15:00:00Z',
+        },
+      },
+      payee,
+      committee,
+    );
+    const shown = evidence.rows.map((row) => `${row.label}: ${row.value}`).join(' | ');
+    expect(shown).toContain('Source version: Copy of Oct 28, 2026');
+    expect(shown).not.toContain('44187155');
+    expect(shown).not.toContain('abc123');
+  });
 });
 
 describe('the loaded set (Rounds 37 item 7 and 41 item 6)', () => {
@@ -181,6 +201,8 @@ describe('the loaded set (Rounds 37 item 7 and 41 item 6)', () => {
     expect(moreLabel(30)).toBe('Show 30 more connections');
     expect(moreLabel(1)).toBe('Show 1 more connection');
     expect(loadedLine(100, 230)).toBe('100 of 230 connections loaded');
+    // Large counts carry their commas, as production's 272,407 does.
+    expect(loadedLine(100, 272407)).toBe('100 of 272,407 connections loaded');
     expect(loadedLine(80, 80)).toBe('');
   });
   it('counts confirmed records and printed names over the loaded set only', () => {
@@ -287,6 +309,10 @@ describe('Money connections page', () => {
       'A connection does not show that one payment funded another.',
     );
     expect(button('Show ')).toBeUndefined();
+    // Opened with no earlier page: the drawn fallback to Finance Home.
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Finance Home');
+    expect(back?.getAttribute('href')).toBe('/home');
   });
 
   it('keeps an explicit Table choice in the address and prints the amount heading words', async () => {
@@ -322,6 +348,22 @@ describe('Money connections page', () => {
     expect(container.textContent).toContain('101 of 101 connections loaded');
     expect(container.textContent).toContain('101 connections');
     expect(button('more connection')).toBeUndefined();
+  });
+
+  it('reloads the pages a return names, so a line beyond the first page is selected again', async () => {
+    window.history.replaceState(null, '', '/money/connections?edge=last&pages=2');
+    const first = Array.from({ length: 100 }, (_, i) => ({ ...payment, id: `e${i}` }));
+    serve((url) =>
+      url.searchParams.get('offset') === '100'
+        ? answer(page({ edges: [{ ...payment, id: 'last' }], total: 101, offset: 100 }))
+        : answer(page({ edges: first, total: 101, has_more: true })),
+    );
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    await flush();
+    expect(requests.map((url) => url.searchParams.get('offset'))).toEqual(['0', '100']);
+    expect(container.textContent).toContain('101 of 101 connections loaded');
+    expect(container.querySelector('[aria-pressed="true"], [data-selected="true"]')).not.toBeNull();
   });
 
   it('keeps loaded rows when the next page fails, with Try again', async () => {
