@@ -758,7 +758,7 @@
   display: grid;
   gap: 2px;
   min-width: 0;
-  text-align: right;
+  text-align: left;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
@@ -775,9 +775,6 @@
 @media (max-width: 1099px) {
   .f-split-line {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .f-split-value {
-    text-align: left;
   }
 }
 @media (max-width: 1099px) {

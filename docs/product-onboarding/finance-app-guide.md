@@ -118,9 +118,8 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
   organizations), each shown once its page is built; a card per built record family; and
   "Sources and updates" naming each family's source with its copy or update date, read from
-  the landing counts, below the first screen. Confirm identities and Check TV station files
-  are entered only from their context (Media buys, a TV station file, Payments under this
-  name, Donors by employer), and Donors by employer from Campaign money, never from Home.
+  the landing counts, below the first screen. Confirm identities, Check TV station files and
+  Donors by employer are not entered from Home.
 - **Not listed:** "This account doesn’t have access to Alethical Finance", the signed-in
   address, Switch account and Contact us (an email to ask@alethical.com). The page never
   says why, because the server never says. An account refused after having access in this
