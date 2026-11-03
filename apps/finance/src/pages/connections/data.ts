@@ -1,3 +1,4 @@
+import { formatCount } from '@alethical/shared/moneyLanding';
 import { formatMoney } from '../../ui/money';
 import { hrefFor, isBuilt, type RouteName } from '../../routes';
 import type { Evidence } from '../../ui/controls';
@@ -283,12 +284,9 @@ export function edgeEvidence(edge: GraphEdge, from: GraphNode, to: GraphNode): E
       { label: 'Source', value: sourceLabel(edge.source.dataset) },
       { label: 'Period', value: edgePeriod(edge) },
       { label: 'Records', value: String(edge.record_count) },
-      ...(edge.source.copied_at ? [{ label: 'Copied', value: day(edge.source.copied_at) }] : []),
-      ...(edge.source.snapshot_id
-        ? [{ label: 'Source copy', value: edge.source.snapshot_id }]
-        : []),
-      ...(edge.source.version_id
-        ? [{ label: 'Source version', value: edge.source.version_id }]
+      // The copy is named by its date, never by its internal id (settled wording row 21).
+      ...(edge.source.copied_at
+        ? [{ label: 'Source version', value: `Copy of ${day(edge.source.copied_at)}` }]
         : []),
       ...(edge.source.page ? [{ label: 'Page', value: String(edge.source.page) }] : []),
     ],
@@ -342,15 +340,17 @@ export function countLine(edges: ReadonlyArray<GraphEdge>, nodes: Map<string, Gr
     ['person', 'organization', 'committee'].includes(node.kind),
   ).length;
   const printed = shown.filter((node) => node.unresolved).length;
-  return `${edges.length} ${edges.length === 1 ? 'connection' : 'connections'} · ${confirmed} confirmed people, organizations and committees · ${printed} printed ${printed === 1 ? 'name' : 'names'}`;
+  return `${formatCount(edges.length)} ${edges.length === 1 ? 'connection' : 'connections'} · ${formatCount(confirmed)} confirmed people, organizations and committees · ${formatCount(printed)} printed ${printed === 1 ? 'name' : 'names'}`;
 }
 
 export function moreLabel(remaining: number) {
   const n = Math.min(PAGE_SIZE, remaining);
-  return `Show ${n} more ${n === 1 ? 'connection' : 'connections'}`;
+  return `Show ${formatCount(n)} more ${n === 1 ? 'connection' : 'connections'}`;
 }
 
 /** "{loaded} of {total} connections loaded", only once a page is not the whole set. */
 export function loadedLine(loaded: number, total: number) {
-  return total > PAGE_SIZE ? `${loaded} of ${total} connections loaded` : '';
+  return total > PAGE_SIZE
+    ? `${formatCount(loaded)} of ${formatCount(total)} connections loaded`
+    : '';
 }

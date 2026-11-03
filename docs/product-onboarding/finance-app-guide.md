@@ -165,8 +165,9 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 Money connections (`/money/connections`), opened from Finance Home's and Campaign money's
 "Explore money connections", reads direct recorded
 relationships from `GET /api/v1/finance/connections`. Search, year, relationship and the
-selected name (`focus`) are server filters; a selected line stays in the address (`edge`)
-so a return from a record restores it. The page loads 100 relationships at a time: "Show
+selected name (`focus`) are server filters; a selected line stays in the address (`edge`),
+with how many pages were loaded (`pages`, up to 10), so a return from a record reloads those
+pages and restores it. Opened with no earlier page, it returns to Finance Home. The page loads 100 relationships at a time: "Show
 {n} more connections" adds the next min(100, remaining), and "{loaded} of {total}
 connections loaded" appears once the selection is larger than 1 page. Map and Table read
 the same loaded set. Map opens at every band, phone included, where the 3 columns stack
