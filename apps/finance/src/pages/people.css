@@ -75,14 +75,6 @@
 .pp-results > .f-alert + .f-count-line {
   padding-top: 20px;
 }
-/* Each menu's wrapper is 40, raised to 41 while its list is open, so a
- * following menu never covers the open list at phone width (Round 32). */
-.pp-control-row .f-dropdown {
-  z-index: 40;
-}
-.pp-control-row .f-dropdown[data-open] {
-  z-index: 41;
-}
 /* 24px below the lowest control (f-count-line), then 10px above the list. */
 .pp-count {
   padding-bottom: 10px;

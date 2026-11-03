@@ -533,6 +533,16 @@
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
 }
+/* A row link with a trailing arrow: words left, the arrow right. */
+.f-row-link-arrowed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.f-row-link-arrowed > span:first-child {
+  min-width: 0;
+}
 .f-row-link:active .f-row-link-name {
   color: var(--link-hover);
 }
@@ -1350,11 +1360,14 @@
 }
 
 /* ---------- Dropdown ---------- */
+/* Every menu's wrapper is 40, raised to 41 while its list is open, so a
+ * following sibling menu never covers the open list (eug-19/77; Round 32). */
 .f-dropdown {
   position: relative;
+  z-index: 40;
 }
 .f-dropdown[data-open] {
-  z-index: 40;
+  z-index: 41;
 }
 .f-dropdown-button {
   min-height: 40px;

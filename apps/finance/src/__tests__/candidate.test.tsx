@@ -167,8 +167,11 @@ describe('Candidate profile', () => {
     expect(legislator?.querySelector('.f-row-link-name')?.textContent).toBe(
       'View legislator profile',
     );
-    // Person profile is not turned on yet, so nothing links to it.
-    expect(container.querySelector('a[href^="/people/"]')).toBeNull();
+    // Person profile is on, so the candidacy's confirmed person opens it and
+    // its return link comes back here.
+    const person = container.querySelector<HTMLAnchorElement>('a[href^="/people/"]');
+    expect(person?.querySelector('.f-row-link-name')?.textContent).toBe('View person profile');
+    expect(person?.getAttribute('href')).toMatch(/^\/people\/p1\?from=%2Fcandidates%2F/);
     const official = [...container.querySelectorAll('a')].find((a) =>
       a.textContent?.replace(/\u00a0/g, ' ').includes('Official source website'),
     );
