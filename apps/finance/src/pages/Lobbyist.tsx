@@ -297,15 +297,20 @@ function Donations({
                         className="lbl-committee"
                       >
                         <div className="lbl-committee-head">
-                          {href ? (
-                            <Link to={href} className="lbl-committee-name">
-                              {name}
-                            </Link>
-                          ) : (
-                            <span className="lbl-committee-name">{name}</span>
-                          )}{' '}
+                          {/* The dot ends the name's line, so a wrapped count never
+                              starts with it. */}
+                          <span>
+                            {href ? (
+                              <Link to={href} className="lbl-committee-name">
+                                {name}
+                              </Link>
+                            ) : (
+                              <span className="lbl-committee-name">{name}</span>
+                            )}
+                            {'\u00a0·'}
+                          </span>
                           <span className="lbl-committee-count f-num">
-                            · {records(committee.payment_count)}
+                            {records(committee.payment_count)}
                           </span>
                           <span
                             className="lbl-committee-total f-num"
@@ -460,7 +465,10 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
         {read.loading && !missing && <LoadingLine>{LOBBYING_RECORD_LOADING}</LoadingLine>}
         {missing && (
           <div className="lb-state">
-            <Refused>{notFoundLine(match.params.id)}</Refused>
+            {/* The page's heading, so focus and heading navigation land on it. */}
+            <h1 tabIndex={-1} className="f-page-title lb-gone-title">
+              {notFoundLine(match.params.id)}
+            </h1>
           </div>
         )}
         {(unavailable || (read.failed && !record)) && !missing && (
@@ -475,8 +483,11 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
             <header className="lb-header">
               <div className="lb-tags">
                 <span className="lb-chip">LOBBYIST</span>
-                <span className="lb-reg f-num">Registration {shown.registration_number}</span>
-                <span className="lb-status">· {registrationStatus(shown.state)}</span>
+                <span className="lb-reg f-num">
+                  Registration {shown.registration_number}
+                  {'\u00a0·'}
+                </span>
+                <span className="lb-status">{registrationStatus(shown.state)}</span>
               </div>
               <h1 tabIndex={-1} className="f-page-title lb-title">
                 {name}
