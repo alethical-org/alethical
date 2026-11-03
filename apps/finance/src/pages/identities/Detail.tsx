@@ -12,6 +12,7 @@ import { Arrow, Chevron } from '../../ui/parts';
 import { Pager } from '../media/shared';
 import { useRecords, write, type WriteResult } from './api';
 import { IdentityForm, type FormErrors, type FormSpec } from './Form';
+import { Refs } from './Refs';
 import { confirmationNote, confirmationSource, historyRows } from './history';
 import { useIdentities } from './reads';
 import type {
@@ -680,7 +681,9 @@ export function Detail({
       mergePreview = (
         <section aria-labelledby="move-h" className="ci-preview">
           <h4 id="move-h">Links that will move</h4>
-          <p>{lead}</p>
+          <p>
+            <Refs>{lead}</Refs>
+          </p>
           {moving.length > 0 && (
             <ul>
               {moving.map((c) => (
@@ -768,7 +771,7 @@ export function Detail({
                 <span className="ci-identity-text">
                   <span className="ci-strong">{identity.name}</span>
                   <span className="ci-muted ci-small f-num">
-                    {identityKindLabel(identity.kind)} · {refOf(identity)} ·{' '}
+                    {identityKindLabel(identity.kind)} · <Refs>{refOf(identity)}</Refs> ·{' '}
                     {identityLine(
                       spellingConfirmations(reads.byId.get(identity.id), kind, name),
                       identity.confirmed,
@@ -851,7 +854,7 @@ export function Detail({
             <span className="ci-identity-text">
               <span className="ci-confirmed-name">{conf.name}</span>
               <span className="ci-muted ci-small f-num">
-                {identityKindLabel(conf.kind)} · {refOf(conf)}
+                {identityKindLabel(conf.kind)} · <Refs>{refOf(conf)}</Refs>
               </span>
             </span>
             {confHref && (
@@ -944,7 +947,7 @@ export function Detail({
                       <span className="ci-suggestion-plain">{identity.name}</span>
                     )}
                     <span className="ci-muted ci-small f-num">
-                      {identityKindLabel(identity.kind)} · {refOf(identity)}
+                      {identityKindLabel(identity.kind)} · <Refs>{refOf(identity)}</Refs>
                     </span>
                   </span>
                   <span className="ci-status ci-small">
@@ -1071,7 +1074,9 @@ export function Detail({
             <li key={row.key}>
               <span className="ci-history-date f-num">{row.date}</span>
               <span className="ci-history-body">
-                <span className="f-num ci-wrap">{row.text}</span>
+                <span className="f-num ci-wrap">
+                  <Refs>{row.text}</Refs>
+                </span>
                 {row.evidence.length > 0 && (
                   <span>
                     <button

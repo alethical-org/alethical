@@ -560,6 +560,10 @@ describe('Confirm identities page', () => {
       'Organization · ORG-0002 · Confirmed for 2 of 4 records · Checked on Aug 2, 2026',
     );
     expect(text()).toContain('Shown below');
+    // A reference never breaks at its hyphen.
+    expect(
+      [...container.querySelectorAll('.f-nowrap')].some((el) => el.textContent === 'ORG-0043'),
+    ).toBe(true);
     // Readers see references; the ids stay in addresses only.
     expect(text()).not.toContain(ORG);
     expect(text()).not.toContain(DULUTH);

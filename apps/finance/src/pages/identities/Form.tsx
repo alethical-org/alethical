@@ -1,5 +1,7 @@
 import type { FormEvent, ReactNode } from 'react';
 
+import { Refs } from './Refs';
+
 export interface FormSpec {
   title: string;
   lead: string;
@@ -105,8 +107,12 @@ export function IdentityForm({
       aria-labelledby="form-h"
     >
       <div className="ci-form-head">
-        <h3 id="form-h">{spec.title}</h3>
-        <p>{spec.lead}</p>
+        <h3 id="form-h">
+          <Refs>{spec.title}</Refs>
+        </h3>
+        <p>
+          <Refs>{spec.lead}</Refs>
+        </p>
       </div>
       {spec.name && (
         <label className="ci-field">
@@ -185,7 +191,9 @@ export function IdentityForm({
                 checked={option.checked}
                 onChange={option.choose}
               />
-              <span className="f-num">{option.label}</span>
+              <span className="f-num">
+                <Refs>{option.label}</Refs>
+              </span>
             </label>
           ))}
           {pickPager}
