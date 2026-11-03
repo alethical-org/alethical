@@ -85,7 +85,8 @@ This directory reads no private account, address or claim information.
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
 
 Finance's legislative reads (`alethical/api/services/finance_records.py`) list the sitting
-Legislature's committees and each committee's members and roles. Member districts come
+Legislature's committees and each committee's members and roles, each member once:
+`roles` lists every role held and `role` is set when exactly 1 is. Member districts come
 from service in that committee's session and chamber; ambiguous districts stay unknown.
 `roster_copied_at` dates the latest complete successful roster copy for that session,
 not a later page request or a partial collection. Bill authors use the bill page's own
