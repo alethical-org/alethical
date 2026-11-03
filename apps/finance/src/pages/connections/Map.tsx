@@ -155,7 +155,6 @@ export function ConnectionsMap({
     : [];
   const hoveredAt = hovered && positions.get(hovered.key);
   const single = hoveredEdges.length === 1 ? edgeAmount(hoveredEdges[0]) : '';
-  const cardHeight = single ? 70 : 52;
   return (
     <div className="mc-map" ref={holder} data-font-ready={fontReady}>
       <svg
@@ -332,13 +331,20 @@ export function ConnectionsMap({
         <div
           className="mc-map-tip"
           role="tooltip"
-          style={{
-            left: Math.max(4, Math.min(hoveredAt.x + 12, width - 232)),
-            top:
-              hoveredAt.y - cardHeight - 8 >= 0
-                ? hoveredAt.y - cardHeight - 8
-                : hoveredAt.y + hoveredAt.height + 8,
-          }}
+          // Above the name when there is room for a wrapped card, else below it;
+          // the card is never cut by the map's box.
+          style={
+            hoveredAt.y >= 120
+              ? {
+                  left: Math.max(4, Math.min(hoveredAt.x + 12, width - 232)),
+                  top: hoveredAt.y - 8,
+                  transform: 'translateY(-100%)',
+                }
+              : {
+                  left: Math.max(4, Math.min(hoveredAt.x + 12, width - 232)),
+                  top: hoveredAt.y + hoveredAt.height + 8,
+                }
+          }
         >
           <strong>{hovered.label}</strong>
           <span>

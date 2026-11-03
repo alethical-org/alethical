@@ -42,6 +42,7 @@
   margin-top: 24px;
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .mc-loading {
@@ -69,9 +70,6 @@
   background: #fff;
   border: 1px solid var(--hairline);
   border-radius: 10px;
-}
-.mc-map-card {
-  overflow: hidden;
 }
 .mc-map {
   min-width: 0;
@@ -321,7 +319,9 @@
   color: #0b5c72;
   white-space: nowrap;
 }
+/* Positioned, so the hidden "No amount" words in a scrolled cell stay inside it. */
 .mc-table-wrap {
+  position: relative;
   overflow-x: auto;
 }
 .mc-table {
