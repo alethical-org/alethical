@@ -133,7 +133,7 @@ that would reopen each:
    source dates, FCC scope and the current reader dependencies when integrating main.
 2. Chain request-limit migration0073 after payment migration0072 and refresh
    migration0074 after0073; complete local upgrade/downgrade/upgrade checks after
-   the final payment schema arrives. Keep `pypdf[fonts]>=6.21.1`, resolved6.21.2,
+   the final payment schema arrives. Keep `pypdf[fonts]>=6.21.1`, resolved6.21.4,
    with fonttools4.66.1 and Pillow13. Reader claims need document regressions.
 3. Verify the cheap 6-list campaign discovery, bounded dated-action discovery,
    late-change signals, fair turns, independent urgent notices and bounded money

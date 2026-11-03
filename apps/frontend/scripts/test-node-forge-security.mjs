@@ -14,6 +14,12 @@ const patchPath = 'patches/node-forge@1.4.0.patch';
 const forgeDirectory = dirname(require.resolve('node-forge/package.json'));
 const repairedCondition =
   "obj.value.length !== 2 ||\n            obj.value[0].value.length !==\n              (('parameters' in capture) ? 2 : 1)) {";
+// The node-forge 1.4.1 canonical DigestInfo check carried by the same patch
+// also rejects the malformed forms, so the stock-behaviour probe removes both.
+const canonicalCheck =
+  'if(d.substring(0, withParameters.length) !== withParameters &&\n            d.substring(0, withoutParameters.length) !== withoutParameters) {';
+const iterationGuard =
+  "if(!(macIterations >= 1)) {\n      throw new Error('PKCS#12 MAC iteration count must be >= 1.');\n    }\n";
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'alethical-forge-security-'));
@@ -43,7 +49,7 @@ function runChecker(directory) {
   const result = spawnSync(process.execPath, [join(directory, checkerPath)], {
     cwd: directory,
     encoding: 'utf8',
-    timeout: 15000,
+    timeout: 60000,
   });
   assert.equal(result.error, undefined, 'The checker must finish, rather than time out');
   assert.equal(result.signal, null);
@@ -53,7 +59,10 @@ function runChecker(directory) {
 test('the exact installed repair passes for both Expo consumers', (t) => {
   const result = runChecker(fixture(t));
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /exact installed repair and valid\/malformed signatures passed/);
+  assert.match(
+    result.stdout,
+    /exact installed repair, valid\/malformed signatures, PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC and CA-store checks passed/,
+  );
 });
 
 const rejectedFixtures = [
@@ -108,6 +117,19 @@ const rejectedFixtures = [
     /AssertionError/,
   ],
   [
+    'stock PKCS#12 MAC iteration handling',
+    (directory) =>
+      change(directory, 'node_modules/node-forge/lib/pkcs12.js', (text) =>
+        text.replace(iterationGuard, ''),
+      ),
+    /AssertionError/,
+  ],
+  [
+    'drifted installed PEM source',
+    (directory) => change(directory, 'node_modules/node-forge/lib/pem.js', (text) => `${text}\n`),
+    /AssertionError/,
+  ],
+  [
     'a consumer resolving an unpatched private dependency copy',
     (directory) => {
       const packageDirectory = join(
@@ -130,7 +152,7 @@ for (const [name, mutate, expectedError] of rejectedFixtures) {
     const result = runChecker(directory);
     assert.equal(result.status, 1, result.stdout);
     assert.match(result.stderr, expectedError);
-    assert.doesNotMatch(result.stdout, /signatures passed/);
+    assert.doesNotMatch(result.stdout, /checks passed/);
   });
 }
 
@@ -188,7 +210,9 @@ test('default verification accepts valid forms and blocks both malformed forms o
   };
   assert.deepEqual(probe(), [true, 'invalid DigestInfo', true, 'invalid DigestInfo']);
   change(packageDirectory, 'lib/rsa.js', (text) =>
-    text.replace(repairedCondition, 'obj.value.length !== 2) {'),
+    text
+      .replace(repairedCondition, 'obj.value.length !== 2) {')
+      .replace(canonicalCheck, 'if(false) {'),
   );
   assert.deepEqual(probe(), [true, true, true, true]);
 });
