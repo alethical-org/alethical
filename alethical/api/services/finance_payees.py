@@ -270,6 +270,18 @@ def directory(
         .offset(offset)
     ).all()
     source_by_dataset = {source.dataset.value: source for source in sources.values()}
+    shown = {row.identity_id for row in selected if row.identity_id}
+    references = (
+        dict(
+            db.execute(
+                select(
+                    cast(m.IdentityEntity.id, String), m.IdentityEntity.reference
+                ).where(cast(m.IdentityEntity.id, String).in_(shown))
+            ).all()
+        )
+        if shown
+        else {}
+    )
     answer = []
     for row in selected:
         source = source_by_dataset[row.dataset]
@@ -284,6 +296,7 @@ def directory(
                 else "printed_name",
                 "identity": {
                     "id": row.identity_id,
+                    "reference": references.get(row.identity_id),
                     "kind": row.identity_kind,
                     "name": row.name,
                 }

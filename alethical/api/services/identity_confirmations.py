@@ -206,6 +206,19 @@ def _text(value: Any, label: str, limit: int = MAX_TEXT) -> str:
     return value.strip()
 
 
+def _optional_text(value: Any, label: str, limit: int = MAX_TEXT) -> str | None:
+    """An optional free-text field: absent, null or blank is stored as nothing."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    return _text(value, label, limit)
+
+
+def _reference(db: Session, kind: str) -> str:
+    """The next short reference for this kind: ORG-0042 or PER-0042."""
+    prefix, sequence = m.IDENTITY_REFERENCE_SEQUENCES[kind]
+    return f"{prefix}-{db.scalar(sequence.next_value()):04d}"
+
+
 def _uuid(value: Any, message: str) -> UUID:
     if not isinstance(value, str):
         raise IdentityError(message)
@@ -436,6 +449,7 @@ def _confirm(db: Session, entity: Entity, data: Any, *, team: bool) -> Confirmat
     key = _key(kind, data.get("record_key"))
     relation = _text(data.get("relation"), "Relation", MAX_NAME)
     basis = _text(data.get("basis"), "Basis")
+    source = _optional_text(data.get("source"), "Source")
     evidence = _evidence(db, kind, key, data)
     if kind in _PRINTED:
         records = _selected(
@@ -461,6 +475,7 @@ def _confirm(db: Session, entity: Entity, data: Any, *, team: bool) -> Confirmat
         evidence_url=evidence.url,
         evidence_quote=evidence.quote,
         basis=basis,
+        source=source,
         made_by_alethical_team=team,
         checked_at=func.clock_timestamp(),
     )
@@ -557,6 +572,7 @@ def create(db: Session, data: dict, *, team: bool) -> Entity:
     entity = Entity(
         kind=kind,
         name=_text(data.get("name"), "Name", MAX_NAME),
+        reference=_reference(db, kind),
         made_by_alethical_team=team,
     )
     db.add(entity)
@@ -573,10 +589,11 @@ def add_confirmation(
     return _confirm(db, entity, data, team=team)
 
 
-def _withdraw(confirmation: Confirmation, reason: str) -> None:
+def _withdraw(confirmation: Confirmation, reason: str, source: str | None) -> None:
     confirmation.active = False
     confirmation.withdrawn_at = func.clock_timestamp()
     confirmation.withdrawal_reason = reason
+    confirmation.withdrawal_source = source
 
 
 def withdraw(
@@ -584,6 +601,7 @@ def withdraw(
 ) -> Confirmation:
     """Take back 1 confirmation everywhere at once, keeping its date and reason."""
     reason = _text(data.get("reason"), "Reason")
+    source = _optional_text(data.get("source"), "Source")
     found = db.get(Confirmation, confirmation_id)
     if found is None:
         raise NotFound("Not found")
@@ -598,7 +616,7 @@ def withdraw(
     )
     if not confirmation.active:
         raise IdentityError("This confirmation was already withdrawn")
-    _withdraw(confirmation, reason)
+    _withdraw(confirmation, reason, source)
     db.flush()
     detail = {"confirmation_id": str(confirmation.id)}
     _event(db, confirmation.entity_id, "withdrawn", detail, team=team)
@@ -608,6 +626,7 @@ def withdraw(
 def merge(db: Session, entity_id: UUID, data: dict, *, team: bool) -> Entity:
     """Join 1 identity into another; it keeps its id and confirmations, and redirects."""
     reason = _text(data.get("reason"), "Reason")
+    source_note = _optional_text(data.get("source"), "Source")
     into_id = _uuid(data.get("into"), "Name the identity to merge into")
     if into_id == entity_id:
         raise IdentityError("An identity cannot merge into itself")
@@ -615,7 +634,12 @@ def merge(db: Session, entity_id: UUID, data: dict, *, team: bool) -> Entity:
     if source.kind != target.kind:
         raise IdentityError("A person and an organization cannot merge")
     source.status, source.merged_into_id = "merged", target.id
-    detail = {"from": str(source.id), "into": str(target.id), "reason": reason}
+    detail = {
+        "from": str(source.id),
+        "into": str(target.id),
+        "reason": reason,
+        "source": source_note,
+    }
     _event(db, source.id, "merged", detail, team=team)
     _event(db, target.id, "merged", detail, team=team)
     db.flush()
@@ -639,6 +663,7 @@ def _replace(db: Session, old: Confirmation, entity: Entity, *, team: bool):
         evidence_url=old.evidence_url,
         evidence_quote=old.evidence_quote,
         basis=old.basis,
+        source=old.source,
         replaces_id=old.id,
         made_by_alethical_team=old.made_by_alethical_team and team,
         # The evidence was checked when the original was, not on the split day.
@@ -664,6 +689,7 @@ def split(db: Session, entity_id: UUID, data: dict, *, team: bool) -> list[Entit
     stay behind as history.
     """
     reason = _text(data.get("reason"), "Reason")
+    source_note = _optional_text(data.get("source"), "Source")
     parts = data.get("parts")
     if not isinstance(parts, list) or len(parts) < 2:
         raise IdentityError("A split needs at least 2 parts")
@@ -698,11 +724,16 @@ def split(db: Session, entity_id: UUID, data: dict, *, team: bool) -> list[Entit
         )
     # Withdraw them all first, so each record is free for its replacement.
     for confirmation in standing.values():
-        _withdraw(confirmation, reason)
+        _withdraw(confirmation, reason, source_note)
     db.flush()
     created, moves = [], []
     for name, part in zip(names, parts, strict=True):
-        entity = Entity(kind=source.kind, name=name, made_by_alethical_team=team)
+        entity = Entity(
+            kind=source.kind,
+            name=name,
+            reference=_reference(db, source.kind),
+            made_by_alethical_team=team,
+        )
         db.add(entity)
         db.flush()
         replaced = [
@@ -717,6 +748,7 @@ def split(db: Session, entity_id: UUID, data: dict, *, team: bool) -> list[Entit
         "into": [str(entity.id) for entity in created],
         "parts": moves,
         "reason": reason,
+        "source": source_note,
     }
     _event(db, source.id, "split", detail, team=team)
     for entity, move in zip(created, moves, strict=True):
@@ -734,7 +766,37 @@ def _iso(value) -> str | None:
 
 
 def _summary(entity: Entity) -> dict:
-    return {"id": str(entity.id), "kind": entity.kind, "name": entity.name}
+    return {
+        "id": str(entity.id),
+        "reference": entity.reference,
+        "kind": entity.kind,
+        "name": entity.name,
+    }
+
+
+def _confirmed_records(db: Session, entity_id: UUID) -> int:
+    """Records actively confirmed to an identity, its merged-in ones included.
+
+    An identifier confirmation counts as 1 record; a printed name counts each
+    fingerprint it holds.
+    """
+    standing = [entity_id, *_merged_in(db, entity_id)]
+    printed = db.scalar(
+        select(func.count())
+        .select_from(Record)
+        .join(Confirmation, Confirmation.id == Record.confirmation_id)
+        .where(Confirmation.entity_id.in_(standing), Confirmation.active)
+    )
+    identifiers = db.scalar(
+        select(func.count())
+        .select_from(Confirmation)
+        .where(
+            Confirmation.entity_id.in_(standing),
+            Confirmation.active,
+            Confirmation.record_kind.not_in(list(_PRINTED)),
+        )
+    )
+    return (printed or 0) + (identifiers or 0)
 
 
 def _matches(
@@ -814,7 +876,9 @@ def _payloads(db: Session, confirmations: list[Confirmation]) -> tuple[list, lis
             "checked_at": _iso(confirmation.checked_at),
             "withdrawn_at": _iso(confirmation.withdrawn_at),
             "withdrawal_reason": confirmation.withdrawal_reason,
+            "withdrawal_source": confirmation.withdrawal_source,
             "basis": confirmation.basis,
+            "source": confirmation.source,
             "replaces": str(confirmation.replaces_id)
             if confirmation.replaces_id
             else None,
@@ -861,13 +925,16 @@ def read(db: Session, entity_id: UUID) -> dict:
         raise NotFound("Not found")
     payload: dict[str, Any] = {
         "id": str(entity.id),
+        "reference": entity.reference,
         "kind": entity.kind,
         "name": entity.name,
         "status": entity.status,
         "created_at": _iso(entity.created_at),
     }
     if entity.status == "merged":
-        payload["redirect_to"] = str(_today(db, entity.id).id)
+        standing = _today(db, entity.id)
+        payload["redirect_to"] = str(standing.id)
+        payload["redirect_to_reference"] = standing.reference
     events = db.scalars(
         select(m.IdentityEvent)
         .where(m.IdentityEvent.entity_id == entity.id)
@@ -877,11 +944,20 @@ def read(db: Session, entity_id: UUID) -> dict:
         parts = next(
             (event.detail["into"] for event in events if event.action == "split"), []
         )
-        payload["split_into"] = [
-            _summary(part)
+        held = {
+            str(part.id): part
             for part in db.scalars(
                 select(Entity).where(Entity.id.in_([UUID(value) for value in parts]))
             )
+        }
+        # In the split's own order, each with the records confirmed to it today.
+        payload["split_into"] = [
+            {
+                **_summary(held[part]),
+                "confirmed_records": _confirmed_records(db, held[part].id),
+            }
+            for part in parts
+            if part in held
         ]
     confirmations = db.scalars(
         select(Confirmation)
@@ -891,8 +967,41 @@ def read(db: Session, entity_id: UUID) -> dict:
     payload["confirmations"], payload["printed_names"] = _payloads(
         db, list(confirmations)
     )
+    named = {
+        value
+        for event in events
+        for key in ("from", "into", "split_from")
+        for value in (
+            event.detail.get(key)
+            if isinstance(event.detail.get(key), list)
+            else [event.detail.get(key)]
+        )
+        if isinstance(value, str)
+    }
+    references = dict(
+        db.execute(
+            select(cast(Entity.id, Text), Entity.reference).where(
+                Entity.id.in_([UUID(value) for value in named])
+            )
+        ).all()
+    )
     payload["history"] = [
-        {"action": event.action, "at": _iso(event.created_at), "detail": event.detail}
+        {
+            "action": event.action,
+            "at": _iso(event.created_at),
+            "detail": event.detail,
+            # Each identity the event names, by its short reference.
+            "references": {
+                value: references.get(value)
+                for key in ("from", "into", "split_from")
+                for value in (
+                    event.detail.get(key)
+                    if isinstance(event.detail.get(key), list)
+                    else [event.detail.get(key)]
+                )
+                if isinstance(value, str)
+            },
+        }
         for event in events
     ]
     return payload

@@ -35,6 +35,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy import Sequence as SQLSequence
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -246,6 +247,19 @@ class FinanceSignInChallenge(Base):
     )
 
 
+# Each identity kind numbers its references from its own sequence (ORG-, PER-).
+IDENTITY_REFERENCE_SEQUENCES = {
+    "organization": (
+        "ORG",
+        SQLSequence("identity_organization_reference_seq", metadata=Base.metadata),
+    ),
+    "person": (
+        "PER",
+        SQLSequence("identity_person_reference_seq", metadata=Base.metadata),
+    ),
+}
+
+
 class IdentityEntity(Base):
     """A person or organization Alethical Finance has confirmed across records.
 
@@ -265,12 +279,18 @@ class IdentityEntity(Base):
         ),
         CheckConstraint("merged_into_id <> id", name="entity_not_self"),
         CheckConstraint("length(btrim(name)) > 0", name="entity_name"),
+        CheckConstraint("reference ~ '^(ORG|PER)-[0-9]{4,}$'", name="entity_reference"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    # The short label people use for an identity: ORG-0042 for an organization,
+    # PER-0042 for a person, numbered in creation order by kind from its own
+    # sequence (IDENTITY_REFERENCE_SEQUENCES). Assigned when the identity is made
+    # and never reused; a split's parts each get a new one.
+    reference: Mapped[Optional[str]] = mapped_column(Text, unique=True)
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="active", default="active"
     )
@@ -352,6 +372,9 @@ class IdentityConfirmation(Base):
     evidence_url: Mapped[Optional[str]] = mapped_column(Text)
     evidence_quote: Mapped[str] = mapped_column(Text, nullable=False)
     basis: Mapped[str] = mapped_column(Text, nullable=False)
+    # Where the reviewer found the evidence, in their own words, kept apart from the
+    # basis. Optional, and read by every Finance account like the basis.
+    source: Mapped[Optional[str]] = mapped_column(Text)
     replaces_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("identity_confirmation.id")
     )
@@ -363,6 +386,7 @@ class IdentityConfirmation(Base):
     )
     withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     withdrawal_reason: Mapped[Optional[str]] = mapped_column(Text)
+    withdrawal_source: Mapped[Optional[str]] = mapped_column(Text)
     made_by_alethical_team: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
 
