@@ -1,8 +1,5 @@
 /* Campaign money (Campaign Money drawing). Shared parts live in src/ui/finance.css. */
 
-.cm-back {
-  margin: -8px 0 12px;
-}
 .cm-header {
   display: flex;
   flex-wrap: wrap;

@@ -212,6 +212,11 @@ describe('People', () => {
     expect(text()).toContain('Sort by: Election year');
   });
 
+  it('shows no return link on this top-level destination, whatever the address carries', async () => {
+    await render('/people?type=legislators&from=%2Fhome', loaded);
+    expect(container.querySelector('.f-back')).toBeNull();
+  });
+
   it('keeps person and candidacy records separate even for the same name', async () => {
     const rows: PersonDirectoryRow[] = [
       { kind: 'person', id: 'person-a', name: 'Same Name' },
