@@ -552,3 +552,23 @@ def test_summary_edges_print_the_filed_figures(finance_api, finance_db, varied):
         e["amount"] == "1000.0000" and e["source"]["dataset"] == "contributions"
         for e in data["edges"]
     )
+
+
+def test_a_summarized_file_without_measured_years_reads_them_from_its_rows(
+    finance_api, finance_db, varied, monkeypatch
+):
+    """A snapshot whose publish recorded no year counts still lists every year."""
+    build(finance_db, varied)
+    for snapshot_id in snapshots(varied).values():
+        finance_db.get(m.CampaignFinanceSnapshot, snapshot_id).rows_by_year = None
+    finance_db.commit()
+    statements, stop = recorded(finance_db)
+    try:
+        data = get(finance_api, limit=200)
+    finally:
+        stop()
+    assert data["years"] == sorted({2026, 2025, 2024, 1999}, reverse=True)
+    assert any(
+        "DISTINCT cf_contribution_row.year" in statement for statement, _ in statements
+    )
+    assert digest(data) == digest(raw_read(finance_api, monkeypatch, limit=200))

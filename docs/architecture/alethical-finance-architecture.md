@@ -164,9 +164,11 @@ rows, so a deploy before the one-time catch-up (`scripts/build_finance_graph_sum
 is slow and never wrong. Nothing in the summary resolves an identity: registered-filer
 checks and identifier confirmations are applied over its inputs when the graph is read,
 and a printed name with an active record-level confirmation is read from its raw rows
-instead, so a confirmation covering some of a name's records stays exact. Those raw
-reads are found by each confirmed name's index, so their cost grows with the number of
-confirmed names, not with the files. The 2 sources answer alike, payload for payload
+instead, so a confirmation covering some of a name's records stays exact. On the
+contributions and expenditures files those raw reads are found by each confirmed name's
+index, so their cost grows with the number of confirmed names; the independent-expenditures
+file has no vendor-name index, so a confirmed name there reads that whole file (about
+41,000 rows). The 2 sources answer alike, payload for payload
 (`alethical/tests/test_finance_graph_summary.py`). To undo the summary, empty
 `cf_graph_money_summary` first (reads then group the raw rows), then revert the code,
 then downgrade migration 0081.
