@@ -554,6 +554,54 @@ describe('history of a split', () => {
     expect(rows.some((row) => /\b0 records?\b/.test(row.text))).toBe(false);
     expect(rows.some((row) => row.text.includes(STAY) || row.text.includes(MOVED))).toBe(false);
   });
+
+  it('on the page, never calls a history empty while its split waits on words', async () => {
+    const reads = splitReads([
+      active(STAY, 'Example Media LLC', null, 'ORG-0091'),
+      active(MOVED, 'Example Media Buying Co', 1, 'ORG-0092'),
+    ]);
+    reads.get(MOVED)!.confirmations = [
+      confirmation('c-b', MOVED, [1], { replaces: 'c-was' }),
+    ] as Identity['confirmations'];
+    serve((url) => {
+      if (url.pathname.endsWith('/queue')) return json(queuePage([]));
+      if (url.pathname.endsWith('/records'))
+        return json(
+          recordsPage({
+            confirmed: 1,
+            fingerprints: [
+              fingerprint(1, {
+                confirmation: {
+                  id: 'c-b',
+                  identity: {
+                    id: MOVED,
+                    reference: 'ORG-0092',
+                    kind: 'organization',
+                    name: 'Example Media Buying Co',
+                  },
+                },
+              }),
+              fingerprint(2),
+            ] as RecordsPage['fingerprints'],
+            identities: [
+              {
+                id: MOVED,
+                reference: 'ORG-0092',
+                kind: 'organization',
+                name: 'Example Media Buying Co',
+                confirmed: 1,
+              },
+            ],
+          }),
+        );
+      for (const [id, read] of reads) if (url.pathname.endsWith(id)) return json(read);
+    });
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&role=payee_name`);
+    expect(text()).toContain('Example Media Buying Co');
+    expect(text()).not.toContain('No confirmations or suggestions yet');
+    expect(container.querySelector('#hist-h')).toBeNull();
+    expect(text()).not.toMatch(/\b0 records?\b/);
+  });
 });
 
 describe('Confirm identities page', () => {

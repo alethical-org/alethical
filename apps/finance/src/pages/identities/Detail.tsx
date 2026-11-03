@@ -13,7 +13,7 @@ import { Pager } from '../media/shared';
 import { useRecords, write, type WriteResult } from './api';
 import { IdentityForm, type FormErrors, type FormSpec } from './Form';
 import { Refs } from './Refs';
-import { confirmationNote, confirmationSource, historyRows } from './history';
+import { confirmationNote, confirmationSource, historyOf } from './history';
 import { useIdentities } from './reads';
 import type {
   Confirmation,
@@ -710,7 +710,9 @@ export function Detail({
   // ---- Page ----
   const heldSuggestions = remaining > 0 ? held : [];
   const showSuggest = !conf || remaining > 0;
-  const history = data ? historyRows(reads.byId, kind, name, n) : [];
+  const { rows: history, withheld } = data
+    ? historyOf(reads.byId, kind, name, n)
+    : { rows: [], withheld: 0 };
   const confHref = conf ? profileHref(conf, here) : null;
   const draftOpen = !!form && hasEntries(form);
 
@@ -1061,48 +1063,52 @@ export function Detail({
         {(!form || spec?.recs !== 'name') && pager}
       </section>
 
-      <section aria-labelledby="hist-h" className="ci-history-section">
-        <h3 id="hist-h">History</h3>
-        <ol className="ci-card ci-history">
-          {history.length === 0 && (
-            <li>
-              <span />
-              <span>No confirmations or suggestions yet</span>
-            </li>
-          )}
-          {history.map((row) => (
-            <li key={row.key}>
-              <span className="ci-history-date f-num">{row.date}</span>
-              <span className="ci-history-body">
-                <span className="f-num ci-wrap">
-                  <Refs>{row.text}</Refs>
-                </span>
-                {row.evidence.length > 0 && (
-                  <span>
-                    <button
-                      type="button"
-                      className="f-btn f-btn-secondary ci-btn-s"
-                      aria-expanded={!!histOpen[row.key]}
-                      onClick={() =>
-                        setHistOpen((value) => ({ ...value, [row.key]: !value[row.key] }))
-                      }
-                    >
-                      View evidence
-                    </button>
+      {/* A history whose only events wait on undrawn words is left out, never called
+          empty. */}
+      {(history.length > 0 || withheld === 0) && (
+        <section aria-labelledby="hist-h" className="ci-history-section">
+          <h3 id="hist-h">History</h3>
+          <ol className="ci-card ci-history">
+            {history.length === 0 && (
+              <li>
+                <span />
+                <span>No confirmations or suggestions yet</span>
+              </li>
+            )}
+            {history.map((row) => (
+              <li key={row.key}>
+                <span className="ci-history-date f-num">{row.date}</span>
+                <span className="ci-history-body">
+                  <span className="f-num ci-wrap">
+                    <Refs>{row.text}</Refs>
                   </span>
-                )}
-                {histOpen[row.key] && (
-                  <ul className="ci-evidence">
-                    {row.evidence.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </section>
+                  {row.evidence.length > 0 && (
+                    <span>
+                      <button
+                        type="button"
+                        className="f-btn f-btn-secondary ci-btn-s"
+                        aria-expanded={!!histOpen[row.key]}
+                        onClick={() =>
+                          setHistOpen((value) => ({ ...value, [row.key]: !value[row.key] }))
+                        }
+                      >
+                        View evidence
+                      </button>
+                    </span>
+                  )}
+                  {histOpen[row.key] && (
+                    <ul className="ci-evidence">
+                      {row.evidence.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </section>
   );
 }

@@ -49,7 +49,19 @@ export function historyRows(
   name: string,
   total: number,
 ): HistoryRow[] {
+  return historyOf(identities, kind, name, total).rows;
+}
+
+/** The printed history rows, and how many events wait on words not drawn yet (a split
+ * whose part has no count). A history with a waiting event is never called empty. */
+export function historyOf(
+  identities: ReadonlyMap<string, Identity>,
+  kind: PrintedKind,
+  name: string,
+  total: number,
+): { rows: HistoryRow[]; withheld: number } {
   const rows: HistoryRow[] = [];
+  let withheld = 0;
   const seen = new Set<string>();
   const withdrawals = new Map<
     string,
@@ -134,7 +146,10 @@ export function historyRows(
         // A count is printed only as served. A part whose file is not held, or that was
         // later merged or split, has none, and a missing count never reads as 0
         // (grounded-answers rule 12); no words are drawn for that row yet, so it waits.
-        if (!countable(stay) || !countable(moved)) continue;
+        if (!countable(stay) || !countable(moved)) {
+          withheld += 1;
+          continue;
+        }
         const count = (part: SplitPart) =>
           plural(part.confirmed_records as number, 'record', 'records');
         rows.push({
@@ -163,5 +178,5 @@ export function historyRows(
       ],
     });
   }
-  return rows.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+  return { rows: rows.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)), withheld };
 }

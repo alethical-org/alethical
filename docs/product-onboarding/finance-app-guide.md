@@ -240,8 +240,9 @@ figure is ever added across committees or members.
   or by its name while the server has not served one, never by its internal id. A split's
   history row gives each part's confirmed records as the server counts them today (repeated
   identical rows count separately); when a part has no count, because a file is not held
-  or the part was later merged or split, the row is left out rather than printing 0, and a
-  later merge keeps its own row naming the reference it now opens. A selection is the
+  or the part was later merged or split, the row is left out rather than printing 0 (and a
+  History holding only such a row is left out, never called empty), and a later merge keeps
+  its own row naming the reference it now opens. A selection is the
   server's record fingerprints, or "All records" / "{year} records", which the server resolves. "Saved" appears
   only after the server accepts; otherwise "Not saved. Your entries are kept." with Try again,
   "These records changed since this form opened…" or, after the Board's file is replaced,
