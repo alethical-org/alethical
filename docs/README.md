@@ -10,6 +10,9 @@ but never that work is off-limits because of which milestone it sits in. If you 
 a doc gating work by version, that is a bug in the doc (`.claude/rules/workflow.md`
 rule 13). Milestone claims in particular go stale: check the tracker, not the prose.
 
+The agent entry maps load these full policies by task: [development workflow](operations/development-workflow.md)
+and [grounded-answer policy](architecture/grounded-answer-policy.md).
+
 ## Start Here
 
 - [Philosophy](philosophy.md) — the _why_ beneath Alethical: what the product is, the problem it solves (legibility, not secrecy), who we assume is reading, and the principles the product, design, and copy all answer to. Read this before the specs.
