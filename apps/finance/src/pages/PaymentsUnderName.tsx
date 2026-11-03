@@ -10,9 +10,7 @@ import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import {
   CAP_NEXT_LABEL,
-  CAP_NOTE,
   filerRegistrationLabel,
-  LOAD_MORE_ERROR,
   paymentsShowingLine,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
@@ -38,15 +36,14 @@ import { tabOfKind } from './committee/data';
 import {
   checkedDay,
   namePaymentsQuery,
-  useIdentityRecords,
   useNamePayments,
   type IdentityRead,
-  type IdentityRecords,
   type NamePayments,
   type NamePaymentsRead,
   type OutsideRow,
   type PrintedKind,
   type ReceivedRow,
+  type RowFacts,
   type ServerRole,
   type SpentRow,
 } from './payments/data';
@@ -57,6 +54,8 @@ export const BOARD_FILES_URL =
   'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
 const DATE_MISSING = 'Date not given in the public file';
 const AMOUNT_MISSING = 'Amount not given';
+/** A later page was asked for against a Board file that has since changed (409). */
+export const RELEASE_CHANGED = 'The Board’s file changed. Reload the records.';
 
 /** The page's record types, as the address and the menu name them. */
 export type Role = 'payee' | 'donor' | 'employer';
@@ -176,7 +175,6 @@ export function committeeHref(
   );
 }
 
-/** The saved source each section's rows come from, as the evidence drawer names it. */
 /** The printed-name kinds a role's confirmations are kept under. */
 const KINDS: Record<Role, PrintedKind[]> = {
   payee: ['payee_name', 'independent_payee_name'],
@@ -184,11 +182,60 @@ const KINDS: Record<Role, PrintedKind[]> = {
   employer: ['employer_name'],
 };
 
+/** The saved source each section's rows come from, as the evidence drawer names it. */
 const SAVED_SOURCE: Record<SectionSpec['file'], string> = {
   contributions: 'Contribution file',
   expenditures: 'Expenditure file',
   independentExpenditures: 'Independent expenditure file',
 };
+
+/** The server's dataset values, as the evidence drawer names their files. */
+const DATASET_SOURCE: Record<string, string> = {
+  contributions: SAVED_SOURCE.contributions,
+  expenditures: SAVED_SOURCE.expenditures,
+  independent_expenditures: SAVED_SOURCE.independentExpenditures,
+};
+
+/** The fingerprinted fields of each file, in the file's own column order
+ * (identity_confirmations._PRINTED). */
+const EXCERPT_FIELDS: Record<SectionSpec['file'], string[]> = {
+  contributions: [
+    'contributor',
+    'contrib_employer_name',
+    'recipient_reg_num',
+    'receipt_date',
+    'amount',
+    'contrib_zip',
+  ],
+  expenditures: ['vendor_name', 'committee_reg_num', 'transaction_date', 'amount', 'vendor_zip'],
+  independentExpenditures: [
+    'vendor_name',
+    'spender_reg_num',
+    'transaction_date',
+    'amount',
+    'vendor_zip',
+  ],
+};
+
+/** The row's excerpt as the file prints it: each fingerprinted field's value in the
+ * file's column order, an empty field kept empty, or null when no excerpt is held. */
+export function excerptText(
+  excerpt: RowFacts['excerpt'],
+  file: SectionSpec['file'],
+): string | null {
+  if (!excerpt || typeof excerpt !== 'object') return null;
+  const values = EXCERPT_FIELDS[file].map((field) => {
+    const value = excerpt[field];
+    return value === null || value === undefined ? '' : String(value);
+  });
+  return values.some(Boolean) ? values.join(' | ') : null;
+}
+
+/** "Confirmed as {identity}" from the row's own fingerprint (Design Round 39). */
+export function rowIdentityNote(facts: RowFacts): string | null {
+  const identity = facts.identity;
+  return identity ? `Confirmed as ${identity.name}` : null;
+}
 
 function row(
   context: RowContext,
@@ -206,6 +253,7 @@ function row(
     filterName: string;
     employer?: string | null;
     zip?: string | null;
+    facts: RowFacts;
   },
 ): PaymentRow {
   const date = formatDay(fields.date);
@@ -227,33 +275,59 @@ function row(
     registration: fields.registration,
     amount,
     kind,
-    note: fields.note,
-    evidence: {
-      title: `${context.name} · ${amount ?? AMOUNT_MISSING}`,
-      authority: BOARD,
-      // The held locators (Design Round 37): the saved source, the copy it was read
-      // from and the row in it, then the row's fields as filed.
-      rows: [
-        { label: 'Saved source', value: SAVED_SOURCE[context.spec.file] },
-        ...(context.fetchedAt
-          ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(context.fetchedAt)}` }]
-          : []),
-        { label: 'Row', value: String(fields.recordNumber) },
-        { label: 'Filer', value: committee },
-        { label: 'Date', value: date ?? DATE_MISSING },
-        { label: 'Amount', value: amount ?? AMOUNT_MISSING },
-        ...(kind ? [{ label: 'Type', value: kind }] : []),
-        ...(fields.employer ? [{ label: 'Employer as filed', value: fields.employer }] : []),
-        ...(fields.zip ? [{ label: 'ZIP as filed', value: fields.zip }] : []),
-      ],
-      // No excerpt of the source row is held, so the drawer says so and links the
-      // Board's file instead.
-      quote: 'No saved source excerpt held',
-      quoteLabel: 'SOURCE TEXT',
-      checked: 'Not checked',
-      sourceHref: context.sourceUrl ?? BOARD_FILES_URL,
-      sourceLabel: 'View the Board’s payment file',
-    },
+    note: [fields.note, rowIdentityNote(fields.facts)].filter(Boolean).join(' · ') || null,
+    evidence: rowEvidence(context, fields, { committee, date, amount, kind }),
+  };
+}
+
+/** The held locators (Design Round 37): the saved source, the copy it was read from
+ * and the row in it, then the row's fields as filed and its excerpt. The Board's
+ * file is linked only when no excerpt is held. */
+function rowEvidence(
+  context: RowContext,
+  fields: {
+    recordNumber: number;
+    employer?: string | null;
+    zip?: string | null;
+    facts: RowFacts;
+  },
+  shown: { committee: string; date: string | null; amount: string | null; kind: string },
+): Evidence {
+  const held = fields.facts.evidence ?? null;
+  const copied = held?.copied_at ?? context.fetchedAt;
+  const quote = excerptText(fields.facts.excerpt, context.spec.file);
+  const zipField = context.spec.file === 'contributions' ? 'contrib_zip' : 'vendor_zip';
+  const excerptZip = fields.facts.excerpt?.[zipField];
+  const zip =
+    fields.zip ?? (excerptZip === null || excerptZip === undefined ? null : String(excerptZip));
+  return {
+    title: `${context.name} · ${shown.amount ?? AMOUNT_MISSING}`,
+    authority: BOARD,
+    rows: [
+      {
+        label: 'Saved source',
+        value: (held?.dataset && DATASET_SOURCE[held.dataset]) || SAVED_SOURCE[context.spec.file],
+      },
+      ...(copied
+        ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(copied)}` }]
+        : []),
+      { label: 'Row', value: String(held?.record_number ?? fields.recordNumber) },
+      { label: 'Filer', value: shown.committee },
+      { label: 'Date', value: shown.date ?? DATE_MISSING },
+      { label: 'Amount', value: shown.amount ?? AMOUNT_MISSING },
+      ...(shown.kind ? [{ label: 'Type', value: shown.kind }] : []),
+      ...(fields.employer ? [{ label: 'Employer as filed', value: fields.employer }] : []),
+      ...(zip ? [{ label: 'ZIP as filed', value: zip }] : []),
+    ],
+    quote: quote ?? 'No saved source excerpt held',
+    quoteLabel: 'SOURCE TEXT',
+    checked: 'Not checked',
+    ...(quote
+      ? {}
+      : {
+          sourceHref: held?.source_url ?? context.sourceUrl ?? BOARD_FILES_URL,
+          sourceLabel: 'View the Board’s payment file',
+        }),
   };
 }
 
@@ -270,6 +344,7 @@ export function spentRow(payment: SpentRow, context: RowContext): PaymentRow {
     note: null,
     tab: 'expenditures',
     filterName: context.name,
+    facts: payment,
   });
 }
 
@@ -295,6 +370,7 @@ export function outsideRow(payment: OutsideRow, context: RowContext): PaymentRow
     note: positionNote(payment),
     tab: 'independent',
     filterName: context.name,
+    facts: payment,
   });
 }
 
@@ -317,14 +393,16 @@ export function receivedRow(payment: ReceivedRow, context: RowContext): PaymentR
     filterName: donor ?? '',
     employer: payment.employer,
     zip: payment.contributor_zip ?? null,
+    facts: payment,
   });
 }
 
-/** The section's count: exact while every row is loaded, otherwise only what is
- * shown, because a name-keyed lookup serves no total (rule 11). */
-export function countLine(shown: number, hasMore: boolean): string {
-  if (hasMore) return paymentsShowingLine(shown, null, true);
-  return `${formatCount(shown)} ${shown === 1 ? 'record' : 'records'}`;
+/** The section's count: the server's own count of every row the scope matches,
+ * else exact while every row is loaded, else only what is shown (rule 11). */
+export function countLine(shown: number, hasMore: boolean, total: number | null = null): string {
+  const count = total ?? (hasMore ? null : shown);
+  if (count === null) return paymentsShowingLine(shown, null, true);
+  return `${formatCount(count)} ${count === 1 ? 'record' : 'records'}`;
 }
 
 /** The drawing's copy line when every loaded file was copied the same day, and 1
@@ -344,36 +422,44 @@ export interface ConfirmedIdentity {
   id: string;
   kind: string;
   name: string;
-  /** Records of this spelling, in the selected year, that this identity's
-   * confirmations cover, over every file the role reads. */
+  /** Served after the identity reference lands; printed in place of nothing else. */
+  reference: string | null;
+  /** Records of this spelling in the read's scope (year, filer) this identity's
+   * confirmations cover, over every file in scope. */
   confirmed: number;
 }
 
 export interface IdentityCoverage {
-  /** Every record of this spelling in the selected year, over every file the role reads. */
+  /** Every record of this spelling in the read's scope, over every file in scope. */
   records: number;
   identities: ConfirmedIdentity[];
 }
 
 /** Every identity holding records of exactly this spelling, each with its own
- * count, never 1 union under 1 name (Design Round 39). Null until every file's
- * answer is held, so a count is never over part of the role. Nothing is inferred
- * from a matching name. */
-export function identityCoverage(reads: Array<IdentityRecords | null>): IdentityCoverage | null {
-  if (reads.some((read) => read === null)) return null;
+ * count over the read's scope, never 1 union under 1 name (Design Round 39). Null
+ * until every file in scope has answered with a count, so a count is never over
+ * part of the role. Nothing is inferred from a matching name. */
+export function identityCoverage(
+  reads: Array<NamePayments<unknown> | null>,
+): IdentityCoverage | null {
+  if (reads.some((read) => read === null || read.state === 'unavailable')) return null;
   const found = new Map<string, ConfirmedIdentity>();
   let records = 0;
-  for (const read of reads as IdentityRecords[]) {
-    records += read.records;
-    for (const identity of read.identities ?? []) {
-      if (!(identity.confirmed > 0)) continue;
+  for (const read of reads as NamePayments<unknown>[]) {
+    if (read.state === 'reported') {
+      if (read.total === null) return null;
+      records += read.total;
+    }
+    for (const identity of read.identities) {
+      if (!(identity.confirmed_records > 0)) continue;
       const entry = found.get(identity.id) ?? {
         id: identity.id,
         kind: identity.kind,
         name: identity.name,
+        reference: identity.reference ?? null,
         confirmed: 0,
       };
-      entry.confirmed += identity.confirmed;
+      entry.confirmed += identity.confirmed_records;
       found.set(identity.id, entry);
     }
   }
@@ -505,32 +591,22 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   useEffect(() => setEvidence(null), [name, role, year]);
 
+  // The server narrows rows and every count to the filer.
   const campaign = useNamePayments<ReceivedRow | SpentRow>(
-    name && keeps(all[0]) ? namePaymentsQuery(name, all[0].serverRole, year) : null,
+    name && keeps(all[0]) ? namePaymentsQuery(name, all[0].serverRole, year, filer) : null,
   );
   const outside = useNamePayments<OutsideRow>(
-    name && keeps(all[1]) ? namePaymentsQuery(name, all[1].serverRole, year) : null,
+    name && keeps(all[1]) ? namePaymentsQuery(name, all[1].serverRole, year, filer) : null,
   );
   const reads: NamePaymentsRead<unknown>[] = sections.map((spec) =>
     spec.id === all[0].id ? campaign : outside,
   );
 
-  // Identity counts cover the files in scope. The server cannot count them for 1
-  // filer, so under a filer scope no identity count is shown rather than one over
-  // other filers' records.
-  const kinds = KINDS[role];
-  const counted = name && !filer;
-  const firstIdentity = useIdentityRecords(kinds[0], counted && keeps(all[0]) ? name : null, year);
-  const secondIdentity = useIdentityRecords(
-    'independent_payee_name',
-    counted && keeps(all[1]) ? name : null,
-    year,
-  );
-  const coverage = counted
-    ? identityCoverage(
-        sections.map((spec) => (spec.id === all[0].id ? firstIdentity.data : secondIdentity.data)),
-      )
-    : null;
+  // Identity counts come with the rows, over the same scope. While a new view loads,
+  // the earlier view's answer is not this view's count.
+  const own = (data: NamePayments<unknown> | null) =>
+    data && data.name === name && data.year === year && data.filer === filer ? data : null;
+  const coverage = name ? identityCoverage(reads.map((read) => own(read.data))) : null;
   const filerName = filer
     ? (reads
         .flatMap((read) => (read.data?.state === 'reported' ? rowsFor(read.data, here) : []))
@@ -665,7 +741,6 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
               read={reads[index]}
               phone={band === 'phone'}
               here={here}
-              filer={filer}
               filerName={filerName}
               onView={setEvidence}
             />
@@ -802,8 +877,13 @@ function IdentityLine({
         )}
       </span>
       <span className="pn-identity-note f-num">
-        {coverageLine(identity.confirmed, records, year)}
-        {checked ? ` · Checked on ${checked}` : ''}
+        {[
+          coverageLine(identity.confirmed, records, year),
+          identity.reference,
+          checked ? `Checked on ${checked}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       </span>
     </span>
   );
@@ -814,7 +894,6 @@ function Section({
   read,
   phone,
   here,
-  filer,
   filerName,
   onView,
 }: {
@@ -822,22 +901,15 @@ function Section({
   read: NamePaymentsRead<unknown>;
   phone: boolean;
   here: string;
-  /** Only this filer's rows, of those loaded (the server reads every filer's). */
-  filer: string | null;
   /** The filer as its rows print it, else its registration, for the empty line. */
   filerName: string | null;
   onView: (evidence: Evidence) => void;
 }) {
   const data = read.data;
-  const rows = (data && data.state === 'reported' ? rowsFor(data, here) : []).filter(
-    (item) => filer === null || item.registration === filer,
-  );
-  // Under a filer scope a capped list says nothing about how many rows it shows: the
-  // rows not loaded yet may hold more of that filer's.
+  // The server has already narrowed the rows to the scope, the filer included.
+  const rows = data && data.state === 'reported' ? rowsFor(data, here) : [];
   const count =
-    data && data.state !== 'unavailable' && !(filer !== null && data.hasMore)
-      ? countLine(rows.length, data.hasMore)
-      : null;
+    data && data.state !== 'unavailable' ? countLine(rows.length, data.hasMore, data.total) : null;
   const headingId = `pn-${spec.id}`;
   const reveal = useRevealFocus<HTMLElement>();
   return (
@@ -868,7 +940,7 @@ function Section({
           <div className="f-empty-next">{RECORDS_UNAVAILABLE_WHY}</div>
         </div>
       )}
-      {data && data.state !== 'unavailable' && rows.length === 0 && !data.hasMore && (
+      {data && data.state !== 'unavailable' && rows.length === 0 && (
         <div className="f-empty-box pn-empty">{emptyLine(data, filerName)}</div>
       )}
       {rows.length > 0 && (
@@ -942,23 +1014,54 @@ function Section({
       {rows.length > 0 && (
         <p className="f-section-note pn-section-note">{sectionOf(data!.role).note}</p>
       )}
-      {data?.hasMore && (
+      {data?.hasMore && read.changed && (
+        <div role="alert" className="f-alert pn-gap">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="#c0392b" strokeWidth="2" />
+            <path
+              d="M12 7.5 V13 M12 16 V16.5"
+              stroke="#c0392b"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <div>
+            {RELEASE_CHANGED}
+            <div className="f-alert-action">
+              <button
+                type="button"
+                className="f-btn f-btn-secondary f-btn-small"
+                aria-disabled={read.pending || undefined}
+                onClick={() => !read.pending && read.retry()}
+              >
+                {read.pending && <span className="f-spinner" aria-hidden="true" />}
+                Reload the records
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {data?.hasMore && !read.changed && (
         <div className="pn-more">
-          <p className="pn-more-note">{CAP_NOTE}</p>
-          {read.moreFailed && <p className="pn-more-error">{LOAD_MORE_ERROR}</p>}
-          <button
-            type="button"
-            className="f-btn f-btn-secondary pn-more-btn"
-            aria-disabled={read.loadingMore || undefined}
-            onClick={() => {
-              if (read.loadingMore) return;
-              reveal.mark();
-              read.more();
-            }}
-          >
-            {read.loadingMore && <span className="f-spinner" aria-hidden="true" />}
-            {CAP_NEXT_LABEL}
-          </button>
+          {read.moreFailed ? (
+            <Refused onRetry={read.more} retrying={read.loadingMore}>
+              We couldn’t load more payments
+            </Refused>
+          ) : (
+            <button
+              type="button"
+              className="f-btn f-btn-secondary pn-more-btn"
+              aria-disabled={read.loadingMore || undefined}
+              onClick={() => {
+                if (read.loadingMore) return;
+                reveal.mark();
+                read.more();
+              }}
+            >
+              {read.loadingMore && <span className="f-spinner" aria-hidden="true" />}
+              {CAP_NEXT_LABEL}
+            </button>
+          )}
         </div>
       )}
     </section>

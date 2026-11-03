@@ -5,7 +5,6 @@ import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import {
   CAP_NEXT_LABEL,
-  LOAD_MORE_ERROR,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
 } from '@alethical/shared/paymentsUnderName';
@@ -657,19 +656,24 @@ function Donor({
       </div>
       {hasMore && (
         <div className="pn-more de-donor-more">
-          {more.failed && <p className="pn-more-error">{LOAD_MORE_ERROR}</p>}
-          <button
-            type="button"
-            className="f-btn f-btn-secondary pn-more-btn"
-            aria-disabled={more.loading || undefined}
-            onClick={() => {
-              reveal.mark();
-              more.more(payments.length);
-            }}
-          >
-            {more.loading && <span className="f-spinner" aria-hidden="true" />}
-            {CAP_NEXT_LABEL}
-          </button>
+          {more.failed ? (
+            <Refused onRetry={() => more.more(payments.length)} retrying={more.loading}>
+              We couldn’t load more payments
+            </Refused>
+          ) : (
+            <button
+              type="button"
+              className="f-btn f-btn-secondary pn-more-btn"
+              aria-disabled={more.loading || undefined}
+              onClick={() => {
+                reveal.mark();
+                more.more(payments.length);
+              }}
+            >
+              {more.loading && <span className="f-spinner" aria-hidden="true" />}
+              {CAP_NEXT_LABEL}
+            </button>
+          )}
         </div>
       )}
     </section>

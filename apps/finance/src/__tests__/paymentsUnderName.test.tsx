@@ -8,6 +8,8 @@ import {
   copyLines,
   countLine,
   coverageLine,
+  excerptText,
+  rowIdentityNote,
   filerFromParam,
   scopedSections,
   scopeLine,
@@ -87,20 +89,38 @@ function page(
     fetchedAt = FETCHED,
     name = 'Example Media LLC',
     year = null as number | null,
+    filer = null as string | null,
+    total = payments.length as number | null,
+    identities = [] as Array<{
+      id: string;
+      kind: string;
+      name: string;
+      reference?: string;
+      confirmed_records: number;
+    }>,
+    release = 'release-1',
   } = {},
 ) {
   return {
     name,
     role,
     year,
+    filer,
+    record_kind: 'payee_name',
+    identities,
     state,
     payments,
-    page: { limit: 250, offset: 0, has_more: hasMore, total_payments: null },
+    page: {
+      limit: 200,
+      offset: 0,
+      has_more: hasMore,
+      total_payments: state === 'reported' ? total : null,
+    },
     linkable_registration_numbers: linkable,
     dataset: 'x',
     source_url:
       'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=1',
-    release_id: 'release-1',
+    release_id: release,
     fetched_at: fetchedAt,
   };
 }
@@ -201,7 +221,10 @@ describe('Payments under this name', () => {
     const payments = requests.filter((url) => url.pathname.endsWith('/payments-under-name'));
     expect(payments.map((url) => role(url)).sort()).toEqual(['independent_vendor', 'vendor']);
     expect(payments[0].searchParams.get('name')).toBe('Example Media LLC');
-    expect(payments[0].searchParams.get('limit')).toBe('250');
+    // Finance's own route, which adds each row's facts, a page of 200 at a time.
+    expect(payments[0].pathname).toBe('/api/v1/finance/payments-under-name');
+    expect(payments[0].searchParams.get('limit')).toBe('200');
+    expect(payments[0].searchParams.get('filer')).toBeNull();
     expect(payments[0].searchParams.get('year')).toBeNull();
 
     expect(container.querySelector('h1')?.textContent).toBe('Payments under this name');
@@ -290,11 +313,10 @@ describe('Payments under this name', () => {
     expect(campaign.textContent).toContain(
       'The count is of matching records, not a confirmed count of separate donations.',
     );
-    const identity = requests.find((url) => url.pathname.endsWith('/finance/identities/records'))!;
-    expect(identity.searchParams.get('record_kind')).toBe('donor_name');
-    expect(identity.searchParams.get('record_key')).toBe('Example, Wen');
-    // Counted over the selected year's records only.
-    expect(identity.searchParams.get('year')).toBe('2026');
+    // Identity counts come with the rows, so no separate identity read is made.
+    expect(requests.some((url) => url.pathname.endsWith('/finance/identities/records'))).toBe(
+      false,
+    );
   });
 
   it('keeps each donor on an employer row and the money theirs', async () => {
@@ -381,45 +403,83 @@ describe('Payments under this name', () => {
     await render('/money/names/Example%20Media%20LLC', (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) return json(NO_IDENTITY);
       if (role(url) !== 'vendor') return json(page('independent_vendor', []));
-      return url.searchParams.get('offset') === '0'
-        ? json(page('vendor', [spent()], { hasMore: true }))
-        : json(page('vendor', [spent({ record_number: 12, paid_on: '2026-06-01' })]));
+      return !url.searchParams.get('offset')
+        ? json(page('vendor', [spent()], { hasMore: true, total: 2 }))
+        : json(page('vendor', [spent({ record_number: 12, paid_on: '2026-06-01' })], { total: 2 }));
     });
     const campaign = section('Campaign payments');
-    expect(campaign.textContent).toContain('Showing the first 1 payment record, newest first');
-    expect(campaign.textContent).toContain('We load up to 250 payment records at a time.');
+    // The server counts every row in scope, so the count is exact before all load.
+    expect(campaign.querySelector('.pn-count')?.textContent).toBe('2 records');
     const more = campaign.querySelector<HTMLButtonElement>('.pn-more-btn')!;
     expect(more.textContent).toBe('Show more payments');
     await act(async () => more.click());
     await settle();
     const next = requests.filter((url) => url.searchParams.get('offset') === '1');
     expect(next).toHaveLength(1);
-    expect(section('Campaign payments').textContent).toContain('2 records');
+    // Pinned to the first page's copy of the Board's file.
+    expect(next[0].searchParams.get('release_id')).toBe('release-1');
+    expect(section('Campaign payments').querySelectorAll('.pn-row:not(.pn-head)')).toHaveLength(2);
     expect(section('Campaign payments').querySelector('.pn-more-btn')).toBeNull();
+  });
+
+  it('says the Board’s file changed when page 2 answers 409, and starts over', async () => {
+    let firstPages = 0;
+    await render('/money/names/Example%20Media%20LLC', (url) => {
+      if (role(url) !== 'vendor') return json(page('independent_vendor', []));
+      if (url.searchParams.get('offset')) return json(null, 409);
+      firstPages += 1;
+      return json(
+        page('vendor', [spent()], {
+          hasMore: true,
+          total: 2,
+          release: firstPages === 1 ? 'release-1' : 'release-2',
+        }),
+      );
+    });
+    await act(async () =>
+      section('Campaign payments').querySelector<HTMLButtonElement>('.pn-more-btn')!.click(),
+    );
+    await settle();
+    const alert = section('Campaign payments').querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('The Board’s file changed. Reload the records.');
+    expect(section('Campaign payments').querySelector('.pn-more-btn')).toBeNull();
+    // The loaded rows stay while the reader decides.
+    expect(section('Campaign payments').textContent).toContain('Education Minn PAC');
+    const reload = alert.querySelector('button')!;
+    expect(reload.textContent).toBe('Reload the records');
+    await act(async () => reload.click());
+    await settle();
+    expect(firstPages).toBe(2);
+    expect(section('Campaign payments').querySelector('[role="alert"]')).toBeNull();
+    expect(section('Campaign payments').querySelector('.pn-more-btn')).toBeTruthy();
+  });
+
+  it('says a failed next page without claiming anything, and tries it again', async () => {
+    let later = 0;
+    await render('/money/names/Example%20Media%20LLC', (url) => {
+      if (role(url) !== 'vendor') return json(page('independent_vendor', []));
+      if (!url.searchParams.get('offset')) {
+        return json(page('vendor', [spent()], { hasMore: true, total: 2 }));
+      }
+      later += 1;
+      return later === 1
+        ? json(null, 500)
+        : json(page('vendor', [spent({ record_number: 12 })], { total: 2 }));
+    });
+    await act(async () =>
+      section('Campaign payments').querySelector<HTMLButtonElement>('.pn-more-btn')!.click(),
+    );
+    await settle();
+    const alert = section('Campaign payments').querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('We couldn’t load more payments');
+    expect(alert.textContent).not.toContain('problem on our side');
+    await act(async () => alert.querySelector<HTMLButtonElement>('button')!.click());
+    await settle();
+    expect(section('Campaign payments').querySelectorAll('.pn-row:not(.pn-head)')).toHaveLength(2);
   });
 
   it('lists every identity holding records of the spelling, each with its own count', async () => {
     await render('/money/names/Example%20Media%20LLC?year=2026', (url) => {
-      if (url.pathname.endsWith('/finance/identities/records')) {
-        return url.searchParams.get('record_kind') === 'payee_name'
-          ? json({
-              ...NO_IDENTITY,
-              records: 4,
-              confirmed: 3,
-              identities: [
-                { id: 'org-uuid-1', kind: 'organization', name: 'Example Media', confirmed: 2 },
-                { id: 'org-uuid-2', kind: 'organization', name: 'Example Duluth', confirmed: 1 },
-              ],
-            })
-          : json({
-              ...NO_IDENTITY,
-              records: 1,
-              confirmed: 1,
-              identities: [
-                { id: 'org-uuid-1', kind: 'organization', name: 'Example Media', confirmed: 1 },
-              ],
-            });
-      }
       if (url.pathname.endsWith('/finance/identities/org-uuid-1')) {
         return json({
           id: 'org-uuid-1',
@@ -432,82 +492,111 @@ describe('Payments under this name', () => {
               status: 'confirmed',
               checked_at: '2026-10-02T15:00:00Z',
             },
-            {
-              record_kind: 'payee_name',
-              record_key: 'Another spelling',
-              status: 'confirmed',
-              checked_at: '2026-09-01T15:00:00Z',
-            },
           ],
         });
       }
-      if (url.pathname.endsWith('/finance/identities/org-uuid-2')) return json(null, 500);
-      return payee(url);
+      if (url.pathname.includes('/finance/identities/')) return json(null, 500);
+      const identified = {
+        identity: { id: 'org-uuid-1', kind: 'organization', name: 'Example Media' },
+      };
+      if (role(url) === 'vendor') {
+        return json(
+          page('vendor', [{ ...spent(), ...identified }, spent({ record_number: 13 })], {
+            year: 2026,
+            total: 4,
+            identities: [
+              {
+                id: 'org-uuid-1',
+                kind: 'organization',
+                name: 'Example Media',
+                reference: 'ORG-0002',
+                confirmed_records: 2,
+              },
+              {
+                id: 'org-uuid-2',
+                kind: 'organization',
+                name: 'Example Duluth',
+                confirmed_records: 1,
+              },
+            ],
+          }),
+        );
+      }
+      return json(
+        page('independent_vendor', [outsideRow()], {
+          year: 2026,
+          linkable: ['40001'],
+          total: 1,
+          identities: [
+            { id: 'org-uuid-1', kind: 'organization', name: 'Example Media', confirmed_records: 1 },
+          ],
+        }),
+      );
     });
     const box = container.querySelector('[aria-label="Confirmed identity"]')!;
     expect(box.querySelector('.pn-identity-label')?.textContent).toBe('CONFIRMED IDENTITIES');
     const items = [...box.querySelectorAll('.pn-identity-item')].map((item) => item.textContent);
-    // Counts cover both payee files, in the selected year; the checked day shows only
-    // where it was read.
+    // Counts cover both payee files in the read's scope; the reference prints where
+    // served, never the id; the checked day only where it was read.
     expect(items).toEqual([
-      'Example MediaConfirmed for 3 of 5 records in 2026 · Checked on Oct 2, 2026',
+      'Example MediaConfirmed for 3 of 5 records in 2026 · ORG-0002 · Checked on Oct 2, 2026',
       'Example DuluthConfirmed for 1 of 5 records in 2026',
     ]);
+    expect(box.textContent).not.toContain('org-uuid');
     expect(box.querySelector('a')?.getAttribute('href')).toMatch(
       /^\/organizations\/org-uuid-1\?from=/,
     );
-    // Confirm identities is not built yet, so no entrance to it.
     expect(box.textContent).not.toContain('Review confirmation');
+    // Each row says the identity its own fingerprint is confirmed to.
+    const rows = section('Campaign payments').querySelectorAll('.pn-row:not(.pn-head)');
+    expect(rows[0].textContent).toContain('· Confirmed as Example Media');
+    expect(rows[1].textContent).not.toContain('Confirmed as');
   });
 
-  it('makes no identity claim while a file’s identity read has failed', async () => {
-    await render('/money/names/Example%20Media%20LLC', (url) => {
-      if (url.pathname.endsWith('/finance/identities/records')) {
-        return url.searchParams.get('record_kind') === 'payee_name'
-          ? json(NO_IDENTITY)
-          : json(null, 500);
-      }
-      return payee(url);
-    });
+  it('makes no identity claim while a file’s payments have failed', async () => {
+    await render('/money/names/Example%20Media%20LLC', (url) =>
+      role(url) === 'vendor' ? json(page('vendor', [spent()])) : json(null, 500),
+    );
     expect(container.querySelector('.pn-identity')).toBeNull();
   });
 
   it('opens Organization’s View payments link scoped to its filer and file', async () => {
     await render(
       '/money/names/Example%20Media%20LLC?role=payee&filer=30558&dataset=expenditures&year=2026',
-      (url) => {
-        if (url.pathname.includes('/finance/identities')) return json(NO_IDENTITY);
-        return json(
-          page(
-            'vendor',
-            [
-              spent(),
-              spent({
-                record_number: 12,
-                committee_registration_number: '99999',
-                committee_name: 'Another Filer',
-              }),
+      (url) =>
+        json(
+          page('vendor', [spent()], {
+            year: 2026,
+            filer: url.searchParams.get('filer'),
+            total: 3,
+            hasMore: true,
+            identities: [
+              {
+                id: 'org-uuid-1',
+                kind: 'organization',
+                name: 'Example Media',
+                confirmed_records: 1,
+              },
             ],
-            { year: 2026 },
-          ),
-        );
-      },
+          }),
+        ),
     );
     const payments = requests.filter((url) => url.pathname.endsWith('/payments-under-name'));
-    // Only the named file is read, for the address's year.
+    // Only the named file is read, narrowed on the server to the filer and the year.
     expect(payments.map(role)).toEqual(['vendor']);
+    expect(payments[0].searchParams.get('filer')).toBe('30558');
     expect(payments[0].searchParams.get('year')).toBe('2026');
     expect(container.textContent).not.toContain('Outside spending payments');
     const campaign = section('Campaign payments');
-    expect(campaign.textContent).toContain('Education Minn PAC');
-    expect(campaign.textContent).not.toContain('Another Filer');
-    expect(campaign.textContent).toContain('1 record');
+    // The filer's own count, from the server, though not every row is loaded.
+    expect(campaign.querySelector('.pn-count')?.textContent).toBe('3 records');
     expect(container.querySelector('.pn-scope')?.textContent).toBe(
       'Showing records filed by Education Minn PAC, campaign payments fileClear all',
     );
-    // No identity count is claimed for 1 filer, which the server cannot count.
-    expect(requests.some((url) => url.pathname.includes('/finance/identities'))).toBe(false);
-    expect(container.querySelector('.pn-identity')).toBeNull();
+    // Identity counts are over the same filer scope.
+    expect(container.querySelector('.pn-identity-note')?.textContent).toBe(
+      'Confirmed for 1 of 3 records in 2026',
+    );
 
     const clear = container.querySelector<HTMLButtonElement>('.pn-scope button')!;
     await act(async () => clear.click());
@@ -590,28 +679,46 @@ describe('Payments under this name helpers', () => {
   });
 
   it('counts each identity over every file the role reads, and waits for all of them', () => {
-    const first = {
-      record_kind: 'payee_name',
-      record_key: 'X',
-      records: 2,
-      confirmed: 2,
-      identities: [
-        { id: 'a', kind: 'organization', name: 'A', confirmed: 2 },
-        { id: 'b', kind: 'person', name: 'B', confirmed: 0 },
-      ],
-    };
-    const second = {
-      record_kind: 'independent_payee_name',
-      record_key: 'X',
-      records: 5,
-      confirmed: 1,
-      identities: [{ id: 'a', kind: 'organization', name: 'A', confirmed: 1 }],
-    };
+    const answer = (total: number | null, identities: NamePayments<unknown>['identities']) =>
+      ({ state: 'reported', total, identities }) as NamePayments<unknown>;
+    const first = answer(2, [
+      { id: 'a', kind: 'organization', name: 'A', confirmed_records: 2 },
+      { id: 'b', kind: 'person', name: 'B', confirmed_records: 0 },
+    ]);
+    const second = answer(5, [
+      { id: 'a', kind: 'organization', name: 'A', reference: 'ORG-1', confirmed_records: 1 },
+    ]);
     expect(identityCoverage([first, second])).toEqual({
       records: 7,
-      identities: [{ id: 'a', kind: 'organization', name: 'A', confirmed: 3 }],
+      identities: [{ id: 'a', kind: 'organization', name: 'A', reference: null, confirmed: 3 }],
     });
     expect(identityCoverage([first, null])).toBeNull();
+    // No count served means no claim.
+    expect(identityCoverage([answer(null, [])])).toBeNull();
+    expect(
+      identityCoverage([{ state: 'not_reported', total: null, identities: [] } as never]),
+    ).toEqual({ records: 0, identities: [] });
+  });
+
+  it('prints the excerpt in the file’s column order and names the row’s identity', () => {
+    expect(
+      excerptText(
+        {
+          amount: '250.0000',
+          contributor: 'Example, Wen',
+          contrib_zip: null,
+          receipt_date: '2026-09-18',
+          recipient_reg_num: '19369',
+          contrib_employer_name: 'Example Health',
+        },
+        'contributions',
+      ),
+    ).toBe('Example, Wen | Example Health | 19369 | 2026-09-18 | 250.0000 | ');
+    expect(excerptText(null, 'expenditures')).toBeNull();
+    expect(rowIdentityNote({ identity: { id: 'x', kind: 'organization', name: 'A' } })).toBe(
+      'Confirmed as A',
+    );
+    expect(rowIdentityNote({ identity: null })).toBeNull();
   });
 
   it('narrows to the address’s file only where the role reads it', () => {
