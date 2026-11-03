@@ -347,6 +347,17 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   stored; a record added later is never covered. Explicit selections have a 16 MiB
   request limit, with a refusal naming Alethical's limit and the quick-selection route.
   An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
+  Printed keys retain surrounding spaces exactly: `" Target "` and `"Target"` are
+  separate source spellings for listing, evidence matching and confirmation. Their
+  reads use `GET /records`, which can return several identities, not the identifier-only
+  `GET /lookup`. Blank or unsavable keys remain invalid; no name normalization or
+  similar-name identity matching occurs.
+  The records reply keeps active coverage in `identities` and adds `history_identities`
+  (id, reference, kind and name) for owners of withdrawn confirmations of that exact
+  spelling and record kind. History owners keep their original ids after a merge or
+  split. Clients load those identity reads for History without treating them as active
+  coverage or merge choices; history stays discoverable on a fresh visit after every
+  confirmation was withdrawn, regardless of the current record page or year filter.
 - **The confirmation queue groups exact spellings, never inferred identities.**
   `GET /queue` accepts `record_type` (`all`, `donor`, `payee`), `status`
   (`unconfirmed`, `confirmed`, `all`), `q`, `page` and `page_size` (50 by default,

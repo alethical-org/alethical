@@ -239,6 +239,10 @@ def _kind(value: Any) -> str:
 def _key(kind: str, value: Any) -> str:
     """The record exactly as printed or held: never a second spelling of it."""
     key = _text(value, "Record", MAX_KEY)
+    if kind in _PRINTED:
+        # Validate text without normalizing a source spelling. Surrounding spaces
+        # distinguish held records just as letters do; evidence still must match.
+        return value
     if key != value:
         raise IdentityError("Give the record exactly as printed")
     if kind in _HELD_RECORDS:
@@ -1213,6 +1217,22 @@ def records(
                 }
             )
     standing = {identity.id: identity for identity in today.values()}
+    # A withdrawn claim is not active coverage, but its original identity owns
+    # history that must remain reachable even after the last claim is withdrawn.
+    # Keep original ids: following a merge/split here would lose the old events.
+    historical = db.scalars(
+        select(Entity)
+        .where(
+            Entity.id.in_(
+                select(Confirmation.entity_id).where(
+                    Confirmation.record_kind == kind,
+                    Confirmation.record_key == key,
+                    Confirmation.active.is_(False),
+                )
+            )
+        )
+        .order_by(Entity.created_at, Entity.id)
+    ).all()
     return {
         "record_kind": kind,
         "record_key": key,
@@ -1231,6 +1251,7 @@ def records(
             {**_summary(standing[identity_id]), "confirmed": count}
             for identity_id, count in covered.items()
         ],
+        "history_identities": [_summary(identity) for identity in historical],
         "fingerprints": list(listed.values()),
         "no_longer_in_board_file": gone,
     }
