@@ -608,6 +608,19 @@ describe('Lobbying directory', () => {
     expect(window.location.search).toBe('?tab=principals');
   });
 
+  it('ignores an address year the server does not accept', async () => {
+    await render(
+      '/lobbying?tab=principals&year=2005',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () => json(lobbyistsPage()),
+        () => json(principalsPage()),
+      ),
+    );
+    const request = requests.find((url) => url.includes('/principals'))!;
+    expect(new URL(request).searchParams.get('year')).toBeNull();
+  });
+
   it('searches the open tab on the server and says when nothing matches', async () => {
     await render(
       '/lobbying?q=zzzz',
@@ -675,6 +688,8 @@ describe('Lobbying directory', () => {
     expect(yearFromParam('lobbyists', '2014')).toBe('');
     expect(yearFromParam('lobbyists', '2024')).toBe('2024');
     expect(yearFromParam('principals', 'abcd')).toBe('');
+    expect(yearFromParam('principals', '2008')).toBe('');
+    expect(yearFromParam('principals', '2009')).toBe('2009');
     expect(listPath('lobbyists', 'kozak', 2)).toBe(
       'lobbying/lobbyists?q=kozak&sort=name&limit=50&offset=50',
     );
@@ -826,9 +841,9 @@ describe('Lobbyist record', () => {
     const box = container.querySelector('[aria-label="Confirmed identity"]');
     expect(box?.textContent).toContain('CONFIRMED IDENTITY');
     expect(box?.textContent).toContain('Andrew Kozak');
-    // Person profile is off BUILT until its screen is aligned with Design's
-    // current drawing, so the name is printed without a link.
-    expect(box?.querySelector('a')).toBeNull();
+    expect(box?.querySelector('a')?.getAttribute('href')).toBe(
+      '/people/p-1?from=%2Flobbying%2Flobbyists%2F141',
+    );
   });
 
   it('keeps a failed contribution file apart from no records', async () => {

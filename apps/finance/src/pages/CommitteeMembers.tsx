@@ -8,7 +8,7 @@ import {
   registerKindLabel,
 } from '@alethical/shared/committeeMoneyShared';
 import { otherOfficeNote, reportedThroughLabel } from '@alethical/shared/legislatorCampaignMoney';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 
 import { apiPath, useRead } from '../api/read';
@@ -386,7 +386,7 @@ function Account({
         </span>
       </div>
       {result.state === 'none' ? (
-        <p className="cmm-line">No report for {year} is held for this account</p>
+        <p className="cmm-line">No {year} report held</p>
       ) : (
         <>
           <dl className="cmm-figures">

@@ -10,7 +10,7 @@ import type {
   LobbyingPrincipalLobbyist,
   LobbyingSpendingRow,
 } from '@alethical/shared/lobbyingTypes';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 
 import { apiPath, useRead } from '../api/read';

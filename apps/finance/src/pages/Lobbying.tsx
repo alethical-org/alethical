@@ -16,7 +16,7 @@ import type {
 } from '@alethical/shared/lobbyingTypes';
 import { lobbyingDonationYear } from '@alethical/shared/lobbyingTypes';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
@@ -69,7 +69,8 @@ export function sortFromParam(tab: DirectoryTab, raw: string): string {
  * calendar year for lobbyist contributions (the server refuses the current one). */
 export function yearFromParam(tab: DirectoryTab, raw: string): string {
   if (tab === 'lobbyists') return lobbyingDonationYear(raw) === undefined ? '' : raw;
-  return /^(19|20)\d{2}$|^2100$/.test(raw) ? raw : '';
+  // The server accepts 2009 to 2100; any other year in the address is ignored.
+  return /^\d{4}$/.test(raw) && Number(raw) >= 2009 && Number(raw) <= 2100 ? raw : '';
 }
 
 /**

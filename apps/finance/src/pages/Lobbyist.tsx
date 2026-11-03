@@ -17,7 +17,7 @@ import type {
   LobbyingContributionYear,
   LobbyingLobbyist,
 } from '@alethical/shared/lobbyingTypes';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { contributionRecordReview } from '@alethical/shared/moneyRecordTrust';
 import { PAYMENT_FILE_LABELS } from '@alethical/shared/paymentCopyDates';

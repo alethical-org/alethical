@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatDay } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 
 import { apiPath, useRead } from '../api/read';
@@ -50,45 +50,33 @@ function NotFound() {
   );
 }
 
-/** How many source records a part's standing confirmations cover: each printed
- * name's covered rows as the server counts them, and 1 for each other record
- * (a principal or committee registration). Null when that is not known. */
-export function confirmedRecordCount(identity: Identity): number | null {
-  const active = activeConfirmations(identity);
-  let total = 0;
-  for (const item of active) {
-    if (item.records === null) total += 1;
-    else {
-      for (const record of item.records) {
-        if (record.rows === null) return null;
-        total += record.rows;
-      }
-    }
-  }
-  return total;
-}
-
 function SplitPart({ part, from }: { part: IdentitySummary; from: string | null }) {
-  // The part's own identity read gives its confirmed-record count; until it answers,
-  // or if it fails, the row carries the reference alone.
-  const read = useRead<Identity>(apiPath(['finance', 'identities', part.id]));
-  const counted = read.data && read.data.id === part.id ? confirmedRecordCount(read.data) : null;
-  const sub =
+  // The served count, in the unit of "Confirmed for k of n records"; a part with no
+  // count held (a file not held, or a part later merged) shows its reference alone,
+  // never 0. The internal id is never printed.
+  const counted = part.status === 'active' ? (part.confirmed_records ?? null) : null;
+  const sub = [
+    part.reference,
     counted === null
-      ? part.id
-      : `${part.id} · ${counted.toLocaleString('en-US')} confirmed ${counted === 1 ? 'record' : 'records'}`;
+      ? null
+      : `${counted.toLocaleString('en-US')} confirmed ${counted === 1 ? 'record' : 'records'}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  // A part later merged opens the record it became.
+  const target = part.status === 'merged' && part.redirect_to ? part.redirect_to : part.id;
   const organization = part.kind === 'organization';
   const text = (
     <span className="org-split-text">
       <span className="org-split-name">{part.name}</span>
-      <span className="org-split-sub f-num">{sub}</span>
+      {sub && <span className="org-split-sub f-num">{sub}</span>}
     </span>
   );
   return (
     <li>
       {organization && isBuilt('organization') ? (
         <Link
-          to={withFrom(hrefFor('organization', { id: part.id }), from)}
+          to={withFrom(hrefFor('organization', { id: target }), from)}
           className="org-split-link"
         >
           {text}
@@ -448,12 +436,14 @@ function Profile({
               </dd>
             </div>
           )}
-          <div className="f-sources-row">
-            <dt>Confirmed identity</dt>
-            <dd>
-              <span>Organization reference {identity.id}</span>
-            </dd>
-          </div>
+          {identity.reference && (
+            <div className="f-sources-row">
+              <dt>Confirmed identity</dt>
+              <dd>
+                <span>Organization reference {identity.reference}</span>
+              </dd>
+            </div>
+          )}
         </dl>
         {identifiers.length > 0 && (
           <>

@@ -46,11 +46,34 @@
  * Approved on 1 Sep 2026, and applied by Design across all 21 drawings in the
  * campaign-money set ([#1924](https://github.com/alethical-org/alethical/issues/1924)).
  */
-export function formatMoney(value: number | string | null | undefined): string | null {
+let siteMinusSign = false;
+
+/**
+ * Which sign this site prints on a negative figure, set once at start-up.
+ * Alethical Finance calls `setNegativeSign('minus')` in its own start-up file
+ * (apps/finance/src/moneySign.ts), so every figure its screens format, through
+ * any shared helper, reads "−$150" as Finance's design system draws it.
+ * alethical.com never calls this, so it keeps the hyphen ("-$150").
+ */
+export function setNegativeSign(sign: 'minus' | 'hyphen'): void {
+  siteMinusSign = sign === 'minus';
+}
+
+export function formatMoney(
+  value: number | string | null | undefined,
+  {
+    minusSign = siteMinusSign,
+  }: {
+    /** Print a negative figure with the true minus sign (U+2212, "−$150"), as
+     * Alethical Finance's design system draws it; alethical.com keeps the hyphen. */
+    minusSign?: boolean;
+  } = {},
+): string | null {
   if (value === null || value === undefined || value === '') return null;
   const amount = typeof value === 'string' ? Number(value) : value;
   if (!Number.isFinite(amount)) return null;
   const negative = amount < 0;
+  const sign = negative ? (minusSign ? '\u2212' : '-') : '';
   const magnitude = Math.abs(amount);
   // Under a dollar and not zero: keep the cents, or the row reads as a filed zero.
   //
@@ -64,7 +87,7 @@ export function formatMoney(value: number | string | null | undefined): string |
   // dollar truncates to $0.99 rather than overflowing the branch.
   if (magnitude > 0 && magnitude < 1) {
     const cents = Math.min(99, Math.floor(Math.round(magnitude * 10000) / 100));
-    return `${negative ? '-' : ''}$0.${String(cents).padStart(2, '0')}`;
+    return `${sign}$0.${String(cents).padStart(2, '0')}`;
   }
   // `Math.floor` on the magnitude rather than on the signed amount: flooring -0.5
   // gives -1, which is further from zero, and the rule is that no figure may read
@@ -73,7 +96,7 @@ export function formatMoney(value: number | string | null | undefined): string |
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
-  return `${negative ? '-' : ''}$${body}`;
+  return `${sign}$${body}`;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

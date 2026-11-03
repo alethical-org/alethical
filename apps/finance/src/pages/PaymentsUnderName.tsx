@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
 import { UNNAMED_PAYMENT_PARTY } from '@alethical/shared/committeeMoneyShared';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import {

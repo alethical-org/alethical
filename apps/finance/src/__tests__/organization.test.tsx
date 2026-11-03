@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
 import { Organization } from '../pages/Organization';
-import { confirmedRecordCount } from '../pages/Organization';
 import {
   EMPTY_SECTION,
   eligibleTotal,
@@ -58,6 +57,7 @@ function confirmation(
 
 const PROFILE: Identity = {
   id: ORG,
+  reference: 'ORG-0042',
   kind: 'organization',
   name: 'Example Health Association',
   status: 'active',
@@ -469,7 +469,8 @@ describe('Organization profile', () => {
     expect(sources).toContain('Campaign payment files copied Oct 28, 2026');
     expect(sources).toContain('Lobbyist list and spending reports copied Oct 29, 2026');
     expect(sources).toContain('Committee registrations copied Oct 28, 2026');
-    expect(sources).toContain(`Organization reference ${ORG}`);
+    expect(sources).toContain('Organization reference ORG-0042');
+    expect(sources).not.toContain(ORG);
     expect(sources).toContain('Official identifiers');
     expect(sources).toContain('Lobbying principal entity ID 8450');
     // No street address, phone or email is copied from a record into the profile.
@@ -571,52 +572,65 @@ describe('Organization profile', () => {
     expect(window.location.search).toBe('?from=%2Fmoney');
   });
 
-  it('opens a choice of the parts a split reference became, each with its count', async () => {
+  it('opens a choice of the parts a split reference became, each with its served count', async () => {
+    const MERGED_INTO = '33333333-3333-4333-8333-333333333333';
     const split: Identity = {
       ...EMPTY,
       status: 'split',
       split_into: [
-        { id: OTHER, kind: 'organization', name: 'Example Health Association' },
-        { id: SURVIVOR, kind: 'organization', name: 'Example Health Foundation' },
+        {
+          id: OTHER,
+          reference: 'ORG-0043',
+          kind: 'organization',
+          name: 'Example Health Association',
+          status: 'active',
+          confirmed_records: 2,
+        },
+        {
+          id: SURVIVOR,
+          reference: 'ORG-0044',
+          kind: 'organization',
+          name: 'Example Health Foundation',
+          status: 'active',
+          // A file not held: the count is unknown, never 0.
+          confirmed_records: null,
+        },
+        {
+          id: 'merged-part',
+          reference: null,
+          kind: 'organization',
+          name: 'Example Health Fund',
+          status: 'merged',
+          confirmed_records: null,
+          redirect_to: MERGED_INTO,
+          redirect_to_reference: 'ORG-0050',
+        },
       ],
     };
-    const part = (id: string, name: string, rows: number[]): Identity => ({
-      ...EMPTY,
-      id,
-      name,
-      confirmations: rows.map((count, index) =>
-        confirmation(`p-${id}-${index}`, 'payee_name', name, {
-          identity_id: id,
-          records: [
-            { fingerprint: 'f'.repeat(64), fields: null, rows: count, in_board_file: true },
-          ],
-        }),
-      ),
-    });
-    await render(
-      `/organizations/${ORG}?from=%2Fmoney`,
-      answering(split, {
-        [`/finance/identities/${OTHER}`]: json(part(OTHER, 'Example Health Association', [2])),
-        [`/finance/identities/${SURVIVOR}`]: new Response(null, { status: 500 }),
-      }),
-    );
+    await render(`/organizations/${ORG}?from=%2Fmoney`, answering(split));
     expect(container.querySelector('h1')?.textContent).toBe('This record was split');
     expect(text()).toContain(
       'Choose the organization you meant. Each keeps its own confirmed records, evidence and history.',
     );
     const rows = [...container.querySelectorAll('.org-split-list li')].map((li) => li.textContent);
     expect(rows).toEqual([
-      `Example Health Association${OTHER} · 2 confirmed records`,
-      // A part whose own read failed shows its reference alone, never a count.
-      `Example Health Foundation${SURVIVOR}`,
+      'Example Health AssociationORG-0043 · 2 confirmed records',
+      'Example Health FoundationORG-0044',
+      // A reference still being numbered falls back to the name alone.
+      'Example Health Fund',
     ]);
+    // No internal id is printed anywhere.
+    expect(text()).not.toContain(OTHER);
+    expect(text()).not.toContain(SURVIVOR);
     const hrefs = [...container.querySelectorAll('.org-split-list a')].map((a) =>
       a.getAttribute('href'),
     );
-    // Each part keeps the page's own return, not the split page.
+    // Each part keeps the page's own return, not the split page; a part later
+    // merged opens the record it became.
     expect(hrefs).toEqual([
       `/organizations/${OTHER}?from=%2Fmoney`,
       `/organizations/${SURVIVOR}?from=%2Fmoney`,
+      `/organizations/${MERGED_INTO}?from=%2Fmoney`,
     ]);
     expect(text()).not.toContain('Political giving');
   });
@@ -686,33 +700,6 @@ describe('Organization derived labels', () => {
       label: 'Missing payment amount',
     });
     expect(eligibleTotal([row('0', '2025-01-01', 2025)]).label).toBe('$0');
-  });
-
-  it('counts a part’s confirmed records from the server’s own counts', () => {
-    expect(confirmedRecordCount(EMPTY)).toBe(0);
-    const held = (rows: number | null) => ({
-      fingerprint: 'a'.repeat(64),
-      fields: null,
-      rows,
-      in_board_file: true,
-    });
-    const counted: Identity = {
-      ...EMPTY,
-      confirmations: [
-        confirmation('a', 'principal', '8450', { records: null }),
-        confirmation('b', 'donor_name', 'X', { records: [held(2), held(1)] }),
-        confirmation('c', 'donor_name', 'Y', { records: [held(9)], status: 'withdrawn' }),
-      ],
-    };
-    // 1 registration plus 3 covered rows; a withdrawn confirmation is not counted.
-    expect(confirmedRecordCount(counted)).toBe(4);
-    // A count the server could not make (no current copy) is unknown, never 0.
-    expect(
-      confirmedRecordCount({
-        ...EMPTY,
-        confirmations: [confirmation('d', 'donor_name', 'X', { records: [held(null)] })],
-      }),
-    ).toBeNull();
   });
 
   it('claims only the roles the held records support', () => {
