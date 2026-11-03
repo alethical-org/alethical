@@ -8,7 +8,9 @@ import {
   countLine,
   pageCount,
   pageFromParam,
+  punctuateGroup,
   registerPath,
+  registrationStatus,
   sourceGroups,
   tabFromParam,
   type CommitteeRegister,
@@ -26,6 +28,7 @@ vi.mock('../auth/session', () => ({
 function register(overrides: Partial<CommitteeRegister> = {}): CommitteeRegister {
   return {
     state: 'reported',
+    kind: 'candidate_committee',
     committees: [
       {
         registration_number: '18135',
@@ -149,19 +152,67 @@ describe('Campaign money directory', () => {
     expect(text).toContain('Candidate committee');
     expect(text).toContain('18135');
     expect(text).toContain('Page 1 of 1');
-    expect(text).toContain('Register copied Oct 28, 2026');
+    // The Sources group holds a 2-sentence line, so every line ends with a period.
+    expect(text).toContain('Register copied Oct 28, 2026.');
     expect(text).toContain(
       'Minnesota’s payment files copied Oct 9,\u00a02026; report totals copied Oct 28,\u00a02026. These are copy dates, not reporting periods.',
     );
-    expect(container.querySelector('#cm-limits')?.textContent).toBe(
-      'Limits of the campaign records',
-    );
-    expect(text).toContain('Campaign payment records before 2015 are not included');
-    // Money connections and Vendors and payees are off BUILT until their screens
-    // are aligned with Design's current drawing, so nothing links to them.
+    expect(container.querySelector('#cm-about')?.textContent).toBe('About these records');
+    expect(text).toContain('Campaign payment records before 2015 are not included.');
+    expect(text).toContain('Open registration');
+    // Money connections is off BUILT until its screen is aligned with Design's
+    // current drawing, so nothing links to it; Vendors and payees is on.
     expect(container.querySelector('a[href^="/money/connections"]')).toBeNull();
-    expect(container.querySelector('a[href^="/money/recipients"]')).toBeNull();
+    expect(container.querySelector('a[href^="/money/recipients"]')).toBeTruthy();
+    // Donors by employer is entered from here (Round 29, eug-44), not from Home.
+    const employers = container.querySelector('a[href^="/money/employers"]');
+    expect(employers?.getAttribute('href')).toBe('/money/employers?from=%2Fmoney');
+    expect(employers?.textContent).toContain('Donors by employer');
+    expect(employers?.textContent).toContain(
+      'Find donors by the employer name reported in their filings.',
+    );
+    const race = container.querySelector('a[href^="/money/races/"]');
+    expect(race?.getAttribute('href')).toBe('/money/races/house?from=%2Fmoney');
+    expect(race?.textContent).toContain('Money by race');
+    expect(race?.textContent).toContain(
+      'Candidate committees and outside spending for one office, district and year, kept distinct.',
+    );
+    // The shared scrolling tab row (Round 35) holds the directory tabs.
+    expect(container.querySelector('.f-scroll-tabs [role="tablist"]')).not.toBeNull();
+    expect(text).not.toContain('Search by name or registration number');
     expect(text).not.toMatch(/illustrative|example|sample|fixture|demo/i);
+  });
+
+  it('prints each registration’s own status from the register', async () => {
+    await render('/money', () =>
+      json(
+        register({
+          committees: [
+            {
+              ...register().committees[0],
+              registration_number: '1',
+              name: 'Closed Committee',
+              is_closed: true,
+              termination_date: '2026-07-28',
+            },
+            {
+              ...register().committees[0],
+              registration_number: '2',
+              name: 'Closed Undated',
+              is_closed: true,
+              termination_date: null,
+            },
+            register().committees[0],
+          ],
+          page: { limit: 50, offset: 0, has_more: false, total: 3 },
+        }),
+      ),
+    );
+    const statuses = [...container.querySelectorAll('.cm-status')].map((cell) => cell.textContent);
+    expect(statuses).toEqual(['Terminated Jul 28, 2026', 'Terminated', 'Open registration']);
+    expect(
+      [...container.querySelectorAll('[role="columnheader"]')].map((cell) => cell.textContent),
+    ).toEqual(['NAME', 'TYPE', 'REGISTRATION', 'REGISTRATION STATUS']);
   });
 
   it('honours ?tab=party and ?tab=committees from Finance Home', async () => {
@@ -239,6 +290,32 @@ describe('Campaign money directory', () => {
     expect(container.textContent).not.toContain('No matching records');
   });
 
+  it('keeps the last list when a later read answers unavailable', async () => {
+    await render('/money', (url) =>
+      url.includes('kind=party_unit')
+        ? json(
+            register({
+              state: 'unavailable',
+              committees: [],
+              page: { limit: 50, offset: 0, has_more: false, total: null },
+              by_kind: null,
+              reason: 'no_filings_snapshot',
+            }),
+          )
+        : json(register()),
+    );
+    const party = [...container.querySelectorAll('[role="tab"]')][2] as HTMLButtonElement;
+    await act(async () => party.click());
+    for (let i = 0; i < 3; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+    // The outage is a failure with Try again; the earlier rows stay on screen.
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.textContent).toContain('Hortman (Melissa) Campaign Committee');
+  });
+
   it('keeps earlier results while updating and when an update fails', async () => {
     let release: (value: Response) => void = () => {};
     await render('/money', (url) =>
@@ -252,6 +329,8 @@ describe('Campaign money directory', () => {
     await act(async () => party.click());
     expect(container.textContent).toContain('Updating results…');
     expect(container.textContent).toContain('Hortman (Melissa) Campaign Committee');
+    // The kept rows keep their own count noun, never the new tab's.
+    expect(container.querySelector('.cm-count')?.textContent).toBe('1 candidate committee');
     await act(async () => release(new Response('', { status: 503 })));
     await settle();
     expect(container.textContent).toContain(
@@ -303,8 +382,27 @@ describe('Campaign money helpers', () => {
         register_fetched_at: null,
       },
     })[0].items;
-    expect(split).toContain('Contributions file copied Oct 28,\u00a02026');
-    expect(split).toContain('Spending file copied Oct 9,\u00a02026');
-    expect(split).toContain('Outside-spending file copy date unavailable');
+    // The report-totals line has 2 sentences, so the whole group takes periods.
+    expect(split).toContain('Register copied Oct 28, 2026.');
+    expect(split).toContain('Contributions file copied Oct 28,\u00a02026.');
+    expect(split).toContain('Spending file copied Oct 9,\u00a02026.');
+    expect(split).toContain('Outside-spending file copy date unavailable.');
+  });
+
+  it('punctuates a Sources group by its sentence count and reads a status', () => {
+    expect(punctuateGroup(['Register copied Oct 28, 2026'])).toEqual([
+      'Register copied Oct 28, 2026',
+    ]);
+    expect(punctuateGroup(['Register copied Oct 28, 2026', 'Copied. Not a period.'])).toEqual([
+      'Register copied Oct 28, 2026.',
+      'Copied. Not a period.',
+    ]);
+    expect(registrationStatus({ is_closed: null, termination_date: null })).toEqual({
+      text: 'Registration status not held',
+      state: 'unknown',
+    });
+    expect(registrationStatus({ is_closed: true, termination_date: '2026-01-02' }).text).toBe(
+      'Terminated Jan 2, 2026',
+    );
   });
 });

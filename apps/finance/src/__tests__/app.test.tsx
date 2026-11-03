@@ -174,6 +174,26 @@ describe('the Finance shell', () => {
     expect(document.title).toBe('Finance Home · Alethical Finance');
   });
 
+  it('enters each directory from Home and keeps the checking tools off it', async () => {
+    await renderAt('/home', fakeSupabase(SIGNED_IN));
+    const links = [...container.querySelectorAll('a')].map((a) => ({
+      text: a.textContent ?? '',
+      href: a.getAttribute('href') ?? '',
+    }));
+    expect(links.find((link) => link.text === 'Candidates')?.href).toBe(
+      '/people?type=candidates&from=%2Fhome',
+    );
+    expect(links.find((link) => link.text === 'Legislators')?.href).toBe(
+      '/people?type=legislators&service=current&from=%2Fhome',
+    );
+    // Entered only from their context (rule eug-44), never from Home.
+    expect(container.textContent).not.toContain('Confirm identities');
+    expect(container.textContent).not.toContain('Check TV station files');
+    expect(container.textContent).not.toContain('Donors by employer');
+    // The header-corner action appears only once Money connections is built.
+    expect(container.querySelector('.f-page-head .f-action')).toBeNull();
+  });
+
   it('lists only the record families whose pages are built', async () => {
     await renderAt('/home', fakeSupabase(SIGNED_IN));
     const links = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
@@ -187,7 +207,7 @@ describe('the Finance shell', () => {
   });
 
   it('answers a route whose screen is not built exactly as an unknown address', async () => {
-    await renderAt('/money/identities', fakeSupabase(SIGNED_IN));
+    await renderAt('/money/connections', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
     expect(document.title).toBe('Page not found · Alethical Finance');
   });

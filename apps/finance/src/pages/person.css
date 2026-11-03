@@ -1,45 +1,123 @@
+/* Person profile (Person drawing). Shared profile classes (lg2-) live in
+ * people.css; these are the page's own. */
+
+/* A split record's old reference: the choice of the person meant. */
+.person-split {
+  margin-top: 8px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+.person-split h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+.person-split p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.person-split .f-row-links {
+  margin-top: 12px;
+}
+.person-split-link {
+  font-size: 15px;
+}
+
+/* Elections and service over time: 1 card per event. */
 .person-timeline > .f-section-title {
   margin: 0 0 12px;
+}
+.person-events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
 }
 .person-event {
   display: grid;
   grid-template-columns: 130px minmax(0, 1fr);
   gap: 16px;
   padding: 14px 20px;
-}
-.person-event > div {
-  min-width: 0;
-  display: grid;
-  gap: 5px;
-  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
 }
 .person-date {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--secondary);
 }
+.person-event-body {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.person-event-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .person-event-kind {
-  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: var(--ground);
+  border: 1px solid var(--hairline);
+  color: var(--secondary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.person-event-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.person-event-detail {
+  font-size: 14px;
+  color: var(--secondary);
+}
+.person-event-foot {
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.person-event-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.person-event-source svg {
+  flex: none;
 }
 .person-link {
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  width: fit-content;
   font-size: 14px;
 }
-.person-money-sources {
-  font-size: 13px;
-  color: var(--secondary);
-}
-.person-money-sources p {
-  margin: 0;
+.person-no-address {
+  margin-top: 4px;
 }
 @media (max-width: 767px) {
   .person-event {
     grid-template-columns: minmax(0, 1fr);
     gap: 6px;
-    padding: 14px 16px;
   }
   .person-link {
     min-height: 44px;

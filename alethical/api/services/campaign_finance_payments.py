@@ -444,6 +444,8 @@ def _fetch(
     order: str = ORDER_BY_DATE,
     by_year_first: bool = False,
     count_total: bool = False,
+    filer_column: Optional[str] = None,
+    filer: Optional[str] = None,
 ) -> tuple[list, bool, Optional[int]]:
     """One page of rows, whether anything is left after it, and how many match in all.
 
@@ -467,6 +469,8 @@ def _fetch(
     parameters, so a name holding a quote or a comma is matched rather than interpreted.
     """
     clause = "" if year is None else " AND year = :year"
+    if filer is not None:
+        clause += f" AND {filer_column} = :filer"
     order_by = (
         f"amount DESC NULLS LAST, {date_column} DESC NULLS LAST, row_number DESC"
         if order == ORDER_BY_AMOUNT
@@ -482,6 +486,8 @@ def _fetch(
     }
     if year is not None:
         params["year"] = year
+    if filer is not None:
+        params["filer"] = filer
     counted = ", count(*) OVER () AS total_matching" if count_total else ""
     rows = db.execute(
         text(
@@ -504,6 +510,8 @@ def _count_rows(
     key_value: str,
     snapshot_id: UUID,
     year: Optional[int],
+    filer_column: Optional[str] = None,
+    filer: Optional[str] = None,
 ) -> int:
     """How many rows the page's own WHERE clause matches in all.
 
@@ -514,6 +522,9 @@ def _count_rows(
     params: dict[str, object] = {"snapshot": snapshot_id, "key": key_value}
     if year is not None:
         params["year"] = year
+    if filer is not None:
+        clause += f" AND {filer_column} = :filer"
+        params["filer"] = filer
     return int(
         db.execute(
             text(
@@ -612,6 +623,8 @@ class _Download:
     table: str
     columns: str
     date_column: str
+    # The column naming the committee whose filing each row is.
+    filer_column: str
     build: Callable[
         [Sequence], ContributionPayment | ExpenditurePayment | IndependentPayment
     ]
@@ -626,6 +639,7 @@ _CONTRIBUTIONS = _Download(
         "in_kind, in_kind_descr, row_number, contrib_zip"
     ),
     date_column="receipt_date",
+    filer_column="recipient_reg_num",
     build=_contribution_from_row,
 )
 
@@ -638,6 +652,7 @@ _EXPENDITURES = _Download(
         "transaction_date, year, type, purpose, in_kind, in_kind_descr, row_number"
     ),
     date_column="transaction_date",
+    filer_column="committee_reg_num",
     build=_expenditure_from_row,
 )
 
@@ -650,6 +665,7 @@ _INDEPENDENT = _Download(
         "purpose, row_number"
     ),
     date_column="transaction_date",
+    filer_column="spender_reg_num",
     build=_independent_from_row,
 )
 
@@ -679,6 +695,7 @@ def _payments(
     order: str = ORDER_BY_DATE,
     count_total: bool = False,
     by_year_first: bool = False,
+    filer: Optional[str] = None,
 ) -> PaymentPage:
     """One page of one download's rows, found by one column, with no figure computed.
 
@@ -711,6 +728,8 @@ def _payments(
             order=order,
             by_year_first=by_year_first,
             count_total=count_total,
+            filer_column=download.filer_column,
+            filer=filer,
         )
         if not rows:
             # A page past the last row of a real result still deserves the total: with
@@ -726,6 +745,8 @@ def _payments(
                     key_value=key_value,
                     snapshot_id=release.file_for(dataset).snapshot_id,
                     year=year,
+                    filer_column=download.filer_column,
+                    filer=filer,
                 )
                 if counted > 0:
                     empty_state = REPORTED
@@ -925,6 +946,7 @@ def payments_from_contributor(
     year: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    filer: Optional[str] = None,
 ) -> PaymentPage:
     """Every payment recorded under exactly this contributor string.
 
@@ -947,6 +969,7 @@ def payments_from_contributor(
         year=year,
         limit=limit,
         offset=offset,
+        filer=filer,
         count_total=True,
         by_year_first=True,
         numbers_that_are_filers_here=("recipient_registration_number",),
@@ -990,6 +1013,7 @@ def payments_to_vendor(
     year: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    filer: Optional[str] = None,
 ) -> PaymentPage:
     """Every committee payment recorded under exactly this vendor string.
 
@@ -1007,6 +1031,7 @@ def payments_to_vendor(
         year=year,
         limit=limit,
         offset=offset,
+        filer=filer,
         count_total=True,
         by_year_first=True,
         numbers_that_are_filers_here=("committee_registration_number",),
@@ -1022,6 +1047,7 @@ def independent_payments_to_vendor(
     year: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    filer: Optional[str] = None,
 ) -> PaymentPage:
     """Every independent-expenditure payment recorded under exactly this vendor string."""
     page = _payments(
@@ -1033,6 +1059,7 @@ def independent_payments_to_vendor(
         year=year,
         limit=limit,
         offset=offset,
+        filer=filer,
         count_total=True,
         by_year_first=True,
         numbers_to_check=(
@@ -1051,6 +1078,7 @@ def payments_from_donors_typing(
     year: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    filer: Optional[str] = None,
 ) -> PaymentPage:
     """Every payment whose donor typed exactly this string in the employer box.
 
@@ -1070,6 +1098,7 @@ def payments_from_donors_typing(
         year=year,
         limit=limit,
         offset=offset,
+        filer=filer,
         count_total=True,
         numbers_that_are_filers_here=("recipient_registration_number",),
     )

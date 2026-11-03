@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatDay } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 
 import { apiPath, useRead } from '../api/read';
@@ -7,9 +7,9 @@ import { Link, navigate, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { EvidencePanel, LoadingRows, Refused, type Evidence } from '../ui/controls';
-import { RecordMark } from '../ui/marks';
 import { BackLink, LoadingLine, SourcesAndUpdates } from '../ui/parts';
 import {
+  activeConfirmations,
   BOARD,
   confirmationsOf,
   EMPTY_SECTION,
@@ -33,54 +33,73 @@ import type {
   GivenPayment,
   Identity,
   IdentityConfirmation,
+  IdentitySummary,
   PaidPayment,
 } from './organization/types';
+import { splitPartSub, splitPartTarget } from './organization/split';
 import { useLoad, type Load } from './organization/useLoad';
 import './organization.css';
 
 function NotFound() {
   return (
     <section className="org-gone">
+      {/* 1 line for a removed record and an id that never existed, true for both
+          (settled wording rows 8 and 25). */}
       <h1 tabIndex={-1} className="org-gone-title">
-        This record is no longer available
+        No organization with this reference is in the current copy
       </h1>
-      <p>No organization with this reference is in the current copy.</p>
+      {isBuilt('recipients') && (
+        <p>
+          Open <Link to={hrefFor('recipients')}>Vendors and payees</Link> to search the held records
+        </p>
+      )}
     </section>
   );
 }
 
-/** D24: a split record's old reference opens this correction page listing every
- * record its names moved to. */
-function SplitCorrection({ identity, here }: { identity: Identity; here: string }) {
+function SplitPart({ part, from }: { part: IdentitySummary; from: string | null }) {
+  const sub = splitPartSub(part);
+  const target = splitPartTarget(part);
+  const organization = part.kind === 'organization';
+  const text = (
+    <span className="org-split-text">
+      <span className="org-split-name">{part.name}</span>
+      {sub && <span className="org-split-sub f-num">{sub}</span>}
+    </span>
+  );
+  return (
+    <li>
+      {organization && isBuilt('organization') ? (
+        <Link
+          to={withFrom(hrefFor('organization', { id: target }), from)}
+          className="org-split-link"
+        >
+          {text}
+        </Link>
+      ) : (
+        <div className="org-split-link org-split-static">{text}</div>
+      )}
+    </li>
+  );
+}
+
+/** Rounds 38 and 39: a split record's old reference opens a choice of the parts it
+ * became, each with its reference and confirmed-record count. */
+function SplitChoice({ identity, from }: { identity: Identity; from: string | null }) {
   const parts = identity.split_into ?? [];
   return (
-    <section className="org-split">
-      <span className="org-kind">ORGANIZATION PROFILE</span>
-      <h1 tabIndex={-1} className="f-page-title org-title">
-        {identity.name} was split into {parts.length} records
+    <section aria-labelledby="org-split-h" className="org-split">
+      <h1 id="org-split-h" tabIndex={-1} className="org-split-title">
+        This record was split
       </h1>
       <p className="org-split-lead">
-        Its records now belong to the records below. Each keeps its full history.
+        Choose the organization you meant. Each keeps its own confirmed records, evidence and
+        history.
       </p>
       <ul className="org-split-list">
-        {parts.map((part) => {
-          const organization = part.kind === 'organization';
-          return (
-            <li key={part.id} className="f-marked">
-              <RecordMark kind={organization ? 'organization' : 'person'} />
-              {organization ? (
-                <Link
-                  to={withFrom(hrefFor('organization', { id: part.id }), here)}
-                  className="org-split-link"
-                >
-                  {part.name}
-                </Link>
-              ) : (
-                <span className="org-split-name">{part.name}</span>
-              )}
-            </li>
-          );
-        })}
+        {parts.map((part) => (
+          <SplitPart key={part.id} part={part} from={from} />
+        ))}
       </ul>
     </section>
   );
@@ -412,12 +431,14 @@ function Profile({
               </dd>
             </div>
           )}
-          <div className="f-sources-row">
-            <dt>Confirmed identity</dt>
-            <dd>
-              <span>Organization reference {identity.id}</span>
-            </dd>
-          </div>
+          {identity.reference && (
+            <div className="f-sources-row">
+              <dt>Confirmed identity</dt>
+              <dd>
+                <span>Organization reference {identity.reference}</span>
+              </dd>
+            </div>
+          )}
         </dl>
         {identifiers.length > 0 && (
           <>
@@ -474,7 +495,7 @@ export function Organization({ match }: { match: RouteMatch }) {
   let content: ReactNode = null;
   if (notFound) content = <NotFound />;
   else if (organization?.status === 'split')
-    content = <SplitCorrection identity={organization} here={here} />;
+    content = <SplitChoice identity={organization} from={from} />;
   else if (organization && organization.status !== 'merged') {
     return (
       <main id="main" className="f-page">
@@ -489,7 +510,7 @@ export function Organization({ match }: { match: RouteMatch }) {
   } else if (read.failed)
     content = (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load this record. This is a problem on our side.
+        We couldn’t load this record
       </Refused>
     );
   else content = <LoadingLine>Loading…</LoadingLine>;

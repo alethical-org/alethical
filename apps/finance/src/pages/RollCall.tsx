@@ -12,8 +12,11 @@ import {
   billPath,
   chamberName,
   dayLabel,
-  votesPath,
+  isVoteId,
+  together,
+  votePath,
   type BillDetail,
+  type RollCallRecord,
   type ServedVote,
   type VoteRecord,
 } from './legislationRecords';
@@ -35,27 +38,28 @@ export function recordedLabel(value: string): string {
 
 export interface Tally {
   label: string;
-  value: number;
+  /** The printed count, or "Not recorded". */
+  value: string;
 }
 
+const NOT_RECORDED = 'Not recorded';
+
 /**
- * The tallies the record states. Yes and No are always shown. Absent, Excused
- * and Present are shown only when the record holds a count above 0 for them:
- * those columns read 0 when the source carried nothing, so a 0 there is not a
- * recorded zero.
+ * The 4 drawn tallies: Yes, No, Absent, Excused. Yes and No are read from the
+ * official record. Absent and Excused are never read from it: the vote loader
+ * (alethical/pipeline/votes.py) stores only the Yes and No counts and names, so
+ * those columns hold the database's default 0, not a stated zero. They keep
+ * their drawn place and read "Not recorded" (rule 12: missing is never zero).
  */
 export function rollTallies(vote: ServedVote): Tally[] {
-  const tallies: Tally[] = [];
-  if (vote.yes_count != null) tallies.push({ label: 'Yes', value: vote.yes_count });
-  if (vote.no_count != null) tallies.push({ label: 'No', value: vote.no_count });
-  for (const [label, value] of [
-    ['Absent', vote.absent_count],
-    ['Excused', vote.excused_count],
-    ['Present', vote.present_count],
-  ] as const) {
-    if (typeof value === 'number' && value > 0) tallies.push({ label, value });
-  }
-  return tallies;
+  const count = (value: number | null | undefined) =>
+    typeof value === 'number' ? value.toLocaleString('en-US') : NOT_RECORDED;
+  return [
+    { label: 'Yes', value: count(vote.yes_count) },
+    { label: 'No', value: count(vote.no_count) },
+    { label: 'Absent', value: NOT_RECORDED },
+    { label: 'Excused', value: NOT_RECORDED },
+  ];
 }
 
 /** The filter choices: All, then each value at least 1 member is recorded as. */
@@ -90,22 +94,32 @@ function sourceHost(url: string | null | undefined): string | null {
 
 /**
  * Roll call (Vote drawing): 1 recorded motion with its exact wording, date,
- * recorded result and members. No route serves a roll call by its own id, so
- * the address names the bill too (`?bill=`), and the roll call is read from
- * that bill's recorded roll calls.
+ * recorded result and members. The server reads a roll call by its own id
+ * (`/votes/{id}`), which names its bill, so the address needs nothing else; an
+ * older link's `?bill=` is carried along untouched and never read.
  */
 export function RollCall({ match }: { match: RouteMatch }) {
   const id = match.params.id ?? '';
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
-  const [address, setAddress] = useAddressState({ bill: '', recorded: 'all', q: '' });
-  const billId = address.bill.trim();
-  const votes = useRead<ServedVote[]>(billId ? votesPath(billId) : null);
+  const [address, setAddress] = useAddressState({ recorded: 'all', q: '' });
+  const read = useRead<RollCallRecord>(isVoteId(id) ? votePath(id) : null);
+  const vote: ServedVote | null = read.data;
+  const billId = read.data?.bill_id ?? '';
+  // With no earlier page in the address, the drawing's named parents: the
+  // bill's Votes tab once the roll call names its bill, else Legislation.
+  const back =
+    returnTarget(location.search) ??
+    (billId && isBuilt('bill')
+      ? { to: hrefFor('bill', { id: billId }, { tab: 'votes' }), name: 'Bill votes' }
+      : isBuilt('legislation')
+        ? { to: hrefFor('legislation'), name: 'Legislation' }
+        : null);
+  // The bill's own read, for its title and update date; the same address the
+  // bill page reads, so returning to it shows the bill at once.
   const bill = useRead<BillDetail>(billId ? billPath(billId) : null);
-  const vote = votes.data?.find((item) => item.id === id) ?? null;
 
-  if (!billId || votes.notFound || (votes.data && !vote)) {
+  if (!isVoteId(id) || read.notFound) {
     return (
       <Frame back={back}>
         <section className="f-card lg-unavailable">
@@ -120,7 +134,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
       </Frame>
     );
   }
-  if (votes.loading) {
+  if (read.loading) {
     return (
       <Frame back={back}>
         <LoadingLine>Loading…</LoadingLine>
@@ -130,8 +144,8 @@ export function RollCall({ match }: { match: RouteMatch }) {
   if (!vote) {
     return (
       <Frame back={back}>
-        <Refused onRetry={votes.retry} retrying={votes.pending}>
-          We couldn’t load this bill’s votes right now. Please try again in a moment.
+        <Refused onRetry={read.retry} retrying={read.pending}>
+          We couldn’t load this roll call
         </Refused>
       </Frame>
     );
@@ -153,13 +167,13 @@ export function RollCall({ match }: { match: RouteMatch }) {
   const sourceLine = [
     'Minnesota Legislature',
     host ?? 'revisor.mn.gov',
-    updatedDay ? `Updated ${updatedDay}` : null,
+    updatedDay ? together(`Updated ${updatedDay}`) : null,
   ]
     .filter(Boolean)
     .join(' · ');
   const journal =
     chamber && date && /journal/i.test(vote.official_url ?? '')
-      ? `. Journal of the ${chamber}, ${date}`
+      ? `. Journal of the ${chamber}, ${together(date)}`
       : '';
   const billHref = isBuilt('bill') ? withFrom(hrefFor('bill', { id: billId }), here) : null;
 
@@ -207,7 +221,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
         {shortTitle && <p className="rc-bill-title">{shortTitle}</p>}
       </header>
 
-      <div className="bl-layout">
+      <div className="bl-layout rc-layout">
         <section aria-labelledby="members-heading" className="bl-main">
           <div className="f-card">
             <div className="rc-result-head">
@@ -222,7 +236,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
               {tallies.map((tally) => (
                 <div key={tally.label} className="rc-tally">
                   <dt>{tally.label}</dt>
-                  <dd>{tally.value.toLocaleString('en-US')}</dd>
+                  <dd data-missing={tally.value === NOT_RECORDED || undefined}>{tally.value}</dd>
                 </div>
               ))}
             </dl>
@@ -268,9 +282,10 @@ export function RollCall({ match }: { match: RouteMatch }) {
                   <MemberRow key={member.legislator_id} member={member} here={here} />
                 ))}
               </div>
-              <p className="lg-note">
-                A member’s record here is a vote on one motion, never a position or an opinion.
-                Names link only where a legislator record is confirmed.
+              <p className="f-section-note lg-note">
+                Party is as recorded for this roll call. A member’s record here is a vote on one
+                motion, never a position or an opinion. Names link only where a legislator record is
+                confirmed.
               </p>
             </>
           )}
