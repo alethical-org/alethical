@@ -87,7 +87,7 @@ function reportRow(overrides: Partial<ReportFigureRow> = {}): ReportFigureRow {
     ending_balance_as_of: '2026-07-20',
     contributions: '4110.0000',
     total_expenditures: '6527.8100',
-    total_disbursements: '6600.0000',
+    total_disbursements: null,
     total_receipts: '4200.0000',
     ending_cash_balance: '9600.0000',
     figures_state: 'reported',
@@ -105,14 +105,14 @@ function reports(reg: string, rows: ReportFigureRow[]): ReportFigures {
 }
 
 // Ben's account holds its pre-primary figures and an older report without them;
-// Casey's first account has no receipts total and a filed zero for disbursements;
+// Casey's first account has no receipts total and a filed zero for expenditures;
 // Casey's second account has no report this year.
 const REPORTS: Record<string, ReportFigures> = {
   '18822': reports('18822', [
     reportRow(),
     reportRow({ record_number: 6, report_name: 'Year-End Report', figures_state: 'unavailable' }),
   ]),
-  '100': reports('100', [reportRow({ total_receipts: null, total_disbursements: '0.0000' })]),
+  '100': reports('100', [reportRow({ total_receipts: null, total_expenditures: '0.0000' })]),
   '101': reports('101', []),
 };
 
@@ -224,9 +224,9 @@ describe('Committee members’ campaign accounts', () => {
     );
     expect(ben.textContent).toContain('Candidate committee · Registration 18822');
     const labels = [...ben.querySelectorAll('.cmm-figure dt')].map((item) => item.textContent);
-    expect(labels).toEqual(['Total receipts', 'Total disbursements', 'Ending balance']);
+    expect(labels).toEqual(['Total receipts', 'Total expenditures', 'Ending balance']);
     expect(ben.textContent).toContain('Total receipts$4,200');
-    expect(ben.textContent).toContain('Total disbursements$6,600');
+    expect(ben.textContent).toContain('Total expenditures$6,527');
     expect(ben.textContent).toContain('Ending balance$9,600');
     expect(ben.querySelector('.cmm-report')?.textContent).toBe(
       '2026 Pre-Primary Report · Amendment 1 · Jan 1, 2026 to Jul 20, 2026',
@@ -244,7 +244,7 @@ describe('Committee members’ campaign accounts', () => {
     expect(casey.querySelector('.f-label')?.textContent).toBe('Campaign accounts');
     expect(casey.textContent).toContain('Total receiptsReport total unavailable');
     expect(casey.querySelector('[data-missing]')?.textContent).toBe('Report total unavailable');
-    expect(casey.textContent).toContain('Total disbursements$0');
+    expect(casey.textContent).toContain('Total expenditures$0');
     expect(casey.textContent).toContain(`No ${YEAR} report held`);
   });
 
@@ -331,6 +331,19 @@ describe('Committee members’ campaign accounts', () => {
     expect(card('Casey Two').querySelector('[role="alert"]')).toBeNull();
   });
 
+  it('treats a 404 on an account’s figures as a failed read, never "no report"', async () => {
+    await render(PATH, (url) =>
+      url.includes('/committees/18822/report-figures')
+        ? new Response(null, { status: 404 })
+        : loaded(url),
+    );
+    const ben = card('Ben Davis');
+    expect(ben.querySelector('[role="alert"]')?.textContent).toContain(
+      'We couldn’t load the report information',
+    );
+    expect(ben.textContent).not.toContain(`No ${YEAR} report held`);
+  });
+
   it('says when no members are recorded', async () => {
     await render(PATH, () => json({ ...MEMBERS, members: [] }));
     expect(container.textContent).toContain(
@@ -362,13 +375,13 @@ describe('derived figures and labels', () => {
   it('reads the 3 drawn figures as filed, never a missing one as $0', () => {
     expect(
       accountFigures(
-        reports('1', [reportRow({ total_disbursements: null, ending_cash_balance: '-150.0000' })]),
+        reports('1', [reportRow({ total_expenditures: null, ending_cash_balance: '-150.0000' })]),
       ),
     ).toEqual({
       state: 'figures',
       figures: [
         { label: 'Total receipts', value: '$4,200', missing: false },
-        { label: 'Total disbursements', value: 'Report total unavailable', missing: true },
+        { label: 'Total expenditures', value: 'Report total unavailable', missing: true },
         { label: 'Ending balance', value: '\u2212$150', missing: false },
       ],
       report: '2026 Pre-Primary Report · Amendment 1 · Jan 1, 2026 to Jul 20, 2026',

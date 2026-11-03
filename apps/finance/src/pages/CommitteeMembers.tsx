@@ -127,7 +127,7 @@ export type AccountFigures =
 /**
  * 1 account's figures for the year, read the way Committee reads them: the
  * report whose figures the server holds for the year (`figures_state:
- * 'reported'`), with its Total receipts, Total disbursements and Ending balance
+ * 'reported'`), with its Total receipts, Total expenditures and Ending balance
  * as filed, and the report's name and period. A figure the report does not give
  * us reads "Report total unavailable", never $0 (grounded-answers rule 12); an
  * account with no such report has no report for the year.
@@ -147,7 +147,7 @@ export function accountFigures(answer: ReportFigures | null | undefined): Accoun
     state: 'figures',
     figures: [
       box('Total receipts', row.total_receipts),
-      box('Total disbursements', row.total_disbursements),
+      box('Total expenditures', row.total_expenditures),
       box('Ending balance', row.ending_cash_balance),
     ],
     report: report || null,
@@ -395,12 +395,12 @@ function Account({
         </span>
       </div>
       {!data && read.loading && <LoadingLine>Loading…</LoadingLine>}
-      {!data && read.failed && (
+      {/* The route answers every registration, so a 404 is a broken read, not "no report". */}
+      {!data && (read.failed || read.notFound) && (
         <Refused onRetry={read.retry} retrying={read.pending}>
           {REPORT_LOAD_ERROR}
         </Refused>
       )}
-      {!data && read.notFound && <p className="cmm-line">No {year} report held</p>}
       {result?.state === 'none' && <p className="cmm-line">No {year} report held</p>}
       {result?.state === 'figures' && (
         <>

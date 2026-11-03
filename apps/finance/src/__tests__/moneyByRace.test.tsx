@@ -588,6 +588,30 @@ describe('Money by race page', () => {
     );
   });
 
+  it('names the shown district, never "Not held", while another office loads', async () => {
+    await render('/money/races/house-1a', (url) =>
+      url.includes('office=Senate') && url.includes('/races')
+        ? new Promise<Response>(() => {})
+        : answers()(url),
+    );
+    const office = container.querySelectorAll<HTMLButtonElement>('.mr-field-button')[0];
+    await act(async () => office.click());
+    const option = [
+      ...container.querySelectorAll<HTMLButtonElement>('[role="option"] button'),
+    ].find((item) => item.textContent === 'State Senator')!;
+    await act(async () => option.click());
+    await settle();
+    // The test mounts the page itself, so it follows the address the menu set.
+    const next = matchRoute(window.location.pathname)!;
+    await act(async () => {
+      root.render(<MoneyByRace match={next} />);
+    });
+    await settle();
+    expect(window.location.pathname).toBe('/money/races/senate');
+    expect(container.textContent).toContain('$10,700');
+    expect(container.querySelectorAll('.mr-field-button')[1].textContent).toBe('District 1A');
+  });
+
   it('keeps the last figures with a notice and Try again when another year fails', async () => {
     let fail = true;
     await render('/money/races/house-1a', (url) => {

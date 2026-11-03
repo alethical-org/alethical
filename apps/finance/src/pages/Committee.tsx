@@ -670,7 +670,9 @@ export function Committee({ match }: { match: RouteMatch }) {
               )}
             </section>
 
-            {current && (
+            {/* A year with no contribution records held shows neither card, as the
+                empty-year drawing does. */}
+            {current && current.money_in.state !== 'not_reported' && (
               <YearBlocks
                 donorStates={current.donor_states}
                 nameConnections={current.name_connections}

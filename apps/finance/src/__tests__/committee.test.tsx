@@ -992,6 +992,23 @@ describe('Committee page, breakdowns', () => {
     expect(card.textContent).toContain('A shared name does not show the same person.');
   });
 
+  it('shows neither year card in a year with no contribution records held', async () => {
+    await render(
+      '/money/committees/90001',
+      withBlocks({
+        money_in: { ...FINANCE.money_in, state: 'not_reported' },
+        name_connections: {
+          ...NAME_CONNECTIONS,
+          state: 'not_reported',
+          numerator: null,
+          denominator: null,
+        },
+      }),
+    );
+    expect(container.querySelector('[aria-labelledby="cmt-names-h"]')).toBeNull();
+    expect(container.querySelector('[aria-labelledby="cmt-states-h"]')).toBeNull();
+  });
+
   it('says when no names are held, or the connections are unavailable', async () => {
     await render(
       '/money/committees/90001',

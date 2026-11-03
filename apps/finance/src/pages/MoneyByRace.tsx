@@ -755,7 +755,10 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
   const isPhone = band === 'phone';
   const [osView, setOsView] = useView('osView');
 
-  const district = menuContests.find((item) => item.anchor === anchor) ?? null;
+  // While the last contest stays on screen during an office change, the menu names
+  // the district of the figures shown, never "Not held" for a district not yet read.
+  const district =
+    menuContests.find((item) => item.anchor === anchor) ?? (retained ? keptContest : null);
   // The menu names each office as the contest line does ("State Representative"),
   // keeping the server's office code as the value; courts keep their own names.
   const officeOptions = offices.map((name) => ({
