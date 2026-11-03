@@ -684,7 +684,35 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
   **Type** rule in §2. Replace conflicting numeric fonts in the implementation plan before
   writing the screen. Include a rendered check of the changed numbers' font and equal-width
   digits in the screen's tests. A drawing never waives this check.
-- **At review time:** §3 is the checklist. Audit the rendered web output against it before shipping.
+- **At review time:** §3 and the applicable product choices below are the checklist. Reconcile
+  new user-approved Design decisions through [current Design direction](https://github.com/euglopi/tool-settings/blob/main/shared/guides/design-takeover.md#keep-approved-choices-current-at-every-review),
+  update their owning rules, and audit the rendered work against them before acceptance.
+
+### Finance visual decisions
+
+These choices govern the Finance prototype, its reviews and authorized implementation.
+They do not restyle the public civic site or authorize a build. Preserve the user's
+approved layout, spacing and visual taste while checking data and copy independently.
+The Finance typeface is owned by the **Type** rule in §2. Copy punctuation is owned by
+[UI copy](ui-copy-guide.md); do not infer sentences from wrapped screen lines.
+
+| Element | Approved treatment and review check |
+| --- | --- |
+| Chart sections | Open on Chart at every band. Table is one action away and shows the same data, period, filters and missing states. Keep the reader's explicit choice in the address for that section. Includes Committee type/state charts, Money by race outside spending and Principal annual totals. |
+| Money connections | Open on Map even on Phone. The phone map reflows without clipped nodes, labels, hit areas or focus rings. An explicit Table choice stays selected and is kept in the address. |
+| Whole-row links with a name and detail line | Keep the full row clickable; hover underlines only the name. The detail line retains its color and has no underline. Keep one keyboard-focus ring around the link and the existing pressed feedback. |
+| Stacked two-line link lists | Keep 8px between rows and 4px inside each row, with a target at least 44px high. Keep a year or date with its preceding item. Preserve approved roomier file rows rather than shrinking them to this minimum. |
+| Notes beneath charts, tables and lists | Put end-of-section notes, scope and source commentary 24px below the content. Field hints retain 8px; an empty-state line replacing a list retains its approved spacing. Check ordered lists as well as tables and charts. |
+| Counts and totals beneath search, filter and sort controls | Leave 24px from the bottom of the lowest control to the text. Use non-collapsing spacing. A count or status needed to choose, understand results or recover stays beside its control. |
+| Section headings and commentary | Keep scope beside the heading; collect background and caveats in the end note. Keep context beside the affected record when moving it would change how the reader understands that record or total. Supporting totals and commentary follow the main feature without a competing band between controls and content. |
+| General background and source furniture | Keep About these records below the main content and above Sources and updates. Preserve the approved placement at least 96px below the first screen, including the taller phone view after browser bars collapse. Keep needed record evidence nearby and source/date meanings distinct. |
+
+Check these choices on each affected page and state, including Chart/Table switches,
+phone reflow, wrapped labels, pointer hover and keyboard focus. Use the actual layout
+boundaries at 768px and 1100px; a fitted preview does not prove the layout works at its
+true width. Record untested states and meaningful exceptions instead of calling a whole
+feature checked from one screenshot. Source choices are recorded in Design rules eug-8,
+eug-9, eug-26, eug-135 and eug-141; their implementation is verified separately.
 
 ## References
 

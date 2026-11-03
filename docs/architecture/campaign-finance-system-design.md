@@ -803,7 +803,10 @@ whole files and replaces whole sets.
    the general facility for every other source is
    [#1346](https://github.com/alethical-org/alethical/issues/1346).
 3. **Validate** (§4.3). A snapshot that fails is kept for diagnosis and never published.
-4. **Publish** by replacing the previous published set entirely.
+4. **Publish** by replacing the previous published set entirely. The same transaction
+   writes each loaded file's money-graph summary (`cf_graph_money_summary`, §11), so the
+   pointer never names a file whose summary is half-built; pruning a file's rows removes
+   its summary with them.
 
    **The reader's half of that contract, in one place.** A request resolves one release id and uses
    it for all 3 datasets, because re-resolving per query can hand back a mixed set: each statement
@@ -3431,4 +3434,13 @@ lose withdrawn checks. A checked name printed on a file remains a printed name
 unless a separate check identifies a held record. No station-file amount is
 read or combined into this graph. Missing source sets are named in
 `unavailable_sources`, never presented as proof of no connections.
+
+Money groups come from `cf_graph_money_summary`, written when a file publishes: 1 row
+per distinct set of node inputs and filing year, with record count, signed sum,
+missing-amount count, dates and undated count. The graph applies registered-filer
+checks and identifier confirmations over those inputs at read time and reads a printed
+name with an active record-level confirmation from its raw rows, so the summary and
+the raw rows answer alike; a file without summary rows is grouped from its raw rows.
+Full description:
+[alethical-finance-architecture.md, Recorded connections](alethical-finance-architecture.md#recorded-connections).
 

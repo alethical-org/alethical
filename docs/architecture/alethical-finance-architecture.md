@@ -134,6 +134,24 @@ held produce an unavailable state, never a zero. A requested release that change
   `/employers/donors?name=...` pages donors under one exact employer spelling; unnamed
   records stay individual. `/employers/donor-payments` pages each group's source rows.
   Loans remain loans, missing amounts remain null, and nothing is summed as employer money.
+- `/payments-under-name?name=&role=` (`alethical/api/services/finance_payments_under_name.py`)
+  serves alethical.com's own payments under 1 exact printed name, unchanged: rows, order,
+  paging, counts and states are `/campaign-finance/payments-under-name`'s. Each payment
+  adds its `fingerprint` (the server's, never recomputed by a client), the `identity`
+  standing today for the active confirmation holding that fingerprint under this exact
+  spelling and role, or null, its `evidence` (file, saved copy, record number, address,
+  copy date) and its `excerpt`: every column of the row in the file's own order, as
+  [the file's column label, the held value]; text is as printed except that a blank cell
+  is null, and amounts, dates (YYYY-MM-DD) and years are the values the loader parsed,
+  not the file's own bytes. Each source row appears and counts once. With nothing
+  published, or a published release whose files are gone, the answer is
+  `state: unavailable` with no count, as on Finance's other money reads; a `release_id`
+  pin is then refused with 409. `identities` lists
+  each identity holding records of the spelling in scope with its count. `filer` narrows
+  rows and every count to 1 filer's own filings; `year` filters on the file's Year; a
+  `release_id` pin answers 409 once the Board's file changes. Employer rows carry the
+  employer fingerprint, so a donor-name claim never confirms an employer spelling. Nothing
+  is summed.
 - The existing payments-under-name readers return a whole-filter `total_payments` for
   contributor, vendor, independent vendor and employer roles, including past-last pages.
   Their source files and meanings stay separate; the count does not turn a printed name
@@ -153,9 +171,32 @@ never infers that one payment funded another. Station-file relationships carry n
 Outgoing committee contributions use the separately filed recipient, never a processor's
 confirmed identity. A recipient without held filer evidence remains a printed name.
 
+Money groups are read from `cf_graph_money_summary`, 1 row per distinct set of node
+inputs (filer number and name, printed name, donor number, payment type, named
+transfer) and filing year of each saved payment file, with its record count, signed
+amount sum, missing-amount count, first and last dates and undated count
+(`alethical/pipeline/campaign_finance_graph_summary.py`). A publish writes a file's
+summary inside the same transaction as its rows, a rollback writes any it lacks, and
+pruning a file's rows removes it; a file with no summary rows is grouped from its raw
+rows, so a deploy before the one-time catch-up (`scripts/build_finance_graph_summary.py`)
+is slow and never wrong. Nothing in the summary resolves an identity: registered-filer
+checks and identifier confirmations are applied over its inputs when the graph is read,
+and a printed name with an active record-level confirmation is read from its raw rows
+instead, so a confirmation covering some of a name's records stays exact. On the
+contributions and expenditures files those raw reads are found by each confirmed name's
+index, so their cost grows with the number of confirmed names; the independent-expenditures
+file has no vendor-name index, so a confirmed name there reads that whole file (about
+41,000 rows). The 2 sources answer alike, payload for payload
+(`alethical/tests/test_finance_graph_summary.py`). To undo the summary, empty
+`cf_graph_money_summary` first (reads then group the raw rows), then revert the code,
+then downgrade migration 0081.
+Before the summary, every broad request re-read all 1.07 million payment rows (469 MB
+against a 256 MB buffer pool) and spilled to temp files: 14 s for the first signed-in
+page, 6 to 7 s repeated, against the client's 10 s limit (2 Nov 2026).
+
 Broad money reads first count and page exact relationship keys in SQL, with the same
-complete ordering as the other relationships. Repeated raw node inputs are grouped
-before resolving their names and identities; per-record confirmation joins still happen
+complete ordering as the other relationships. Repeated node inputs are grouped before
+resolving their names and identities; per-record confirmation joins still happen
 before that grouping. A final distinct step combines raw inputs that resolve to the
 same nodes. The key page is merged with non-money relationships before amounts and
 periods are calculated, so only the returned money edges receive those calculations.
@@ -170,11 +211,13 @@ Missing sources are
 reported separately while available relationships remain usable; held station files
 without matching checks are an empty result, not an unavailable source.
 
-Expenditure year choices and transfer registration numbers come from one scan of the
-snapshot, backed by a covering index. Years include rows that cannot form a graph edge;
-only contribution rows supply transfer numbers. Held registration sets use array
-parameters, keeping statement size bounded as the source files grow. These changes do
-not cache relationships or weaken the per-record identity checks.
+Year choices cover every row of each saved file, including rows that cannot form a
+graph edge: a summarized file's years are the years its publish measured
+(`cf_snapshot.rows_by_year`), and a file without them, or without a summary, scans its
+rows (for expenditures, 1 scan backed by a covering index that also yields the transfer
+registration numbers). Only contribution rows supply transfer numbers. Held registration
+sets use array parameters, keeping statement size bounded as the source files grow. None
+of this caches relationships or weakens the per-record identity checks.
 
 An unfiltered, all-year money graph can spill large grouped results to disk. One
 database-wide transaction lock admits such a query to a larger hash budget at a
@@ -282,7 +325,7 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   A partly confirmed
   name remains in the unconfirmed queue. `GET /identities` finds saved active
   identities by `q` and optional `kind`, with the same paging bounds; it returns
-  only id, kind and name, without a suggested match or any account details.
+  only id, reference, kind and name, without a suggested match or any account details.
 - **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
   registration number, a principal's id, or the id of a held legislator or public person
   is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
@@ -298,6 +341,20 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   evidence, check date and records and a pointer to the one it replaces. Withdrawn
   confirmations stay behind as history. A replacement counts as team-made only when the
   original and the split both were (§5).
+- **Every identity has a short reference**, ORG-0042 for an organization and PER-0042 for
+  a person, numbered by kind in creation order and never reused; existing identities were
+  numbered oldest first. A split's parts each get a new reference. Every identity read,
+  search row and lookup carries it; a merged identity's read adds `redirect_to_reference`;
+  each `split_into` part adds its `status` and, while active, its `confirmed_records`
+  (the Board's current rows its active confirmations cover, the same count as "Confirmed
+  for k of n records", plus 1 per identifier; null when a file is not held); a part later
+  merged adds `redirect_to` and `redirect_to_reference` instead of a count, so no record
+  is counted twice; every history event adds `references`, mapping each identity it
+  names to its reference; identity nodes in the money graph carry it too.
+- **A decision may name where its evidence was found.** `source` is optional free text kept
+  apart from the basis or reason: on a confirmation (copied to a split's replacement), on
+  its withdrawal (`withdrawal_source`), and in a merge's or split's history event. Blank is
+  stored as nothing. Like the basis, every Finance account reads it.
 - **Every account sees everything.** Every change is kept in `identity_event`, and every
   identity, confirmation and event records whether a team account made it, which Finance
   never shows; no answer names who made a change. Every Finance account reads every

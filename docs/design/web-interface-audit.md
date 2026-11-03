@@ -4,6 +4,11 @@ Use the shared [design-audit skill](https://github.com/euglopi/tool-settings/blo
 and its pinned, licensed guidelines through the following project adaptation. Current
 [design principles](design-principles.md), [UI copy](ui-copy-guide.md) and
 [grounded-answer rules](../../.claude/rules/grounded-answers.md) control product choices.
+Before each review, reconcile the latest user-approved Design decisions through
+[current Design direction](https://github.com/euglopi/tool-settings/blob/main/shared/guides/design-takeover.md#keep-approved-choices-current-at-every-review).
+For Finance, check the [Finance visual decisions](design-principles.md#finance-visual-decisions)
+against the affected rendered pages and states. Record drift and verify its correction;
+neither saved rules nor Design's completion claim proves that the screen follows them.
 
 Alethical's frontend is **React Native + Expo, shipped to web via `react-native-web`**. Source is
 `.tsx` using RN primitives (`<View>`, `<Text>`, `<Pressable>`, `<Image>`), **not** DOM/CSS/Tailwind.

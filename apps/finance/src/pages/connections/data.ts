@@ -1,4 +1,4 @@
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../../ui/money';
 import { hrefFor, isBuilt, type RouteName } from '../../routes';
 import type { Evidence } from '../../ui/controls';
 import { day } from '../media/shared';
