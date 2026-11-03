@@ -228,6 +228,57 @@ describe('People', () => {
   });
 });
 
+describe('People controls (Design Rounds 30 to 37)', () => {
+  it('offers Election year with Past candidates, and choosing one keeps it in the address', async () => {
+    await render('/people?type=candidates', loaded);
+    await act(async () => button('Election year: All years').click());
+    const options = [...container.querySelectorAll('[role="option"]')].map((o) => o.textContent);
+    expect(options).toEqual(['All years', 'Past candidates', '2026', '2024']);
+    await act(async () => button('Past candidates').click());
+    await settle();
+    expect(window.location.search).toBe('?type=candidates&scope=past');
+    await act(async () => button('Election year: Past candidates').click());
+    await act(async () => button('2024').click());
+    await settle();
+    expect(window.location.search).toBe('?type=candidates&year=2024');
+  });
+
+  it('switching record type clears the other type’s filters, and All records has no menus', async () => {
+    await render('/people?type=candidates&scope=past&sort=election_year', loaded);
+    await act(async () => button('Legislators').click());
+    await settle();
+    expect(window.location.search).toBe('?type=legislators');
+    expect(text()).toContain('Service: Current and former');
+    expect(text()).not.toContain('Election year');
+    await act(async () => button('All records').click());
+    await settle();
+    expect(text()).not.toContain('Service:');
+    expect(text()).not.toContain('Election year:');
+    expect(text()).toContain('Sort by: Name A–Z');
+  });
+
+  it('puts the count line under the controls and the background below the results', async () => {
+    await render('/people', loaded);
+    expect(container.querySelector('.f-count-line')?.textContent).toBe(
+      '0 people · 0 candidacies · 23 service records',
+    );
+    expect(text()).toContain('Candidacy or an election result does not prove current service');
+    expect(text()).not.toContain('current service.');
+    const about = container.querySelector('#about-h')?.parentElement;
+    expect(about?.textContent).toContain('About these records');
+    expect(about?.textContent).toContain(
+      'Minnesota records only; candidate lookup is not a complete national directory',
+    );
+  });
+
+  it('says what to try when nothing matches', async () => {
+    await render('/people?q=Nobody', loaded);
+    expect(text()).toContain('No matching records');
+    expect(text()).toContain('Try another name');
+    expect(text()).not.toContain('does not prove current service');
+  });
+});
+
 describe('People wording', () => {
   it('counts what it lists', () => {
     expect(countLine(1, '')).toBe('1 service record');
@@ -241,5 +292,46 @@ describe('People wording', () => {
     expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'former' })).toBe(
       'Formerly served',
     );
+  });
+
+  it('prints a candidacy’s election and seat, and a legislator’s party only where held', () => {
+    expect(
+      rowNote({
+        kind: 'candidate',
+        id: 'c',
+        name: 'C',
+        year: 2026,
+        election: { type: 'general' },
+        office: 'State Representative',
+        voting_area: 'District 45B',
+      }),
+    ).toBe('2026 general · State Representative, District 45B');
+    const period = {
+      chamber: 'house',
+      district: '45B',
+      party: 'DFL',
+      start_date: null,
+      end_date: null,
+      session: null,
+      source_url: null,
+    };
+    expect(
+      rowNote({
+        kind: 'legislator',
+        id: 'l',
+        name: 'L',
+        service_status: 'current',
+        periods: [period],
+      }),
+    ).toBe('House District 45B · DFL · Serving');
+    expect(
+      rowNote({
+        kind: 'legislator',
+        id: 'l',
+        name: 'L',
+        service_status: 'current',
+        periods: [{ ...period, party: null }],
+      }),
+    ).toBe('House District 45B · Serving');
   });
 });

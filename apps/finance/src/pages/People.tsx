@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legislatorProfile';
 import { apiPath, useRead } from '../api/read';
+import { copyDate, type ServedCounts } from '../landing/counts';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, type RouteMatch } from '../routes';
@@ -162,6 +163,8 @@ export function People(_props: { match: RouteMatch }) {
         ? countLine(data.total, data.q ?? query, data.type ?? type)
         : '';
   const electionYear = state.scope === 'past' ? 'past' : state.year;
+  const served = useRead<ServedCounts>('finance/landing/counts');
+  const legislatureDate = served.data ? copyDate(served.data, 'current_legislature_bills') : null;
   return (
     <main id="main" className="f-page">
       <div className="f-content">
@@ -339,8 +342,7 @@ export function People(_props: { match: RouteMatch }) {
             <div>
               <dt>Person</dt>
               <dd>
-                Elections and service over time, linked to candidate and legislative service
-                records
+                Elections and service over time, linked to candidate and legislative service records
               </dd>
             </div>
           </dl>
@@ -350,7 +352,12 @@ export function People(_props: { match: RouteMatch }) {
       <SourcesAndUpdates
         groups={[
           { source: 'Minnesota Secretary of State', items: ['Candidate records'] },
-          { source: 'Minnesota Legislature', items: ['Service records'] },
+          {
+            source: 'Minnesota Legislature',
+            items: [
+              legislatureDate ? `Service records updated ${legislatureDate}` : 'Service records',
+            ],
+          },
         ]}
       />
     </main>
