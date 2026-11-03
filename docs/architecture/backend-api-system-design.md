@@ -782,17 +782,25 @@ Optional includes:
 
 Purpose:
 
-- sponsored bills for legislator profile
+- distinct sponsored bills for legislator profile, with a current summary
 
 Filters:
 
-- `session`
-- `role=chief|all`
+- `session` — defaults to the current legislative session
+- `role=chief_author|co_author|sponsor` — omit for all sponsorship roles
 - `limit`
 - `offset` — real, and undocumented here until the Aug 3 2026 audit.
 - `sort` — **NOT BUILT**
 - `order` — **NOT BUILT**
 - `cursor` — **NOT BUILT** (the route paginates by `offset`)
+
+`page.total` counts the exact filtered bill list before pagination, including on
+an empty page or a `limit=0` request. A bill appears once even when the member is
+named in both chambers' source lists. Profile bill lists use this total for their
+count and pagination. The profile's `stats.chief_bill_count` and
+`stats.total_bill_count` remain separate counts of all held chief/co-authorship,
+across sessions and including bills without a current summary; they are not the
+denominator for this list. A zero list total does not mean no authorship is held.
 
 #### `GET /api/v1/legislators/{legislator_id}/votes`
 

@@ -5182,18 +5182,22 @@ def legislator_sponsored_bills_stmt(
     When ``role`` is given, restrict to sponsorships of that role (e.g.
     ``SponsorshipRole.chief_author`` for the chief-authored profile section).
     """
-    conditions = [
+    sponsorship_conditions = [
         Sponsorship.legislator_id == legislator_id,
-        Bill.session_id == session_id,
-        # Precomputed gate (#505) — identical to the semi-join it replaces.
-        Bill.has_current_summary.is_(True),
+        Sponsorship.bill_id == Bill.id,
     ]
     if role is not None:
-        conditions.append(Sponsorship.role == role)
+        sponsorship_conditions.append(Sponsorship.role == role)
     return (
         select(Bill)
-        .join(Sponsorship, Sponsorship.bill_id == Bill.id)
-        .where(*conditions)
+        .where(
+            Bill.session_id == session_id,
+            # Precomputed gate (#505) — identical to the semi-join it replaces.
+            Bill.has_current_summary.is_(True),
+            # One bill can name this member in both chambers' source lists or
+            # in multiple roles. It still occupies one result and one page slot.
+            select(Sponsorship.id).where(*sponsorship_conditions).exists(),
+        )
         .options(
             selectinload(Bill.stats),
             selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
