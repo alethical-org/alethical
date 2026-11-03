@@ -1,0 +1,768 @@
+/* Check TV station files (/media-buys/check), from the Check TV Station Files
+ * drawing. Shares the media pieces in ../media/media.css. */
+.ck-layout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.ck-layout > * {
+  min-width: 0;
+}
+.ck-queue {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  position: relative;
+  z-index: 40;
+}
+.ck-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.ck-queue-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.ck-count {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.ck-queue-state > * {
+  margin: 12px 16px;
+}
+.ck-queue-state:empty {
+  display: none;
+}
+.ck-queue-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ck-queue-list li {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.ck-queue-list li:last-child {
+  border-bottom: 0;
+}
+.ck-queue-item {
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  gap: 2px;
+  min-height: 44px;
+  padding: 10px 16px 10px 13px;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ck-queue-item[aria-current] {
+  border-left-color: var(--fill);
+  background: var(--tint);
+  cursor: default;
+}
+.f-app .ck-queue-item:focus-visible {
+  outline-offset: -2px;
+}
+.ck-queue-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ck-queue-item[aria-current] .ck-queue-name {
+  font-weight: 700;
+}
+.ck-queue-note {
+  font-size: 13px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.ck-draft-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b4a00;
+}
+.ck-queue-pager .mb-pager {
+  margin: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--hairline);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .ck-queue-item:not([aria-current]):hover {
+    background: var(--row-hover);
+  }
+}
+.ck-detail {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+.ck-detail-loading {
+  height: 360px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.ck-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  min-width: 0;
+}
+.ck-padded {
+  padding: 20px;
+}
+.ck-card h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+#file-heading,
+.ck-mismatch h2 {
+  font-size: 18px;
+}
+.ck-mismatch {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.ck-mismatch p {
+  margin: 0;
+  max-width: 640px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.ck-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.ck-detail-head > div {
+  min-width: 0;
+}
+.ck-center {
+  align-items: center;
+}
+.ck-note {
+  display: block;
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.ck-card > .ck-note {
+  margin-top: 6px;
+}
+.ck-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
+}
+.ck-review-columns {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.ck-review-columns .mb-image {
+  max-height: 520px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ck-review-columns .mb-image:has(img) {
+  max-height: none;
+}
+.ck-review-columns .mb-image-failed {
+  margin: 0;
+  padding: 16px;
+  aspect-ratio: 8.5 / 11;
+  max-height: 520px;
+  box-sizing: border-box;
+  align-content: center;
+  background: var(--ground);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.ck-text-col {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.ck-text-col .mb-icon-btn {
+  min-width: 40px;
+  min-height: 40px;
+}
+.ck-mono {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ck-machine {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--ground);
+  border-radius: 8px;
+  font:
+    13px/1.5 'Inter',
+    system-ui,
+    sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 220px;
+  overflow: auto;
+}
+.ck-small-btn {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ck-small-btn[aria-pressed='true'] {
+  background: #eef2f5;
+}
+.ck-btn {
+  height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.ck-btn.f-btn-secondary {
+  font-weight: 600;
+}
+.ck-suggestions,
+.ck-checks,
+.ck-history {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.ck-suggestions li,
+.ck-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.ck-suggestions li {
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: #fff;
+}
+.ck-suggestions li[data-state='saved'] {
+  background: var(--row-hover);
+}
+.ck-suggestions li[data-state='dismissed'] {
+  background: var(--ground);
+}
+.ck-suggestions li[data-state='dismissed'] .ck-sugg-value {
+  color: var(--muted);
+}
+.ck-suggestions li[data-state='used'] {
+  background: var(--tint);
+}
+.ck-sugg-text {
+  min-width: 0;
+  flex: 1;
+}
+.ck-sugg-kind {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.ck-sugg-value {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.ck-sugg-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.ck-checks li {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  scroll-margin-top: 72px;
+}
+.ck-withdraw {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(20, 27, 34, 0.08);
+}
+.ck-withdraw-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ck-withdrawn {
+  margin-top: 8px;
+}
+.ck-history-title {
+  margin: 18px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.ck-history li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  background: var(--ground);
+  border-radius: 8px;
+}
+.ck-history-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- The form ---------- */
+.ck-form-card {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  gap: 14px;
+  scroll-margin-top: 72px;
+}
+.ck-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  background: #eef2f5;
+  border-radius: 8px;
+  justify-self: start;
+}
+.ck-mode {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ck-mode[aria-pressed='true'] {
+  background: #fff;
+  border-color: rgba(20, 27, 34, 0.2);
+  box-shadow: 0 1px 2px rgba(11, 31, 42, 0.12);
+  font-weight: 700;
+  cursor: default;
+}
+.ck-mode:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.ck-mode:active:not([aria-pressed='true']):not(:disabled) {
+  background: #d6dee4;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .ck-mode:not([aria-pressed='true']):not(:disabled):hover {
+    background: #e2e8ed;
+  }
+}
+.ck-form {
+  display: grid;
+  gap: 14px;
+}
+.ck-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.ck-field {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+  position: relative;
+}
+.ck-grid > .ck-field:has(.mb-menu) {
+  z-index: 40;
+}
+.ck-wide {
+  grid-column: 1 / -1;
+}
+.ck-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.ck-field input,
+.ck-field textarea,
+.ck-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 12px;
+  height: 44px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  scroll-margin-bottom: 140px;
+}
+.ck-field textarea {
+  height: auto;
+  min-height: 64px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.ck-field input[readonly]:not(.ck-strong) {
+  background: var(--ground);
+  color: var(--secondary);
+  border-color: var(--hairline);
+}
+#f-current {
+  background: var(--ground);
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ck-strong {
+  font-weight: 700;
+}
+.ck-field [data-error],
+.ck-search input[data-error] {
+  border-color: #e0b673;
+}
+.f-app .ck-field input:focus-visible,
+.f-app .ck-field textarea:focus-visible,
+.f-app .ck-search input:focus-visible,
+.ck-field input:focus,
+.ck-field textarea:focus,
+.ck-search input:focus {
+  outline: none;
+  border-color: var(--field-focus);
+  box-shadow: 0 0 0 3px rgba(91, 48, 214, 0.22);
+}
+.ck-select {
+  width: 100%;
+  height: 44px;
+  font-size: 14px;
+}
+.ck-select-error {
+  border-color: #e0b673;
+}
+.ck-field .mb-menu-current {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ck-placeholder {
+  color: var(--secondary);
+}
+.ck-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: #9a6114;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.ck-warn svg {
+  flex: none;
+  margin-top: 2px;
+}
+.ck-check-wrap {
+  display: grid;
+  gap: 2px;
+}
+.ck-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 0;
+  box-sizing: border-box;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.ck-check input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--fill);
+  cursor: pointer;
+}
+.ck-link-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 3px;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .ck-link-btn:not(:disabled):hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+.ck-discard {
+  display: flex;
+  justify-content: flex-end;
+}
+.ck-stale {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.ck-stale > div {
+  flex: 1;
+  min-width: 200px;
+}
+.ck-dup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--ground);
+  border: 1px solid var(--hairline);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ck-dup > span {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.ck-dup svg {
+  flex: none;
+  margin-top: 3px;
+}
+.ck-submit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.ck-save {
+  height: 44px;
+  min-width: 176px;
+  padding: 0 18px;
+}
+.ck-spin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: f-spin 0.8s linear infinite;
+}
+.ck-live {
+  min-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+}
+.ck-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ck-back-file {
+  margin-left: 16px;
+}
+.ck-search {
+  display: flex;
+  gap: 8px;
+}
+.ck-search input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.ck-search-btn {
+  height: 44px;
+  padding: 0 18px;
+  font-weight: 600;
+}
+.ck-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ck-results li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.ck-results li:last-child {
+  border-bottom: 0;
+}
+.ck-results li > div {
+  min-width: 0;
+  flex: 1;
+}
+.ck-flat {
+  margin-top: 0;
+}
+.ck-record {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(14, 106, 130, 0.45);
+  border-radius: 8px;
+  background: #f5fafb;
+  outline: none;
+}
+.f-app .ck-record:focus-visible,
+.ck-record:focus {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+.ck-record-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+.ck-record-head > div {
+  min-width: 0;
+}
+.ck-record-fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) minmax(0, 1fr);
+  gap: 6px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ck-record-fields > div {
+  display: contents;
+}
+.ck-record-fields dt {
+  color: var(--secondary);
+  font-weight: 600;
+}
+.ck-record-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ck-record .ck-note {
+  margin: 0;
+}
+.ck-changed {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+/* ---------- Bands ---------- */
+@media (max-width: 1099px) {
+  .ck-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .ck-padded {
+    padding: 16px;
+  }
+  .ck-review-columns,
+  .ck-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ck-modes {
+    justify-self: stretch;
+    width: 100%;
+  }
+  .ck-mode,
+  .ck-btn,
+  .ck-small-btn,
+  .ck-open,
+  .ck-link-btn {
+    min-height: 44px;
+  }
+  .ck-btn,
+  .ck-small-btn {
+    height: 44px;
+  }
+  .ck-text-col .mb-icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .ck-suggestions li,
+  .ck-check-row,
+  .ck-results li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ck-sugg-actions {
+    width: 100%;
+  }
+  .ck-sugg-actions .ck-btn {
+    flex: 1 1 0;
+    padding: 0 8px;
+  }
+  .ck-search {
+    flex-direction: column;
+  }
+  .ck-search input {
+    flex: none;
+  }
+  .ck-record-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ck-withdraw-actions .ck-save {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .ck-back-file {
+    margin-left: 0;
+  }
+}

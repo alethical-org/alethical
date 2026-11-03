@@ -403,21 +403,72 @@
   padding: 0 14px;
   white-space: nowrap;
 }
+.vp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
 .vp-list {
-  margin-top: 16px;
   min-width: 0;
 }
+.vp-list > .f-skeleton,
 .vp-notice {
-  margin-bottom: 10px;
+  margin-top: 16px;
 }
-.vp-count {
-  padding: 0 0 10px 2px;
+/* Minimum and maximum amount: a label beside each 120px field; on a phone each
+ * takes its own full row. */
+.vp-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.vp-bound {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
+  font-weight: 500;
   color: var(--secondary);
-  overflow-wrap: anywhere;
 }
-.vp-count:empty {
+.vp-bound-field {
+  width: 120px;
+  height: 40px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+.vp-bound-field[data-invalid] {
+  border-color: #b26a00;
+}
+.vp-bound-error,
+.vp-range-error {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a5300;
+}
+.vp-range-error {
+  margin: 0;
+  padding-left: 2px;
+}
+.vp-range-error:empty {
   display: none;
+}
+.vp-range-error:not(:empty) {
+  padding-top: 16px;
+  font-size: 14px;
+}
+.vp-excluded {
+  display: block;
+}
+
+/* The count line sits 24px below the controls (eug-26), as padding. */
+.vp-count {
+  padding-bottom: 10px;
+  padding-left: 2px;
+  overflow-wrap: anywhere;
 }
 .vp-table {
   background: var(--surface);
@@ -431,7 +482,7 @@
 }
 .vp-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) 150px 140px;
+  grid-template-columns: minmax(0, 1.6fr) 150px 120px minmax(150px, 1fr) minmax(0, 1.1fr);
   gap: 12px;
   align-items: center;
   min-height: 48px;
@@ -468,6 +519,14 @@
 .vp-name-link:active {
   color: var(--link-hover);
 }
+.vp-name-text {
+  color: var(--ink);
+}
+.vp-kind {
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+}
 .vp-tag {
   display: inline-flex;
   align-items: center;
@@ -481,17 +540,47 @@
   font-weight: 700;
   white-space: nowrap;
 }
+.vp-tag[data-confirmed] {
+  background: var(--tint);
+  border-color: var(--fill);
+  color: var(--link);
+}
+.vp-file {
+  font-size: 12px;
+  color: var(--muted);
+}
 .vp-records {
   text-align: right;
 }
 .vp-row:not(.vp-head) .vp-records {
   font-weight: 700;
 }
+.vp-amount {
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+.vp-amount[data-missing] {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: normal;
+}
+.vp-period {
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
 .vp-phone-row {
   display: grid;
   gap: 4px;
   padding: 12px 16px;
   border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.vp-phone-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 .vp-phone-row .vp-name {
   font-size: 15px;
@@ -501,13 +590,12 @@
   align-items: center;
   min-height: 44px;
 }
-.vp-phone-line {
-  padding-left: 36px;
-  font-size: 13px;
-  color: var(--secondary);
+.vp-phone-row .vp-amount {
+  flex: none;
+  max-width: 55%;
+  text-align: right;
 }
-.vp-more {
-  margin: 10px 0 0;
+.vp-phone-line {
   font-size: 13px;
   color: var(--secondary);
 }
@@ -519,15 +607,31 @@
   gap: 12px;
 }
 .vp-page-btn {
+  min-height: 40px;
+  height: auto;
   font-size: 14px;
   font-weight: 600;
   gap: 6px;
 }
-.vp-page-btn:first-child {
+.vp-page-prev {
   padding: 0 16px 0 13px;
 }
-.vp-page-btn:last-child {
+.vp-page-next {
   padding: 0 13px 0 16px;
+}
+.vp-page-next svg {
+  transform: scaleX(-1);
+}
+.vp-page-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.vp-page-btn[aria-disabled='true'] {
+  color: #6e7983;
+  background: var(--surface);
+  border-color: var(--border);
+  cursor: default;
+  opacity: 1;
 }
 .vp-page-line {
   font-size: 14px;
@@ -535,7 +639,6 @@
   color: var(--secondary);
 }
 .vp-basis {
-  margin: 12px 0 0;
   padding-left: 17px;
   max-width: 820px;
   font-size: 13px;
@@ -552,12 +655,32 @@
     text-underline-offset: 3px;
   }
 }
+@media (max-width: 1099px) and (min-width: 768px) {
+  .vp-row {
+    grid-template-columns: minmax(0, 1.4fr) 130px 92px minmax(100px, 1fr) minmax(0, 1fr);
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
 @media (max-width: 767px) {
+  .vp-range,
+  .vp-bound {
+    flex: 1 1 100%;
+  }
+  .vp-bound {
+    justify-content: space-between;
+  }
+  .vp-bound-field {
+    height: 44px;
+  }
   .vp-search {
     flex-direction: column;
   }
   .vp-submit {
     width: 100%;
+  }
+  .vp-page-btn {
+    min-height: 44px;
   }
 }
 

@@ -156,6 +156,8 @@ const DETAIL: BillDetail = {
       action_number: 2,
       action_text: 'Referred to',
       committee_name: 'State and Local Government',
+      committee_id: 'c0a8e1d2-1111-4222-8333-444455556666',
+      chamber: 'senate',
       action_at: '2025-01-21T00:00:00Z',
     },
     {
@@ -190,8 +192,10 @@ const DETAIL: BillDetail = {
   ],
 };
 
+const VOTE_ID = '0b0a4d2e-5c7f-4e1a-9b3d-8f2c6a1e7d90';
+
 const VOTE: ServedVote = {
-  id: 'vote-1',
+  id: VOTE_ID,
   motion_text: 'S.F. No. 334 was read the third time, as amended, and placed on its final passage.',
   result_text: 'Third reading Passed as amended',
   chamber: 'senate',
@@ -283,8 +287,9 @@ async function render(path: string, element: () => React.ReactElement, answer: A
   await settle();
 }
 
+/** The page's words, with the no-break spaces that keep dates whole read as spaces. */
 function text() {
-  return container.textContent ?? '';
+  return (container.textContent ?? '').replace(/\u00a0/g, ' ');
 }
 
 describe('legislation records', () => {
@@ -333,7 +338,7 @@ describe('legislation records', () => {
       'Introduction and first reading',
       'Referred to State and Local Government',
     ]);
-    expect(voteForAction(rows[0]!, [VOTE])?.id).toBe('vote-1');
+    expect(voteForAction(rows[0]!, [VOTE])?.id).toBe(VOTE_ID);
     expect(voteForAction(rows[0]!, [VOTE, { ...VOTE, id: 'vote-2' }])).toBeNull();
     expect(voteForAction(rows[0]!, [{ ...VOTE, occurred_at: '2026-05-17T00:00:00Z' }])).toBeNull();
   });
@@ -366,29 +371,32 @@ describe('legislation records', () => {
   });
 
   it('never prints an unrecorded absent count as 0', () => {
-    expect(rollTallies(VOTE)).toEqual([
-      { label: 'Yes', value: 62 },
-      { label: 'No', value: 0 },
-    ]);
-    expect(rollTallies({ ...VOTE, absent_count: 3 }).map((tally) => tally.label)).toEqual([
-      'Yes',
-      'No',
-      'Absent',
+    // Yes and No come from the official record, 0 included; Absent and Excused
+    // are never read from it, so a served 0 or 3 there still reads "Not recorded".
+    expect(rollTallies({ ...VOTE, absent_count: 3 })).toEqual([
+      { label: 'Yes', value: '62' },
+      { label: 'No', value: '0' },
+      { label: 'Absent', value: 'Not recorded' },
+      { label: 'Excused', value: 'Not recorded' },
     ]);
     expect(recordedFilters(VOTE.records!).map((item) => item.label)).toEqual(['All', 'Yes']);
   });
 });
 
-function legislationAnswer(list: Answer): Answer {
+function legislationAnswer(list: Answer, sessions: unknown[] = SESSIONS): Answer {
   return (url) => {
-    if (url.endsWith('/sessions')) return json(SESSIONS);
+    if (url.endsWith('/sessions')) return json(sessions);
     if (url.includes('/finance/landing/counts')) return json(COUNTS);
     return list(url);
   };
 }
 
-const renderLegislation = (path: string, answer: Answer) =>
-  render(path, () => <Legislation match={matchRoute('/bills')!} />, legislationAnswer(answer));
+const renderLegislation = (path: string, answer: Answer, sessions: unknown[] = SESSIONS) =>
+  render(
+    path,
+    () => <Legislation match={matchRoute('/bills')!} />,
+    legislationAnswer(answer, sessions),
+  );
 
 describe('Legislation', () => {
   it('lists bills with their count, session, chamber, status and date', async () => {
@@ -411,7 +419,9 @@ describe('Legislation', () => {
     const rows = [...container.querySelectorAll<HTMLAnchorElement>('.lg-row')];
     expect(rows[0].getAttribute('href')).toBe('/bills/94-2025-SF334?from=%2Fbills');
     expect(rows[0].textContent).toContain('New Council and Fund to Modernize Human Services IT');
-    expect(rows[0].textContent).toContain('2025–26 · Senate · Signed into Law · May 17, 2026');
+    const meta = rows[0].querySelector('.lg-row-meta')?.textContent;
+    // Each dot ends its line, so the date never starts a phone line with one.
+    expect(meta).toBe('2025–26\u00a0· Senate\u00a0· Signed into Law\u00a0· May\u00a017,\u00a02026');
     // No plain-language title: the bill's number, never its legal title.
     expect(rows[1].querySelector('.lg-row-title')?.textContent).toBe('HF 9');
     expect(text()).toContain('Page 1 of 201');
@@ -446,6 +456,40 @@ describe('Legislation', () => {
     expect(text()).toContain('1 bill · 2025–26 session');
   });
 
+  it('builds the Session menu from the sessions the server serves, current first', async () => {
+    await renderLegislation('/bills', () => json([LIST_ROW], 200, { total: 1 }));
+    expect(requests).toContain(`${API}/api/v1/sessions`);
+    const button = [...container.querySelectorAll('button')].find((item) =>
+      item.textContent?.startsWith('Session:'),
+    )!;
+    expect(button.textContent).toContain('2025–26');
+    await act(async () => button.click());
+    const options = [...container.querySelectorAll('[role="option"]')].map(
+      (item) => item.textContent,
+    );
+    expect(options).toEqual(['2025–26', '2025 First Special']);
+  });
+
+  it('keeps the Session menu with 1 option when 1 session is held', async () => {
+    await renderLegislation('/bills', () => json([LIST_ROW], 200, { total: 1 }), [SESSIONS[0]]);
+    const button = [...container.querySelectorAll('button')].find((item) =>
+      item.textContent?.startsWith('Session:'),
+    )!;
+    await act(async () => button.click());
+    expect([...container.querySelectorAll('[role="option"]')].map((i) => i.textContent)).toEqual([
+      '2025–26',
+    ]);
+  });
+
+  it('puts the count line under the menus and the note under the list', async () => {
+    await renderLegislation('/bills', () => json([LIST_ROW], 200, { total: 1 }));
+    expect(container.querySelector('.lg-count')?.classList.contains('f-count-line')).toBe(true);
+    const note = container.querySelector('.lg-note');
+    expect(note?.classList.contains('f-section-note')).toBe(true);
+    expect(note?.previousElementSibling?.classList.contains('lg-list')).toBe(true);
+    expect(container.querySelector('.lg-intro')?.textContent?.trim().endsWith('.')).toBe(false);
+  });
+
   it('reads an unknown session as no matching records, not a failure', async () => {
     await renderLegislation('/bills?session=93-2023-regular', missing);
     expect(container.querySelector('[role="alert"]')).toBeNull();
@@ -457,12 +501,17 @@ function billAnswer(
   overrides: {
     detail?: Answer;
     votes?: Answer;
+    /** The roll call's own read, `/votes/{id}`. */
+    vote?: Answer;
     authors?: Answer;
     text?: Answer;
   } = {},
 ): Answer {
   return (url) => {
     if (url.includes('/finance/bills/')) return (overrides.authors ?? (() => json(AUTHORS)))(url);
+    if (url.includes('/api/v1/votes/')) {
+      return (overrides.vote ?? (() => json({ bill_id: DETAIL.id, ...VOTE })))(url);
+    }
     if (url.includes('/votes')) return (overrides.votes ?? (() => json([VOTE])))(url);
     if (url.includes('/text')) {
       return (
@@ -522,11 +571,25 @@ describe('Bill', () => {
     expect(container.querySelector('.bl-companion')?.getAttribute('href')).toBe(
       '/bills/94-2025-HF744?from=%2Fbills%2F94-2025-SF334%3Ffrom%3D%252Fbills',
     );
-    expect(text()).toContain('State and Local Government');
+    const committee = container.querySelector<HTMLAnchorElement>('.bl-facts a[aria-label]');
+    expect(committee?.textContent).toBe('State and Local Government');
+    expect(committee?.getAttribute('aria-label')).toBe(
+      'Members’ campaign accounts, State and Local Government',
+    );
+    expect(committee?.getAttribute('href')).toBe(
+      '/legislature/committees/c0a8e1d2-1111-4222-8333-444455556666/members?from=%2Fbills%2F94-2025-SF334%3Ffrom%3D%252Fbills',
+    );
     const official = container.querySelector<HTMLAnchorElement>('.bl-official');
     expect(official?.getAttribute('href')).toBe(
       'https://www.revisor.mn.gov/bills/94/2025/0/SF/334/',
     );
+  });
+
+  it('returns to Legislation when the address names no earlier page', async () => {
+    await renderBill('/bills/94-2025-SF334', billAnswer());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Legislation');
+    expect(back?.getAttribute('href')).toBe('/bills');
   });
 
   it('lists each author’s confirmed account, or says none is confirmed', async () => {
@@ -542,12 +605,26 @@ describe('Bill', () => {
     );
     expect(card.textContent).toContain('Chief author');
     expect(card.textContent).toContain('Co-author');
-    expect(card.textContent).toContain('No campaign account is confirmed for this author');
+    expect(card.textContent).toContain('Each author’s own confirmed account');
+    expect(card.textContent).toContain('No confirmed campaign account');
     expect(card.textContent).not.toContain('Kari Rehrauer');
+    // The records-only note closes the section, under the list (Round 34).
+    const note = card.querySelector('.bl-accounts-note');
+    expect(note?.textContent).toBe(
+      'These are records only; they say nothing about why anyone authored this bill',
+    );
+    expect(note?.previousElementSibling?.classList.contains('bl-accounts-list')).toBe(true);
     const name = card.querySelector<HTMLAnchorElement>('.bl-name-link');
     expect(name?.getAttribute('href')).toBe(
       '/legislators/leg-melissa?from=%2Fbills%2F94-2025-SF334',
     );
+  });
+
+  it('says no authors are held, with no records-only note', async () => {
+    await renderBill('/bills/94-2025-SF334', billAnswer({ authors: () => json({ authors: [] }) }));
+    const card = container.querySelector('.bl-accounts')!;
+    expect(card.textContent).toContain('No authors held');
+    expect(card.querySelector('.bl-accounts-note')).toBeNull();
   });
 
   it('keeps the bill when the authors’ accounts fail, with Try again', async () => {
@@ -584,10 +661,23 @@ describe('Bill', () => {
     );
   });
 
+  it('says plainly when the votes or the full text fail, with Try again', async () => {
+    await renderBill('/bills/94-2025-SF334?tab=votes', billAnswer({ votes: broken }));
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      'We couldn’t load this bill’s votesTry again',
+    );
+    act(() => root.unmount());
+    root = createRoot(container);
+    await renderBill('/bills/94-2025-SF334?tab=text', billAnswer({ text: broken }));
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      'We couldn’t load the full textTry again',
+    );
+  });
+
   it('says when a version’s text is not held', async () => {
     await renderBill('/bills/94-2025-SF334?tab=text&version=0', billAnswer({ text: missing }));
     expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/0/text`);
-    expect(text()).toContain('Text of the introduced version is not held in this copy');
+    expect(text()).toContain('Text of the introduced version not held');
   });
 
   it('lists roll calls linking to their own pages', async () => {
@@ -596,7 +686,7 @@ describe('Bill', () => {
     expect(card?.textContent).toContain('S.F. No. 334 was read the third time');
     expect(card?.textContent).toContain('Senate · Feb 10, 2025');
     expect(card?.getAttribute('href')).toBe(
-      '/votes/vote-1?bill=94-2025-SF334&from=%2Fbills%2F94-2025-SF334%3Ftab%3Dvotes',
+      `/votes/${VOTE_ID}?from=%2Fbills%2F94-2025-SF334%3Ftab%3Dvotes`,
     );
   });
 
@@ -614,15 +704,37 @@ describe('Bill', () => {
 
   it('says roll calls are not held when an action records a tally we lack', async () => {
     await renderBill('/bills/94-2025-SF334?tab=votes', billAnswer({ votes: () => json([]) }));
-    expect(text()).toContain('Roll calls for this bill are not held in this copy');
+    expect(text()).toContain('No roll calls held');
   });
 
-  it('links an action to its roll call', async () => {
+  it('links an action to its roll call and shows each action’s chamber', async () => {
     await renderBill('/bills/94-2025-SF334?tab=actions', billAnswer());
     const link = [...container.querySelectorAll<HTMLAnchorElement>('.bl-inline-link')].find(
       (item) => item.textContent === 'Roll call',
     );
-    expect(link?.getAttribute('href')).toContain('/votes/vote-1?bill=94-2025-SF334');
+    expect(link?.getAttribute('href')).toBe(
+      `/votes/${VOTE_ID}?from=%2Fbills%2F94-2025-SF334%3Ftab%3Dactions`,
+    );
+    const chambers = [...container.querySelectorAll('.bl-action-chamber')].map(
+      (cell) => cell.textContent,
+    );
+    // Newest first; only the referral carries a chamber in this copy.
+    expect(chambers).toEqual(['', '', 'Senate']);
+    expect(container.querySelector('.bl-panel .lg-note')?.textContent).toBe(
+      'Actions are recorded events from the Legislature’s journal. The latest action is the bill’s recorded status.',
+    );
+  });
+
+  it('prints the committee as text when the record carries no committee id', async () => {
+    const detail = {
+      ...DETAIL,
+      actions: DETAIL.actions!.map((action) => ({ ...action, committee_id: null })),
+    };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    expect(container.querySelector('.bl-facts a[aria-label]')).toBeNull();
+    expect(container.querySelector('.bl-facts')?.textContent).toContain(
+      'State and Local Government',
+    );
   });
 
   it('shows the unavailable state for a bill the server does not hold', async () => {
@@ -636,7 +748,7 @@ describe('Bill', () => {
   it('offers Try again when the bill fails to load', async () => {
     await renderBill('/bills/94-2025-SF334', broken);
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load this bill right now. Please try again in a moment.',
+      'We couldn’t load this bill',
     );
   });
 });
@@ -645,22 +757,35 @@ const renderVote = (path: string, answer: Answer) =>
   render(path, () => <RollCall match={matchRoute(path.split('?')[0])!} />, answer);
 
 describe('Roll call', () => {
-  it('shows the exact motion, date, recorded result and members', async () => {
-    await renderVote('/votes/vote-1?bill=94-2025-SF334', billAnswer());
-    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/votes`);
+  it('reads the roll call by its own id and shows the motion, date, result and members', async () => {
+    await renderVote(`/votes/${VOTE_ID}`, billAnswer());
+    expect(requests).toContain(`${API}/api/v1/votes/${VOTE_ID}`);
+    expect(requests).toContain(
+      `${API}/api/v1/bills/94-2025-SF334?include=ai_analysis,all_sponsors,actions,versions`,
+    );
+    expect(requests.some((url) => url.endsWith('/votes'))).toBe(false);
     expect(container.querySelector('h1')?.textContent).toBe(VOTE.motion_text);
     expect(text()).toContain('Senate · Feb 10, 2025');
     expect(text()).toContain('Recorded result · Third reading Passed as amended');
     expect(text()).toContain('2 members recorded');
     expect([...container.querySelectorAll('.rc-tally dt')].map((item) => item.textContent)).toEqual(
-      ['Yes', 'No'],
+      ['Yes', 'No', 'Absent', 'Excused'],
+    );
+    expect([...container.querySelectorAll('.rc-tally dd')].map((item) => item.textContent)).toEqual(
+      ['62', '0', 'Not recorded', 'Not recorded'],
     );
     expect(text()).toContain('New Council and Fund to Modernize Human Services IT');
     const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
     expect(rows[0].textContent).toBe('Jim AbelerRYes');
     expect(rows[1].textContent).toContain('Party not recorded');
     expect(rows[0].querySelector('a')?.getAttribute('href')).toBe(
-      '/legislators/leg-jim?from=%2Fvotes%2Fvote-1%3Fbill%3D94-2025-SF334',
+      `/legislators/leg-jim?from=%2Fvotes%2F${VOTE_ID}`,
+    );
+    expect(container.querySelector<HTMLAnchorElement>('.bl-companion')?.getAttribute('href')).toBe(
+      `/bills/94-2025-SF334?from=%2Fvotes%2F${VOTE_ID}`,
+    );
+    expect(container.querySelector('.lg-note')?.textContent).toBe(
+      'Party is as recorded for this roll call. A member’s record here is a vote on one motion, never a position or an opinion. Names link only where a legislator record is confirmed.',
     );
     expect(
       container.querySelector<HTMLAnchorElement>('.f-sources-link')?.getAttribute('href'),
@@ -669,27 +794,70 @@ describe('Roll call', () => {
     expect(text()).toContain('· Updated Oct 26, 2026. Journal of the Senate, Feb 10, 2025');
   });
 
+  it('returns to the bill’s Votes tab when the address names no earlier page', async () => {
+    await renderVote(`/votes/${VOTE_ID}`, billAnswer());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Bill votes');
+    expect(back?.getAttribute('href')).toBe('/bills/94-2025-SF334?tab=votes');
+  });
+
+  it('returns to the earlier page the address names', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}?from=%2Fbills%2F94-2025-SF334%3Ftab%3Dactions`,
+      billAnswer(),
+    );
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Bill');
+    expect(back?.getAttribute('href')).toBe('/bills/94-2025-SF334?tab=actions');
+  });
+
   it('filters members by search', async () => {
-    await renderVote('/votes/vote-1?bill=94-2025-SF334&q=zzz', billAnswer());
+    await renderVote(`/votes/${VOTE_ID}?q=zzz`, billAnswer());
     expect(text()).toContain('No recorded member matches that');
   });
 
-  it('shows the unavailable state for an unknown roll call', async () => {
-    await renderVote('/votes/nope?bill=94-2025-SF334', billAnswer());
-    expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
-    expect(text()).toContain('No roll call with this reference is in the current copy.');
+  it('still opens an older link that names the bill, keeping its address', async () => {
+    await renderVote(`/votes/${VOTE_ID}?bill=94-2025-SF334&recorded=yes`, billAnswer());
+    expect(container.querySelector('h1')?.textContent).toBe(VOTE.motion_text);
+    expect(requests.some((url) => url.endsWith('/votes'))).toBe(false);
+    expect(window.location.search).toBe('?bill=94-2025-SF334&recorded=yes');
+    expect(container.querySelector('.f-chip[aria-pressed="true"]')?.textContent).toBe('Yes');
   });
 
-  it('shows the unavailable state when the address names no bill', async () => {
-    await renderVote('/votes/vote-1', billAnswer());
+  it('shows the unavailable state for a roll call the server does not hold', async () => {
+    await renderVote(`/votes/${VOTE_ID}`, billAnswer({ vote: missing }));
+    expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
+    expect(text()).toContain(
+      'No roll call with this reference is in the current copy. Open the bill’s Votes tab for the recorded roll calls.',
+    );
+  });
+
+  it('shows the unavailable state for a reference that is not a roll call id, without a read', async () => {
+    await renderVote('/votes/nope?bill=94-2025-SF334', billAnswer());
     expect(requests).toEqual([]);
     expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
   });
 
-  it('offers Try again when the roll calls fail to load', async () => {
-    await renderVote('/votes/vote-1?bill=94-2025-SF334', billAnswer({ votes: broken }));
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load this bill’s votes right now. Please try again in a moment.',
+  it('offers Try again when the roll call fails to load, then shows it', async () => {
+    let calls = 0;
+    await renderVote(
+      `/votes/${VOTE_ID}`,
+      billAnswer({
+        vote: () => {
+          calls += 1;
+          return calls === 1 ? broken() : json({ bill_id: DETAIL.id, ...VOTE });
+        },
+      }),
     );
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'We couldn’t load this roll call',
+    );
+    const retry = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Try again',
+    )!;
+    await act(async () => retry.click());
+    await settle();
+    await settle();
+    expect(container.querySelector('h1')?.textContent).toBe(VOTE.motion_text);
   });
 });
