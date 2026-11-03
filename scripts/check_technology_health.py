@@ -33,6 +33,27 @@ IMAGE_SIZE_REVIEW_EXPIRES = date(2026, 10, 18)
 IMAGE_SIZE_BUILD_PATH = "apps__frontend>expo>@expo/metro>metro>image-size"
 FORGE_ADVISORY = "GHSA-86w9-cpqp-85rv"
 FORGE_BUILD_PATH = "apps__frontend>expo>@expo/cli>node-forge"
+# node-forge 1.4.1 fixes these 11; the same local patch carries its exact lib/
+# diff while 1.4.1 (27 October 2026) is younger than the 7-day package gate.
+FORGE_RELEASE_ADVISORIES = {
+    "GHSA-4642-5mcj-2rqw": "low",
+    "GHSA-6wvx-3r32-xmcg": "moderate",
+    "GHSA-525v-9gp9-w22h": "moderate",
+    "GHSA-7wch-p9px-956x": "high",
+    "GHSA-h6cr-wjv9-3cpp": "low",
+    "GHSA-4487-j8r4-4g2f": "low",
+    "GHSA-5cwg-6vw7-rj6p": "moderate",
+    "GHSA-jc66-7q78-782g": "high",
+    "GHSA-8hrf-8g6f-7xwp": "high",
+    "GHSA-hqq3-7jhf-c5jx": "high",
+    "GHSA-5x38-2vff-x55p": "high",
+}
+# glob 14.0.2 and minimatch 11.0.1 (both 27 October 2026) are major versions
+# younger than the 7-day gate; local patches carry their exact fix commits.
+GLOB_ADVISORY = "GHSA-3g3m-2fjr-6pw4"
+GLOB_BUILD_PATH = "apps__frontend>expo>@expo/cli>glob"
+MINIMATCH_ADVISORY = "GHSA-g3hv-75wg-m249"
+MINIMATCH_BUILD_PATH = "apps__frontend>expo>@expo/cli>glob>minimatch"
 BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
 BRACES_BUILD_PATH = (
     "apps__frontend>expo>@expo/cli>@expo/metro-file-map>micromatch>braces"
@@ -434,6 +455,8 @@ def javascript_audit_problems(
     braces_repaired: bool = False,
     deepmerge_repaired: bool = False,
     decode_uri_repaired: bool = False,
+    glob_repaired: bool = False,
+    minimatch_repaired: bool = False,
 ) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
@@ -467,6 +490,36 @@ def javascript_audit_problems(
             and advisory.get("vulnerable_versions") == "<=1.4.0"
             and advisory.get("patched_versions") == "<0.0.0"
             and findings == [{"version": "1.4.0", "paths": [FORGE_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            forge_repaired
+            and advisory_id in FORGE_RELEASE_ADVISORIES
+            and advisory.get("module_name") == "node-forge"
+            and advisory.get("severity") == FORGE_RELEASE_ADVISORIES[advisory_id]
+            and advisory.get("vulnerable_versions") == "<=1.4.0"
+            and advisory.get("patched_versions") == ">=1.4.1"
+            and findings == [{"version": "1.4.0", "paths": [FORGE_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            glob_repaired
+            and advisory_id == GLOB_ADVISORY
+            and advisory.get("module_name") == "glob"
+            and advisory.get("severity") == "moderate"
+            and advisory.get("vulnerable_versions") == ">=9.0.0 <=14.0.1"
+            and advisory.get("patched_versions") == ">=14.0.2"
+            and findings == [{"version": "13.0.6", "paths": [GLOB_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            minimatch_repaired
+            and advisory_id == MINIMATCH_ADVISORY
+            and advisory.get("module_name") == "minimatch"
+            and advisory.get("severity") == "moderate"
+            and advisory.get("vulnerable_versions") == "<11.0.1"
+            and advisory.get("patched_versions") == ">=11.0.1"
+            and findings == [{"version": "10.2.5", "paths": [MINIMATCH_BUILD_PATH]}]
         ):
             continue
         if (
@@ -591,6 +644,8 @@ def security_audit_problems(
     braces_repaired: bool = False,
     deepmerge_repaired: bool = False,
     decode_uri_repaired: bool = False,
+    glob_repaired: bool = False,
+    minimatch_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
@@ -614,6 +669,8 @@ def security_audit_problems(
                 braces_repaired=braces_repaired,
                 deepmerge_repaired=deepmerge_repaired,
                 decode_uri_repaired=decode_uri_repaired,
+                glob_repaired=glob_repaired,
+                minimatch_repaired=minimatch_repaired,
             )
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
@@ -920,6 +977,8 @@ def run_security_audits(root: Path) -> list[str]:
         BRACES_ADVISORY: False,
         DEEPMERGE_ADVISORY: False,
         DECODE_URI_ADVISORY: False,
+        GLOB_ADVISORY: False,
+        MINIMATCH_ADVISORY: False,
     }
     if installed.returncode:
         problems.append("The JavaScript security repair installation failed")
@@ -929,6 +988,8 @@ def run_security_audits(root: Path) -> list[str]:
             (BRACES_ADVISORY, "check-braces-security.mjs"),
             (DEEPMERGE_ADVISORY, "check-deepmerge-security.mjs"),
             (DECODE_URI_ADVISORY, "check-decode-uri-security.mjs"),
+            (GLOB_ADVISORY, "check-glob-security.mjs"),
+            (MINIMATCH_ADVISORY, "check-minimatch-security.mjs"),
         ):
             repair = _run(["node", f"apps/frontend/scripts/{script}"], root)
             repaired[advisory] = repair.returncode == 0
@@ -953,6 +1014,8 @@ def run_security_audits(root: Path) -> list[str]:
             braces_repaired=repaired[BRACES_ADVISORY],
             deepmerge_repaired=repaired[DEEPMERGE_ADVISORY],
             decode_uri_repaired=repaired[DECODE_URI_ADVISORY],
+            glob_repaired=repaired[GLOB_ADVISORY],
+            minimatch_repaired=repaired[MINIMATCH_ADVISORY],
         )
     )
     return problems
@@ -1109,10 +1172,13 @@ def main() -> int:
     if args.online or args.security_only:
         report += (
             "\nLocal security repair: node-forge 1.4.0 retains the raw "
-            "GHSA-86w9-cpqp-85rv warning. It passes only after frozen installation, "
-            "exact patch/lock/installed-code fingerprints, and valid/malformed "
-            "signature checks through both Expo consumers. Any changed finding "
-            "or failed repair check blocks release.\n"
+            "GHSA-86w9-cpqp-85rv warning and the 11 warnings node-forge 1.4.1 fixes ("
+            + ", ".join(sorted(FORGE_RELEASE_ADVISORIES))
+            + "). It passes only after frozen installation, exact patch/lock/"
+            "installed-code fingerprints for every patched file, and signature, "
+            "PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC and CA-store checks "
+            "through both Expo consumers. Any changed finding or failed repair "
+            "check blocks release.\n"
             "\nLocal security repair: braces 3.0.3 retains the raw "
             "GHSA-vfj7-8cjw-p6xm warning. It passes only after frozen installation, "
             "exact patch/lock/installed-code fingerprints, braces API checks in both "
@@ -1128,6 +1194,18 @@ def main() -> int:
             "exact upstream-backport patch/lock/installed-code fingerprints, bounded "
             "single-pass scan checks and valid/malformed React Navigation query-string "
             "checks. Any changed finding or failed repair check blocks release.\n"
+            "\nLocal security repair: glob 13.0.6 retains the raw "
+            "GHSA-3g3m-2fjr-6pw4 warning. It passes only after frozen installation, "
+            "exact upstream-backport patch/lock/installed-code fingerprints for both "
+            "walkers and both minified entries, and aborted-walk and ordinary "
+            "matching checks through the copy Expo's command-line tool loads. Any "
+            "changed finding or failed repair check blocks release.\n"
+            "\nLocal security repair: minimatch 10.2.5 retains the raw "
+            "GHSA-g3hv-75wg-m249 warning. It passes only after frozen installation, "
+            "exact upstream-backport patch/lock/installed-code fingerprints, bounded "
+            "hostile-pattern checks and ordinary matching checks through the glob "
+            "copy Expo's command-line tool loads. Any changed finding or failed "
+            "repair check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))
