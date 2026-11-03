@@ -550,6 +550,11 @@ describe('Organization profile', () => {
     );
     expect(text()).not.toContain('no longer available');
     expect(text()).not.toContain('current copy.');
+    // Vendors and payees is on, so the drawn way forward is back (settled row 8).
+    const next = container.querySelector('.org-gone p')!;
+    expect(next.textContent).toBe('Open Vendors and payees to search the held records');
+    expect(next.querySelector('a')?.textContent).toBe('Vendors and payees');
+    expect(next.querySelector('a')?.getAttribute('href')).toMatch(/^\/money\/recipients/);
   });
 
   it('never reads a reference that is not an identity id', async () => {

@@ -48,6 +48,7 @@ import {
   type ServerRole,
   type SpentRow,
 } from './payments/data';
+import { quotedSpelling } from './payments/printedName';
 import './payments.css';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
@@ -308,7 +309,7 @@ function rowEvidence(
       context.spec.file === 'contributions' ? 'Contrib zip' : 'Vendor zip',
     );
   return {
-    title: `${context.name} · ${shown.amount ?? AMOUNT_MISSING}`,
+    title: `${quotedSpelling(context.name)} · ${shown.amount ?? AMOUNT_MISSING}`,
     authority: BOARD,
     rows: [
       {
@@ -323,7 +324,17 @@ function rowEvidence(
       { label: 'Date', value: shown.date ?? DATE_MISSING },
       { label: 'Amount', value: shown.amount ?? AMOUNT_MISSING },
       ...(shown.kind ? [{ label: 'Type', value: shown.kind }] : []),
-      ...(fields.employer ? [{ label: 'Employer as filed', value: fields.employer }] : []),
+      ...(fields.employer
+        ? [
+            {
+              label: 'Employer as filed',
+              value: quotedSpelling(fields.employer),
+              ...(isBuilt('employer')
+                ? { href: withFrom(hrefFor('employer', { name: fields.employer }), context.here) }
+                : {}),
+            },
+          ]
+        : []),
       ...(zip ? [{ label: 'ZIP as filed', value: zip }] : []),
     ],
     quote: quote ?? 'No saved source excerpt held',
@@ -395,7 +406,9 @@ export function receivedRow(payment: ReceivedRow, context: RowContext): PaymentR
     amount: payment.amount,
     kind: payment.receipt_type,
     note:
-      context.role === 'employer' && payment.contributor ? `Donor: ${payment.contributor}` : null,
+      context.role === 'employer' && payment.contributor
+        ? `Donor: ${quotedSpelling(payment.contributor)}`
+        : null,
     tab: tabOfKind(payment.contributor_type),
     filterName: donor ?? '',
     employer: payment.employer,
@@ -410,6 +423,11 @@ export function countLine(shown: number, hasMore: boolean, total: number | null 
   const count = total ?? (hasMore ? null : shown);
   if (count === null) return paymentsShowingLine(shown, null, true);
   return `${formatCount(count)} ${count === 1 ? 'record' : 'records'}`;
+}
+
+/** " under “{name}”[ in {year}]", naming the view kept results belong to. */
+export function keptLabel(name: string, year: number | null): string {
+  return ` under “${name}”${year === null ? '' : ` in ${year}`}`;
 }
 
 /** The drawing's copy line when every loaded file was copied the same day, and 1
@@ -573,9 +591,15 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const from = location.searchParams.get('from');
-  const back = returnTarget(location.search);
+  const back = returnTarget(location.search) ?? {
+    to: hrefFor('campaign-money'),
+    name: 'Campaign money',
+  };
   const band = useBand();
-  const name = (match.params.query ?? '').trim();
+  // The printed spelling exactly as the address carries it: " Schmidt, Steven" and
+  // "Schmidt, Steven" are 2 spellings (settled wording row 63).
+  const raw = match.params.query ?? '';
+  const name = raw.trim() ? raw : '';
   const years = useMemo(() => campaignMoneyHistoryYears(), []);
   const [address, setAddress] = useAddressState({
     role: 'payee',
@@ -749,6 +773,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
               phone={band === 'phone'}
               here={here}
               filerName={filerName}
+              view={{ name, year, filer }}
               onView={setEvidence}
             />
           ))}
@@ -902,6 +927,7 @@ function Section({
   phone,
   here,
   filerName,
+  view,
   onView,
 }: {
   spec: SectionSpec;
@@ -910,13 +936,26 @@ function Section({
   here: string;
   /** The filer as its rows print it, else its registration, for the empty line. */
   filerName: string | null;
+  /** The view the address asks for, so earlier results are never read as it. */
+  view: { name: string; year: number | null; filer: string | null };
   onView: (evidence: Evidence) => void;
 }) {
   const data = read.data;
   // The server has already narrowed the rows to the scope, the filer included.
   const rows = data && data.state === 'reported' ? rowsFor(data, here) : [];
+  // Results kept from an earlier view (while the new one loads, or after it fails)
+  // say whose they are (settled wording row 60).
+  const earlier =
+    data !== null &&
+    (data.name !== view.name ||
+      data.year !== view.year ||
+      data.filer !== view.filer ||
+      data.role !== spec.serverRole);
   const count =
-    data && data.state !== 'unavailable' ? countLine(rows.length, data.hasMore, data.total) : null;
+    data && data.state !== 'unavailable'
+      ? countLine(rows.length, data.hasMore, data.total) +
+        (earlier ? keptLabel(data.name, data.year) : '')
+      : null;
   const headingId = `pn-${spec.id}`;
   const reveal = useRevealFocus<HTMLElement>();
   return (
@@ -933,7 +972,7 @@ function Section({
           Loading…
         </div>
       )}
-      {read.failed && !data && (
+      {read.failed && (
         <div className="pn-gap pn-narrow">
           <Refused onRetry={read.retry} retrying={read.pending}>
             We couldn’t load these results. This is a problem on our side and says nothing about
@@ -942,13 +981,16 @@ function Section({
         </div>
       )}
       {data && data.state === 'unavailable' && (
-        <div className="f-empty-box pn-empty">
+        <div className="f-empty-box pn-empty" style={{ whiteSpace: 'pre-wrap' }}>
           {RECORDS_UNAVAILABLE_TITLE}
           <div className="f-empty-next">{RECORDS_UNAVAILABLE_WHY}</div>
         </div>
       )}
       {data && data.state !== 'unavailable' && rows.length === 0 && (
-        <div className="f-empty-box pn-empty">{emptyLine(data, filerName)}</div>
+        // Pre-wrap keeps a spelling's stray spaces visible inside its quotes.
+        <div className="f-empty-box pn-empty" style={{ whiteSpace: 'pre-wrap' }}>
+          {emptyLine(data, filerName)}
+        </div>
       )}
       {rows.length > 0 && (
         <div role="table" aria-label={spec.title} className="pn-table">

@@ -21,6 +21,7 @@ import { BackLink, Chevron, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import { useRevealFocus } from '../ui/revealFocus';
 import { tabOfKind } from './committee/data';
 import { useIdentityRecords, type IdentityRecords, type ReceivedRow } from './payments/data';
+import { PrintedName } from './payments/printedName';
 import './payments.css';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
@@ -272,7 +273,10 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const from = location.searchParams.get('from');
-  const back = returnTarget(location.search);
+  const back = returnTarget(location.search) ?? {
+    to: hrefFor('search'),
+    name: 'Search results',
+  };
   const band = useBand();
   const single = band !== 'computer';
   const chosen = match.route.name === 'employer' ? (match.params.name ?? '') : '';
@@ -378,7 +382,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
           </div>
         )}
         {searching && list.data?.state === 'not_reported' && !chosen && (
-          <div className="f-empty-box pn-gap pn-narrow">
+          <div className="f-empty-box pn-gap pn-narrow" style={{ whiteSpace: 'pre-wrap' }}>
             No employer printed as “{list.data.q ?? q}” appears in the copied contribution records.
             This does not mean no donor works there.
           </div>
@@ -398,6 +402,9 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                   {list.data?.total != null && (
                     <span className="de-count f-num">
                       {n(list.data.total, 'spelling', 'spellings')}
+                      {/* Spellings kept from an earlier search say which search
+                          they answer (settled wording row 60). */}
+                      {list.data.q && list.data.q !== q ? ` matching “${list.data.q}”` : ''}
                     </span>
                   )}
                 </div>
@@ -411,7 +418,9 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                           className="de-spelling-item"
                           aria-current={current || undefined}
                         >
-                          <span className="de-spelling-name">{row.name}</span>
+                          <span className="de-spelling-name">
+                            <PrintedName name={row.name} />
+                          </span>
                           <span className="de-spelling-meta f-num">{spellingMeta(row)}</span>
                         </Link>
                       </li>
@@ -552,9 +561,15 @@ function Detail({
       <div className="de-card">
         <span className="f-label de-label">EMPLOYER AS PRINTED</span>
         <h2 id="de-employer-h" className="de-spelling">
-          {spelling}
+          <PrintedName name={spelling} />
         </h2>
-        <ConfirmationLine confirmation={confirmation} spelling={spelling} here={here} />
+        <ConfirmationLine
+          confirmation={confirmation}
+          spelling={spelling}
+          here={here}
+          retry={identity.retry}
+          retrying={identity.pending}
+        />
       </div>
       {read.loading && (
         <div role="status" aria-busy="true" className="pn-loading de-status">
@@ -568,7 +583,7 @@ function Detail({
         </Refused>
       )}
       {data?.state === 'not_reported' && (
-        <div className="f-empty-box">
+        <div className="f-empty-box" style={{ whiteSpace: 'pre-wrap' }}>
           No employer printed as “{spelling}” appears in the copied contribution records. This does
           not mean no donor works there.
         </div>
@@ -681,12 +696,16 @@ function Donor({
       <div className="de-donor-head">
         {href ? (
           <Link to={href} className="de-donor-name">
-            {name}
+            <PrintedName name={name} />
           </Link>
         ) : (
-          <span className="de-donor-name de-donor-plain">{name}</span>
+          <span className="de-donor-name de-donor-plain">
+            <PrintedName name={name} />
+          </span>
         )}
-        <span className="de-count f-num">{n(donor.payment_count, 'payment', 'payments')}</span>
+        <span className="de-count f-num">
+          {n(donor.payment_count, 'payment record', 'payment records')}
+        </span>
       </div>
       <div role="table" aria-label={`Payments from ${name}`}>
         {!phone && (
@@ -718,7 +737,13 @@ function Donor({
                 )}
               </span>
               <span role="cell" className="de-employer">
-                {phone ? `Employer name as printed: ${employer}` : employer}
+                {phone ? (
+                  <>
+                    Employer name as printed: <PrintedName name={employer} />
+                  </>
+                ) : (
+                  <PrintedName name={employer} />
+                )}
               </span>
               <span role="cell" className="de-date f-num" data-missing={date === null || undefined}>
                 {date ?? 'Date not given'}
@@ -807,10 +832,14 @@ function ConfirmationLine({
   confirmation,
   spelling,
   here,
+  retry,
+  retrying,
 }: {
   confirmation: Confirmation;
   spelling: string;
   here: string;
+  retry: () => void;
+  retrying: boolean;
 }) {
   if (confirmation.state === 'confirmed') {
     return (
@@ -863,6 +892,15 @@ function ConfirmationLine({
         <CheckFailedIcon />
         <span>We couldn’t check whether an organization record confirms this spelling</span>
       </span>
+      <button
+        type="button"
+        className="f-btn f-btn-secondary f-btn-small"
+        aria-disabled={retrying || undefined}
+        onClick={() => !retrying && retry()}
+      >
+        {retrying && <span className="f-spinner" aria-hidden="true" />}
+        {retrying ? 'Trying again…' : 'Try again'}
+      </button>
     </div>
   );
 }

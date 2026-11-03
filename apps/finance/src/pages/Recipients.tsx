@@ -12,6 +12,7 @@ import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from 
 import { RecordMark } from '../ui/marks';
 import { BackLink, Chevron, SourcesAndUpdates } from '../ui/parts';
 import { periodOf } from './organization/data';
+import { PrintedName } from './payments/printedName';
 import './raceAndRecipients.css';
 
 export const PAGE_SIZE = 10;
@@ -223,7 +224,10 @@ export function countLine(data: RecipientsPage, tab: RecipientTab): string {
 export function Recipients(_props: { match: RouteMatch }) {
   const location = useLocation(),
     here = location.pathname + location.search,
-    back = returnTarget(location.search),
+    back = returnTarget(location.search) ?? {
+      to: hrefFor('campaign-money'),
+      name: 'Campaign money',
+    },
     phone = useBand() === 'phone';
   const [state, setState] = useAddressState({
     q: '',
@@ -556,10 +560,12 @@ function Name({ row, year, here }: { row: Recipient; year: string; here: string 
   const href = recipientHref(row, year);
   return href ? (
     <Link to={withFrom(href, here)} className="vp-name-link">
-      {row.name}
+      <PrintedName name={row.name} />
     </Link>
   ) : (
-    <span className="vp-name-text">{row.name}</span>
+    <span className="vp-name-text">
+      <PrintedName name={row.name} />
+    </span>
   );
 }
 

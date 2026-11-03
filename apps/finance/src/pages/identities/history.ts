@@ -143,27 +143,48 @@ export function historyRows(
         });
       }
       if (event.action === 'created' && typeof detail.split_from === 'string') {
+        // The identity it was split from is read with this one; when that read fails the
+        // page says so with Try again (reads.ts), so the row is never silently lost.
         const old = identities.get(detail.split_from);
         const split = old?.history?.find((item) => item.action === 'split');
-        const parts = old?.split_into ?? [];
-        if (!old || !split || parts.length !== 2 || seen.has(`split|${old.id}`)) continue;
+        if (!old || !split || seen.has(`split|${old.id}`)) continue;
+        // Every part the split made, in the split's own order (the part that kept the
+        // records first). A part the server no longer serves in split_into is named by
+        // the split event's own references.
+        const served = new Map((old.split_into ?? []).map((part) => [part.id, part]));
+        const into = Array.isArray(split.detail?.into)
+          ? (split.detail.into as unknown[]).filter((id): id is string => typeof id === 'string')
+          : [...served.keys()];
+        const references = split.references ?? {};
+        const parts: SplitPart[] = into.map(
+          (id) =>
+            served.get(id) ?? {
+              id,
+              reference: references[id] ?? null,
+              kind: old.kind,
+              name: references[id] ?? '',
+            },
+        );
+        if (parts.length < 2) continue;
         seen.add(`split|${old.id}`);
-        // The split's own order: the part that kept the records first, the new one second.
-        const [stay, moved] = parts;
+        const [stay, ...moved] = parts;
         // A count is printed only as served. A part whose file is not held, or that was
         // later merged or split, has none: it is named by its reference alone and never
         // reads as 0 (settled wording row 28).
-        const movedText = countable(moved)
-          ? `${plural(moved.confirmed_records as number, 'record', 'records')} moved to ${named(moved)}`
-          : `records moved to ${refOf(moved)}`;
+        const movedText = (part: SplitPart) =>
+          countable(part)
+            ? `${plural(part.confirmed_records as number, 'record', 'records')} moved to ${named(part)}`
+            : `records moved to ${refOf(part)}`;
         const stayText = countable(stay)
           ? `${plural(stay.confirmed_records as number, 'record', 'records')} ${stay.confirmed_records === 1 ? 'stays' : 'stay'} with ${named(stay)}`
           : `records stay with ${refOf(stay)}`;
+        // "a choice of both" is drawn for 2 parts; more parts read "a choice of all {n}".
+        const choice = parts.length === 2 ? 'both' : `all ${parts.length}`;
         rows.push({
           key: `split|${old.id}`,
           at: split.at ?? '',
           date: day(split.at) ?? '',
-          text: `Split: ${movedText}; ${stayText}; ${refOf(old)} now opens a choice of both`,
+          text: `Split: ${moved.map(movedText).join('; ')}; ${stayText}; ${refOf(old)} now opens a choice of ${choice}`,
           evidence: evidenceLines(split.detail?.reason, split.detail?.source),
         });
       }

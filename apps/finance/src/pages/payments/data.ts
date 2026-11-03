@@ -311,13 +311,14 @@ export function useNamePayments<T>(
   }, [apiBaseUrl, accessToken, key, own, loadingMore, changed]);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
-  // A failed view never shows another view's results.
+  // A failed view keeps the last results on screen; the page labels them with their
+  // own name and year (settled wording row 60), never as the new view.
   const failed = current?.failed === true && !pending;
-  const shown = key === null ? null : (own ?? (failed ? null : last));
+  const shown = key === null ? null : (own ?? last);
   return {
     data: shown,
     loading: key !== null && shown === null && !failed,
-    updating: own === null && shown !== null,
+    updating: own === null && shown !== null && !failed,
     failed,
     pending,
     loadingMore,
