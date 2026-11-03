@@ -179,11 +179,21 @@ def committee_members(db: Session, committee_id: UUID) -> dict:
     if committee is None:
         raise LookupError("Not found")
     current = bool(committee.session and committee.session.is_current)
-    memberships = [
+    held = [
         membership
         for membership in committee.memberships
         if membership.legislator is not None and (membership.is_current or not current)
     ]
+    # 1 entry per member: an officer can be held as 2 rows, plainly and with the
+    # role, and both are the same seat. Every role the member holds is kept.
+    roles: dict = {}
+    memberships = []
+    for membership in held:
+        if membership.legislator_id not in roles:
+            roles[membership.legislator_id] = []
+            memberships.append(membership)
+        if membership.role and membership.role not in roles[membership.legislator_id]:
+            roles[membership.legislator_id].append(membership.role)
     memberships.sort(key=lambda row: (row.legislator.full_name, row.legislator.slug))
     accounts = campaign_accounts(db, [row.legislator.id for row in memberships])
     districts = _member_districts(db, committee, memberships)
@@ -199,7 +209,11 @@ def committee_members(db: Session, committee_id: UUID) -> dict:
         "members": [
             {
                 **_person(row.legislator),
-                "role": row.role,
+                # The role when the member holds exactly 1; every role in ``roles``.
+                "role": roles[row.legislator_id][0]
+                if len(roles[row.legislator_id]) == 1
+                else None,
+                "roles": sorted(roles[row.legislator_id]),
                 "district": districts.get(row.legislator_id),
                 "campaign_accounts": accounts[str(row.legislator.id)],
             }
