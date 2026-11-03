@@ -22,6 +22,8 @@ export interface PersonDirectoryRow {
   election?: { type?: string | null; label?: string | null; date?: string | null } | string | null;
   office?: string;
   voting_area?: string;
+  /** The party as filed, where the server serves it. */
+  party?: string | null;
   source?: { authority?: string; checkedDate?: string };
   service_status?: 'current' | 'former' | 'unknown';
   periods?: Array<{
@@ -60,12 +62,29 @@ const plural = (n: number, one: string, many: string) =>
 export function countLine(total: number, query: string, type = 'legislators') {
   return `${plural(total, ...((type === 'candidates' ? ['candidacy', 'candidacies'] : type === 'legislators' ? ['service record', 'service records'] : ['record', 'records']) as [string, string]))}${query ? ` matching “${query}”` : ''}`;
 }
+/**
+ * The office and its district, each once: the served office ("State
+ * Representative District 56A") already names the district its voting area
+ * repeats ("House District 56A"), so the area is added only when the office
+ * names no district.
+ */
+export function candidateSeat(office?: string, area?: string): string {
+  const title = office?.trim() ?? '';
+  const split = /^(.*\S)\s+(District\s+\S+)$/.exec(title);
+  if (split) return `${split[1]}, ${split[2]}`;
+  if (title && area && !title.includes(area)) return `${title}, ${area}`;
+  return title || area || '';
+}
 export function rowNote(row: PersonDirectoryRow) {
   if (row.kind === 'candidate') {
-    // The election is an object; only its type ("general") is printed beside the year.
+    // The People drawing's row: "2026 general · State Representative, District
+    // 99A", then the party where held. The election is served as an object; only
+    // its type is printed beside the year.
     const type = typeof row.election === 'string' ? row.election : row.election?.type;
     const election = [row.year, type].filter(Boolean).join(' ');
-    return [election, row.office, row.voting_area].filter(Boolean).join(' · ');
+    return [election, candidateSeat(row.office, row.voting_area), row.party]
+      .filter(Boolean)
+      .join(' · ');
   }
   if (row.kind === 'person') return 'Elections and service over time';
   const period = row.periods?.[0];

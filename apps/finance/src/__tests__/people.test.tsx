@@ -3,7 +3,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
-import { countLine, People, rowNote, type PersonDirectoryRow } from '../pages/People';
+import {
+  candidateSeat,
+  countLine,
+  People,
+  rowNote,
+  type PersonDirectoryRow,
+} from '../pages/People';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -262,10 +268,19 @@ describe('People wording', () => {
       voting_area: 'House District 56A',
       source: { checkedDate: '2026-11-02', url: 'https://myballotmn.sos.mn.gov/' },
     } as PersonDirectoryRow;
-    expect(rowNote(candidate)).toBe(
-      '2026 general · State Representative District 56A · House District 56A',
-    );
+    // The drawing's row, with the district printed once.
+    expect(rowNote(candidate)).toBe('2026 general · State Representative, District 56A');
     expect(rowNote(candidate)).not.toContain('[object');
+    expect(rowNote({ ...candidate, party: 'DFL' })).toBe(
+      '2026 general · State Representative, District 56A · DFL',
+    );
+    // An office without a district takes its area; nothing is printed twice.
+    expect(candidateSeat('Governor', 'Statewide')).toBe('Governor, Statewide');
+    expect(candidateSeat('State Senator District 41', 'Senate District 41')).toBe(
+      'State Senator, District 41',
+    );
+    expect(candidateSeat('County Commissioner', undefined)).toBe('County Commissioner');
+    expect(candidateSeat(undefined, 'House District 56A')).toBe('House District 56A');
     expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'unknown' })).toBe(
       'Current service not confirmed',
     );
