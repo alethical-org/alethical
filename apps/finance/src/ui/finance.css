@@ -52,6 +52,13 @@
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* A page heading takes focus only when the screen changes, so screen readers
+ * land on it; Tab never reaches it (tabIndex -1), so it keeps no ring (Design
+ * Round 23). A section heading focused on arrival keeps its ring (Round 35). */
+.f-app h1[tabindex='-1']:focus,
+.f-app h1[tabindex='-1']:focus-visible {
+  outline: none;
+}
 .f-num {
   font-variant-numeric: tabular-nums;
 }
