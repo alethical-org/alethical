@@ -212,15 +212,20 @@ figure is ever added across committees or members.
   campaign-account link is read by this screen yet, so its money section is incomplete;
   the server now supplies confirmed links.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
-  Committees and funds, Party units), searched and paged on the server. Sort by chooses
-  names A to Z or numeric registration-number order.
-- **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
-  (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
-  itemized expenditures, each name grouped with its own records and a sum only when every
-  amount is present, disclosure statements inside payment rows, large-contribution notices,
-  statements not linked to a payment, independent expenditures, related records and source
-  evidence for each payment. Money received that is not a contribution is not shown yet; it
-  waits for its own drawing.
+  Committees and funds, Party units), searched by name and paged on the server, with each
+  registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
+  A to Z or numeric registration-number order. Other ways in opens Vendors and payees and
+  Donors by employer; About these records states the records' limits. Results stay on
+  screen while an update loads or fails, with Try again.
+- **Committee (`/money/committees/:id`)**: the registration's status, the official report
+  figures for the chosen report (beginning balance, total receipts, contributions, total
+  expenditures and ending balance as filed; the report stays in the address), itemized
+  contributions in 5 tabs by donor kind and itemized expenditures, each name grouped with its
+  own records and a sum only when every amount is present ("Incomplete" otherwise), sorted by
+  total, payment date, name or record count, disclosure statements inside payment rows,
+  large-contribution notices, statements not linked to a payment, independent expenditures,
+  related records and source evidence for each payment. Name links keep the selected year.
+  Money received that is not a contribution is not shown yet; it waits for its own drawing.
 - **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
   member of a sitting legislative committee with their own confirmed accounts and that
   year's report figures, read 1 member at a time and never combined.
@@ -236,7 +241,9 @@ figure is ever added across committees or members.
   spelling; the server's paged employer directory awaits its screen update.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
-  spender, never added across committees. The address names the contest (`house-34b`,
+  spender as a chart (For to the right, Against to the left) or a table, never added across
+  committees. Each spender's amount is shown only when every payment has an amount and a date,
+  and its link opens that spender's own payment year. The address names the contest (`house-34b`,
   `senate-41`, `governor`).
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
   server. Lobbyists use name order. Principals add year and name or reported-spending
