@@ -171,6 +171,14 @@ describe('Campaign money directory', () => {
     expect(employers?.textContent).toContain(
       'Find donors by the employer name reported in their filings.',
     );
+    const race = container.querySelector('a[href^="/money/races/"]');
+    expect(race?.getAttribute('href')).toBe('/money/races/house?from=%2Fmoney');
+    expect(race?.textContent).toContain('Money by race');
+    expect(race?.textContent).toContain(
+      'Candidate committees and outside spending for one office, district and year, kept distinct.',
+    );
+    // The shared scrolling tab row (Round 35) holds the directory tabs.
+    expect(container.querySelector('.f-scroll-tabs [role="tablist"]')).not.toBeNull();
     expect(text).not.toContain('Search by name or registration number');
     expect(text).not.toMatch(/illustrative|example|sample|fixture|demo/i);
   });
@@ -280,6 +288,32 @@ describe('Campaign money directory', () => {
     );
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
     expect(container.textContent).not.toContain('No matching records');
+  });
+
+  it('keeps the last list when a later read answers unavailable', async () => {
+    await render('/money', (url) =>
+      url.includes('kind=party_unit')
+        ? json(
+            register({
+              state: 'unavailable',
+              committees: [],
+              page: { limit: 50, offset: 0, has_more: false, total: null },
+              by_kind: null,
+              reason: 'no_filings_snapshot',
+            }),
+          )
+        : json(register()),
+    );
+    const party = [...container.querySelectorAll('[role="tab"]')][2] as HTMLButtonElement;
+    await act(async () => party.click());
+    for (let i = 0; i < 3; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+    // The outage is a failure with Try again; the earlier rows stay on screen.
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.textContent).toContain('Hortman (Melissa) Campaign Committee');
   });
 
   it('keeps earlier results while updating and when an update fails', async () => {

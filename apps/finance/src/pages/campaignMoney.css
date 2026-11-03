@@ -332,3 +332,10 @@ a.cm-card:active {
     min-height: 44px;
   }
 }
+
+/* Phone: the search label sits above the field (Campaign Money drawing). */
+.cm-search-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}

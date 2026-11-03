@@ -732,7 +732,12 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
   const [osView, setOsView] = useView('osView');
 
   const district = menuContests.find((item) => item.anchor === anchor) ?? null;
-  const officeOptions = offices.map((name) => ({ value: name, label: name }));
+  // The menu names each office as the contest line does ("State Representative"),
+  // keeping the server's office code as the value; courts keep their own names.
+  const officeOptions = offices.map((name) => ({
+    value: name,
+    label: OFFICE_TITLES[name] ?? name,
+  }));
   const districtOptions = menuContests.map((item) => ({
     value: item.anchor,
     label: seatPart(item),
@@ -775,7 +780,9 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
             <FieldMenu
               name="Office"
               value={office && offices.includes(office) ? office : null}
-              current={office && offices.includes(office) ? office : NOT_HELD}
+              current={
+                office && offices.includes(office) ? (OFFICE_TITLES[office] ?? office) : NOT_HELD
+              }
               options={officeOptions}
               onChange={(next) => openContest(contestAnchor(next, null))}
             />
@@ -811,9 +818,7 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
 
         {loaded && !loading && !contest && (
           <div className="mr-status">
-            <div className="f-empty-box">
-              No registered candidate committee is held for this contest
-            </div>
+            <div className="f-empty-box">No registered candidate committee held</div>
           </div>
         )}
 
@@ -830,7 +835,7 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
               {contest.periodsDiffer && <p className="mr-mixed">{MIXED_PERIODS_NOTE}</p>}
               {contest.committees.length === 0 ? (
                 <div className="mr-table-gap f-empty-box">
-                  No registered candidate committee is held for this contest
+                  No registered candidate committee held
                 </div>
               ) : (
                 <>
