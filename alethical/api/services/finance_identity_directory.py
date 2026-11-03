@@ -59,7 +59,9 @@ def entities(
 ) -> dict:
     q = identities._text(q, "Search", identities.MAX_KEY) if q else ""
     entity = m.IdentityEntity
-    query = select(entity.id, entity.kind, entity.name).where(entity.status == "active")
+    query = select(entity.id, entity.reference, entity.kind, entity.name).where(
+        entity.status == "active"
+    )
     if q:
         query = query.where(entity.name.icontains(q, autoescape=True))
     if kind:
@@ -75,7 +77,12 @@ def entities(
     return {
         **_pagination(results[0].total, page, page_size),
         "rows": [
-            {"id": str(row.id), "kind": row.kind, "name": row.name}
+            {
+                "id": str(row.id),
+                "reference": row.reference,
+                "kind": row.kind,
+                "name": row.name,
+            }
             for row in results
             if row.id is not None
         ],
