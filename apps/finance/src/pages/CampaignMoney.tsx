@@ -132,24 +132,59 @@ export function sourceGroups(
       ),
     );
   }
-  return items.length > 0 ? [{ source: BOARD, items }] : [];
+  return items.length > 0 ? [{ source: BOARD, items: punctuateGroup(items) }] : [];
 }
 
-/** The side cards whose pages exist. Payments under a name and Money by race
- * open only with a name or a contest, so neither has a plain entrance here. */
+/** The side cards (Other ways in, Round 29) whose pages exist. Payments under a
+ * name and Money by race open only with a name or a contest, so neither has a
+ * plain entrance here yet. The 4 descriptions are 1 punctuated group (eug-31):
+ * 1 has 2 sentences, so every one ends with a period. */
 const SIDE_CARDS = [
   {
     route: 'recipients' as const,
     title: 'Vendors and payees',
-    body: 'Find recipients named in payment records',
+    body: 'Find recipients named in payment records.',
+  },
+  {
+    route: 'employers' as const,
+    title: 'Donors by employer',
+    body: 'Find donors by the employer name reported in their filings.',
   },
 ];
 
-const LIMITS = [
-  'Campaign payment records before 2015 are not included',
-  'These records cover campaign finances, not the wider finances of organizations with political committees or funds',
-  'Some donations are reported together without donor names as non-itemized contributions. This is allowed when a donor gives $200 or less to the same committee, party unit or fund in a calendar year. For ballot-question committees and funds, the limit is $500',
+/** About these records: 1 group, 1 item has 3 sentences, so every item ends
+ * with a period (eug-31). */
+const ABOUT = [
+  'Campaign payment records before 2015 are not included.',
+  'These records cover campaign finances, not the wider finances of organizations with political committees or funds.',
+  'Some donations are reported together without donor names as non-itemized contributions. This is allowed when a donor gives $200 or less to the same committee, party unit or fund in a calendar year. For ballot-question committees and funds, the limit is $500.',
 ];
+
+/**
+ * The registration's own status (Rounds 30 to 32): the register lists this
+ * filer, so a termination date reads "Terminated {date}" and no termination
+ * date reads open. The register serves no registration date yet, so an open
+ * registration reads "Open registration" rather than "Registered {date}".
+ */
+export function registrationStatus(row: Pick<CommitteeRow, 'is_closed' | 'termination_date'>): {
+  text: string;
+  state: 'open' | 'terminated' | 'unknown';
+} {
+  if (row.is_closed === true) {
+    const day = formatDay(row.termination_date);
+    return { text: day ? `Terminated ${day}` : 'Terminated', state: 'terminated' };
+  }
+  if (row.is_closed === false) return { text: 'Open registration', state: 'open' };
+  return { text: 'Registration status not held', state: 'unknown' };
+}
+
+/** The lines of 1 Sources and updates group, punctuated as 1 group (eug-31):
+ * when any line has 2 or more sentences, every line ends with a period. */
+export function punctuateGroup(items: string[]): string[] {
+  const sentences = (line: string) => (line.match(/[.!?](\s|$)/g) ?? []).length;
+  if (!items.some((line) => sentences(line) >= 2)) return items;
+  return items.map((line) => (/[.!?]$/.test(line) ? line : `${line}.`));
+}
 
 /**
  * Campaign money (Campaign Money drawing): the committee register in 3 tabs,
@@ -241,7 +276,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             </h1>
             <p className="cm-dek">
               Candidate committees, committees and funds, and party units registered in Minnesota,
-              with their official report figures and itemized payments.
+              with their official report figures and itemized payments
             </p>
           </div>
           {isBuilt('money-connections') && (
@@ -313,7 +348,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
               />
             </div>
 
-            <div className="mb-filters">
+            <div className="cm-filters">
               <Dropdown
                 name="Sort by"
                 value={address.sort === 'registration' ? 'registration' : 'name'}
@@ -349,7 +384,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                       </Refused>
                     </div>
                   )}
-                  <div aria-live="polite" className="cm-count f-num">
+                  <div aria-live="polite" className="f-count-line cm-count">
                     {count}
                   </div>
                   {rows.length === 0 ? (
@@ -363,34 +398,45 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                           <span role="columnheader" className="cm-reg">
                             REGISTRATION
                           </span>
+                          <span role="columnheader">REGISTRATION STATUS</span>
                         </div>
-                        {rows.map((row) => (
-                          <div role="row" key={row.registration_number} className="cm-row">
-                            <span role="cell" className="cm-name f-marked">
-                              <RecordMark kind="committee" />
-                              {isBuilt('committee') ? (
-                                <Link
-                                  to={withFrom(
-                                    hrefFor('committee', { id: row.registration_number }),
-                                    here,
-                                  )}
-                                  className="cm-name-link"
-                                >
-                                  {row.name}
-                                </Link>
-                              ) : (
-                                <span>{row.name}</span>
-                              )}
-                            </span>
-                            <span role="cell" className="cm-kind">
-                              {committeeEyebrow(row.kind, row.sub_type) ?? ''}
-                            </span>
-                            <span role="cell" className="cm-reg f-num">
-                              <span className="cm-reg-word">Registration </span>
-                              {row.registration_number}
-                            </span>
-                          </div>
-                        ))}
+                        {rows.map((row) => {
+                          const status = registrationStatus(row);
+                          return (
+                            <div role="row" key={row.registration_number} className="cm-row">
+                              <span role="cell" className="cm-name f-marked">
+                                <RecordMark kind="committee" />
+                                {isBuilt('committee') ? (
+                                  <Link
+                                    to={withFrom(
+                                      hrefFor('committee', { id: row.registration_number }),
+                                      here,
+                                    )}
+                                    className="cm-name-link"
+                                  >
+                                    {row.name}
+                                  </Link>
+                                ) : (
+                                  <span>{row.name}</span>
+                                )}
+                              </span>
+                              <span role="cell" className="cm-kind">
+                                {committeeEyebrow(row.kind, row.sub_type) ?? ''}
+                              </span>
+                              <span role="cell" className="cm-reg f-num">
+                                <span className="cm-reg-word">Registration </span>
+                                {row.registration_number}
+                              </span>
+                              <span
+                                role="cell"
+                                className="cm-status f-num"
+                                data-status={status.state}
+                              >
+                                {status.text}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                       <nav aria-label="Pages" className="cm-pager">
                         <button
@@ -464,18 +510,16 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                 <span className="cm-side-body">{card.body}</span>
               </Link>
             ))}
-            <section aria-labelledby="cm-limits" className="cm-card cm-limits">
-              <h2 id="cm-limits" className="f-label">
-                Limits of the campaign records
-              </h2>
-              <ul>
-                {LIMITS.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </section>
           </aside>
         </div>
+        <section aria-labelledby="cm-about" className="cm-about">
+          <h2 id="cm-about">About these records</h2>
+          <ul>
+            {ABOUT.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </section>
       </div>
       <SourcesAndUpdates groups={groups} />
     </main>
