@@ -190,8 +190,10 @@ describe('the Finance shell', () => {
     expect(container.textContent).not.toContain('Confirm identities');
     expect(container.textContent).not.toContain('Check TV station files');
     expect(container.textContent).not.toContain('Donors by employer');
-    // The header-corner action appears only once Money connections is built.
-    expect(container.querySelector('.f-page-head .f-action')).toBeNull();
+    // Money connections is built, so its header-corner action is Home's 1 filled action.
+    const action = container.querySelector<HTMLAnchorElement>('.f-page-head .f-action');
+    expect(action?.textContent).toContain('Explore money connections');
+    expect(action?.getAttribute('href')).toBe('/money/connections?from=%2Fhome');
   });
 
   it('lists only the record families whose pages are built', async () => {
