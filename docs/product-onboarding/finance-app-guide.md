@@ -262,7 +262,9 @@ figure is ever added across committees or members.
   the name's history with "View evidence". Every account can confirm selected records to an
   identity, create a person or organization, withdraw (with a reason), merge another record in
   after previewing the links that move, or split 1 into 2; each needs an evidence note that
-  says more than the shared name, and a source. A selection is the server's record
+  says more than the shared name, and a source, which is kept apart from the note. An
+  identity is shown by its reference (ORG-0042 for an organization, PER-0042 for a person),
+  never by its internal id. A selection is the server's record
   fingerprints, or "All records" / "{year} records", which the server resolves. "Saved" appears
   only after the server accepts; otherwise "Not saved. Your entries are kept." with Try again,
   "These records changed since this form opened…" or, after the Board's file is replaced,
