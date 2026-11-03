@@ -659,6 +659,14 @@ Committee memberships come from the same member profile pages used by the live M
 - House member profile pages expose committee assignment links under "Committee Assignments."
 - Senate member profile pages expose committee assignment links under "Committee Assignments."
 - A legislator can validly have zero committee assignments; that should remain `committee_count = 0`, not a synthetic membership row.
+- Member pages list each officer once, under the role (for example "Co-Chair Ethics").
+  The roster import (`MinnesotaIngestionPipeline.upsert_committees`) runs before the
+  committee rebuild and writes only a seat that has no row at all, so it never adds a
+  plain row beside an officer's role row; the committee rebuild owns roles. Both stored
+  `committee_count` writers count distinct committees. Readers list each member once
+  per committee, with a role replacing a plain row, so a duplicate left by an
+  interrupted rebuild still reads correctly (159 members in 45 committees on
+  3 Nov 2026, cleared by that day's rebuild).
 
 The reusable implementation lives in `alethical.pipeline.committee_memberships`; for focused debugging use:
 

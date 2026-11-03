@@ -300,7 +300,7 @@ def refresh_committee_stats(db: Session, session_id: Any) -> None:
             db.add(stats)
         stats.committee_count = (
             db.scalar(
-                select(func.count(CommitteeMembership.id)).where(
+                select(func.count(CommitteeMembership.committee_id.distinct())).where(
                     CommitteeMembership.legislator_id == legislator.id,
                     CommitteeMembership.is_current.is_(True),
                 )
