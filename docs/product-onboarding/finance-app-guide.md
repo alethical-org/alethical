@@ -252,6 +252,8 @@ figure is ever added across committees or members.
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
   address opens the surviving record; a split record's address asks which person was meant.
+  Each election names its office and district once. Opened with no earlier page, it returns to
+  People.
 - **Not built yet:** Vendors and payees (`/money/recipients`), Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
   `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
