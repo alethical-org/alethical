@@ -10,6 +10,7 @@ import type { Identity } from '../pages/identities/types';
 const session = vi.hoisted(() => ({
   apiBaseUrl: 'https://api.example.test',
   accessToken: 'token',
+  retry: vi.fn(),
 }));
 vi.mock('../auth/session', () => ({
   useFinanceSession: () => session,
@@ -67,6 +68,7 @@ function serve(records: Map<string, Identity>, missingStatus = 404) {
 }
 beforeEach(() => {
   session.accessToken = 'token';
+  session.retry.mockClear();
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -264,3 +266,18 @@ it('never retains another account history when its new read fails', async () => 
   expect(container.textContent).toContain('failed');
   expect(container.textContent).not.toContain('part');
 });
+
+it.each([401, 403])(
+  'clears held history and rechecks access after %s with the same token',
+  async (status) => {
+    serve(new Map([['part', record('part')]]));
+    await render();
+    expect(container.textContent).toContain('part');
+    serve(new Map(), status);
+    await act(async () => container.querySelector('button')!.click());
+    await render();
+    expect(container.textContent).toContain('failed');
+    expect(container.textContent).not.toContain('part');
+    expect(session.retry).toHaveBeenCalledTimes(1);
+  },
+);

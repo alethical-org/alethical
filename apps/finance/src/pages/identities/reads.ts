@@ -39,7 +39,7 @@ const MAX_HISTORY_IDENTITIES = 1000;
  * read is retried as a whole.
  */
 export function useIdentities(ids: ReadonlyArray<string>, version: number): IdentityReads {
-  const { apiBaseUrl, accessToken } = useFinanceSession();
+  const { apiBaseUrl, accessToken, retry: recheckAccess } = useFinanceSession();
   const wanted = useMemo(() => [...new Set(ids)].sort(), [ids.join('|')]);
   const scope = `${apiBaseUrl}|${accessToken}|${wanted.join('|')}`;
   const [held, setHeld] = useState<{ scope: string; byId: Map<string, Identity> }>({
@@ -66,12 +66,23 @@ export function useIdentities(ids: ReadonlyArray<string>, version: number): Iden
     const controller = new AbortController();
     let live = true;
     setState({ key, failed: false, done: false });
+    let accessDenied = false;
+    // Clear restricted results immediately, even when the token itself is unchanged.
+    const fetchIdentity: typeof fetch = async (...args) => {
+      const response = await fetch(...args);
+      if (live && !accessDenied && (response.status === 401 || response.status === 403)) {
+        accessDenied = true;
+        setHeld({ scope, byId: new Map() });
+        recheckAccess?.();
+      }
+      return response;
+    };
     const read = (id: string) =>
       apiGet<Identity>(
         apiBaseUrl,
         apiPath(['finance', 'identities', id]),
         accessToken,
-        fetch,
+        fetchIdentity,
         controller.signal,
       );
     (async () => {
