@@ -267,6 +267,27 @@ describe('Media buys', () => {
     expect(container.textContent).toContain('Folders held for 2026, 2024');
   });
 
+  it.each(['stations', 'agencies'])(
+    'names empty %s results without calling them files',
+    async (tab) => {
+      serve(() =>
+        json({
+          tab,
+          q: 'unknown',
+          page: 1,
+          page_size: 12,
+          total: 0,
+          rows: [],
+          years: [],
+          categories: [],
+        }),
+      );
+      await render(`/media-buys?tab=${tab}&q=unknown`, () => <MediaBuys />);
+      expect(container.textContent).toContain(`No ${tab} match this search`);
+      expect(container.textContent).not.toContain('No TV station files match');
+    },
+  );
+
   it('shows the checking entrance only once its page is built', async () => {
     serve(() =>
       json({
@@ -283,7 +304,7 @@ describe('Media buys', () => {
     );
     await render('/media-buys', () => <MediaBuys />);
     expect(container.textContent).not.toContain('Check TV station files');
-    expect(container.textContent).toContain('No TV station files match this search');
+    expect(container.textContent).toContain('No folders match this search');
     act(() => root.unmount());
     root = createRoot(container);
     vi.spyOn(routes, 'isBuilt').mockReturnValue(true);

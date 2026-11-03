@@ -258,7 +258,7 @@ export function MediaBuys() {
                   {searching ? ` matching “${data.q}”` : ''}
                 </p>
                 {rows.length === 0 ? (
-                  <Empty title="No TV station files match this search" />
+                  <Empty title={`No ${noun[1]} match this search`} />
                 ) : (
                   <>
                     <ul className="mb-list" data-tab={filesShown ? 'files' : shownTab}>
