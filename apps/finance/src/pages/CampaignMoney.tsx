@@ -57,6 +57,8 @@ export interface CommitteeRow {
 
 export interface CommitteeRegister {
   state: 'reported' | 'unavailable' | string;
+  /** The register kind these rows were read for, echoed by the server. */
+  kind?: string | null;
   committees: CommitteeRow[];
   page: { limit: number; offset: number; has_more: boolean; total: number | null };
   register_total: number | null;
@@ -257,7 +259,10 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   const freshFailure = (read.failed && register === null) || (unavailable && !read.updating);
   const retainedFailure = read.failed && register !== null && !unavailable;
   const showList = register !== null && !unavailable;
-  const count = countLine(tab, total);
+  // Kept rows keep their own tab's noun while another tab loads or fails, so an
+  // earlier list is never relabelled as the new one.
+  const shownTab = TABS.find((item) => item.kind === register?.kind)?.value ?? tab;
+  const count = countLine(shownTab, total);
   const groups = sourceGroups(unavailable ? null : register, summary.data);
   const cards = SIDE_CARDS.filter((card) => isBuilt(card.route));
 

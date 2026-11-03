@@ -28,6 +28,7 @@ vi.mock('../auth/session', () => ({
 function register(overrides: Partial<CommitteeRegister> = {}): CommitteeRegister {
   return {
     state: 'reported',
+    kind: 'candidate_committee',
     committees: [
       {
         registration_number: '18135',
@@ -293,6 +294,8 @@ describe('Campaign money directory', () => {
     await act(async () => party.click());
     expect(container.textContent).toContain('Updating results…');
     expect(container.textContent).toContain('Hortman (Melissa) Campaign Committee');
+    // The kept rows keep their own count noun, never the new tab's.
+    expect(container.querySelector('.cm-count')?.textContent).toBe('1 candidate committee');
     await act(async () => release(new Response('', { status: 503 })));
     await settle();
     expect(container.textContent).toContain(
