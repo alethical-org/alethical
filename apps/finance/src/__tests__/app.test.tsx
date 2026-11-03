@@ -190,8 +190,10 @@ describe('the Finance shell', () => {
     expect(container.textContent).not.toContain('Confirm identities');
     expect(container.textContent).not.toContain('Check TV station files');
     expect(container.textContent).not.toContain('Donors by employer');
-    // The header-corner action appears only once Money connections is built.
-    expect(container.querySelector('.f-page-head .f-action')).toBeNull();
+    // Money connections is built, so its header-corner action is Home's 1 filled action.
+    const action = container.querySelector<HTMLAnchorElement>('.f-page-head .f-action');
+    expect(action?.textContent).toContain('Explore money connections');
+    expect(action?.getAttribute('href')).toBe('/money/connections?from=%2Fhome');
   });
 
   it('lists only the record families whose pages are built', async () => {
@@ -206,8 +208,8 @@ describe('the Finance shell', () => {
     }
   });
 
-  it('answers a route whose screen is not built exactly as an unknown address', async () => {
-    await renderAt('/money/connections', fakeSupabase(SIGNED_IN));
+  it('answers an unknown address with the not-found page', async () => {
+    await renderAt('/money/nothing-here', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
     expect(document.title).toBe('Page not found · Alethical Finance');
   });

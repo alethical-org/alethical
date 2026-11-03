@@ -12,14 +12,14 @@ import { paymentCopyLines } from '@alethical/shared/paymentCopyDates';
 
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
-import { returnTarget, withFrom } from '../returnContext';
+import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
 import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
 import { ScrollingTabs } from '../ui/scrollingTabs';
-import { Arrow, BackLink, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
+import { Arrow, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 import './campaignMoney.css';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
@@ -211,7 +211,6 @@ export function punctuateGroup(items: string[]): string[] {
 export function CampaignMoney(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
   const [address, setAddress] = useAddressState({
     tab: 'candidates',
     q: '',
@@ -288,11 +287,6 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   return (
     <main id="main" className="f-page">
       <div className="f-content">
-        {back && (
-          <div className="cm-back">
-            <BackLink to={back.to} name={back.name} />
-          </div>
-        )}
         <header className="cm-header">
           <div className="cm-intro">
             <h1 tabIndex={-1} className="f-page-title">
