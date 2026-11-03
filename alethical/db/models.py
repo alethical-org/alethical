@@ -4173,7 +4173,32 @@ class FCCObservation(Base):
     )
     details: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     error: Mapped[Optional[str]] = mapped_column(Text)
-    __table_args__ = (Index("ix_fcc_observation_status", "scan_id", "status"),)
+    __table_args__ = (
+        Index("ix_fcc_observation_status", "scan_id", "status"),
+        # The newest folder or file outcome for 1 station, without reading every
+        # scan's rows (migration 0083).
+        Index(
+            "ix_fcc_observation_station_folder",
+            "facility_id",
+            "url",
+            text("observed_at DESC"),
+            text("scan_id DESC"),
+            postgresql_include=["status"],
+            postgresql_where=text("kind = 'folder'"),
+        ),
+        Index(
+            "ix_fcc_observation_station_file_outcome",
+            "facility_id",
+            text("(details ->> 'file_id')"),
+            text("observed_at DESC"),
+            text("scan_id DESC"),
+            postgresql_include=["status"],
+            postgresql_where=text(
+                "kind = 'file' AND status IN ('stored', 'failed', 'unavailable') "
+                "AND (details ->> 'file_id') IS NOT NULL"
+            ),
+        ),
+    )
 
 
 class FCCDocument(Base):

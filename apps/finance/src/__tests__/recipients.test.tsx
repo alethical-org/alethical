@@ -401,3 +401,19 @@ it('keeps the last valid range when a bound is not an amount or the range is rev
   expect(field('Minimum amount ($)').value).toBe('');
   expect(field('Maximum amount ($)').value).toBe('');
 });
+
+it('returns to Campaign money when opened directly', async () => {
+  await render('/money/recipients');
+  const back = container.querySelector<HTMLAnchorElement>('.f-back')!;
+  expect(back.textContent).toBe('Back to Campaign money');
+  expect(back.getAttribute('href')).toBe('/money');
+});
+
+it('shows a spelling’s stray spaces and keeps its address exact', async () => {
+  await render('/money/recipients', () =>
+    json({ ...data, rows: [{ ...row, name: ' Schmidt, Steven' }], total: 1 }),
+  );
+  const link = container.querySelector<HTMLAnchorElement>('a.vp-name-link')!;
+  expect(link.textContent).toBe('“ Schmidt, Steven”');
+  expect(link.getAttribute('href')).toMatch(/^\/money\/names\/%20Schmidt%2C%20Steven\?/);
+});

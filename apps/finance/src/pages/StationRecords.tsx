@@ -35,6 +35,24 @@ function CheckedIcon() {
     </svg>
   );
 }
+/** The station-wide counts, in the drawn order (TV Station drawing). */
+export function stationCounts(station: Station): [string, number][] {
+  return [
+    ['TV station files held', station.counts.station_files_held],
+    ['Unique file contents', station.counts.unique_file_contents],
+    ['Files whose text could not be fully read', station.counts.text_read_failures],
+    ['Files we couldn’t download', station.counts.download_failures],
+    ['Folders we couldn’t list', station.folder_failures],
+  ];
+}
+
+/** The 3 drawn notes on what the counts mean (TV Station drawing). */
+export const STATION_NOTES = [
+  'Unique file contents counts distinct saved contents; a file re-uploaded unchanged adds a version, not new contents',
+  'Files we couldn’t download and folders we couldn’t list are collection gaps on our side, not statements about the station',
+  'Files whose text could not be fully read still have page images; their machine-read text is partial and Not checked',
+];
+
 export function NotCheckedIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -285,6 +303,22 @@ export function TVStation({ match }: { match: RouteMatch }) {
                 <h2 id="held-heading">Records held, by year</h2>
               </div>
               <div className="mb-years">
+                {/* The server counts these for the station as a whole, not per year, so
+                    they are shown once, for all years: without them a reader could take
+                    the collection as complete. */}
+                <section aria-label="All years" className="mb-year">
+                  <div className="mb-year-head">
+                    <span>All years</span>
+                  </div>
+                  <dl className="mb-metrics">
+                    {stationCounts(data).map(([label, value]) => (
+                      <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{value.toLocaleString('en-US')}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
                 {data.years.map((year) => {
                   const label = year.year != null ? String(year.year) : 'Year unavailable';
                   return (
@@ -327,6 +361,11 @@ export function TVStation({ match }: { match: RouteMatch }) {
                 })}
                 {data.years.length === 0 && <div className="f-empty-box">None held</div>}
               </div>
+              <ul className="mb-note mb-note-list">
+                {STATION_NOTES.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
             </section>
             {others.length > 0 && (
               <aside className="mb-aside">

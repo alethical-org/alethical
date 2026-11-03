@@ -238,16 +238,24 @@ figure is ever added across committees or members.
   "View payments") shows only that file and that filer's records, counted on the server, under
   "Showing records filed by {committee}, {file}" with Clear all. Later pages are read from the
   same copy of the Board's file; if the file has changed, the page says "The Board’s file
-  changed. Reload the records." and "Reload the records" starts over.
+  changed. Reload the records." and "Reload the records" starts over. A new view that fails
+  keeps the earlier records, labelled "{n} records under “{name}” in {year}", with the
+  failure line and Try again. The address keeps the spelling exactly as printed; a spelling
+  with spaces around it prints in quotes (“ Target ”), on this page and on Donors by employer
+  and Vendors and payees. "Employer as filed" in the source evidence opens that spelling on
+  Donors by employer. Opened with no earlier page, it returns to Campaign money.
 - **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
   spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
   with its donor names and any confirmed records, and for the chosen spelling the donors who
-  printed it, each donor's payments listed apart with "Employer name as printed" on every row.
+  printed it, each donor's payment records listed apart ("{n} payment records") with "Employer
+  name as printed" on every row. Spellings kept after a failed new search name their own
+  search ("{n} spellings matching “{words}”"); a confirmation check that could not be read
+  offers Try again.
   On a computer the list stays beside the chosen spelling; on a tablet or phone the spelling
   opens on its own with "Back to Employer spellings". Later donors and payments come from the
   same copy of the Board's file; if it has changed, "The Board’s file changed. Reload the
   records." offers a reload. No total is ever added across donors, and a donor's payments are
-  never the employer's money.
+  never the employer's money. Opened with no earlier page, it returns to Search results.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
   spender as a chart (For to the right, Against to the left) or a table, never added across
@@ -279,7 +287,8 @@ figure is ever added across committees or members.
   confirmations cover; group totals follow the shared rule, labelled by filing year when
   dates are incomplete. A merged record's address opens the surviving record; a split
   record's address asks which part was meant, with each part's reference and
-  confirmed-record count.
+  confirmed-record count. An unknown reference reads "No organization with this reference is
+  in the current copy", with "Open Vendors and payees to search the held records".
 - **Person profile (`/people/:id`)**: confirmed links to 1
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
@@ -295,7 +304,8 @@ figure is ever added across committees or members.
   narrow the whole set (each sent as the typed amount, "$" and commas stripped), with "Smallest
   total first"; text that is not an amount reads "Enter a valid amount", a reversed range
   "Minimum is more than maximum", and both keep the last valid results. Recipients whose
-  totals are withheld are left out of a range and counted under the count line.
+  totals are withheld are left out of a range and counted under the count line. Opened with no
+  earlier page, it returns to Campaign money.
 - **Confirm identities (`/money/identities`)**: "Names to review" lists exact printed names
   (donor, campaign payee and outside-spending payee, each file its own row) by money recorded
   under the name, with All names, Donor names or Payee names and Not confirmed, Confirmed or All,
@@ -412,8 +422,11 @@ one names its exact saved version and page.
 - **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
   versions and station upload date, and the folder's one checked connection, which never
   stands for each file inside it.
-- **TV station (`/media-buys/stations/:id`)**: files held by year, each year linking to its
-  folders, and the other stations held. Counts are files, never ads or money.
+- **TV station (`/media-buys/stations/:id`)**: the station's counts once for all years (files
+  held, unique file contents, files whose text could not be fully read, files we couldn't
+  download, folders we couldn't list, with the 3 drawn notes on what they mean), then files
+  held by year, each year linking to its folders, and the other stations held. Counts are
+  files, never ads or money; a per-year breakdown of the other counts waits on the server.
 - **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
   each marked Checked or Machine-read · Not checked, addresses checked for it with View
   evidence at the exact version and page, and separate campaign and outside-spending
