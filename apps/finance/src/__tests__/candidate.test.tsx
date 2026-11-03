@@ -123,7 +123,10 @@ describe('Candidate profile', () => {
     expect(legislator?.textContent).toContain(
       'Currently serving as State Representative, District 45B',
     );
-    expect(container.querySelector('a[href^="/people/p1"]')?.textContent).toContain('Patty Acomb');
+    // The Person profile is off until its screen is aligned, so the confirmed
+    // person is named without a link.
+    expect(container.querySelector('a[href^="/people/"]')).toBeNull();
+    expect(container.querySelector('.lg2-related-plain')?.textContent).toBe('Patty Acomb');
     const official = [...container.querySelectorAll('a')].find((a) =>
       a.textContent?.replace(/\u00a0/g, ' ').includes('Official source website'),
     );

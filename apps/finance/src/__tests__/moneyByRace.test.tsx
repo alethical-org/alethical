@@ -290,11 +290,17 @@ describe('Money by race helpers', () => {
       [row({ direction: 'Against', amount: '-1500.0000' })],
       ['18558'],
     );
-    expect(outsideBar(refund)).toEqual({ amount: 0, value: '\u2212$1,500', negative: true });
+    // The side comes from the filed position; a negative net draws no bar.
+    expect(outsideBar(refund)).toEqual({
+      side: 'against',
+      amount: 0,
+      value: '\u2212$1,500',
+      negative: true,
+    });
     const [against] = outsideGroups([row({ direction: 'Against', amount: '500.0000' })], ['18558']);
-    expect(outsideBar(against).amount).toBe(-500);
+    expect(outsideBar(against)).toMatchObject({ side: 'against', amount: 500 });
     const [forRow] = outsideGroups([row({ amount: '500.0000' })], ['18558']);
-    expect(outsideBar(forRow).amount).toBe(500);
+    expect(outsideBar(forRow)).toMatchObject({ side: 'for', amount: 500 });
     expect(contestHeading({ office: 'House', district: '1A' }, 2026)).toBe(
       'State Representative\u00a0·\u00a0District\u00a01A\u00a0·\u00a02026',
     );
@@ -369,7 +375,9 @@ describe('Money by race page', () => {
 
     // Chart is the default view: a labelled list, For to the right.
     const chart = container.querySelector('ul[aria-label="Spending by outside groups"]');
-    expect(chart?.textContent).toContain('For Burkel, John House Committee');
+    expect(chart?.querySelector('.f-split-position')?.textContent).toBe(
+      'For Burkel, John House Committee',
+    );
     expect(chart?.textContent).toContain('$2,000');
     expect(chart?.textContent).toContain(
       'Payments dated Mar\u00a031,\u00a02026 to Apr\u00a02,\u00a02026',
@@ -377,7 +385,13 @@ describe('Money by race page', () => {
     expect(chart?.querySelector('a')?.getAttribute('href')).toBe(
       '/money/committees/41395?tab=independent&year=2026&from=%2Fmoney%2Fraces%2Fhouse-1a',
     );
-    expect(chart?.querySelector<HTMLElement>('.f-bar-fill')?.style.left).toBe('50%');
+    // A For spender's bar is drawn on the For half.
+    expect(chart?.querySelector<HTMLElement>('.f-split-for .f-split-fill')?.style.width).toBe(
+      '100%',
+    );
+    expect(chart?.querySelector<HTMLElement>('.f-split-against .f-split-fill')?.style.width).toBe(
+      '0%',
+    );
     expect(
       container.querySelector('[role="table"][aria-label="Spending by outside groups"]'),
     ).toBeNull();

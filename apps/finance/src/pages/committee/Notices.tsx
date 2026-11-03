@@ -20,7 +20,7 @@ import {
   type CommitteeNotices,
 } from '@alethical/shared/committeeNotices';
 import { IN_KIND_CHIP } from '@alethical/shared/committeeMoneyShared';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../../ui/money';
 
 import { Arrow } from '../../ui/parts';
 import { Spinner } from './bits';

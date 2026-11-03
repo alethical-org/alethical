@@ -1,4 +1,4 @@
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../../ui/money';
 import { isInKind } from '@alethical/shared/committeeMoneyShared';
 import { madePaymentRow, receivedPaymentRow } from '@alethical/shared/committeePaymentsPage';
 

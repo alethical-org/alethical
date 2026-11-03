@@ -14,7 +14,7 @@ import type {
   LobbyingSummary,
 } from '@alethical/shared/lobbyingTypes';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
@@ -156,7 +156,11 @@ export function Lobbying(_props: { match: RouteMatch }) {
   const tab = tabFromParam(address.tab);
   const query = address.q.trim().slice(0, MAX_QUERY);
   const page = pageFromParam(address.page);
-  const year = /^(19|20)\d{2}$|^2100$/.test(address.year) ? address.year : '';
+  // The server accepts 2009 to 2100; any other year in the address is ignored.
+  const year =
+    /^\d{4}$/.test(address.year) && Number(address.year) >= 2009 && Number(address.year) <= 2100
+      ? address.year
+      : '';
   const sort =
     tab === 'principals' && ['spending_desc', 'spending_asc'].includes(address.sort)
       ? address.sort

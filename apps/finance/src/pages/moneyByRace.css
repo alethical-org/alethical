@@ -25,73 +25,12 @@
   gap: 8px 12px;
 }
 
-/* ---------- Spending by outside groups, Chart ---------- */
+/* ---------- Spending by outside groups, Chart ----------
+ * The shared For/Against chart (ui/view.tsx SplitBarList) draws the Round 35
+ * layout; the page only sets the card's padding. */
 .mr-os-chart {
   margin-top: 12px;
   padding: 20px;
-}
-.mr-os-chart .f-split-ends {
-  margin-top: 0;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--secondary);
-}
-.mr-os-chart .f-split-ends span:first-child {
-  margin-left: 0;
-}
-.mr-os-chart .f-bars {
-  gap: 24px;
-}
-/* Name and position on 1 line above the bar; computer puts the bar and its
- * amount on 1 line (a fixed 220px value column so every centre line aligns)
- * with the dates under the amount (Round 35). */
-.mr-os-chart .f-bar-row {
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 6px 16px;
-}
-.mr-os-chart .f-bar-label {
-  grid-column: 1 / -1;
-  font-weight: 400;
-}
-.mr-os-chart .f-bar-track {
-  grid-column: 1;
-}
-.mr-os-chart .f-bar-value,
-.mr-os-chart .f-bar-note {
-  grid-column: 2;
-}
-.mr-os-chart .f-bar-value {
-  grid-row: 2;
-}
-.mr-os-chart .f-bar-note {
-  grid-row: 3;
-}
-.mr-os-chart-label {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 2px 12px;
-  font-size: 14px;
-}
-.mr-os-chart-label .mr-link,
-.mr-os-chart-label .mr-plain {
-  overflow-wrap: anywhere;
-}
-.mr-os-chart-position {
-  color: var(--secondary);
-}
-@media (max-width: 1099px) {
-  .mr-os-chart .f-bar-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .mr-os-chart .f-bar-value,
-  .mr-os-chart .f-bar-note {
-    grid-column: 1;
-    grid-row: auto;
-  }
 }
 @media (max-width: 767px) {
   .mr-os-chart {

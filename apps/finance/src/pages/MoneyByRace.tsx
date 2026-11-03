@@ -11,7 +11,7 @@ import {
 } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 import {
   committeeFigures,
   contestSeatLabel,
@@ -187,18 +187,20 @@ export function groupAmountText(group: Pick<OutsideGroup, 'amount' | 'state'>): 
  * reads as the other position.
  */
 export function outsideBar(group: Pick<OutsideGroup, 'amount' | 'state' | 'direction'>): {
+  side: 'for' | 'against' | null;
   amount: number | null;
   value: string;
   negative: boolean;
 } {
+  // The bar's side comes from the filed position, never from the amount's sign;
+  // a negative, zero or unavailable net draws no bar (Round 31).
+  const side = group.direction === 'For' ? 'for' : group.direction === 'Against' ? 'against' : null;
   const value = groupAmountText(group);
   if (group.state !== 'total' || group.amount === null)
-    return { amount: null, value, negative: false };
+    return { side, amount: null, value, negative: false };
   const net = Number(group.amount);
-  if (net < 0) return { amount: 0, value, negative: true };
-  if (group.direction === 'For') return { amount: net, value, negative: false };
-  if (group.direction === 'Against') return { amount: -net, value, negative: false };
-  return { amount: 0, value, negative: false };
+  if (net < 0) return { side, amount: 0, value, negative: true };
+  return { side, amount: net, value, negative: false };
 }
 
 /** Each date in a figure's period line stays on 1 line ("Jan 16, 2026"). */
@@ -932,22 +934,18 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
                           const href = spenderHref(group);
                           return {
                             key: group.key,
-                            label: (
-                              <span className="mr-os-chart-label">
-                                {href ? (
-                                  <Link to={href} className="mr-link">
-                                    {group.spender}
-                                  </Link>
-                                ) : (
-                                  <span className="mr-plain">{group.spender}</span>
-                                )}
-                                <span className="mr-os-chart-position">
-                                  {positionAsFiled(group.direction, group.aboutName)}
-                                </span>
-                              </span>
+                            label: href ? (
+                              <Link to={href} className="mr-link">
+                                {group.spender}
+                              </Link>
+                            ) : (
+                              <span className="mr-plain">{group.spender}</span>
                             ),
+                            position: positionAsFiled(group.direction, group.aboutName),
+                            side: bar.side,
                             amount: bar.amount,
-                            value: bar.negative ? `${bar.value} · ${NET_NEGATIVE}` : bar.value,
+                            value: bar.value,
+                            valueNote: bar.negative ? NET_NEGATIVE : undefined,
                             note:
                               group.dates && group.dates !== DATE_MISSING
                                 ? `Payments dated ${group.dates}`

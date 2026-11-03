@@ -8,7 +8,7 @@ import {
   registerKindLabel,
 } from '@alethical/shared/committeeMoneyShared';
 import { otherOfficeNote, reportedThroughLabel } from '@alethical/shared/legislatorCampaignMoney';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 
 import { apiPath, useRead } from '../api/read';

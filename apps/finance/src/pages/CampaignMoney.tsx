@@ -137,10 +137,10 @@ export function sourceGroups(
   return items.length > 0 ? [{ source: BOARD, items: punctuateGroup(items) }] : [];
 }
 
-/** The side cards (Other ways in, Round 29) whose pages exist. Payments under a
- * name and Money by race open only with a name or a contest, so neither has a
- * plain entrance here yet. The 4 descriptions are 1 punctuated group (eug-31):
- * 1 has 2 sentences, so every one ends with a period. */
+/** The Other ways in cards (Campaign Money drawing, Round 29) whose pages exist,
+ * worded and punctuated as 1 group. Donors by employer is entered from here, not
+ * from Finance Home (eug-44). Payments under a name and Money by race open only
+ * with a name or a contest, so neither has a plain entrance here. */
 const SIDE_CARDS = [
   {
     route: 'recipients' as const,

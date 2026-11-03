@@ -52,6 +52,13 @@
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* A page heading takes focus only when the screen changes, so screen readers
+ * land on it; Tab never reaches it (tabIndex -1), so it keeps no ring (Design
+ * Round 23). A section heading focused on arrival keeps its ring (Round 35). */
+.f-app h1[tabindex='-1']:focus,
+.f-app h1[tabindex='-1']:focus-visible {
+  outline: none;
+}
 .f-num {
   font-variant-numeric: tabular-nums;
 }
@@ -185,8 +192,12 @@
 .f-back svg {
   flex: none;
 }
+/* `.f-app a` would otherwise paint the return link in the link colour. */
+.f-app .f-back {
+  color: var(--secondary);
+}
 @media (hover: hover) and (min-width: 768px) {
-  .f-back:hover {
+  .f-app .f-back:hover {
     color: var(--ink);
   }
   .f-back:hover span {
@@ -237,6 +248,13 @@
   background: var(--surface);
   color: var(--ink);
   border-color: var(--border);
+}
+/* A link drawn as a button keeps the button's text colour over `.f-app a`. */
+.f-app a.f-btn {
+  color: #fff;
+}
+.f-app a.f-btn-secondary {
+  color: var(--ink);
 }
 .f-btn-secondary:active:not([aria-disabled='true']) {
   background: var(--tint);
@@ -667,32 +685,97 @@
   font-variant-numeric: tabular-nums;
 }
 .f-split-ends {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+  color: var(--secondary);
 }
-.f-split-ends span:first-child {
-  margin-left: calc(var(--bar-label, 220px) + 12px);
+.f-split-ends span:last-child {
+  text-align: right;
 }
-.f-bars-split {
-  margin-top: 8px;
+.f-split-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 24px;
 }
-.f-bar-track-split .f-bar-fill {
-  left: auto;
+.f-split-row {
+  display: grid;
+  gap: 6px;
+}
+.f-split-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  font-size: 14px;
+}
+.f-split-label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.f-split-position {
+  color: var(--secondary);
+}
+.f-split-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 4px 16px;
+  align-items: center;
+}
+.f-split-track {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2px minmax(0, 1fr);
+  align-items: center;
+}
+.f-split-half {
+  position: relative;
+  height: 14px;
+  border-radius: 2px;
+  background: #eef2f5;
+}
+.f-split-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: var(--fill);
+}
+.f-split-against .f-split-fill {
+  right: 0;
+}
+.f-split-for .f-split-fill {
+  left: 0;
 }
 .f-split-centre {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  left: 50%;
-  width: 1px;
-  background: var(--border);
+  height: 22px;
+  background: var(--ink);
+}
+.f-split-value {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.f-split-amount {
+  font-weight: 700;
+}
+.f-split-value-note {
+  font-weight: 400;
+  color: var(--secondary);
+}
+.f-split-note {
+  color: var(--secondary);
+}
+@media (max-width: 1099px) {
+  .f-split-line {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (max-width: 1099px) {
   .f-bar-row {
@@ -701,9 +784,6 @@
   .f-bar-value,
   .f-bar-note {
     grid-column: 1;
-  }
-  .f-split-ends span:first-child {
-    margin-left: 0;
   }
 }
 @media (max-width: 767px) {

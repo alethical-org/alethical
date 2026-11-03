@@ -125,49 +125,74 @@ export function BarList({
   );
 }
 
-/** One row of a centred chart: For to the right, Against to the left of a
- * centre line (Money by race, outside spending). */
+/** One row of the For/Against chart (Money by Race drawing, Rounds 31 and 35). */
 export interface SplitBarRow {
   key: string;
+  /** The spender, usually a link. */
   label: ReactNode;
-  /** The signed net: positive for, negative against, null unavailable. */
+  /** The position as filed, printed beside the spender. */
+  position?: string;
+  /** Which side the bar is drawn on, from the filed position, never from the
+   * amount's sign; null when the filing names no direction. */
+  side: 'for' | 'against' | null;
+  /** The net amount. A bar is drawn only when it is above 0. */
   amount: number | null;
+  /** The printed amount: "$1,500", "−$1,500", "Missing payment amount". */
   value: string;
+  /** Regular-weight words after the amount: "Net amount is negative". */
+  valueNote?: string;
+  /** A line under the amount: "Payments dated Mar 4 to Jun 30, 2026". */
   note?: ReactNode;
 }
 
+/**
+ * For to the right, Against to the left of a 2px centre bar. A row draws a bar
+ * only for a positive net on the side its filed position names; a negative,
+ * zero or unavailable net prints its value with no bar. At computer the bar and
+ * the amount share 1 line with a 220px value column; tablet and phone stack them.
+ */
 export function SplitBarList({ label, rows }: { label: string; rows: ReadonlyArray<SplitBarRow> }) {
-  const max = Math.max(1, ...rows.map((row) => Math.abs(row.amount ?? 0)));
+  const max = Math.max(
+    1,
+    ...rows.map((row) => (row.amount !== null && row.amount > 0 ? row.amount : 0)),
+  );
+  const width = (row: SplitBarRow, side: 'for' | 'against') =>
+    row.side === side && row.amount !== null && row.amount > 0
+      ? `${(row.amount / max) * 100}%`
+      : '0%';
   return (
     <div className="f-split-bars">
       <div aria-hidden="true" className="f-split-ends">
         <span>Against</span>
         <span>For</span>
       </div>
-      <ul aria-label={label} className="f-bars f-bars-split">
-        {rows.map((row) => {
-          const amount = row.amount;
-          const width =
-            amount !== null && amount !== 0 ? `${(Math.abs(amount) / max) * 50}%` : '0%';
-          return (
-            <li key={row.key} className="f-bar-row">
-              <span className="f-bar-label">{row.label}</span>
-              <span aria-hidden="true" className="f-bar-track f-bar-track-split">
+      <ul aria-label={label} className="f-split-list">
+        {rows.map((row) => (
+          <li key={row.key} className="f-split-row">
+            <span className="f-split-head">
+              <span className="f-split-label">{row.label}</span>
+              {row.position && <span className="f-split-position">{row.position}</span>}
+            </span>
+            <span className="f-split-line">
+              <span aria-hidden="true" className="f-split-track">
+                <span className="f-split-half f-split-against">
+                  <span className="f-split-fill" style={{ width: width(row, 'against') }} />
+                </span>
                 <span className="f-split-centre" />
-                {amount !== null && amount !== 0 && (
-                  <span
-                    className="f-bar-fill"
-                    style={amount > 0 ? { left: '50%', width } : { right: '50%', width }}
-                  />
-                )}
+                <span className="f-split-half f-split-for">
+                  <span className="f-split-fill" style={{ width: width(row, 'for') }} />
+                </span>
               </span>
-              <span className="f-bar-value" data-figure={amount !== null ? '' : undefined}>
-                {row.value}
+              <span className="f-split-value">
+                <span className="f-split-amount">
+                  {row.value}
+                  {row.valueNote && <span className="f-split-value-note"> · {row.valueNote}</span>}
+                </span>
+                {row.note && <span className="f-split-note">{row.note}</span>}
               </span>
-              {row.note && <span className="f-bar-note">{row.note}</span>}
-            </li>
-          );
-        })}
+            </span>
+          </li>
+        ))}
       </ul>
     </div>
   );

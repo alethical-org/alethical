@@ -4,7 +4,7 @@ import {
   MONEY_OUT_ZERO_NOTE,
 } from '@alethical/shared/committeeMoneyShared';
 import { REPORT_LOAD_ERROR, reportPeriodLine } from '@alethical/shared/committeePaymentsPage';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../../ui/money';
 
 import type { Read } from '../../api/read';
 import { Dropdown, Refused } from '../../ui/controls';

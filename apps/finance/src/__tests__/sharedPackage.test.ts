@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 
 // Finance takes alethical.com's display and wording modules only through
 // @alethical/shared (docs/architecture/alethical-finance-architecture.md §2). This
