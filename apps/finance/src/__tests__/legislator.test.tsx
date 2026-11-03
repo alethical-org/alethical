@@ -109,6 +109,10 @@ const OUTSIDE_2025 = {
       spender_linkable: true,
       direction: 'For',
       amount: '5297.7400',
+      amount_state: 'reported',
+      first_paid_on: '2025-08-13',
+      last_paid_on: '2025-10-11',
+      undated_count: 0,
       row_count: 8,
     },
     {
@@ -311,6 +315,56 @@ describe('Legislator profile', () => {
     expect(contest.textContent).toContain('8 payment records');
     expect(contest.textContent).toContain('Missing payment amount');
     expect(text()).not.toContain('No confirmed records held');
+  });
+
+  it('uses each outside group’s own dates and distinguishes missing amounts from missing periods', async () => {
+    const base = answering(CURRENT);
+    await render('/legislators/patty-acomb', (url) => {
+      if (url.includes('/outside-spending'))
+        return json({
+          ...OUTSIDE_2025,
+          groups: [
+            {
+              ...OUTSIDE_2025.groups[0],
+              first_paid_on: '2025-02-01',
+              last_paid_on: '2025-02-02',
+              amount: '-50',
+              amount_state: 'reported',
+            },
+            {
+              ...OUTSIDE_2025.groups[1],
+              amount: null,
+              amount_state: 'incomplete_period',
+              undated_count: 1,
+              first_paid_on: null,
+              last_paid_on: null,
+            },
+            {
+              ...OUTSIDE_2025.groups[0],
+              spender: 'Zero Fund',
+              amount: '0',
+              amount_state: 'reported',
+              first_paid_on: null,
+              last_paid_on: null,
+              undated_count: 2,
+              first_year: 2024,
+              last_year: 2025,
+            },
+          ],
+        });
+      return base(url);
+    });
+    const rows = [...container.querySelectorAll('.cf-outside li')];
+    expect(rows[0].textContent).toContain('Payments dated Feb 1, 2025 to Feb 2, 2025');
+    expect(rows[0].textContent).toContain('−$50');
+    expect(rows[0].textContent).not.toContain('Oct 11');
+    expect(rows[1].textContent).toContain('Reporting period incomplete');
+    expect(rows[1].textContent).not.toContain('Missing payment amount');
+    expect(rows[2].textContent).toContain('$0');
+    expect(rows[2].textContent).toContain('Filing years 2024–2025');
+    expect(container.querySelector('.cf-contest-head')?.textContent).not.toContain(
+      'Payments dated',
+    );
   });
 
   it('a year with no report total and no itemized rows says so, never $0', async () => {

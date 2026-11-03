@@ -103,6 +103,12 @@ interface OutsideGroup {
   direction?: string | null;
   amount?: string | null;
   row_count?: number | null;
+  amount_state?: 'reported' | 'incomplete' | 'incomplete_period';
+  first_paid_on?: string | null;
+  last_paid_on?: string | null;
+  undated_count?: number;
+  first_year?: number | null;
+  last_year?: number | null;
 }
 
 interface OutsideAnswer {
@@ -439,20 +445,32 @@ function OutsideContest({
     );
   }
   if (groups.length === 0) return null;
-  const dated = period(answer?.figures?.first_paid_on, answer?.figures?.last_paid_on);
   return (
     <article className="cf-contest">
       <div className="cf-contest-head">
         <span className="cf-contest-label f-num">
           {contestLabel(answer?.about?.office, answer?.about?.district, year)}
         </span>
-        {dated && <span className="cf-contest-dates f-num">Payments dated {dated}</span>}
       </div>
       <ul className="cf-outside">
         {groups.map((group, index) => {
           const linkable =
             isBuilt('committee') && group.spender_linkable && group.spender_registration_number;
-          const amount = formatMoney(group.amount ?? null);
+          const amount =
+            group.amount_state === 'incomplete_period' || group.amount_state === 'incomplete'
+              ? null
+              : formatMoney(group.amount ?? null)?.replace(/^-/, '−');
+          const missing =
+            group.amount_state === 'incomplete_period' ? 'Reporting period incomplete' : INCOMPLETE;
+          const dated = period(group.first_paid_on, group.last_paid_on);
+          const filingYears =
+            group.first_year != null && group.last_year != null
+              ? group.first_year === group.last_year
+                ? `Filing year ${group.first_year}`
+                : `Filing years ${group.first_year}–${group.last_year}`
+              : null;
+          const ownPeriod =
+            (group.undated_count ?? 0) > 0 ? filingYears : dated ? `Payments dated ${dated}` : null;
           return (
             <li
               key={`${group.spender_registration_number ?? group.spender}-${group.direction}-${index}`}
@@ -477,9 +495,10 @@ function OutsideContest({
               </span>
               {group.direction && <span className="cf-position">{group.direction}</span>}
               <span className="cf-amount f-num" data-missing={amount ? undefined : true}>
-                {amount ?? INCOMPLETE}
+                {amount ?? missing}
               </span>
               <span className="cf-count f-num">{paymentCountLabel(group.row_count) ?? ''}</span>
+              {ownPeriod && <span className="cf-group-period f-num">{ownPeriod}</span>}
             </li>
           );
         })}
