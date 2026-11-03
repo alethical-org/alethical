@@ -222,7 +222,8 @@ describe('Campaign money directory', () => {
     );
     expect(registerRequests()[0]).toContain('kind=party_unit');
     expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain('Party units');
-    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Finance Home');
+    // A top-level destination: the nav reaches it, so no return link (settled wording row 17).
+    expect(container.querySelector('.f-back')).toBeNull();
     act(() => root.unmount());
     root = createRoot(container);
     requests = [];

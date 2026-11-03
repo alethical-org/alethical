@@ -20,12 +20,12 @@ import { formatMoney } from '../ui/money';
 
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
-import { returnTarget, withFrom } from '../returnContext';
+import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
-import { BackLink, SourcesAndUpdates } from '../ui/parts';
+import { SourcesAndUpdates } from '../ui/parts';
 import { OfficialLink } from './lobbying/parts';
 import './lobbying.css';
 
@@ -201,7 +201,6 @@ function Chevron({ next = false }: { next?: boolean }) {
 export function Lobbying(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
   const [address, setAddress] = useAddressState({
     tab: 'lobbyists',
     q: '',
@@ -351,11 +350,6 @@ export function Lobbying(_props: { match: RouteMatch }) {
   return (
     <main id="main" className="f-page">
       <div className="f-content">
-        {back && (
-          <div className="lb-back">
-            <BackLink to={back.to} name={back.name} />
-          </div>
-        )}
         <header>
           <h1 tabIndex={-1} className="f-page-title">
             Lobbying
