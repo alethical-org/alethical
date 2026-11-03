@@ -15,6 +15,8 @@ export interface CommitteeFinance {
     independent_expenditures: string | null;
   } | null;
   filings_copied_at: string | null;
+  /** Server-reviewed notices scoped to this committee, year and current source file. */
+  source_notices?: Array<{ key: string; dataset: string; text: string }>;
   register: {
     state: string;
     kind: string | null;

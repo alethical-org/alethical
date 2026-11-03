@@ -342,6 +342,86 @@ const text = () => container.textContent ?? '';
 const button = (words: string) =>
   [...container.querySelectorAll('button')].find((item) => item.textContent?.trim() === words);
 
+const SOURCE_NOTICE = {
+  key: 'coleman-2017-expenditures-partial',
+  dataset: 'expenditures',
+  text: 'Minnesota’s Campaign Finance Board spending file lists only part of this committee’s 2017 payments. Our copies of the same file up to October 3, 2026 listed more of them. The committee’s filed report for 2017 is offline while the Board removes street addresses from its reports, so the full list cannot be checked against it.',
+};
+
+function sourceNoticeAnswers(sourceNotices: unknown[] = [SOURCE_NOTICE]): Answers {
+  return Object.fromEntries(
+    Object.entries(loadedAnswers()).map(([path, answer]) => [
+      path.replaceAll('90001', '18127'),
+      path === '/committees/90001/finance'
+        ? {
+            status: 200,
+            body: {
+              ...FINANCE,
+              registration_number: '18127',
+              year: 2017,
+              source_notices: sourceNotices,
+            },
+          }
+        : answer,
+    ]),
+  );
+}
+
+describe('Committee source notices', () => {
+  it('prints the exact served expenditures notice beside the selected payments only', async () => {
+    await render('/money/committees/18127?year=2017&tab=expenditures', sourceNoticeAnswers());
+    const notice = [...container.querySelectorAll('p')].find(
+      (node) => node.textContent === SOURCE_NOTICE.text,
+    );
+    expect(notice).toBeDefined();
+    expect(notice?.closest('section')?.getAttribute('aria-labelledby')).toBe('cmt-money-h');
+    expect(text().split(SOURCE_NOTICE.text)).toHaveLength(2);
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+        .find((node) => node.textContent?.startsWith('Individuals'))!
+        .click(),
+    );
+    expect(text()).not.toContain(SOURCE_NOTICE.text);
+  });
+
+  it('withdraws the previous year’s notice while another year is loading', async () => {
+    await render('/money/committees/18127?year=2017&tab=expenditures', sourceNoticeAnswers());
+    expect(text()).toContain(SOURCE_NOTICE.text);
+    const original = fetch as ReturnType<typeof fetcherFor>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) =>
+        String(input).includes('/18127/finance?') && String(input).includes('year=2018')
+          ? new Promise<Response>(() => {})
+          : original(input),
+      ),
+    );
+    await act(async () => button('2018')!.click());
+    expect(text()).not.toContain(SOURCE_NOTICE.text);
+  });
+
+  it('withdraws a notice when navigation selects another committee', async () => {
+    await render('/money/committees/18127?year=2017&tab=expenditures', sourceNoticeAnswers());
+    expect(text()).toContain(SOURCE_NOTICE.text);
+    await act(async () => {
+      window.history.pushState(null, '', '/money/committees/90002?year=2017&tab=expenditures');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(text()).not.toContain(SOURCE_NOTICE.text);
+  });
+
+  it.each([{ notices: [] }, { notices: [{ ...SOURCE_NOTICE, dataset: 'contributions' }] }])(
+    'never invents an expenditures notice from a registration or year',
+    async ({ notices }) => {
+      await render(
+        '/money/committees/18127?year=2017&tab=expenditures',
+        sourceNoticeAnswers(notices),
+      );
+      expect(text()).not.toContain(SOURCE_NOTICE.text);
+    },
+  );
+});
+
 describe('Committee page', () => {
   it('says a missing official spending total in words, never as $0', async () => {
     await render(

@@ -262,6 +262,9 @@ figure is ever added across committees or members.
   its own words when it is not available, never $0; a year with no contribution records held
   shows neither. With no earlier page in the address, the return link reads "Back to
   Campaign money".
+  A source notice returned for the selected committee and year appears beside its expenditures,
+  using the server’s exact words. It is absent from other tabs and is removed on a year or committee
+  change; the frontend never infers a notice from the registration number or year.
   Money received that is not a contribution is not shown yet; it waits for its own drawing.
   The drawn Contributions made tab and the Open race and Matching station invoice links are
   not shown: the server serves no recipient type, contest or invoice link for them.

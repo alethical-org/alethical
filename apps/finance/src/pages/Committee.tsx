@@ -571,6 +571,15 @@ export function Committee({ match }: { match: RouteMatch }) {
                     />
                   </div>
 
+                  {isExp &&
+                    current.source_notices
+                      ?.filter((notice) => notice.dataset === 'expenditures')
+                      .map((notice) => (
+                        <p key={notice.key} className="cmt-tab-note">
+                          {notice.text}
+                        </p>
+                      ))}
+
                   <div className="cmt-controls">
                     <label className="cmt-search">
                       <span className="f-visually-hidden">Search names in this tab</span>
