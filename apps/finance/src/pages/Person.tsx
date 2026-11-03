@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
 import { apiPath, useRead } from '../api/read';
+import { copyDate, type ServedCounts } from '../landing/counts';
 import {
   accountsFrom,
   CampaignFinance,
@@ -350,6 +351,8 @@ export function Person({ match }: { match: RouteMatch }) {
   const isCandidate = Boolean(record && record.elections.length > 0);
   const available = Boolean(record || (identity && identity.status === 'active'));
   const connected = rows.filter((r) => r.href);
+  const served = useRead<ServedCounts>(record ? 'finance/landing/counts' : null);
+  const legislatureDate = served.data ? copyDate(served.data, 'current_legislature_bills') : null;
   return (
     <main id="main" className="f-page">
       <div className="f-content">
@@ -502,9 +505,9 @@ export function Person({ match }: { match: RouteMatch }) {
       {available && (
         <SourcesAndUpdates>
           {record && (
-            <p className="f-sources-line">
+            <p className="f-sources-line f-num">
               Candidate records from the Minnesota Secretary of State. Service records from the
-              Minnesota Legislature
+              Minnesota Legislature{legislatureDate ? ` · updated ${legislatureDate}` : ''}
             </p>
           )}
           {sourceItems.map((line) => (

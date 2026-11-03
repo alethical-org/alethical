@@ -2,10 +2,18 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { clearReadCache } from '../api/read';
-import { Person, serviceTitle, timelineRows, type PersonRecord } from '../pages/Person';
+import {
+  NO_ADDRESS_LINE,
+  Person,
+  serviceTitle,
+  SPLIT_LEAD,
+  SPLIT_TITLE,
+  timelineRows,
+  type PersonRecord,
+} from '../pages/Person';
 import { loadSpelling } from '../pages/organization/data';
 import { clearOrganizationLoads } from '../pages/organization/useLoad';
-import { matchRoute } from '../routes';
+import { isBuilt, matchRoute } from '../routes';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('../auth/session', () => ({
   useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
@@ -161,4 +169,89 @@ it('withholds records if the identity source changes between pages', async () =>
     data: { snapshot_id: ++n === 1 ? 'first' : 'changed', pages: 2, page: n, fingerprints: [] },
   }));
   expect(await loadSpelling(get as never, 'p', { kind: 'donor_name', key: 'P' })).toBeNull();
+});
+const missing = () => new Response(null, { status: 404 });
+it('a split record’s old reference opens the choice of the person meant', async () => {
+  await render((url) =>
+    url.pathname.endsWith('/people/p')
+      ? missing()
+      : json({
+          id: 'p',
+          kind: 'person',
+          name: 'Split Person',
+          status: 'split',
+          split_into: [
+            { id: 'a', kind: 'person', name: 'Split Person A' },
+            { id: 'b', kind: 'organization', name: 'Split Organization B' },
+          ],
+          confirmations: [],
+        }),
+  );
+  expect(container.querySelector('h1')?.textContent).toBe(SPLIT_TITLE);
+  expect(container.textContent).toContain(SPLIT_LEAD);
+  expect(container.textContent).toContain('Split Person A');
+  // An organization part opens its profile; a person part links only once Person is on.
+  expect(container.querySelector('a[href^="/organizations/b"]')?.getAttribute('href')).toBe(
+    isBuilt('person') ? '/organizations/b?from=%2Fpeople%2Fp' : '/organizations/b',
+  );
+  expect(container.querySelector('a[href^="/people/a"]') !== null).toBe(isBuilt('person'));
+  expect(container.textContent).not.toContain('Sources and updates');
+});
+it('a merged record’s reference opens the surviving record', async () => {
+  window.history.replaceState(null, '', '/people/p?from=%2Fpeople');
+  await render((url) =>
+    url.pathname.endsWith('/people/p')
+      ? missing()
+      : json({
+          id: 'p',
+          kind: 'person',
+          name: 'Merged Person',
+          status: 'merged',
+          redirect_to: 'survivor',
+          confirmations: [],
+        }),
+  );
+  expect(window.location.pathname).toBe('/people/survivor');
+  expect(window.location.search).toBe('?from=%2Fpeople');
+});
+it('lists connected records as two-line rows and keeps the no-address line on its own', async () => {
+  await render((url) =>
+    url.pathname.endsWith('/people/p')
+      ? json(profile, false)
+      : url.pathname.endsWith('/lookup')
+        ? json(null)
+        : json({ link_state: 'unconfirmed', years: [] }),
+  );
+  const rows = [...container.querySelectorAll('.lg2-related .f-row-link')];
+  expect(rows.map((row) => row.querySelector('.f-row-link-name')?.textContent)).toEqual([
+    'View candidate profile',
+    'View legislator profile',
+  ]);
+  expect(rows[0].querySelector('.f-row-link-note')?.textContent).toBe('2024 general');
+  const lines = [...container.querySelectorAll('.f-sources .f-sources-line')].map(
+    (p) => p.textContent,
+  );
+  expect(lines[lines.length - 1]).toBe(NO_ADDRESS_LINE);
+  expect(container.textContent).toContain(
+    'Candidacy and election results do not prove current service',
+  );
+  expect(container.textContent).not.toContain('current service.');
+});
+it('says Running for while an upcoming election’s result is pending', () => {
+  const upcoming = {
+    ...profile,
+    elections: [
+      {
+        ...profile.elections[0],
+        election: { id: 'e2', date: '2026-11-03', type: 'general' as const },
+        result: { status: 'pending' as const },
+      },
+    ],
+  };
+  expect(timelineRows(upcoming, null, '2026-11-02')[0].title).toBe(
+    'Running for State Representative',
+  );
+  expect(timelineRows(upcoming, null, '2026-11-02')[0].detail).toBe(
+    'General election · District 1A · Election results pending',
+  );
 });
