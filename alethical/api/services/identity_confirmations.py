@@ -884,6 +884,17 @@ def _payloads(db: Session, confirmations: list[Confirmation]) -> tuple[list, lis
             for record in held[confirmation.id]
         ]
 
+    # Show a held record's own name, never its internal id or the separately
+    # chosen identity name. Fetch each kind together for the returned page.
+    record_names = {}
+    for kind, model in _HELD_RECORDS.items():
+        keys = [UUID(c.record_key) for c in confirmations if c.record_kind == kind]
+        if keys:
+            name = model.full_name if kind == "legislator" else model.name
+            for key, label in db.execute(
+                select(model.id, name).where(model.id.in_(keys))
+            ):
+                record_names[kind, str(key)] = label
     payloads = []
     covered: dict[tuple[str, str], int] = defaultdict(int)
     for confirmation in confirmations:
@@ -892,6 +903,9 @@ def _payloads(db: Session, confirmations: list[Confirmation]) -> tuple[list, lis
             "identity_id": str(confirmation.entity_id),
             "record_kind": confirmation.record_kind,
             "record_key": confirmation.record_key,
+            "record_name": record_names.get(
+                (confirmation.record_kind, confirmation.record_key)
+            ),
             "relation": confirmation.relation,
             "status": "confirmed" if confirmation.active else "withdrawn",
             "checked_at": _iso(confirmation.checked_at),

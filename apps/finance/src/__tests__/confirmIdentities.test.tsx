@@ -14,6 +14,8 @@ import {
   queueAmount,
   queuePeriod,
   refOf,
+  roleTitle,
+  printableKey,
   sumCounts,
 } from '../pages/identities/words';
 import { hasDraft } from '../ui/drafts';
@@ -859,6 +861,32 @@ describe('counts whose file is not held', () => {
 });
 
 describe('Confirm identities page', () => {
+  it('offers employer names and shows the returned identity count', async () => {
+    serve((url) => {
+      if (url.pathname.endsWith('/queue'))
+        return json(queuePage([queueRow({ identity_count: 2, confirmed: 3 })]));
+      if (url.pathname.endsWith('/records'))
+        return json(recordsPage({ records: 0, fingerprints: [] }));
+    });
+    await render('/money/identities');
+    expect(text()).toContain('4 records · Confirmed for 3 of 4 · 2 identities');
+    await click(button('Employer names'));
+    expect(new URL(window.location.href).searchParams.get('record_type')).toBe('employer');
+  });
+
+  it('shows held source names without printing their internal ids', () => {
+    const source = {
+      record_kind: 'legislator',
+      record_key: ORG,
+      record_name: 'Jordan Example',
+    };
+    expect(printableKey(source)).toBe('Jordan Example');
+    expect(roleTitle(source)).toBe('Legislative service · Jordan Example');
+    expect(printableKey({ record_kind: 'public_person', record_key: ORG })).toBeNull();
+    expect(roleTitle({ record_kind: 'public_person', record_key: ORG })).not.toContain(ORG);
+  });
+
+
   it('lists names to review with the money rules and the shared period label', async () => {
     serve((url) => {
       if (url.pathname.endsWith('/queue'))

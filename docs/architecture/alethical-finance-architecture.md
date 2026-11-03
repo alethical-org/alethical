@@ -384,10 +384,16 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   payment-date year can disagree, so a missing filing year is never derived from
   a date. `amount_state` distinguishes `reported`, `incomplete_amount` and
   `incomplete_period`; `undated_records` counts records lacking both year and date.
-  A partly confirmed
-  name remains in the unconfirmed queue. `GET /identities` finds saved active
+  The queue includes employer spellings separately from donor and payee spellings.
+  `identity_count` counts distinct identities standing today for its current
+  confirmed records, following merges and splits without counting withdrawn claims.
+  A partly confirmed name remains in the unconfirmed queue; an empty filtered list
+  says no names match, never that every name was reviewed. `GET /identities` finds saved active
   identities by `q` and optional `kind`, with the same paging bounds; it returns
   only id, reference, kind and name, without a suggested match or any account details.
+- Held legislator and public-person confirmations return `record_name` from the
+  held source record, separately from `record_key` and the saved identity name.
+  The UI prints the source name when held, otherwise the role alone, never a UUID.
 - **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
   registration number, a principal's id, or the id of a held legislator or public person
   is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`

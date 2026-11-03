@@ -196,7 +196,7 @@ def list_entities(
 
 @router.get("/queue")
 def queue(
-    record_type: Literal["all", "donor", "payee"] = Query("all"),
+    record_type: Literal["all", "donor", "employer", "payee"] = Query("all"),
     status: Literal["unconfirmed", "confirmed", "all"] = Query("unconfirmed"),
     q: str = Query("", max_length=500),
     page: int = Query(1, ge=1, le=2147483647),
