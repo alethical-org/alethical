@@ -59,8 +59,11 @@ const ALETHICAL_LINE =
 
 /** The printed names' source line: 1 copy date when every file shares it, else each
  * file with its own (eug-135: each dataset keeps its own date). */
-export function sourceLine(queue: QueuePage | null): string {
-  const sources = Object.values(queue?.sources ?? {});
+export function sourceLine(
+  queue: QueuePage | null,
+  open: { file: string; copied_at: string | null } | null = null,
+): string {
+  const sources = queue ? Object.values(queue.sources) : open ? [open] : [];
   const dated = sources.filter((source) => day(source.copied_at));
   if (dated.length === 0) return ALETHICAL_LINE;
   const dates = [...new Set(dated.map((source) => day(source.copied_at)))];
@@ -97,6 +100,9 @@ export function ConfirmIdentities(_props: { match?: RouteMatch }) {
   const [savedCount, setSavedCount] = useState(0);
   const [, setDraftTick] = useState(0);
   const [live, setLive] = useState('');
+  const [openSource, setOpenSource] = useState<{ file: string; copied_at: string | null } | null>(
+    null,
+  );
   const onLoaded = useCallback((page: QueuePage) => setQueue(page), []);
   const onDraftsChanged = useCallback(() => setDraftTick((value) => value + 1), []);
 
@@ -119,7 +125,7 @@ export function ConfirmIdentities(_props: { match?: RouteMatch }) {
     if (single && asked) window.scrollTo({ top: 0 });
   }, [single, asked]);
 
-  const copyLine = sourceLine(queue);
+  const copyLine = sourceLine(queue, openSource);
 
   return (
     <main id="main" className="f-page ci-page">
@@ -181,6 +187,7 @@ export function ConfirmIdentities(_props: { match?: RouteMatch }) {
               onSaved={() => setSavedCount((value) => value + 1)}
               onDraftsChanged={onDraftsChanged}
               onLive={setLive}
+              onSource={setOpenSource}
             />
           )}
         </div>

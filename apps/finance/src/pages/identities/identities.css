@@ -87,6 +87,17 @@
   gap: 12px;
   border-bottom: 1px solid var(--hairline);
 }
+.ci-queue-head .f-chips {
+  gap: 6px;
+}
+.ci-queue-head .f-chip {
+  padding: 0 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ci-queue-head .f-chip[aria-pressed='true'] {
+  font-weight: 700;
+}
 .ci-queue-title {
   display: grid;
   gap: 2px;
@@ -590,6 +601,7 @@
   overflow-wrap: anywhere;
 }
 .ci-radio span {
+  font-weight: 400;
   min-width: 0;
 }
 .ci-preview {

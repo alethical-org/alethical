@@ -53,7 +53,7 @@ export function Queue({
   }, [read.data, onLoaded]);
   const data = read.data;
   return (
-    <section className="ci-queue f-card ci-card" aria-labelledby="queue-h">
+    <section className="ci-queue ci-card" aria-labelledby="queue-h">
       <div className="ci-queue-head">
         <div className="ci-queue-title">
           <h2 id="queue-h">Names to review</h2>
@@ -143,7 +143,7 @@ export function Queue({
           })}
         </ul>
       )}
-      {data && (
+      {data && data.pages > 1 && (
         <div className="ci-pad">
           <Pager
             page={data.page}

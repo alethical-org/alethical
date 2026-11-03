@@ -90,6 +90,10 @@ export function IdentityForm({
 }) {
   function submit(event: FormEvent) {
     event.preventDefault();
+    // Only the form's own submit button saves; a page button inside it (the shared
+    // pager's Previous and Next carry no type) must never send the form.
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (submitter && submitter.getAttribute('type') !== 'submit') return;
     onSubmit();
   }
   return (

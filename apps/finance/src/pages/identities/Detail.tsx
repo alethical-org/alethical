@@ -126,6 +126,7 @@ export function Detail({
   onSaved,
   onDraftsChanged,
   onLive,
+  onSource,
 }: {
   kind: PrintedKind;
   name: string;
@@ -136,6 +137,8 @@ export function Detail({
   onSaved: () => void;
   onDraftsChanged: () => void;
   onLive: (text: string) => void;
+  /** The file this name is read from and its copy date, for Sources and updates. */
+  onSource: (source: { file: string; copied_at: string | null } | null) => void;
 }) {
   const { apiBaseUrl, accessToken } = useFinanceSession();
   const [address, setAddress] = useAddressState({ records_page: '1' });
@@ -153,6 +156,9 @@ export function Detail({
     if (data && (snapshot === null || data.page === 1) && data.snapshot_id !== snapshot)
       setSnapshot(data.snapshot_id);
   }, [data, snapshot]);
+  useEffect(() => {
+    onSource(data ? { file: data.file, copied_at: data.copied_at } : null);
+  }, [data?.file, data?.copied_at, onSource]);
   const n = data?.records ?? 0;
   const k = data?.confirmed ?? 0;
   const held = data?.identities ?? [];

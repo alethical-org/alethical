@@ -642,6 +642,23 @@ describe('Confirm identities page', () => {
     expect(calls).toBeGreaterThan(1);
   });
 
+  it('pages records inside the form without sending it', async () => {
+    serve((url) => {
+      if (url.pathname.endsWith('/queue')) return json(queuePage([]));
+      if (url.pathname.endsWith('/records'))
+        return json(recordsPage({ pages: 2, page: Number(url.searchParams.get('page') ?? 1) }));
+    });
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
+    await click(button('Create a new organization'));
+    const next = [...container.querySelectorAll<HTMLButtonElement>('#identity-form button')].find(
+      (b) => b.textContent === 'Next',
+    )!;
+    await click(next);
+    expect(text()).not.toContain('Write the name of the new record');
+    expect(text()).toContain('Page 2 of 2');
+    expect(posts).toHaveLength(0);
+  });
+
   it('keeps 1 draft per target, tags the queue row and restores it on return', async () => {
     heldServer(() => json({}));
     await openConfirm();
