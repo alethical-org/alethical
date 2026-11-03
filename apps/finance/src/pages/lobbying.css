@@ -3,9 +3,6 @@
  * Bands: phone below 768, tablet 768 to 1099, computer 1100 and up. */
 
 /* ---------- Lobbying directory ---------- */
-.lb-back {
-  margin: -8px 0 12px;
-}
 .lb-lead {
   margin: 8px 0 0;
   max-width: 760px;
@@ -791,7 +788,6 @@ a.lbl-committee-name {
   .lb-title {
     font-size: 24px;
   }
-  .lb-back .f-back,
   .lb-identity-open {
     min-height: 44px;
   }

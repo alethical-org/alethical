@@ -255,7 +255,7 @@ figure is ever added across committees or members.
   Lobbyists tab for the year and printed name (its "Back to Lobbyist" returns to the same
   year's records); a principal's total reported spending by year as a chart (a dashed gap for
   a year with no report held), its categories one click away in Table, the lobbyists
-  listed for it, and Media buys below them.
+  listed for it, and Media buys below them. Opened with no earlier page, each returns to Lobbying.
 - **Organization profile (`/organizations/:id`)**: 1 confirmed organization's lobbying,
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover; group totals follow the shared rule, labelled by filing year when
@@ -266,6 +266,8 @@ figure is ever added across committees or members.
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
   address opens the surviving record; a split record's address asks which person was meant.
+  Each election names its office and district once. Opened with no earlier page, it returns to
+  People.
 - **Not built yet:** Vendors and payees (`/money/recipients`),
   Money connections (`/money/connections`) and Confirm identities (`/money/identities`)
   each have a screen in the code but answer "not found"

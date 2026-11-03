@@ -20,12 +20,12 @@ import { formatMoney } from '../ui/money';
 
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
-import { returnTarget, withFrom } from '../returnContext';
+import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
-import { BackLink, SourcesAndUpdates } from '../ui/parts';
+import { SourcesAndUpdates } from '../ui/parts';
 import { OfficialLink } from './lobbying/parts';
 import './lobbying.css';
 
@@ -201,7 +201,6 @@ function Chevron({ next = false }: { next?: boolean }) {
 export function Lobbying(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
   const [address, setAddress] = useAddressState({
     tab: 'lobbyists',
     q: '',
@@ -319,6 +318,11 @@ export function Lobbying(_props: { match: RouteMatch }) {
     tab === 'principals'
       ? year || (spendingYear === null ? '' : String(spendingYear))
       : year || (donationYear === null ? '' : String(donationYear));
+  // The year the rows on screen belong to: the shown answer's own year, so kept
+  // rows never take a new selection's year while it loads or after it fails. The
+  // address's year stands in only before any answer.
+  const answerYear = tab === 'principals' ? spendingYear : donationYear;
+  const listYear = answerYear !== null ? String(answerYear) : reported ? '' : year;
   const yearOptions = [
     ...new Set([
       ...(year ? [Number(year)] : []),
@@ -351,11 +355,6 @@ export function Lobbying(_props: { match: RouteMatch }) {
   return (
     <main id="main" className="f-page">
       <div className="f-content">
-        {back && (
-          <div className="lb-back">
-            <BackLink to={back.to} name={back.name} />
-          </div>
-        )}
         <header>
           <h1 tabIndex={-1} className="f-page-title">
             Lobbying
@@ -477,10 +476,10 @@ export function Lobbying(_props: { match: RouteMatch }) {
                             {tab === 'lobbyists'
                               ? 'CONTRIBUTIONS RECORDED IN'
                               : 'REPORTED SPENDING'}
-                            {shownYear && (
+                            {listYear && (
                               <>
                                 {' '}
-                                <span className="lb-head-year f-num">{shownYear}</span>
+                                <span className="lb-head-year f-num">{listYear}</span>
                               </>
                             )}
                           </span>
@@ -499,7 +498,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
                                         hrefFor(
                                           'lobbyist',
                                           { id: row.registration_number },
-                                          { year: shownYear || null },
+                                          { year: listYear || null },
                                         ),
                                         here,
                                       )}#contributions`}
@@ -521,9 +520,11 @@ export function Lobbying(_props: { match: RouteMatch }) {
                                   role="cell"
                                   className={`lb-third lb-figure ${held ? 'lb-strong' : 'lb-missing'} f-num`}
                                 >
-                                  <span className="lb-phone-only">
-                                    Contributions recorded in {shownYear}:{' '}
-                                  </span>
+                                  {listYear && (
+                                    <span className="lb-phone-only">
+                                      Contributions recorded in {listYear}:{' '}
+                                    </span>
+                                  )}
                                   <span className="lb-figure-value">{figure}</span>
                                 </span>
                               </div>
@@ -531,7 +532,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
                           })}
                         {isPrincipals(reported) &&
                           reported.principals.map((row) => {
-                            const rowYear = row.spending_year ?? spendingYear ?? shownYear;
+                            const rowYear = row.spending_year ?? spendingYear ?? listYear;
                             const href =
                               row.linkable && isBuilt('principal')
                                 ? withFrom(
@@ -562,9 +563,13 @@ export function Lobbying(_props: { match: RouteMatch }) {
                                   role="cell"
                                   className={`lb-third lb-figure ${row.spending_state === 'reported' ? 'lb-strong' : 'lb-missing'} f-num`}
                                 >
-                                  <span className="lb-phone-only">
-                                    Reported spending {rowYear}:{' '}
-                                  </span>
+                                  {/* "No spending report for {year}" names its year itself. */}
+                                  {rowYear &&
+                                    !(row.spending_state === 'not_reported' && row.linkable) && (
+                                      <span className="lb-phone-only">
+                                        Reported spending {rowYear}:{' '}
+                                      </span>
+                                    )}
                                   <span className="lb-figure-value">
                                     {principalSpending(row, rowYear)}
                                   </span>
