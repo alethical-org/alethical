@@ -46,6 +46,23 @@ Finance). Identity confirmations (§4) answer under `/identities/`
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
+### Paged lists name the source state they read
+
+Every paged Finance list answers `version`, a 16-character token for the exact source
+state it read (`alethical/api/services/finance_versions.py`): `/connections`, `/payees`,
+`/people`, `/identities`, `/identities/queue`, `/media-buys/browse` and
+`/media-buys/queue`. A request that sends a `version` back is refused with 409, type
+`records-changed`, "These records changed. Reload the list.", once anything that list
+reads has changed, so pages read before and after a change are never joined. The token
+covers only that list's sources: the published payment release (its files never
+change), identity changes (every one writes an identity event), reviewed campaign
+accounts, the lobbying release, station files and their checks, and for people the
+legislator, service, candidacy and public-person tables. It is read in the request's
+pinned view before the list, so token and page describe 1 instant. A changed token says
+only that something the list reads changed, never what. Reads that already take a pin
+keep it: `release_id` on the money reads and payments under a name, `snapshot_id` on
+identity records.
+
 ### People records
 
 `GET /api/v1/finance/people` pages held candidacies, public person records and

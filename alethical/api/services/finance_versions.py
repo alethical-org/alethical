@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 
 from sqlalchemy import text
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
@@ -68,8 +69,18 @@ class VersionChanged(Exception):
 
 
 def current(db: Session, *marks: str) -> str:
-    """The token for these sources, read in this request's pinned view."""
-    committee_finance.pin_to_one_view(db)
+    """The token for these sources, read in this request's pinned view.
+
+    Pinned first, because whichever statement runs first fixes the transaction's
+    view: a fresh request session (every request in production) is pinned here, so
+    the token and the list read 1 instant. A connection already inside a
+    transaction keeps that transaction's view.
+    """
+    try:
+        committee_finance.pin_to_one_view(db)
+    except InvalidRequestError:
+        # The connection already holds an open transaction; its view governs.
+        pass
     statement = "SELECT jsonb_build_array(" + ", ".join(MARKS[m] for m in marks) + ")"
     state = db.execute(text(statement)).scalar_one()
     payload = repr((marks, state)).encode()
