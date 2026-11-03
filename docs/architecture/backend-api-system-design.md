@@ -1586,6 +1586,17 @@ honest inside one subject and only there. `page` is 1-based over `page.size` = 5
 `page.total_rows` counts every matching row with the same filter, and is `null` on any page that
 is not `reported`.
 
+`group_by=spender`, with both `about` and `year`, returns every `groups` entry for that
+committee-year instead of `rows` and `page`: 1 per spender and filed direction, keyed on the
+spender's registration number, or on the exact filed name where the row carries none
+(`grouping_basis`). Each group carries `amount`, the net of its signed payments (a refund counts
+against it), and `amount_state` under the shared total rule: `incomplete` when any payment amount
+is missing (it takes precedence), `incomplete_period` when neither every payment date nor every
+filed year is held, otherwise `reported`; `amount` is `null` unless `reported`. Each group also
+carries its own rows' `first_paid_on`, `last_paid_on`, `undated_count`, `first_year` and
+`last_year`, so a page labels it with its own period. Withheld amounts sort after every shown
+one. The direction figures gain `*_spender_count`.
+
 - **200 with `state: "reported"`** — rows and figures are real.
 - **200 with `state: "not_reported"`** — the file holds no row for this subject and year.
   **Never a zero**: a group that spent nothing and a report that has not arrived look the same.

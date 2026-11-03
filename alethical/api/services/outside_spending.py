@@ -199,6 +199,13 @@ class OutsideSpendingGroup:
     Where one number carries several spellings, print the last name in the source's
     row order. Never merge distinct registration numbers because names look alike.
     A blank amount withholds the group's sum, just as it withholds the total above.
+
+    ``amount`` is the net of the group's signed payments (a refund counts against
+    it), shown only under the shared total rule: every amount held, and every
+    payment date or every filed year held. ``amount_state`` says which held:
+    ``reported``, ``incomplete`` (a payment amount is missing; it takes
+    precedence) or ``incomplete_period``. The payment dates and filed years are the
+    group's own rows', so a page labels each group with its own period.
     """
 
     spender: Optional[str]
@@ -208,6 +215,12 @@ class OutsideSpendingGroup:
     amount: Optional[Decimal]
     row_count: int
     grouping_basis: str
+    amount_state: str = "reported"
+    first_paid_on: Optional[date] = None
+    last_paid_on: Optional[date] = None
+    undated_count: int = 0
+    first_year: Optional[int] = None
+    last_year: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -717,6 +730,17 @@ def _group_spenders(
     groups = []
     for (basis, _, direction), payments in grouped.items():
         latest = max(payments, key=lambda row: row.record_number)
+        dates = [row.paid_on for row in payments if row.paid_on is not None]
+        years = [row.year for row in payments if row.year is not None]
+        all_amounts = all(row.amount is not None for row in payments)
+        whole_period = len(dates) == len(payments) or len(years) == len(payments)
+        state = (
+            "incomplete"
+            if not all_amounts
+            else "reported"
+            if whole_period
+            else "incomplete_period"
+        )
         groups.append(
             OutsideSpendingGroup(
                 spender=latest.spender,
@@ -728,11 +752,17 @@ def _group_spenders(
                         (row.amount for row in payments if row.amount is not None),
                         Decimal(0),
                     )
-                    if all(row.amount is not None for row in payments)
+                    if state == "reported"
                     else None
                 ),
                 row_count=len(payments),
                 grouping_basis=basis,
+                amount_state=state,
+                first_paid_on=min(dates, default=None),
+                last_paid_on=max(dates, default=None),
+                undated_count=len(payments) - len(dates),
+                first_year=min(years, default=None),
+                last_year=max(years, default=None),
             )
         )
     # Missing amounts go last. Explicit tie-breaks keep equal sums stable.
