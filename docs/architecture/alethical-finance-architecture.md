@@ -60,11 +60,13 @@ accounts and legislator names, the lobbying release, station files and their che
 copy review state, machine-read facts and searchable page text. People covers
 legislators, service periods, their session/chamber/district references, candidacies,
 public persons and the Minnesota date used for current/past membership. The page and
-token share one clock reading. Tables without change dates use ordered row keys and
-PostgreSQL row revisions (`xmin`), avoiding a read of every saved text body. These
-opaque tokens may invalidate conservatively after maintenance; they are not record IDs. It is read in the request's
-pinned view before the list, so token and page describe 1 instant. A changed token says
-only that something the list reads changed, never what. Reads that already take a pin
+token share one clock reading. Mutable tables use ordered row keys and
+PostgreSQL row revisions (`xmin`) rather than observation timestamps alone, avoiding
+a read of every saved text body. These opaque tokens may invalidate conservatively
+after maintenance; they are not record IDs. Each token is read in the request's
+pinned view before the list, so token and page describe 1 instant. An already-open
+transaction without a stable snapshot is refused with 503, never treated as pinned.
+A changed token says only that something the list reads changed, never what. Reads that already take a pin
 keep it: `release_id` on the money reads and payments under a name, `snapshot_id` on
 identity records.
 

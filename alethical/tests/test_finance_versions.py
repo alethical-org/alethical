@@ -185,10 +185,14 @@ def test_station_version_covers_searchable_page_text(finance_api, original):
     read(finance_api, path, status=409, version=before)
 
 
-def test_token_and_list_share_one_snapshot_during_a_concurrent_write(seed_database):
+def test_token_and_list_share_one_snapshot_during_a_concurrent_write(
+    seed_database, monkeypatch
+):
     # Fresh request sessions, unlike the outer-transaction fixtures above. The
     # writer commits between token and page reads; the old page must stay old.
-    from alethical.api.finance_access import require_finance_access
+    from alethical.api import finance_access as access_dependency
+    from alethical.api.auth import get_auth_service
+    from alethical.tests.finance_fixtures import _ListedAccount, FINANCE_TOKEN
     from alethical.api.main import create_app
     from alethical.api.services.finance_access import FinanceAccount
     from fastapi.testclient import TestClient
@@ -201,14 +205,24 @@ def test_token_and_list_share_one_snapshot_during_a_concurrent_write(seed_databa
         writer.commit()
         person_id = person.id
     app = create_app()
-    app.dependency_overrides[require_finance_access] = lambda: FinanceAccount(
-        "test", "test@example.test", False
-    )
+    app.dependency_overrides[get_auth_service] = lambda: _ListedAccount()
+    access_sessions = []
+
+    def checked_access(db, subject):
+        # Exercise the real auth dependency's database read before the endpoint.
+        access_sessions.append(db)
+        db.execute(text("SELECT 1"))
+        return FinanceAccount(subject, "test@example.test", False)
+
+    monkeypatch.setattr(access_dependency, "supabase_account_access", checked_access)
+    client = TestClient(app)
+    client.headers["Authorization"] = f"Bearer {FINANCE_TOKEN}"
     normal_directory = finance_people.directory
     try:
         with pytest.MonkeyPatch.context() as patch:
 
             def interleaved(db, **kwargs):
+                assert db is not access_sessions[-1]
                 with factory() as writer:
                     writer.get(m.PublicPerson, person_id).name = name + " updated"
                     writer.commit()
@@ -218,17 +232,11 @@ def test_token_and_list_share_one_snapshot_during_a_concurrent_write(seed_databa
                 return normal_directory(db, **kwargs)
 
             patch.setattr(finance_people, "directory", interleaved)
-            first = (
-                TestClient(app)
-                .get("/api/v1/finance/people", params={"q": name})
-                .json()["data"]
-            )
+            first = client.get("/api/v1/finance/people", params={"q": name}).json()[
+                "data"
+            ]
         assert [row["name"] for row in first["rows"]] == [name]
-        second = (
-            TestClient(app)
-            .get("/api/v1/finance/people", params={"q": name})
-            .json()["data"]
-        )
+        second = client.get("/api/v1/finance/people", params={"q": name}).json()["data"]
         assert [row["name"] for row in second["rows"]] == [name + " updated"]
         assert first["version"] != second["version"]
     finally:
@@ -248,3 +256,29 @@ def test_station_version_covers_current_document_selection(finance_api, original
     after = read(finance_api, path)["data"]
     assert after["rows"][0]["version_id"] == original.document.content_hash
     read(finance_api, path, status=409, version=before["version"])
+
+
+def test_station_version_covers_metadata_even_when_observed_dates_are_unchanged(
+    finance_api, original
+):
+    path = "/api/v1/finance/media-buys/queue"
+    before = read(finance_api, path)["data"]
+    original.document.name = "Corrected source title"
+    original.db.commit()
+    after = read(finance_api, path)["data"]
+    assert after["rows"][0]["name"] == "Corrected source title"
+    read(finance_api, path, status=409, version=before["version"])
+
+
+def test_an_already_open_read_committed_transaction_cannot_name_a_snapshot(
+    seed_database,
+):
+    from fastapi import HTTPException
+    from alethical.api.services import finance_versions
+
+    with get_session_factory()() as db:
+        db.execute(text("SELECT 1"))
+        assert db.connection().get_isolation_level() == "READ COMMITTED"
+        with pytest.raises(HTTPException) as refused:
+            finance_versions.current(db, "people")
+        assert refused.value.status_code == 503

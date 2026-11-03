@@ -8,10 +8,10 @@ with ``version``, and a request that sends a ``version`` back is refused with 40
 when the state it names is gone, so the client reloads rather than mixing.
 
 The token covers only the sources that list reads (``MARKS``): the published payment
-release by its id (its files never change), and for tables changed in place, a row
-count with the latest change date. Tables without change dates use a digest of
-row revisions. People also includes the local date used for membership. The token
-is computed in the request's pinned view
+release by its id (its files never change), and for every mutable table, a digest
+of ordered row keys and revisions. Observation timestamps alone do not prove that
+a row stayed unchanged. People also includes the local date used for membership.
+The token is computed in the request's pinned view
 (``committee_finance.pin_to_one_view``), before the list itself is read, so the token
 and the page describe 1 instant. A changed token says only that something the list
 reads changed, never what; a matching token proves that nothing it covers did.
@@ -22,17 +22,12 @@ from __future__ import annotations
 import hashlib
 from datetime import date
 
-from sqlalchemy import text
-from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy import Connection, text
 from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
 from alethical.api.services import committee_finance
-
-
-def _counted(table: str, *dates: str) -> str:
-    latest = ", ".join(f"max({column})::text" for column in dates)
-    return f"(SELECT jsonb_build_array(count(*), {latest}) FROM {table})"
+from alethical.pipeline import campaign_finance_filings as filings
 
 
 def _digest(table: str, order: str) -> str:
@@ -53,31 +48,23 @@ def _digest(table: str, order: str) -> str:
 
 MARKS = {
     "money": "(SELECT release_id::text FROM cf_current_release WHERE id)",
-    "identity": _counted("identity_event", "created_at"),
+    "identity": _digest("identity_event", "r.id"),
     "accounts": "jsonb_build_array("
-    + _counted("legislator_campaign_committee", "updated_at", "withdrawn_at")
+    + _digest("legislator_campaign_committee", "r.id")
     + ", "
-    + _counted("legislator", "updated_at")
+    + _digest("legislator", "r.id")
     + ")",
     "lobbying": "(SELECT release_id::text FROM lobbying_current_release WHERE id)",
     "station": "jsonb_build_array("
     + ", ".join(
         [
-            _counted("finance_tv_fact", "checked_at", "withdrawn_at"),
-            _counted("finance_tv_connection", "checked_at", "withdrawn_at"),
-            _counted("tv_ad_fact", "checked_at", "withdrawn_at"),
-            _counted("tv_ad_connection", "checked_at", "withdrawn_at"),
-            _counted("finance_tv_copy_withdrawal", "withdrawn_at"),
-            _counted(
-                "fcc_document", "first_seen_at", "last_seen_at", "last_downloaded_at"
-            ),
-            _counted(
-                "tv_ad_publication",
-                "created_at",
-                "reviewed_at",
-                "withdrawn_at",
-                "metadata_reviewed_at",
-            ),
+            _digest("finance_tv_fact", "r.id"),
+            _digest("finance_tv_connection", "r.id"),
+            _digest("tv_ad_fact", "r.id"),
+            _digest("tv_ad_connection", "r.id"),
+            _digest("finance_tv_copy_withdrawal", "r.id"),
+            _digest("fcc_document", "r.facility_id, r.file_id, r.content_hash"),
+            _digest("tv_ad_publication", "r.id"),
             _digest("fcc_extraction", "r.content_hash, r.version"),
             _digest("fcc_page", "r.content_hash, r.version, r.page"),
         ]
@@ -85,14 +72,15 @@ MARKS = {
     + ")",
     "people": "jsonb_build_array("
     + ", ".join(
-        [
-            _counted("legislator", "updated_at"),
-            _counted("legislator_service_period", "updated_at"),
-            _counted("legislative_session", "updated_at"),
-            _counted("chamber", "updated_at"),
-            _counted("district", "updated_at"),
-            _counted("candidate_record", "checked_at"),
-            _digest("public_person", "r.id"),
+        _digest(table, "r.id")
+        for table in [
+            "legislator",
+            "legislator_service_period",
+            "legislative_session",
+            "chamber",
+            "district",
+            "candidate_record",
+            "public_person",
         ]
     )
     + ")",
@@ -102,16 +90,25 @@ MARKS = {
 def current(db: Session, *marks: str, on_date: date | None = None) -> str:
     """The token for these sources, read in this request's pinned view.
 
-    Pinned first, because whichever statement runs first fixes the transaction's
-    view: a fresh request session (every request in production) is pinned here, so
-    the token and the list read 1 instant. A connection already inside a
-    transaction keeps that transaction's view.
+    Pinned before the first statement of a fresh request. An already-open
+    transaction must actually have a stable snapshot; READ COMMITTED cannot
+    establish consistency between the token and the page's later statements.
     """
-    try:
+    bind = db.get_bind()
+    if db.in_transaction() or (isinstance(bind, Connection) and bind.in_transaction()):
+        if db.connection().get_isolation_level() not in {
+            "REPEATABLE READ",
+            "SERIALIZABLE",
+        }:
+            raise problem_exception(
+                503,
+                "Service Unavailable",
+                "Records are temporarily unavailable. Try again.",
+                type_slug="service-unavailable",
+            )
+        filings.mark_pinned_read(db)
+    else:
         committee_finance.pin_to_one_view(db)
-    except InvalidRequestError:
-        # The connection already holds an open transaction; its view governs.
-        pass
     statement = "SELECT jsonb_build_array(" + ", ".join(MARKS[m] for m in marks) + ")"
     state = db.execute(text(statement)).scalar_one()
     payload = repr((marks, state, on_date)).encode()
