@@ -162,16 +162,6 @@ a.cm-card:active {
 }
 
 /* The tabs scroll sideways rather than wrap, down to 320px. */
-.cm-tabs .f-tabs {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-}
-.cm-tabs .f-tab {
-  font-size: 14px;
-  padding: 0 14px;
-}
 
 /* Sort, and the filter menus the server serves: the wrapper sits above the
  * list (z-index 40); an open menu's own wrapper is raised by the shared

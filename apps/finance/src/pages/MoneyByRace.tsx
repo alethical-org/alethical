@@ -228,10 +228,15 @@ export const OFFICE_TITLES: Readonly<Record<string, string>> = {
 
 /** The contest line (Money by Race drawing): "State Representative · District
  * 99A · 2026" where the office has a title, else the seat label with its year.
- * "District 99A" and its year never break apart. */
+ * "District 99A" and its year never break apart, and a titled line breaks only
+ * after the title's "·". */
 export function contestHeading(contest: { office: string; district: string | null }, year: number) {
   const title = OFFICE_TITLES[contest.office];
-  const label = title ? `${title}\u00a0·\u00a0${seatPart(contest)}` : contestSeatLabel(contest);
+  // The title never breaks inside itself ("State" alone on a phone line); the line
+  // may break only after its "·", so the seat and year start the next line.
+  const label = title
+    ? `${title.replace(/ /g, '\u00a0')}\u00a0· ${seatPart(contest)}`
+    : contestSeatLabel(contest);
   return `${label.replace(/District (\S)/g, 'District\u00a0$1')}\u00a0·\u00a0${year}`;
 }
 
