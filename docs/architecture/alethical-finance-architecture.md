@@ -74,9 +74,20 @@ identity records.
 
 `GET /api/v1/finance/people` pages held candidacies, public person records and
 legislative records as separate kinds, even when their names match. Literal name
-search, stable paging and whole-filter counts apply to every kind. Candidate
-filters use the election year and date; legislative filters use current or former
-service evidence. Each legislative record carries its held seat, party, source and
+search, stable paging and whole-filter counts apply to every kind. Search also
+matches a candidacy's held voting-area text and a legislative service period's district;
+no district is inferred for a bare public-person name. Candidate filters use the election
+year and date; legislative filters use current or former service evidence.
+Exact `party` filters read the candidacy's party or a legislative period's party;
+`office` selects candidacies by their held office text, and `chamber` selects legislative
+records by `house` or `senate`. Neither filter borrows facts from another record kind.
+A legislative party/chamber/district combination must match one held period, not fields
+from different terms. These filters describe held records, not current office or party.
+`matching_periods` carries their matching evidence so a screen can label a historical
+match honestly; `periods` keeps the full held history. `parties`, `offices` and `chambers`
+list distinct held values for the selected record kind, independent of the current search,
+so an empty result does not erase the available choices. Candidate rows carry the held
+`party`; missing values stay null. Each legislative record carries its held seat, party, source and
 personal service dates. Missing personal dates stay null, never session dates.
 An ended older term does not establish former service when a later term is undated.
 When sibling sessions leave the latest service ambiguous, status remains unknown.
