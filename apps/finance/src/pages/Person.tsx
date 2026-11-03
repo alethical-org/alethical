@@ -27,6 +27,7 @@ import {
   spellings,
 } from './organization/data';
 import type { GivenPayment, Identity, IdentitySummary, PaidPayment } from './organization/types';
+import { splitPartSub, splitPartTarget } from './organization/split';
 import { useLoad } from './organization/useLoad';
 import './people.css';
 import './person.css';
@@ -278,22 +279,26 @@ function SplitChoice({ parts, here }: { parts: IdentitySummary[]; here: string }
       <ul className="f-row-links">
         {parts.map((part) => {
           const person = part.kind === 'person';
+          const id = splitPartTarget(part);
+          const sub = splitPartSub(part);
           const to = person
             ? isBuilt('person')
-              ? withFrom(hrefFor('person', { id: part.id }), here)
+              ? withFrom(hrefFor('person', { id }), here)
               : null
             : isBuilt('organization')
-              ? withFrom(hrefFor('organization', { id: part.id }), here)
+              ? withFrom(hrefFor('organization', { id }), here)
               : null;
           return (
             <li key={part.id}>
               {to ? (
                 <Link to={to} className="f-row-link person-split-link">
                   <span className="f-row-link-name">{part.name}</span>
+                  {sub && <span className="f-row-link-note f-num">{sub}</span>}
                 </Link>
               ) : (
                 <span className="f-row-link person-split-link">
                   <span className="f-row-link-name">{part.name}</span>
+                  {sub && <span className="f-row-link-note f-num">{sub}</span>}
                 </span>
               )}
             </li>
