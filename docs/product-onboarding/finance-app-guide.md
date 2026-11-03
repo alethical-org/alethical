@@ -226,15 +226,20 @@ figure is ever added across committees or members.
   year's report figures, read 1 member at a time and never combined.
 - **Payments under this name (`/money/names/:query?role=`)**: every payment record filed under
   1 exact printed spelling, as a payee (campaign spending and outside spending listed
-  separately, never added together), a donor or an employer, with each record's date, amount,
-  committee and source evidence (the saved source, its copy, the row, and the employer and ZIP
-  as filed where held). Each committee link opens the tab holding that record's kind, the
-  record's own filing year and the printed name. A card lists every identity whose
-  confirmations cover records of the spelling, each "Confirmed for {k} of {n} records" over the
-  selected year, or "No confirmed identity for this spelling". An address naming a filer and a
-  file (Organization's "View payments") shows only that file and that filer's loaded records
-  under "Showing records filed by {committee}, {file}" with Clear all; no identity count is
-  shown under a filer scope.
+  separately, never added together), a donor or an employer, read from Finance's own
+  `/finance/payments-under-name`, 200 at a time with the server's count of every record in
+  scope. Each record shows its date, amount, committee, "Confirmed as {identity}" when its own
+  fingerprint is confirmed, and source evidence (the saved source, its copy, the row, the
+  employer and ZIP as filed where held, and the record's fingerprinted fields as SOURCE TEXT;
+  the Board's file is linked only when no excerpt is held). Each committee link opens the tab
+  holding that record's kind, the record's own filing year and the printed name. A card lists
+  every identity whose confirmations cover records of the spelling, each "Confirmed for {k} of
+  {n} records" over the selected year and filer, with its reference where one is held, or "No
+  confirmed identity for this spelling". An address naming a filer and a file (Organization's
+  "View payments") shows only that file and that filer's records, counted on the server, under
+  "Showing records filed by {committee}, {file}" with Clear all. Later pages are read from the
+  same copy of the Board's file; if the file has changed, the page says "The Board’s file
+  changed. Reload the records." and "Reload the records" starts over.
 - **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
   spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
   with its donor names and any confirmed records, and for the chosen spelling the donors who
