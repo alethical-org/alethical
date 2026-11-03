@@ -368,6 +368,12 @@
 .lb-note-flush {
   padding-left: 0;
 }
+.lbp-spelling {
+  margin: 8px 0 0;
+  padding-left: 17px;
+  font-size: 13px;
+  color: var(--muted);
+}
 .lb-list {
   margin: 12px 0 0;
   padding: 0;
@@ -619,8 +625,11 @@ a.lbl-committee-name {
 }
 
 /* ---------- Principal: spending by year ---------- */
-.lbp-spending {
+.lbp-view-row {
   margin-top: 12px;
+}
+.lbp-spending {
+  margin-top: 8px;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -720,7 +729,7 @@ a.lbl-committee-name {
   text-align: right;
 }
 .lbp-notes {
-  margin: 12px 0 0;
+  margin: 24px 0 0;
   padding-left: 35px;
   max-width: 780px;
   display: grid;

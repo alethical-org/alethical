@@ -28,13 +28,18 @@ import {
   committeeTotal,
   contributionsReturn,
   firstShown,
-  notFoundLine,
   paymentKind,
   registrationStatus,
   revealed,
 } from '../pages/Lobbyist';
-import { Principal, distinctLobbyists, spendingFigure } from '../pages/Principal';
-import { recordNumber } from '../pages/lobbying/parts';
+import {
+  Principal,
+  distinctLobbyists,
+  lobbyistsScope,
+  spendingBars,
+  spendingFigure,
+} from '../pages/Principal';
+import { notFoundLine, recordNumber } from '../pages/lobbying/parts';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -992,9 +997,44 @@ describe('Principal record', () => {
           : new Response('', { status })
         : null;
 
-  it('prints each year’s reported figures as filed and the lobbyists listed', async () => {
+  it('opens on the chart of annual totals, with gaps for years with no report held', async () => {
+    const record = principal();
+    record.spending.rows = [
+      record.spending.rows[0],
+      { ...record.spending.rows[1], year: 2022, total_spent: null, record_number: 1 },
+    ];
     await render(
       '/lobbying/principals/8450',
+      (match) => <Principal match={match} />,
+      ANSWER(record),
+    );
+    expect(container.querySelector('table')).toBeNull();
+    expect(container.querySelector('.f-chart h3')?.textContent).toBe(
+      'Total reported spending, by year',
+    );
+    const bars = [...container.querySelectorAll('.f-bar-row')].map((row) => row.textContent);
+    expect(bars).toEqual([
+      '2025$4,501',
+      '2024No spending report held',
+      '2023No spending report held',
+      '2022Not reported',
+    ]);
+    expect(container.querySelectorAll('.f-bar-fill')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-gap]')).toHaveLength(2);
+    const chart = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Table')!;
+    expect(chart.getAttribute('aria-pressed')).toBe('false');
+    await act(async () => chart.click());
+    expect(window.location.search).toBe('?spendView=table');
+    expect(container.querySelector('table')).not.toBeNull();
+    // The notes follow the view as 1 group, "Reports are due" first.
+    const notes = [...container.querySelectorAll('.lbp-notes li')].map((li) => li.textContent);
+    expect(notes[0]).toBe('Reports are due the following March.');
+    expect(notes.every((note) => note?.endsWith('.'))).toBe(true);
+  });
+
+  it('prints each year’s reported figures as filed and the lobbyists listed', async () => {
+    await render(
+      '/lobbying/principals/8450?spendView=table',
       (match) => <Principal match={match} />,
       ANSWER(principal()),
       { identity: { id: 'org-1', kind: 'organization', name: 'Health Association' } },
@@ -1004,7 +1044,10 @@ describe('Principal record', () => {
     expect(text()).toContain('PRINCIPAL');
     expect(text()).toContain('Entity ID 8450');
     expect(text()).toContain(
-      'A principal is a person or organisation that funds lobbying and must report its spending under Minnesota law',
+      'A principal is a person or organization that funds lobbying and must report its spending under Minnesota law',
+    );
+    expect(text()).toContain(
+      'Each row is 1 calendar year of this principal’s reported lobbying spending',
     );
     const heads = [...container.querySelectorAll('thead th')].map((th) => th.textContent);
     expect(heads).toEqual([
@@ -1029,22 +1072,28 @@ describe('Principal record', () => {
     const box = container.querySelector('[aria-label="Confirmed identity"]');
     expect(box?.textContent).toContain('Organization profile');
     expect(box?.querySelector('a')?.getAttribute('href')).toBe(
-      '/organizations/org-1?from=%2Flobbying%2Fprincipals%2F8450',
+      '/organizations/org-1?from=%2Flobbying%2Fprincipals%2F8450%3FspendView%3Dtable',
     );
 
     const lobbyists = [...container.querySelectorAll<HTMLAnchorElement>('.lb-row-link')];
     expect(lobbyists).toHaveLength(1);
     expect(lobbyists[0].getAttribute('href')).toBe(
-      '/lobbying/lobbyists/5245?from=%2Flobbying%2Fprincipals%2F8450',
+      '/lobbying/lobbyists/5245?from=%2Flobbying%2Fprincipals%2F8450%3FspendView%3Dtable',
     );
     expect(lobbyists[0].textContent).toContain('Registration 5245');
     expect(text()).toContain('Registered as Health Assn in the lobbyist list');
     expect(text()).toContain(
-      'The lobbyist list shows who was registered for this principal in records copied Oct 29, 2026.',
+      'The lobbyist list shows who was registered for this principal in records copied Oct 29, 2026',
     );
-    expect(text()).toContain(
+    expect(text()).not.toContain('copied Oct 29, 2026.It');
+    expect(container.querySelector('.lb-note-flush')?.textContent).toBe(
+      'It does not show who represented it in earlier spending years',
+    );
+    const sources = [...container.querySelectorAll('.f-sources p')].map((p) => p.textContent);
+    expect(sources).toEqual([
+      'Lobbying spending figures come from the Minnesota Campaign Finance and Public Disclosure Board.',
       'Lobbying records copied Oct 29, 2026. The copy date is when Alethical obtained the source, not the end date of every filing.',
-    );
+    ]);
     expect(text()).toContain('View the Board’s Lobbying Organizations Search Tool');
     expect(text()).not.toMatch(/media buys|illustrative|example|sample|fixture|demo/i);
   });
@@ -1091,7 +1140,7 @@ describe('Principal record', () => {
       ANSWER(principal({ entity_id: 8887, state: 'no_spending_rows', name: null })),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      'No lobbying record was found for 8887.',
+      'No lobbying record was found for 8887',
     );
 
     act(() => root.unmount());
@@ -1102,7 +1151,7 @@ describe('Principal record', () => {
       ANSWER(null, 500),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load the Board’s lobbying record just now.',
+      'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.',
     );
   });
 
@@ -1111,6 +1160,26 @@ describe('Principal record', () => {
     expect(spendingFigure(null)).toBe('Not reported');
     expect(spendingFigure('188500.0000')).toBe('$188,500');
     expect(distinctLobbyists(principal().lobbyists.rows)).toHaveLength(1);
+    expect(lobbyistsScope(null)).toBe(
+      'The lobbyist list shows who was registered for this principal in the copied records',
+    );
+    const rows = principal().spending.rows;
+    expect(spendingBars([])).toEqual([]);
+    // 2 filed rows for 1 year have no single total to draw.
+    const twice = spendingBars([rows[0], { ...rows[0], record_number: 9 }]);
+    expect(twice).toEqual([
+      {
+        key: '2025',
+        label: '2025',
+        amount: null,
+        value: 'Amount unavailable: more than one report',
+      },
+    ]);
+    // A filed zero is printed as $0 with no bar.
+    expect(spendingBars([{ ...rows[0], total_spent: '0.0000' }])[0]).toMatchObject({
+      amount: 0,
+      value: '$0',
+    });
     expect(recordNumber('141')).toBe('141');
     expect(recordNumber('0')).toBeNull();
     expect(recordNumber('012')).toBeNull();

@@ -32,6 +32,7 @@ import { BackLink, LoadingLine, SourcesAndUpdates } from '../ui/parts';
 import { useRevealFocus } from '../ui/revealFocus';
 import {
   IdentityBox,
+  notFoundLine,
   OfficialLink,
   RecordRow,
   recordNumber,
@@ -54,11 +55,6 @@ const GAVE_NOTE =
   'Years follow the state file’s filing year. A payment date can fall in a different calendar year. Records are matched using registration numbers in the contribution file or confirmed in official reports; a name alone is not enough. The count is of matching records, not a confirmed count of separate donations. These records may not capture all giving.';
 const TOTAL_MISSING = 'Missing payment amount';
 const PERIOD_INCOMPLETE = 'Reporting period incomplete';
-
-/** "No lobbying record was found for {id}": 1 sentence, so no closing period (eug-31). */
-export function notFoundLine(id: string | undefined): string {
-  return `No lobbying record was found for ${id ?? ''}`.trim();
-}
 
 /**
  * A committee's matched records in 1 filing year, added up under the shared rule
