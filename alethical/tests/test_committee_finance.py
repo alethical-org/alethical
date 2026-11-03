@@ -1376,3 +1376,80 @@ def test_a_comparable_total_is_served_beside_the_itemized_sum(db):
     assert finance.money_in.itemized_contribution_total == Decimal("5100.00")
     assert finance.money_in.reported_total == Decimal("8600.00")
     assert finance.money_in.reported_through == date(2025, 12, 31)
+
+
+COLEMAN = "18127"  # Coleman, Christopher B Gov Committee; its 2017 is noticed (#2831).
+
+
+def _coleman_2017_as_reviewed(db, snapshot) -> None:
+    """The 244 rows the Board's file held for Coleman's 2017 when the notice was
+    reviewed, summing to $560,171.70 (243 at $1,000.00 and 1 at $317,171.70)."""
+    for _ in range(243):
+        _payment(
+            db,
+            snapshot,
+            reg_num=COLEMAN,
+            amount="1000.00",
+            year=2017,
+            name="Coleman, Christopher B Gov Committee",
+        )
+    _payment(
+        db,
+        snapshot,
+        reg_num=COLEMAN,
+        amount="317171.70",
+        year=2017,
+        name="Coleman, Christopher B Gov Committee",
+    )
+
+
+def test_a_reviewed_committee_year_carries_its_source_notice(db, client):
+    """A known gap in the Board's own file is named beside that year's spending, in
+    the reviewed words, and only for that committee and year."""
+    published = Published(db)
+    _coleman_2017_as_reviewed(db, published.expenditures)
+    _payment(
+        db,
+        published.expenditures,
+        reg_num=COLEMAN,
+        amount="500.00",
+        year=2018,
+        name="Coleman, Christopher B Gov Committee",
+    )
+    db.commit()
+    body = client.get(
+        f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2017}
+    ).json()["data"]
+    assert [notice["key"] for notice in body["source_notices"]] == [
+        "coleman-2017-expenditures-partial"
+    ]
+    notice = body["source_notices"][0]
+    assert notice["dataset"] == "expenditures"
+    assert notice["text"].startswith(
+        "Minnesota’s Campaign Finance Board spending file lists only part of this "
+        "committee’s 2017 payments."
+    )
+    other_year = client.get(
+        f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2018}
+    ).json()["data"]
+    assert other_year["source_notices"] == []
+
+
+def test_a_source_notice_withdraws_once_the_boards_rows_change(db, client):
+    """A notice speaks for the rows it was reviewed against. One more row from the
+    Board means the file changed, and the sentence no longer describes it."""
+    published = Published(db)
+    _coleman_2017_as_reviewed(db, published.expenditures)
+    _payment(
+        db,
+        published.expenditures,
+        reg_num=COLEMAN,
+        amount="250.00",
+        year=2017,
+        name="Coleman, Christopher B Gov Committee",
+    )
+    db.commit()
+    body = client.get(
+        f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2017}
+    ).json()["data"]
+    assert body["source_notices"] == []

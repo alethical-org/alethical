@@ -88,6 +88,7 @@ from alethical.api.services.committee_notices import (
     statements_copied_on,
 )
 from alethical.api.services.committee_donor_states import donor_states
+from alethical.api.services.source_notices import source_notices
 from alethical.api.services.committee_name_connections import name_connections
 from alethical.api.services.committee_finance import (
     filings_copied_at,
@@ -3504,6 +3505,11 @@ def committee_finance_for_year(
             **({"stated_by_kind": asdict(by_kind)} if by_kind is not None else {}),
             **({"donor_states": asdict(by_state)} if by_state is not None else {}),
             "name_connections": asdict(connections),
+            # Reviewed sentences about this committee-year in one of the Board's
+            # payment files, each withdrawn once the file's rows change (#2831).
+            "source_notices": source_notices(
+                db, release, finance.committee.registration_number, finance.year
+            ),
             "split": {
                 "state": split.state,
                 "reported_total": split.reported_total,
