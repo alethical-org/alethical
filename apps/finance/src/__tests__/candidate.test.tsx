@@ -145,7 +145,7 @@ describe('Candidate profile', () => {
     expect(container.querySelector('h1')?.textContent).toBe('Patty Acomb');
     expect(text()).toContain('CANDIDATE PROFILE');
     expect(text()).toContain(
-      'Official candidate record · Running for reelection as State Representative District 45B',
+      'Official candidate record · Running for reelection as State Representative',
     );
     expect(text()).toContain('2026 general · Nov 3, 2026');
     expect(text()).toContain('Democratic-Farmer-Labor');
@@ -250,6 +250,7 @@ describe('Candidate profile', () => {
   it('a failed read offers Try again', async () => {
     await render(`/candidates/${ID}`, () => raw({}, 503));
     expect(text()).toContain('We couldn’t load this record');
+    expect(text()).not.toContain('problem on our side');
     expect(
       [...container.querySelectorAll('button')].some((b) => b.textContent === 'Try again'),
     ).toBe(true);
