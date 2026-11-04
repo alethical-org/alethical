@@ -115,7 +115,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 128 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 129 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -129,6 +129,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Purpose | Files |
 | --- | --- |
 | Run and observe saved public-record deadlines | `refresh_public_records.py`, `report_source_refresh_health.py`, `discover_campaign_records.py`, `check_campaign_money_completion.py` (keeps filed campaign reports owed until totals and legislators' pages catch up), `discover_legislative_records.py`, `discover_reference_records.py` (roster, map and lobbying release signals), `clear_source_record_pages.py` (retries owed saved-page clearing without collecting), `refresh_fcc_records.py`, `run_scheduled_bill_refresh.py`, `refresh_legislative_records.py`, `refresh_lobbying_records.py` |
+| Recover exact historical action committee links | `recover_bill_action_committee_links.py` (one bill; retained official XML and read-only plan required; guarded apply and receipt-based rollback; never run ingestion) |
 | Inspect missing action links without changing data | `report_bill_action_committee_links.py` (bounded read-only sample; saved XML hash required for a proposed link) |
 | Detect official sources needing a reviewed mapping | `check_legislative_sessions.py`, `check_supporting_sources.py` |
 | Prepare private donor evidence and recover reviewed campaign totals | `prepare_lobbyist_donor_evidence.py`, `rollback_campaign_finance_filings.py` |
