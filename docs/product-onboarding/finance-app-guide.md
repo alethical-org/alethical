@@ -368,6 +368,10 @@ figure is ever added across committees or members.
   `senate-41`, `governor`). The contest line names the office by its title ("State
   Representative · District 34B · 2026", "State Senator", "Governor" and the other statewide
   offices); a court seat keeps its seat label ("District Court · District 2 · Seat 14").
+  Beside it, "General election · Nov 3, 2026" (or "Primary election", "Special election")
+  appears only when the race read serves that contest's election, from the 1 held ballot
+  that lists its seat; otherwise no election line is shown, and a date is never worked out
+  from the calendar.
   Media buys follows outside spending. A year or office change keeps the last contest's
   figures on screen under their own year, dimmed with "Updating results…" while the next
   answer loads, and with "We couldn’t update these results" and Try again when it fails.
