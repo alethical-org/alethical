@@ -355,6 +355,14 @@ stale or a deferred child never obtained a lease. A reviewed resume also waits a
 fresh 60 seconds. This is the existing conservative cadence, not evidence of a
 safe faster sustained rate. Both wall and monotonic clocks bound the window.
 
+A deadline reached only in the read-only eligibility check starts no child and
+clears the saved eligibility. Retry on a fresh connection after 60 seconds, then
+120 seconds; a third consecutive deadline stops for owner review. Each failure
+is retained in the run state. A successful fresh check resets that count but must
+still pass all normal-job, lease, schema and source gates. STOP, checkout drift
+and the finite window remain effective during the wait. No write, receipt,
+initial database validation, or other eligibility error uses this retry path.
+
 The owner first sends one uniquely identified `codex queue --thread ... --message
 ...` test, waits for actual receipt in that chat, and saves a private JSON proof
 with `thread`, `event_id` and `received_at`. A successful queue command is not

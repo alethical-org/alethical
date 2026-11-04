@@ -399,6 +399,8 @@ def supervise(args, *, snapshot=eligibility, child=run_child, sleep=time.sleep):
                 "resume_of": previous.get("event_id") if previous else None,
                 "resume_review": review,
                 "return_proof": proof,
+                "consecutive_eligibility_timeouts": 0,
+                "eligibility_timeouts": [],
             }
 
             def checkpoint():
@@ -446,7 +448,30 @@ def supervise(args, *, snapshot=eligibility, child=run_child, sleep=time.sleep):
                     if time.monotonic() < quiet_until:
                         sleep(min(1.0, quiet_until - time.monotonic()))
                         continue
-                    gate = snapshot(engine, args.schema)
+                    try:
+                        gate = snapshot(engine, args.schema)
+                    except batch.Deferred as exc:
+                        # This check is read-only and runs with no child. Unknown
+                        # eligibility never permits writes. Keep all write/receipt
+                        # failures on the existing stop-for-review path.
+                        if str(exc) != "turn deadline reached":
+                            raise
+                        failures = state["consecutive_eligibility_timeouts"] + 1
+                        state.update(
+                            status="waiting_for_eligibility",
+                            eligibility=None,
+                            consecutive_eligibility_timeouts=failures,
+                        )
+                        state["eligibility_timeouts"].append(
+                            {"at": now().isoformat(), "consecutive": failures}
+                        )
+                        checkpoint()
+                        if failures >= 3:
+                            raise
+                        engine.dispose()  # Next check uses a fresh connection.
+                        quiet_until = time.monotonic() + QUIET_SECONDS * failures
+                        continue
+                    state["consecutive_eligibility_timeouts"] = 0
                     state["eligibility"] = {
                         **gate,
                         "server_time": gate["server_time"].isoformat(),
