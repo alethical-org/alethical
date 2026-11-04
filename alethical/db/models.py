@@ -3046,6 +3046,12 @@ class CampaignFinanceContributionRow(Base):
             postgresql_using="gin",
             postgresql_ops={"contributor": "gin_trgm_ops"},
         ),
+        Index(
+            "ix_cf_contribution_row_employer_trgm",
+            "contrib_employer_name",
+            postgresql_using="gin",
+            postgresql_ops={"contrib_employer_name": "gin_trgm_ops"},
+        ),
         # The donor's own registration number, for a lobbyist's campaign donations
         # (migration 0055). Partial, because 497,451 of the live file's 583,222 rows
         # are individuals with no number and no lookup by number can match them.
@@ -3167,6 +3173,12 @@ class CampaignFinanceIndependentExpenditureRow(Base):
 
     __table_args__ = (
         Index("ix_cf_independent_expenditure_row_spender", "spender_reg_num", "year"),
+        Index(
+            "ix_cf_independent_expenditure_row_vendor_trgm",
+            "vendor_name",
+            postgresql_using="gin",
+            postgresql_ops={"vendor_name": "gin_trgm_ops"},
+        ),
         Index(
             "ix_cf_independent_expenditure_row_affected",
             "affected_committee_reg_num",

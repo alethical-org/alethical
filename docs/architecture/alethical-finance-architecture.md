@@ -386,6 +386,53 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   confirmation, so the names, relations, bases and reasons typed into them must never hold
   anything confidential; the API's field descriptions say so.
 
+### Similar printed names
+
+`GET /api/v1/finance/similar-names` supplies the Payments under this name suggestions.
+It takes the exact `name` (1 to 500 characters, not blank), `role` (`donor`, `payee`,
+`employer`), optional `year` (1900 to 2100), `limit` (1 to 50, default 25), `offset`
+and optional `version`. Access is the same Finance allowlist as every private read.
+The reply echoes these choices and returns `rows`, `has_more`, payment `release_id`,
+per-file `sources` (dataset, snapshot id, source URL and copy date), and `version`.
+A version covers both the payment release and identity events through the shared
+paged-list marks. A stale version returns 409 `records-changed`; the whole list reloads.
+
+Each row has its exact source `name`, selected-year `records`, and `identities`
+with id, reference, name, kind and `records` covered by existing active confirmations.
+The same confirmed-record fingerprint rules as Payments under this name apply:
+repeated source rows count separately, withdrawals do not count, and merges follow the
+standing identity. No amount, matching score, inferred identity or combined total is
+sent. The client labels each established identity's kind beside its name.
+
+Candidates come from all years of the role's published files. The selected year limits
+only row and confirmation counts, so a similar spelling with no records that year stays
+in the list with 0 records. Payees include both campaign and independent expenditure
+rows; their confirmation kinds remain separate before grouping established identities.
+The exact starting string alone is excluded. Case, punctuation and surrounding spaces
+stay distinct source keys. All matching spellings are sorted by exact name (C collation)
+before paging; no top-score or pre-page candidate cap discards alphabetically later names.
+The client initially shows 3 and uses Show more without replacing earlier rows.
+
+Matching is a search aid, never identity evidence. The indexed PostgreSQL trigram `%`
+operator uses threshold 0.35 against at most 3 probes: the original name, tokens with
+organization words expanded, and tokens with those words shortened. The equivalences
+are association/assn/assoc, company/co, corporation/corp, incorporated/inc and limited/ltd;
+dotted L.L.C. becomes LLC in probes only. No acronym expansion, initials-to-person link,
+nickname rule or source rewrite occurs. Punctuation-only input has no matching probe.
+Short/common strings use the same bounded probe and page counts. Names outside this
+matching rule are not asserted to be different identities.
+
+A query has a 3-second statement timeout scoped to its read transaction. Timeout, read
+failure, absent source or a partially pruned payment file returns 503, never an empty
+success. Full source row counts are checked before suggestions or year counts are served.
+Donor and campaign-payee matching reuse their existing trigram indexes. Migration 0084
+adds employer and independent-payee trigram indexes concurrently, repairs invalid
+interrupted builds on retry, and changes no source records. The earlier small-file scan
+exception from migration 0040 does not fit the 3-probe similarity query: the held
+45,741-row outside-spending file took 548 ms warm by itself, and a combined candidate
+read reached 2,687 ms near its 3,000 ms timeout. Rollback drops only the added indexes and reverts the reader/client changes;
+no confirmations or source records are changed by these reads or their rollback.
+
 ## 5. What alethical.com prints from work done in Finance
 
 - A check or confirmation made in Finance appears on alethical.com only when an account of
