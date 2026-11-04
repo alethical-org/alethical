@@ -228,6 +228,40 @@ describe('Candidate profile', () => {
     );
   });
 
+  it('reads accounts and figures for this candidacy, excluding the person’s other races', async () => {
+    const urls: string[] = [];
+    await render(`/candidates/${ID}`, (url) => {
+      urls.push(url);
+      if (url.includes('/legislators/') && url.includes('/campaign-finance')) {
+        return wrapped({
+          link_state: 'confirmed',
+          years: [
+            {
+              year: 2026,
+              committees: [
+                { registration_number: '99999', committee_name: 'Other race committee' },
+              ],
+            },
+          ],
+          committees: [{ registration_number: '99999', committee_name: 'Other race committee' }],
+        });
+      }
+      return answering(UPCOMING, true)(url);
+    });
+    expect(urls.some((url) => url.includes(`/candidates/${ID}/campaign-finance/years?`))).toBe(
+      true,
+    );
+    expect(urls.some((url) => url.includes(`/candidates/${ID}/campaign-finance?year=2026`))).toBe(
+      true,
+    );
+    expect(
+      urls.some((url) => url.includes('/legislators/') && url.includes('/campaign-finance')),
+    ).toBe(false);
+    expect(text()).toContain('Acomb, Patty House Committee');
+    expect(text()).not.toContain('Other race committee');
+    expect(container.querySelector('.cf-key')?.textContent).toContain('$1,200');
+  });
+
   it('shows Loading until the record answers, and never another record', async () => {
     window.history.replaceState(null, '', `/candidates/${ID}`);
     vi.stubGlobal(

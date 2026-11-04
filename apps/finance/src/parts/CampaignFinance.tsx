@@ -126,12 +126,16 @@ export interface Account {
   years: number[];
 }
 
-/** The years read for one legislator, from 2015 to this year. */
-export function useFinanceYears(legislatorId: string | null): Read<FinanceYears> {
+/** Held years for the displayed legislator or candidacy, from 2015 to this year. */
+export function useFinanceYears(
+  legislatorId: string | null,
+  candidateId?: string | null,
+): Read<FinanceYears> {
   const to = new Date().getFullYear();
+  const id = candidateId ?? legislatorId;
   return useRead<FinanceYears>(
-    legislatorId
-      ? apiPath(['legislators', legislatorId, 'campaign-finance', 'years'], {
+    id
+      ? apiPath([candidateId ? 'candidates' : 'legislators', id, 'campaign-finance', 'years'], {
           from: FIRST_MONEY_YEAR,
           to,
         })
@@ -260,15 +264,17 @@ export function contestLabel(
   return [title, tail].filter(Boolean).join(' · ');
 }
 
-/** One account's figures for one year, read for one legislator. */
+/** One account's figures for one year, within the displayed profile's scope. */
 export function useAccountYear(
   legislatorId: string | null,
   registrationNumber: string | null,
   year: number | null,
+  candidateId?: string | null,
 ): { committee: CommitteeYear | null; read: Read<FinanceYear> } {
+  const id = candidateId ?? legislatorId;
   const read = useRead<FinanceYear>(
-    legislatorId && registrationNumber && year
-      ? apiPath(['legislators', legislatorId, 'campaign-finance'], { year })
+    id && registrationNumber && year
+      ? apiPath([candidateId ? 'candidates' : 'legislators', id, 'campaign-finance'], { year })
       : null,
   );
   const committee =
@@ -296,9 +302,11 @@ function FigureList({ figures, className }: { figures: Figure[]; className: stri
  * confirmed account, from the same answer the Campaign finance card reads. */
 export function KeyFigures({
   legislatorId,
+  candidateId,
   account,
 }: {
-  legislatorId: string;
+  legislatorId: string | null;
+  candidateId?: string | null;
   account: Account | null;
 }) {
   const year = account?.years[0] ?? null;
@@ -306,6 +314,7 @@ export function KeyFigures({
     legislatorId,
     account?.registrationNumber ?? null,
     year,
+    candidateId,
   );
   if (!account || !year || !read.data || !committee) return null;
   return (
@@ -320,12 +329,14 @@ export function KeyFigures({
 
 function AccountCard({
   legislatorId,
+  candidateId,
   account,
   year,
   onYear,
   from,
 }: {
-  legislatorId: string;
+  legislatorId: string | null;
+  candidateId?: string | null;
   account: Account;
   year: number;
   onYear: (year: number) => void;
@@ -336,6 +347,7 @@ function AccountCard({
     legislatorId,
     account.registrationNumber,
     held ? year : null,
+    candidateId,
   );
   const chips = held ? account.years : [...account.years, year].sort((a, b) => b - a);
   const name = committee?.committee_name ?? account.name;
@@ -551,17 +563,19 @@ function OutsideSpending({
 }
 
 /**
- * The Campaign finance section. With no `legislatorId` (a candidacy no
- * account is confirmed for) it shows the empty line and no outside records.
+ * The Campaign finance section. Candidate profiles use candidacy-scoped reads;
+ * other profiles use the confirmed legislator. No confirmed accounts means no outside records.
  */
 export function CampaignFinance({
   legislatorId,
+  candidateId,
   years,
   accounts,
   emptyLine = 'No campaign committee is confirmed for this candidacy',
   from,
 }: {
   legislatorId?: string | null;
+  candidateId?: string | null;
   years?: Read<FinanceYears> | null;
   accounts: Account[];
   emptyLine?: string;
@@ -575,8 +589,9 @@ export function CampaignFinance({
     selected[account.registrationNumber] =
       chosen[account.registrationNumber] ?? wanted ?? account.years[0];
   }
-  const loading = Boolean(legislatorId && years?.loading);
-  const failed = Boolean(legislatorId && years?.failed);
+  const profileId = candidateId ?? legislatorId;
+  const loading = Boolean(profileId && years?.loading);
+  const failed = Boolean(profileId && years?.failed);
   return (
     <section aria-labelledby="cf-h" className="cf">
       <h2 id="cf-h" className="f-section-title">
@@ -593,11 +608,12 @@ export function CampaignFinance({
         {!loading && !failed && accounts.length === 0 && (
           <div className="f-empty-box">{emptyLine}</div>
         )}
-        {legislatorId &&
+        {profileId &&
           accounts.map((account) => (
             <AccountCard
               key={account.registrationNumber}
-              legislatorId={legislatorId}
+              legislatorId={legislatorId ?? null}
+              candidateId={candidateId}
               account={account}
               year={selected[account.registrationNumber]}
               from={from}

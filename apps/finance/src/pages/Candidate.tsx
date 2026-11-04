@@ -133,8 +133,8 @@ function NotFound() {
 
 /** Candidate profile (Candidate drawing): the held candidacy facts, campaign
  * money, the election and its result, and confirmed related records. The
- * campaign accounts are the ones confirmed for the legislator record this
- * candidacy is connected to; a candidacy connected to none shows none. */
+ * campaign accounts are confirmed for this candidacy’s seat and election,
+ * excluding the connected person’s other races. */
 export function CandidateProfile({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
@@ -142,7 +142,8 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
   const read = useRecordRead<CandidateRecord>(`candidates/${encodeURIComponent(match.params.id)}`);
   const record = read.data;
   const legislatorId = record?.legislator?.slug ?? null;
-  const years = useFinanceYears(legislatorId);
+  const candidateId = record?.candidate.id ?? null;
+  const years = useFinanceYears(legislatorId, candidateId);
   const accounts = accountsFrom(years.data);
   const year = record ? electionYear(record) : '';
   // Each seat fact once: the served office often repeats the district its voting
@@ -185,8 +186,12 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
               <h1 tabIndex={-1} className="f-page-title lg2-title">
                 {record.candidate.name}
               </h1>
-              {legislatorId && (
-                <KeyFigures legislatorId={legislatorId} account={accounts[0] ?? null} />
+              {candidateId && (
+                <KeyFigures
+                  legislatorId={legislatorId}
+                  candidateId={candidateId}
+                  account={accounts[0] ?? null}
+                />
               )}
               <p className="lg2-line">
                 Official candidate record · {runningPhrase(record)} {seat[0] || record.office}
@@ -219,6 +224,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
 
                 <CampaignFinance
                   legislatorId={legislatorId}
+                  candidateId={candidateId}
                   years={years}
                   accounts={accounts}
                   from={here}
