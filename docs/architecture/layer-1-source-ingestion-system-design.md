@@ -1024,7 +1024,8 @@ Already reconciled prior commits do not consume the new turn's lock budget.
 Each attempt also saves `timings.json`: source-budget wait, network fetch,
 lease check, capture, plan, apply through commit, and read-back, including stages
 that failed. Capture includes source wait/fetch, so those numbers must not be
-added twice. Total stops before saving the timing file and excludes turn cleanup;
+added twice. On a busy-source response, fetch includes response handling and the
+separately timed shared cooldown write. Total stops before saving the timing file and excludes turn cleanup;
 it is not whole-command duration. Missing stages were not reached. The saved apply
 allowance and exhaustion flag distinguish partial-lock yield from overall turn
 expiry. Timings do not approve a faster rate.
@@ -1032,7 +1033,9 @@ expiry. Timings do not approve a faster rate.
 Inside a batch turn, its engine listener alone sets each statement's timeout,
 using the smaller of the helper and turn deadlines. Standalone one-bill calls
 still set their own timeout. The listener refreshes the commit timeout and the
-helper retains the receipt idle bound. No duplicate timeout setter is sent for
+helper retains the receipt idle bound. Shared request reservations and cooldown
+writes narrow the listener to the existing source-request deadline too, so the
+turn cannot enlarge those database waits. No duplicate timeout setter is sent for
 the helper's statements; all source checks and locked re-planning remain.
 
 These conservative bounds do not substitute for the owner's measured lock cost

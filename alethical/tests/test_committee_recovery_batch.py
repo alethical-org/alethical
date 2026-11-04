@@ -921,3 +921,49 @@ def test_helper_timeout_owner_never_leaks_to_other_engine(setup, monkeypatch):
             )
     finally:
         other.dispose()
+
+
+@pytest.mark.parametrize("cooldown", [False, True])
+def test_source_database_wait_keeps_shorter_bound_under_turn_listener(
+    setup, monkeypatch, cooldown
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from sqlalchemy.exc import DBAPIError
+
+    engine, _, _, _ = setup
+    DatabaseRequestLimiter(engine).wait(URL)
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda req: httpx.Response(
+                429 if cooldown else 200, text=COMMITTEE_BILL_XML
+            )
+        )
+    )
+    executor = ThreadPoolExecutor(max_workers=1)
+    blocker = engine.connect()
+    transaction = blocker.begin()
+
+    def request():
+        with batch.sql_deadline(engine, time.monotonic() + 10):
+            fetcher = batch.SourceClient(engine, client, time.monotonic() + 0.15)
+            if cooldown:
+                # Reach cooldown persistence without waiting at reservation first.
+                monkeypatch.setattr(
+                    fetcher.limiter, "wait", lambda *args, **kwargs: None
+                )
+            return fetcher(URL)
+
+    try:
+        blocker.execute(
+            text(
+                "SELECT * FROM source_request_limits WHERE host='revisor.mn.gov' FOR UPDATE"
+            )
+        )
+        future = executor.submit(request)
+        with pytest.raises(DBAPIError, match="statement timeout"):
+            future.result(timeout=1)
+    finally:
+        transaction.rollback()
+        blocker.close()
+        executor.shutdown(wait=True)
+        client.close()

@@ -285,7 +285,10 @@ class SourceClient:
     def __call__(self, url):
         recovery.official(url)
         check_time(self.deadline)
-        with stage(self.seconds, "source_wait"):
+        with (
+            stage(self.seconds, "source_wait"),
+            sql_deadline(self.limiter.engine, self.deadline),
+        ):
             self.limiter.wait(url, deadline=self.deadline)
         timeout = min(10, self.deadline - time.monotonic())
         check_time(self.deadline)
@@ -297,11 +300,15 @@ class SourceClient:
             ) as response,
         ):
             if response.status_code in {429, 503}:
-                self.limiter.defer(
-                    url,
-                    retry_after_seconds(response.headers.get("Retry-After")),
-                    deadline=self.deadline,
-                )
+                with (
+                    stage(self.seconds, "source_cooldown"),
+                    sql_deadline(self.limiter.engine, self.deadline),
+                ):
+                    self.limiter.defer(
+                        url,
+                        retry_after_seconds(response.headers.get("Retry-After")),
+                        deadline=self.deadline,
+                    )
                 raise Deferred("source requested a shared cooldown")
             response.raise_for_status()
             for chunk in response.iter_bytes():
@@ -562,7 +569,7 @@ def process_bill(
                 "seconds": seconds,
                 "apply_budget_seconds": lock_budget,
                 "apply_budget_exhausted": apply_budget_exhausted,
-                "note": "Capture includes source wait and fetch; total includes all stages. Apply includes locks through commit, readback is separate. Total ends before saving this timing file and excludes turn cleanup. Missing stages were not reached.",
+                "note": "Capture includes source wait and fetch; source fetch includes response handling and any source cooldown write; total includes all stages. Apply includes locks through commit, readback is separate. Total ends before saving this timing file and excludes turn cleanup. Missing stages were not reached.",
             },
         )
 
