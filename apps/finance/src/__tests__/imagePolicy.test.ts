@@ -3,9 +3,7 @@ import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 
 it('permits private Blob images without opening other image origins', () => {
-  const config = JSON.parse(
-    readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'),
-  );
+  const config = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
   const policy = config.headers[0].headers.find(
     (header: { key: string }) => header.key === 'Content-Security-Policy',
   ).value as string;

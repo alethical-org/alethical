@@ -387,9 +387,7 @@ export function PageImage({
           alt={alt}
           style={imageStyle}
           onError={() => {
-            setImage((value) =>
-              value?.key === key ? { key, url: null, failed: true } : value,
-            );
+            setImage((value) => (value?.key === key ? { key, url: null, failed: true } : value));
           }}
         />
       )}
