@@ -540,7 +540,10 @@ one names its exact saved version and page.
   browsed by TV station folders (Station, Year and Category menus), agency names, stations
   and years, with served totals on each tab. Word search filters the chosen tab; station
   rows name the years held. The tab,
-  filters, words and page stay in the address. A capped count says "At least"; a failed
+  filters, words and page stay in the address. A safe earlier page adds its named return
+  link; the top-level list has no invented return. Nested returns keep the nearest 3
+  earlier pages with their filters and section anchors, dropping only the oldest link.
+  A capped count says "At least"; a failed
   refresh keeps the earlier rows with Try again. About these records states the coverage
   limits, and Sources and updates names the date the station files were copied.
 - **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
