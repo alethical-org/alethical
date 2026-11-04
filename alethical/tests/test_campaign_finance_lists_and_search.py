@@ -865,11 +865,15 @@ def test_no_sort_and_sort_name_both_answer_in_the_name_order_exactly(
     ]
     assert written.content == omitted.content
     assert written.headers["Cache-Control"] == omitted.headers["Cache-Control"]
-    # Sort does not change the response contract; status records its separate filter.
+    # Sort does not change the response contract; filters and options are additive.
     assert set(data) == {
         "state",
         "ordered_by",
         "status",
+        "party",
+        "candidate_parties",
+        "held_by_kind",
+        "held_register_total",
         "kind",
         "q",
         "committees",
@@ -1534,3 +1538,128 @@ def test_general_money_name_search_does_not_silently_search_registration_numbers
     answer = client.get(SEARCH_URL, params={"q": CANDIDATE}).json()["data"]
     group = next(group for group in answer["groups"] if group["kind"] == "committees")
     assert group["results"] == []
+
+
+def test_candidate_party_filter_is_exact_and_options_ignore_other_filters(client, db):
+    previous = _register(db)
+    snapshot = _register(db, filer_count=7)
+    for number, party, terminated, retained in [
+        ("100", "DFL", False, False),
+        ("101", "DFL", True, False),
+        ("102", " DFL ", False, False),
+        ("103", "DFL%", False, False),
+        ("104", "GOP", False, False),
+        ("105", None, False, False),
+        ("106", "Independent", False, True),
+    ]:
+        db.add(
+            models.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number=number,
+                name="Example " + number,
+                kind=FilerKind.candidate_committee,
+                party=party,
+                termination_date=date(2020, 1, 1) if terminated else None,
+                retained_from_snapshot_id=previous.id if retained else None,
+            )
+        )
+    db.add(
+        models.CampaignFinanceFiler(
+            snapshot_id=snapshot.id,
+            registration_number="200",
+            name="GOP inferred from name is forbidden",
+            kind=FilerKind.party_unit,
+            party="Other kind party",
+        )
+    )
+    db.commit()
+    expected_options = [" DFL ", "DFL", "DFL%", "GOP", "Independent"]
+    for offset, expected in [(0, ["100"]), (1, ["101"]), (2, [])]:
+        response = client.get(
+            COMMITTEES_URL,
+            params={
+                "kind": "candidate_committee",
+                "party": "DFL",
+                "status": "all",
+                "limit": 1,
+                "offset": offset,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert [r["registration_number"] for r in data["committees"]] == expected
+        assert data["page"]["total"] == 2
+        assert data["party"] == "DFL"
+        assert data["candidate_parties"] == expected_options
+        assert data["held_register_total"] == 8
+        assert data["held_by_kind"] == {
+            "candidate_committee": 7,
+            "party_unit": 1,
+            "political_committee_or_fund": 0,
+        }
+    for party, expected in [("DFL%", ["103"]), ("dfl", []), (" DFL ", ["102"])]:
+        data = client.get(
+            COMMITTEES_URL,
+            params={
+                "kind": "candidate_committee",
+                "party": party,
+                "status": "open",
+                "q": "10",
+            },
+        ).json()["data"]
+        assert [r["registration_number"] for r in data["committees"]] == expected
+        assert data["candidate_parties"] == expected_options
+    data = client.get(
+        COMMITTEES_URL,
+        params={
+            "kind": "candidate_committee",
+            "party": "DFL",
+            "status": "terminated",
+            "q": "101",
+        },
+    ).json()["data"]
+    assert [r["registration_number"] for r in data["committees"]] == ["101"]
+    assert data["candidate_parties"] == expected_options
+    assert data["page"]["total"] == 1
+    assert data["register_total"] == 7
+    retained = client.get(
+        COMMITTEES_URL,
+        params={
+            "kind": "candidate_committee",
+            "party": "Independent",
+            "status": "not_listed",
+        },
+    ).json()["data"]
+    assert retained["page"]["total"] == 1
+    assert retained["committees"][0]["captured_at"] is None
+    assert retained["candidate_parties"] == expected_options
+
+
+@pytest.mark.parametrize("kind", [None, "party_unit", "political_committee_or_fund"])
+def test_party_filter_does_not_change_other_register_tabs(client, db, kind):
+    snapshot = _register(db, filer_count=1)
+    _filer(db, snapshot, PARTY_UNIT, name="DFL", kind=FilerKind.party_unit)
+    params = {"kind": kind} if kind else {}
+    before = client.get(COMMITTEES_URL, params=params).json()["data"]
+    after = client.get(COMMITTEES_URL, params={**params, "party": "invented"}).json()[
+        "data"
+    ]
+    assert after["committees"] == before["committees"]
+    assert after["page"] == before["page"]
+    assert after["party"] is None
+    assert after["candidate_parties"] == []
+
+
+def test_party_options_are_unknown_without_a_register(client, db):
+    data = client.get(
+        COMMITTEES_URL,
+        params={
+            "kind": "candidate_committee",
+            "party": "DFL",
+        },
+    ).json()["data"]
+    assert data["state"] == UNAVAILABLE
+    assert data["candidate_parties"] is None
+    assert data["held_register_total"] is None
+    assert data["held_by_kind"] is None
+    assert data["party"] == "DFL"

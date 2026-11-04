@@ -222,6 +222,23 @@ number, link availability and printed transaction types. These fields never chan
 fingerprint. Conflicting names or types on repeated fingerprints remain distinguishable;
 no unresolved filer number becomes a link.
 
+### Campaign register filters
+
+The shared `/api/v1/campaign-finance/committees` reader accepts exact filed `party`
+only with `kind=candidate_committee`; other kinds ignore it and echo `party: null`.
+`candidate_parties` lists distinct nonempty held candidate party strings, including
+retained registrations, independently of search, status, selected party and paging.
+Case and spaces stay source-exact; a name never supplies a party. `held_by_kind` and
+`held_register_total` count all held rows for full-directory tabs, while existing
+`by_kind` and `register_total` continue counting the current register only. A missing
+or replaced register returns null options and counts, never a false empty set.
+
+A retained registration's `captured_at` is its last-listed copy time: ingestion writes
+the source snapshot's fetch-completion time when received and preserves that timestamp
+when carrying the row forward. It is not the later register copy's timestamp or the
+registration date. A missing captured time stays unknown; the client never borrows the
+current snapshot date for the last-listed caption.
+
 ### Recorded connections
 
 `alethical/api/services/finance_connections.py` serves `/connections` inside Finance's

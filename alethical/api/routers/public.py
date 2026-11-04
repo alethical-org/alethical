@@ -4626,6 +4626,7 @@ def campaign_finance_committees(
     offset: int = Query(default=0, ge=0),
     sort: CommitteeSort = Query(default="name"),
     status: RegistrationStatus | None = Query(default=None),
+    party: str | None = Query(default=None, min_length=1, max_length=200),
     db: Session = Depends(get_db),
 ):
     """Everyone registered to raise or spend money in Minnesota state politics.
@@ -4715,6 +4716,11 @@ def campaign_finance_committees(
     provenance come from the held register, never a name or inferred date. The headline
     ``register_total`` and ``by_kind`` still count only the current register.
 
+    ``party`` matches the exact filed party only for ``candidate_committee``; other
+    kinds ignore it and echo null. ``candidate_parties`` lists the held candidate
+    strings, including retained rows, independently of search, status and paging.
+    Nothing derives a party from a name or registration number.
+
     ``state`` decides whether ``committees`` may be read: ``unavailable`` with a
     ``reason`` means we hold no register (``no_filings_snapshot``) or the snapshot we
     resolved has been replaced under this read (``rows_replaced``). An empty list is
@@ -4730,6 +4736,7 @@ def campaign_finance_committees(
         # absent. No 503: refusing the whole register over a missing label would report a
         # gap in one source as an absence in the other.
         release = None
+    party = party if kind == "candidate_committee" else None
     page = register_committees(
         db,
         limit=limit,
@@ -4740,12 +4747,17 @@ def campaign_finance_committees(
         sort=sort,
         status=status,
         search_registration=True,
+        party=party,
     )
     return DetailResponse(
         data={
             "state": page.state,
             "ordered_by": page.ordered_by,
             "status": status,
+            "party": party,
+            "candidate_parties": page.candidate_parties,
+            "held_by_kind": page.held_by_kind,
+            "held_register_total": page.held_register_total,
             "kind": kind,
             "q": q,
             "committees": [_committee_payload(row) for row in page.committees],

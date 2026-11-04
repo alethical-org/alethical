@@ -247,6 +247,9 @@ class CommitteesPage:
     #: ``sub_type`` and nothing else.
     release_id: Optional[UUID]
     reason: Optional[str]
+    candidate_parties: Optional[tuple[str, ...]]
+    held_by_kind: Optional[dict[str, int]]
+    held_register_total: Optional[int]
 
 
 @dataclass(frozen=True)
@@ -504,6 +507,11 @@ def register_summary(db: Session) -> RegisterSummary:
         )
         .group_by(schema.CampaignFinanceFiler.kind)
     ).all()
+    return _register_summary_from_counts(snapshot, counted)
+
+
+def _register_summary_from_counts(snapshot, counted) -> RegisterSummary:
+    """The current-register answer, shared with the directory's wider count read."""
     total = sum(count for _, count in counted)
     if total == 0 and (snapshot.filer_count or 0) > 0:
         return RegisterSummary(
@@ -1018,6 +1026,7 @@ def committees(
     sort: CommitteeSort = SORT_BY_NAME,
     status: RegistrationStatus | None = None,
     search_registration: bool = False,
+    party: str | None = None,
 ) -> CommitteesPage:
     """One page of the register, ordered by the filed name, A to Z, unless ``sort`` says
     otherwise.
@@ -1077,8 +1086,26 @@ def committees(
             snapshot_id=None,
             release_id=None,
             reason=NO_FILINGS_SNAPSHOT,
+            candidate_parties=None,
+            held_by_kind=None,
+            held_register_total=None,
         )
-    summary = register_summary(db)
+    filer = schema.CampaignFinanceFiler
+    # One grouped read supplies current-only totals, full-directory counts and
+    # source-held candidate parties without another register query per request.
+    retained = filer.retained_from_snapshot_id.is_not(None)
+    held_groups = db.execute(
+        select(filer.kind, filer.party, retained, func.count())
+        .where(filer.snapshot_id == snapshot.id)
+        .group_by(filer.kind, filer.party, retained)
+    ).all()
+    current_counts = {kind: 0 for kind in schema.CampaignFinanceFilerKind}
+    held_by_kind = {kind.value: 0 for kind in schema.CampaignFinanceFilerKind}
+    for held_kind, _, is_retained, count in held_groups:
+        held_by_kind[held_kind.value] += count
+        if not is_retained:
+            current_counts[held_kind] += count
+    summary = _register_summary_from_counts(snapshot, current_counts.items())
     if summary.state != REPORTED:
         # The register itself could not be counted, so a page of it would be a slice of
         # a set we just refused to describe. Carries the summary's own reason rather
@@ -1097,8 +1124,23 @@ def committees(
             snapshot_id=summary.snapshot_id,
             release_id=None,
             reason=summary.reason,
+            candidate_parties=None,
+            held_by_kind=None,
+            held_register_total=None,
         )
-    filer = schema.CampaignFinanceFiler
+    # Keep exact filed strings, including case and surrounding spaces. Options
+    # describe all held candidates, independent of the selected filters or page.
+    candidate_parties = tuple(
+        sorted(
+            {
+                held_party
+                for held_kind, held_party, _, _ in held_groups
+                if held_kind == schema.CampaignFinanceFilerKind.candidate_committee
+                and held_party is not None
+                and held_party != ""
+            }
+        )
+    )
     # Keep the existing default population. Explicit retained/all filters expose
     # older copies without changing the current-register headline and kind counts.
     filters = [filer.snapshot_id == snapshot.id]
@@ -1112,6 +1154,8 @@ def committees(
             filters.append(filer.termination_date.is_not(None))
     if kind is not None:
         filters.append(filer.kind == schema.CampaignFinanceFilerKind(kind))
+    if kind == "candidate_committee" and party is not None:
+        filters.append(filer.party == party)
     if query:
         named = name_contains(filer.name, query)
         filters.append(
@@ -1167,6 +1211,9 @@ def committees(
         snapshot_id=summary.snapshot_id,
         release_id=getattr(release, "id", None),
         reason=None,
+        candidate_parties=candidate_parties,
+        held_by_kind=held_by_kind,
+        held_register_total=sum(held_by_kind.values()),
     )
 
 
