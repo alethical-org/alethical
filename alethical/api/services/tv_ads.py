@@ -1806,7 +1806,7 @@ def _lookup_checks(db, p, kind, target, race_context, committees):
     return checked, matches, hits
 
 
-def _connected_files(db, kind, target, registrations):
+def _connected_files(db, kind, target, registrations, *, targets=None):
     """Every file (station, FCC file id) holding a check, on any version, that a
     connection lookup could match: from copies and Finance's own checks alike."""
     copy = m.TVAdPublication
@@ -1831,6 +1831,8 @@ def _connected_files(db, kind, target, registrations):
     else:
 
         def names(model):
+            if targets is not None:
+                return tuple_(model.kind, model.target_id).in_(sorted(targets))
             condition = (
                 model.kind == "election"
                 if kind == "race"
@@ -1862,8 +1864,62 @@ def _connected_files(db, kind, target, registrations):
     return {tuple(row) for row in db.execute(query)}
 
 
+def _profile_connected(db, profile_groups):
+    """Read each file once, retaining each group's newest checked exact version."""
+    if not _originals(db):
+        raise ValueError("Profile connections require the Finance reading")
+    targets = set().union(*(group.targets for group in profile_groups))
+    files, groups = [], [[] for _ in profile_groups]
+    if targets:
+        _original_checks(db, _connected_files(db, None, None, [], targets=targets))
+        for current in _latest_copies(db, metadata=False):
+            remaining = set(range(len(profile_groups)))
+            first = None
+            for version in _file_versions(db, current):
+                checked, _, _ = _lookup_checks(db, version, None, None, None, [])
+                for index in sorted(remaining):
+                    group = profile_groups[index]
+                    matches = [
+                        c for c in checked if (c.kind, c.target_id) in group.targets
+                    ]
+                    if not matches:
+                        continue
+                    row = {
+                        **_row(db, version),
+                        "page": _cited_page(matches),
+                        "role": _joined(
+                            _candidate_role(
+                                (c.target_snapshot or {}).get("role"), c.page
+                            )
+                            if c.kind == "candidate"
+                            else _role_line(c.kind, c.target_snapshot or {})
+                            for c in matches
+                        ),
+                    }
+                    groups[index].append(row)
+                    first = first or row
+                    remaining.remove(index)
+                if not remaining:
+                    break
+            if first is not None:
+                files.append(first)
+    return {
+        "agency_key": None,
+        "exact_name_count": len(files),
+        "files": files,
+        "total": len(files),
+        "groups": [
+            {"label": group.label, "kind": group.kind, "files": rows}
+            for group, rows in zip(profile_groups, groups)
+            if rows
+        ],
+    }
+
+
 @projection
-def connected(db, kind, target):
+def connected(db, kind, target, *, profile_groups=None):
+    if profile_groups is not None:
+        return _profile_connected(db, profile_groups)
     rows = []
     groups = defaultdict(list)
     race_context = None

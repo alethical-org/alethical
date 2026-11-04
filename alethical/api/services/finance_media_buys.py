@@ -177,4 +177,19 @@ def station(db: Session, key: str) -> dict:
 
 
 def connected(db: Session, kind: str, record: str) -> dict:
+    if kind in {"person", "legislator", "organization"}:
+        from alethical.api.services.finance_media_profiles import groups
+
+        profile_groups = groups(db, kind, record)
+        if not profile_groups:
+            return {
+                "agency_key": None,
+                "exact_name_count": 0,
+                "files": [],
+                "total": 0,
+                "groups": [],
+            }
+        return reader.connected(
+            db, kind, record, originals=True, profile_groups=profile_groups
+        )
     return reader.connected(db, kind, record, originals=True)

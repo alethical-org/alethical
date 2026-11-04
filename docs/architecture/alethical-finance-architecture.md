@@ -475,6 +475,19 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
 
 The Media buys browse answer carries `tab_counts` for the whole held inventory, before
 the open tab's filters or result cap. Station rows carry their held folder years.
+The Finance Media buys `connections` answer also accepts `kind=person` (a held
+public-person id or a confirmed person identity id), `kind=legislator` (held id or
+slug), and `kind=organization` (a confirmed organization identity id). Person and
+legislator profiles keep confirmed committee files in `kind=committee` groups and
+files naming their source-verified candidacies in a separate `kind=named` group.
+Organization profiles use only their active confirmed committee and principal
+identifiers; a payee identity never becomes a TV agency by matching its spelling.
+Merged identities follow the standing successor. Split parents have no combined
+file list; each replacement uses its own active confirmations. Withdrawn links
+stop supplying files. A file shared by groups counts once in `total` and `files`,
+while each group keeps its newest matching checked version and cited page. These
+Finance-only reads do not change the public site's approved-copy projection.
+
 `search_scope=tab` searches the selected tab's labels; the default `files` scope keeps
 file-name, checked-fact and text search available. Neither search establishes an identity.
 File rows carry the displayed version's `first_saved_at`. Connected rows carry a page
