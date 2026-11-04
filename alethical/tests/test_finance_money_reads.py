@@ -583,10 +583,44 @@ def test_candidacy_accounts_require_reviewed_identity_election_year_and_seat(
         for entry in years["years"]
     )
     assert years["election_year"] == 2026
+    expected_contest = {
+        "office": office,
+        "district": period.district.code,
+        "year": 2026,
+        "anchor": f"{office.lower()}-{period.district.code.lower()}",
+    }
+    assert year["register_contest"] == expected_contest
+    assert years["register_contest"] == expected_contest
+    # Selected payment year cannot change the candidacy's contest year.
+    assert get(finance_api, path, year=2025)["register_contest"] == expected_contest
+
+    # Two accepted accounts for one exact held seat still give one contest.
+    _link(
+        finance_db,
+        member,
+        "55555",
+        m.CommitteeLinkReviewDecision.confirmed,
+        office=office,
+    )
+    _filer(finance_db, snapshot, "55555", office=office, district=period.district.code)
+    finance_db.commit()
+    assert get(finance_api, path, year=2026)["register_contest"] == expected_contest
+    other = finance_db.scalar(
+        select(m.CampaignFinanceFiler).where(
+            m.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            m.CampaignFinanceFiler.registration_number == "55555",
+        )
+    )
+    # Seat matching tolerates zero padding, but the register has two exact
+    # distinct group keys. Do not guess which register contest to link.
+    other.district = "0" + period.district.code
+    finance_db.commit()
+    assert get(finance_api, path, year=2026)["register_contest"] is None
     # Same name is never sufficient when the checked candidate identity changes.
     evidence["candidate_name"] = "Another person"
     refused = get(finance_api, path, year=2026)
     assert refused["link_state"] == "unconfirmed" and refused["committees"] == []
+    assert refused["register_contest"] is None
     assert (
         finance_api.get(
             BASE + path + "/years", params={"from": 2026, "to": 2025}

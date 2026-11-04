@@ -228,6 +228,83 @@ describe('Candidate profile', () => {
     );
   });
 
+  it.each([
+    {
+      selected: 2026,
+      contestYear: 2026,
+      district: '45B',
+      held: true,
+      linked: true,
+    },
+    {
+      selected: 2025,
+      contestYear: 2026,
+      district: '45B',
+      held: true,
+      linked: false,
+    },
+    {
+      selected: 2026,
+      contestYear: 2026,
+      district: '45B',
+      held: false,
+      linked: false,
+    },
+    {
+      selected: 2026,
+      contestYear: 2026,
+      district: '99A',
+      held: true,
+      linked: false,
+    },
+  ])(
+    'links only the served matching register contest $selected/$contestYear/$district/$held',
+    async ({ selected, contestYear, district, held, linked }) => {
+      await render(`/candidates/${ID}?year=${selected}`, (url) => {
+        if (url.includes('/campaign-finance/years'))
+          return wrapped({
+            link_state: 'confirmed',
+            register_contest: held
+              ? {
+                  office: 'House',
+                  district: '45B',
+                  year: contestYear,
+                  anchor: 'house-45b',
+                }
+              : null,
+            years: [2026, 2025].map((year) => ({
+              year,
+              committees: [{ registration_number: '18272' }],
+            })),
+          });
+        if (url.includes('/outside-spending'))
+          return wrapped({
+            state: 'reported',
+            year: selected,
+            about: { office: 'House', district },
+            groups: [
+              {
+                spender: 'Example group',
+                direction: 'For',
+                amount: '10',
+                row_count: 1,
+              },
+            ],
+          });
+        return answering(UPCOMING, true)(url);
+      });
+      const link = [...container.querySelectorAll('.cf-contest-head a')].find((a) =>
+        a.textContent?.replace(/\u00a0/g, ' ').includes('Open race'),
+      );
+      if (linked)
+        expect(link?.getAttribute('href')).toBe(
+          `/money/races/house-45b?year=2026&from=${encodeURIComponent(`/candidates/${ID}?year=2026`)}`,
+        );
+      else expect(link).toBeUndefined();
+      expect(text()).toContain('Example group');
+    },
+  );
+
   it('reads accounts and figures for this candidacy, excluding the person’s other races', async () => {
     const urls: string[] = [];
     await render(`/candidates/${ID}`, (url) => {

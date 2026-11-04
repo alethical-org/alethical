@@ -148,7 +148,12 @@ held produce an unavailable state, never a zero. A requested release that change
   the election year, and the Board's held office and district against that candidacy.
   Only that account set can appear in its historical years, each still subject to the
   existing reviewed or filed year coverage. Missing seat or identity evidence means
-  unconfirmed; names alone never create a link.
+  unconfirmed; names alone never create a link. Both responses add `register_contest`
+  only when those accepted Board rows hold one exact office/district pair: `office`,
+  `district`, candidacy election `year`, and the register's existing contest `anchor`.
+  Missing or ambiguous evidence yields null. Changing the requested payment year never
+  changes this contest year; consumers link only the matching selected year. Two accounts
+  for the same exact seat share the one contest, without combining their money.
 - `/committees/{number}/report-figures?year=Y` lists the held catalogue's filed report names
   and effective amendments. A catalogue entry without an amendment marker is not proof
   of filing. The latest held cumulative figures attach only to a unique regular report
