@@ -95,8 +95,10 @@ def test_graph_money_summary_upgrade_downgrade_upgrade():
                             "snapshot_id",
                             "account_number",
                         ]
-                        db.add(
-                            m.CampaignFinanceGraphMoneySummary(
+                        # Insert this historical revision's fields only, not
+                        # nullable metadata added to the current ORM afterward.
+                        db.execute(
+                            m.CampaignFinanceGraphMoneySummary.__table__.insert().values(
                                 snapshot_id=snapshot_id,
                                 dataset=m.CampaignFinanceDataset.contributions,
                                 account_number="18135",
