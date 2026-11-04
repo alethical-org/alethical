@@ -132,12 +132,20 @@
     600 12.5px Inter,
     sans-serif;
   fill: #141b22;
+  white-space: pre-wrap;
 }
 .mc-node-aa {
   font:
     700 8.5px Inter,
     sans-serif;
   fill: #4a5661;
+}
+.mc-node-sub {
+  font:
+    400 11px Inter,
+    sans-serif;
+  fill: #4a5661;
+  white-space: pre-wrap;
 }
 .mc-node-printed {
   font:
@@ -499,4 +507,14 @@
   .mc-edge-line {
     animation: none !important;
   }
+}
+
+.mc-chosen-title,
+.mc-chosen .mc-note,
+.mc-sub {
+  white-space: pre-wrap;
+}
+
+.mc-filed-position {
+  white-space: pre-wrap;
 }

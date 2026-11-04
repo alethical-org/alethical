@@ -47,6 +47,11 @@ def _digest(table: str, order: str) -> str:
 
 
 MARKS = {
+    # Summary writers share PUBLISH_LOCK_KEY and replace rows, never update them
+    # in place. A same-release metadata rebuild therefore gets newer row IDs.
+    # The PK backward read stays cheap; unrelated rebuilds may safely invalidate.
+    "graph_summary": "(SELECT id::text FROM cf_graph_money_summary ORDER BY id DESC LIMIT 1)",
+    "filing_register": "(SELECT snapshot_id::text FROM cf_filing_current WHERE id)",
     "money": "(SELECT release_id::text FROM cf_current_release WHERE id)",
     "identity": _digest("identity_event", "r.id"),
     "accounts": "jsonb_build_array("

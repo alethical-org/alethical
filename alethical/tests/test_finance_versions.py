@@ -21,6 +21,7 @@ from alethical.tests.test_identity_confirmations import (  # noqa: F401
     create,
     donor,
     prints,
+    registered,
 )
 
 LISTS = [
@@ -282,3 +283,38 @@ def test_an_already_open_read_committed_transaction_cannot_name_a_snapshot(
         with pytest.raises(HTTPException) as refused:
             finance_versions.current(db, "people")
         assert refused.value.status_code == 503
+
+
+def test_connections_refuses_pages_after_filing_register_changes(
+    finance_api, finance_db, board, registered
+):
+    path = "/api/v1/finance/connections"
+    finance_db.merge(
+        m.CampaignFinanceFilingCurrentSnapshot(id=True, snapshot_id=registered)
+    )
+    finance_db.commit()
+    first = read(finance_api, path)["data"]
+    committee = next(
+        node for node in first["nodes"] if node["key"] == "committee:18135"
+    )
+    assert committee["register_kind"] == "candidate_committee"
+    pointer = finance_db.get(m.CampaignFinanceFilingCurrentSnapshot, True)
+    pointer.snapshot_id = None
+    finance_db.commit()
+    read(finance_api, path, status=409, version=first["version"])
+
+
+def test_connections_refuses_pages_after_summary_metadata_rebuild(
+    finance_api, finance_db, board
+):
+    from alethical.pipeline import campaign_finance_graph_summary as summary
+
+    path = "/api/v1/finance/connections"
+    first = read(finance_api, path)["data"]
+    summary.rebuild(
+        finance_db,
+        m.CampaignFinanceDataset.independent_expenditures,
+        board.independent_expenditures_snapshot_id,
+    )
+    finance_db.commit()
+    read(finance_api, path, status=409, version=first["version"])

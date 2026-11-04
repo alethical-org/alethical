@@ -54,7 +54,15 @@ def money_connections(
     db: Session = Depends(get_db),
 ) -> dict | JSONResponse:
     token = finance_versions.check(
-        db, version, "money", "identity", "accounts", "lobbying", "station"
+        db,
+        version,
+        "money",
+        "identity",
+        "accounts",
+        "lobbying",
+        "station",
+        "filing_register",
+        "graph_summary",
     )
     try:
         data = finance_connections.connections(
