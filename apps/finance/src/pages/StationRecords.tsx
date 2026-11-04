@@ -503,7 +503,11 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                         <span role="cell" className="mb-cell mb-cell-source">
                           {file.agency_unchecked ? <NotCheckedIcon /> : <CheckedIcon />}
                           <span>
-                            {file.agency_unchecked ? 'Machine-read · Not checked' : 'Checked'}
+                            {file.agency_unchecked
+                              ? 'Machine-read · Not checked'
+                              : checkedDay(file.agency_checked_at) !== 'Unavailable'
+                                ? `Checked on ${checkedDay(file.agency_checked_at)}`
+                                : 'Checked'}
                           </span>
                         </span>
                         <span

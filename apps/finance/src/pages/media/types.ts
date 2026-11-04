@@ -29,6 +29,7 @@ export interface FileRow {
   version_count: number;
   source_changed: boolean;
   agency_unchecked?: boolean;
+  agency_checked_at?: string | null;
   role?: string | null;
   match_label?: string | null;
   excerpt?: string | null;
