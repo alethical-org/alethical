@@ -14,6 +14,7 @@ import {
   parseSectionAnchor,
   parseSectionBody,
   parseStructuredBody,
+  renderedTextVersion,
   resolveSectionAnchor,
   SectionAnchor,
   sectionAnchorFromHash,
@@ -189,7 +190,7 @@ export function FullTextTab({
    *  Without a level react-native-web renders every one as an <h1> (#1355). */
   sectionHeadingLevel?: 2 | 3;
 }) {
-  const version = bill.versions.find((v) => v.isCurrent) ?? bill.versions[0];
+  const version = renderedTextVersion(bill.versions);
   const versionCode = version?.versionCode;
   const { isDesktop, isMobile } = useResponsive();
 
@@ -221,7 +222,9 @@ export function FullTextTab({
   // the badge. Keyed on the section id it marked every section sharing that id as
   // cited, which on the 66 versions that repeat one told the reader a key point
   // came from a section it did not (#854). A citation the API could not pin to one
-  // position carries no `sectionOrder` and badges nothing at all — the same
+  // position carries no `sectionOrder` and badges nothing at all, and neither does
+  // a citation whose summary was written from another version than the one shown
+  // (the mapper drops its position, #2857) — the same
   // refusal #853 made for the chip's caption, because a badge is a claim about
   // provenance and there is nothing to ground it in (grounded-answers rule 1).
   const citedAnchorIds = useMemo(

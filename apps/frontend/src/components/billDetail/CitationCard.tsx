@@ -31,7 +31,8 @@ const CARD_TRANSITION = isWeb
 //    the whole card is a real anchor with its own URL. The answer page uses this,
 //    because the passage it opens lives on another page.
 // With neither, the card is a static quote (a section the anchor could not be
-// resolved for keeps its quote and its chip, it just does not lift or link).
+// resolved for keeps its quote and its chip, it just does not lift or link, and
+// its chip drops the arrow, as the phone's unlinked chip does).
 //
 // The chip reads "Sec. 4 · License classes →" — one format on every surface
 // (citationChipLabel). The trailing arrow is the U+2192 text glyph in the chip's
@@ -88,9 +89,11 @@ export function CitationCard({
         <View style={styles.chip}>
           <Text style={styles.chipText}>
             {chipLabel}
-            <Text aria-hidden style={styles.chipArrow}>
-              {' →'}
-            </Text>
+            {pressable ? (
+              <Text aria-hidden style={styles.chipArrow}>
+                {' →'}
+              </Text>
+            ) : null}
           </Text>
         </View>
       </View>

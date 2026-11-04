@@ -986,6 +986,8 @@ describe('first-response page tags', () => {
               data: {
                 id: '94-2025-HF719',
                 companion: { id: '94-2025-SF390', code: 'SF 390' },
+                versions: [{ version_code: '2', is_current: true }],
+                summary_source_version: { version_code: '2' },
                 ai_analysis: {
                   short_title: 'Statewide Capital Projects and Bonding Bill',
                   summary: 'Authorizes borrowing for public buildings. More detail follows.',
