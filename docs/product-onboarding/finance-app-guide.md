@@ -477,7 +477,8 @@ figure is ever added across committees or members.
   "Alethical summary", the passages name no version, and "Read the bill text" opens the
   current text at the top: a quoted section is never looked up in another version. Bill
   Text opens the version the record marks current, by its own code, even when another
-  version shares its name (2 conference committee reports). A version's name carries
+  version shares its name (2 conference committee reports); Versions lists 1 row per name,
+  and that row is the current one. A version's name carries
   "version" once, as drawn ("Introduced version", "Bill text · introduced version"), never
   twice for a name that already says it ("Text of the current version not held").
 - **Roll call (`/votes/:id`)**: the exact motion, date, recorded result and each member's

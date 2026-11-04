@@ -428,8 +428,9 @@ export function versionTitle(label: string): string {
 
 /**
  * Newest first, 1 row per name. The "current" alias row loses to the real
- * record of the same name, and among equals the earliest date (the real
- * posting date) wins. "As introduced" carries the bill's introduction date,
+ * record of the same name, the version the record marks current wins over
+ * another of its name (2 conference committee reports), and among equals the
+ * earliest date (the real posting date) wins. "As introduced" carries the bill's introduction date,
  * because the source sometimes stamps that version with a later revision date.
  */
 export function orderVersions(versions: ServedVersion[], actions: ServedAction[]): VersionRow[] {
@@ -461,7 +462,10 @@ export function orderVersions(versions: ServedVersion[], actions: ServedAction[]
     if (
       !incumbent ||
       (incumbent.pointer && !candidate.pointer) ||
-      (incumbent.pointer === candidate.pointer && candidate.time < incumbent.time)
+      (incumbent.pointer === candidate.pointer &&
+        (candidate.row.isCurrent !== incumbent.row.isCurrent
+          ? candidate.row.isCurrent
+          : candidate.time < incumbent.time))
     ) {
       best.set(key, candidate);
     }
