@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { statusLabel } from '@alethical/shared/billStatus';
 import {
@@ -207,9 +207,7 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
   const [address, setAddress] = useAddressState({ bills: '1' });
   const sessions = useRead<Session[]>('sessions');
   const current = sessions.data?.find((item) => item.is_current) ?? null;
-  const total = record.stats?.chief_bill_count ?? null;
-  const pages = total ? Math.max(1, Math.ceil(total / BILLS_PER_PAGE)) : 1;
-  const page = Math.min(Math.max(1, Number(address.bills) || 1), pages);
+  const page = Math.max(1, Math.trunc(Number(address.bills) || 1));
   const read = useRead<BillRow[]>(
     apiPath(['legislators', record.slug, 'bills'], {
       role: 'chief_author',
@@ -218,6 +216,15 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
     }),
     { keepPrevious: true },
   );
+  // The profile's all-held count has a different scope from this session's
+  // summarized results. Only the returned page total can determine its pages.
+  const total = read.page?.total ?? null;
+  const pages = total === null ? 1 : Math.max(1, Math.ceil(total / BILLS_PER_PAGE));
+  useEffect(() => {
+    if (read.data && !read.pending && !read.failed && total !== null && page > pages) {
+      setAddress({ bills: String(pages) });
+    }
+  }, [read.data, read.pending, read.failed, total, page, pages, setAddress]);
   const list = useRef<HTMLDivElement>(null);
   const go = (next: number) => {
     setAddress({ bills: String(next) });
@@ -246,10 +253,10 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
             We couldn’t load these bills. This is a problem on our side.
           </Refused>
         )}
-        {/* "None held" only when the record's own count agrees: a list that comes
-            back empty against a positive count is a gap, never a stated zero. */}
-        {read.data && !read.loading && rows.length === 0 && !read.updating && !total && (
-          <div className="f-empty-box">No chief-authored bills held for this service</div>
+        {read.data && !read.pending && !read.failed && rows.length === 0 && total === 0 && (
+          <div className="f-empty-box">
+            No chief-authored bills with summaries are available for this session
+          </div>
         )}
         {rows.length > 0 && (
           <>
