@@ -286,7 +286,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
                 ))}
               </div>
               <p className="f-section-note lg-note">
-                District and party are as recorded for this roll call. A member’s record here is a
+                District and party come from held service records for the vote date. A member’s record here is a
                 vote on one motion, never a position or an opinion. Names link only where a
                 legislator record is confirmed.
               </p>
