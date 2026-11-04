@@ -321,7 +321,7 @@ export function PageImage({
 }) {
   const { apiBaseUrl, accessToken } = useFinanceSession();
   const [attempt, setAttempt] = useState(0);
-  const key = `${accessToken}|${fileKey}|${version}|${page}|${attempt}`;
+  const key = `${apiBaseUrl}|${accessToken}|${fileKey}|${version}|${page}|${attempt}`;
   const [image, setImage] = useState<{ key: string; url: string | null; failed: boolean } | null>(
     null,
   );
@@ -380,7 +380,17 @@ export function PageImage({
   return (
     <div className="mb-image" role={current?.url ? undefined : 'img'} aria-label={alt}>
       {!current && <span className="f-visually-hidden">Loading page image</span>}
-      {current?.url && <img src={current.url} alt={alt} style={imageStyle} />}
+      {current?.url && (
+        <img
+          key={key}
+          src={current.url}
+          alt={alt}
+          style={imageStyle}
+          onError={() => {
+            setImage((value) => (value?.key === key ? { key, url: null, failed: true } : value));
+          }}
+        />
+      )}
     </div>
   );
 }
