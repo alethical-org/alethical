@@ -316,10 +316,13 @@ def test_people_record_cues_follow_validated_profile_records(finance_api, financ
     )
     # The note breaks the count down from the same validated records.
     notes = person["record_notes"]
-    assert candidate["year"] in notes["candidacy_years"]
-    assert sorted((s["office"], s["voting_area"]) for s in notes["services"]) == sorted(
-        (s.get("office"), s.get("votingArea")) for s in profile["service"]
-    )
+    assert notes["candidacy_years"] == [candidate["year"]]
+    # The same services, statuses and order the person profile shows.
+    assert [
+        (s["office"], s["voting_area"], s["status"]) for s in notes["services"]
+    ] == [
+        (s.get("office"), s.get("votingArea"), s["status"]) for s in profile["service"]
+    ]
     assert notes["lobbyist"] is False
     assert candidate["person_links"] == [{"id": person["id"], "name": "Kim Ellison"}]
     old_version = data["version"]
@@ -466,3 +469,42 @@ def test_people_link_cue_read_cost_is_bounded_to_the_selected_page(
     # This fixture includes the actual retained civic-person register plus the
     # seeded legislature. Linked records are batched, not one profile read per row.
     assert len(statements) <= 20
+
+
+def test_people_note_service_status_follows_the_profile_after_a_term_ends(
+    finance_api, finance_db
+):
+    """A held "current" record whose term has ended reads "unknown" in the note
+    exactly as on the person profile, never "current"."""
+    from datetime import UTC, datetime
+    from uuid import UUID
+
+    from alethical.api.services import person_records
+
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    person = next(
+        r for r in get(finance_api, q="Kim Ellison")["rows"] if r["kind"] == "person"
+    )
+    statuses = {s["status"] for s in person["record_notes"]["services"]}
+    assert "current" in statuses
+    later = date(2029, 3, 1)
+    profile = person_records.load_person(
+        finance_db, person["id"], now=datetime(2029, 3, 1, 18, tzinfo=UTC)
+    )
+    *_, notes = person_records.directory_record_cues(
+        finance_db,
+        person_ids=[UUID(person["id"])],
+        candidate_ids=[],
+        legislator_ids=[],
+        today=later,
+    )
+    served = notes[person["id"]]["services"]
+    assert [(s["office"], s["status"]) for s in served] == [
+        (s.get("office"), s["status"]) for s in profile["service"]
+    ]
+    assert "current" not in {s["status"] for s in served}
+    assert all(
+        s.get("current_service_confirmed") is False
+        for s in served
+        if s["status"] == "unknown"
+    )
