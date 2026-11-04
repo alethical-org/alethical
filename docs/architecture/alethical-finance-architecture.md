@@ -252,6 +252,25 @@ number, link availability and printed transaction types. These fields never chan
 fingerprint. Conflicting names or types on repeated fingerprints remain distinguishable;
 no unresolved filer number becomes a link.
 
+### Exact matching station invoices
+
+Finance’s committee `payments` wrapper adds `matching_invoice: {key, version, page}`
+only to an expenditure row with one unique checked invoice destination. The evidence
+must name the exact expenditures dataset, source snapshot, content hash and row, still
+match the published source, and point to a held station-file version. The file’s standing
+checked document kind must be Invoice, with no conflicting kind. Finance and non-draft
+copy checks use the same correction and withdrawal rules as the station-file reader;
+an accepted expense link that is later rejected no longer qualifies. No payee name,
+date or amount can substitute for that evidence. No private check notes or reviewer
+identity are returned; public payment responses stay unchanged.
+
+The link opens the exact file version and evidence page. A collapsed payee group shows
+a link only when its rows yield one distinct destination; differing destinations remain
+on their own expanded payment rows. Missing or ambiguous row evidence produces no link.
+The made-payment paging token includes `invoice_links`, so a withdrawal between pages
+requires reloading instead of mixing old and new checks. That mark excludes extraction
+suggestions and machine-read page text, which this projection does not use.
+
 ### Campaign register filters
 
 The shared `/api/v1/campaign-finance/committees` reader accepts exact filed `party`

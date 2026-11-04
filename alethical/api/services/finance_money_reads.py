@@ -521,7 +521,12 @@ def committee_payments(
     from fastapi import Response
     from alethical.api.routers.public import committee_payments as read_payments
 
-    token = finance_versions.check(db, version, "money", "filing_register")
+    marks = (
+        ("money", "filing_register", "invoice_links")
+        if direction == "made"
+        else ("money", "filing_register")
+    )
+    token = finance_versions.check(db, version, *marks)
     data = read_payments(
         registration_number=registration,
         direction=direction,
@@ -535,6 +540,20 @@ def committee_payments(
     ).data
     data["version"] = token
     if direction == "made":
+        from alethical.api.services.finance_payment_invoices import matching_invoices
+
+        release = committee_finance.current_release(db)
+        invoices = matching_invoices(
+            db,
+            snapshot_id=release.expenditures.snapshot_id
+            if release and str(release.id) == data.get("release_id")
+            else None,
+            row_numbers=[
+                row["record_number"]
+                for row in data["payments"]
+                if row["expenditure_type"] != "Contribution"
+            ],
+        )
         kinds = _recipient_types(
             db,
             {
@@ -547,6 +566,11 @@ def committee_payments(
         data["payments"] = [
             {
                 **row,
+                **(
+                    {"matching_invoice": invoices[row["record_number"]]}
+                    if row["record_number"] in invoices
+                    else {}
+                ),
                 **_recipient_fields(
                     kinds,
                     row["affected_committee_registration_number"]

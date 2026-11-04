@@ -250,6 +250,10 @@ figure is ever added across committees or members.
   with none shows
   "No campaign committee is confirmed for this candidacy". Media buys sits between
   Campaign finance and Election.
+- **Matching station invoice**: a Committee expenditure links only to a checked invoice
+  for that exact saved payment row. It opens the held file version and cited page, never
+  a file guessed from its payee or amount. Missing, withdrawn or ambiguous evidence leaves
+  no link; separate invoices remain on their own expanded payment rows.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched by name or registration number and paged on
   the server. Candidates has a Party menu drawn from exact filed parties; every tab has
