@@ -314,6 +314,16 @@ def test_people_record_cues_follow_validated_profile_records(finance_api, financ
     assert person["confirmed_record_count"] == len(profile["elections"]) + len(
         profile["service"]
     )
+    # The note breaks the count down from the same validated records.
+    notes = person["record_notes"]
+    assert notes["candidacy_years"] == [candidate["year"]]
+    # The same services, statuses and order the person profile shows.
+    assert [
+        (s["office"], s["voting_area"], s["status"]) for s in notes["services"]
+    ] == [
+        (s.get("office"), s.get("votingArea"), s["status"]) for s in profile["service"]
+    ]
+    assert notes["lobbyist"] is False
     assert candidate["person_links"] == [{"id": person["id"], "name": "Kim Ellison"}]
     old_version = data["version"]
     link = finance_db.get(m.PersonCandidacy, (UUID(person["id"]), candidate["id"]))
@@ -327,9 +337,10 @@ def test_people_record_cues_follow_validated_profile_records(finance_api, financ
         next(r for r in updated["rows"] if r["kind"] == "candidate")["person_links"]
         == []
     )
-    assert next(r for r in updated["rows"] if r["kind"] == "person")[
-        "confirmed_record_count"
-    ] == len(profile["service"])
+    updated_person = next(r for r in updated["rows"] if r["kind"] == "person")
+    assert updated_person["confirmed_record_count"] == len(profile["service"])
+    # A candidacy that no longer validates leaves the note too.
+    assert updated_person["record_notes"]["candidacy_years"] == []
 
 
 def test_people_count_includes_only_active_identity_lobbyist_links(
@@ -371,6 +382,7 @@ def test_people_count_includes_only_active_identity_lobbyist_links(
     finance_db.flush()
     current = get(finance_api, q="Kim Ellison", type="persons")
     assert current["rows"][0]["confirmed_record_count"] == base_count + 1
+    assert current["rows"][0]["record_notes"]["lobbyist"] is True
     # The public-person anchor and lobbyist confirmation remain on the merged
     # identity; the directory must follow the same standing identity as the profile.
     target = m.IdentityEntity(
@@ -389,18 +401,16 @@ def test_people_count_includes_only_active_identity_lobbyist_links(
     )
     current = get(finance_api, q="Kim Ellison", type="persons")
     assert current["rows"][0]["confirmed_record_count"] == base_count + 1
+    assert current["rows"][0]["record_notes"]["lobbyist"] is True
     token = current["version"]
     lobbyist.active = False
     lobbyist.withdrawn_at = datetime.now(UTC)
     lobbyist.withdrawal_reason = "Wrong record"
     finance_db.flush()
     assert finance_api.get(BASE, params={"version": token}).status_code == 409
-    assert (
-        get(finance_api, q="Kim Ellison", type="persons")["rows"][0][
-            "confirmed_record_count"
-        ]
-        == base_count
-    )
+    withdrawn = get(finance_api, q="Kim Ellison", type="persons")["rows"][0]
+    assert withdrawn["confirmed_record_count"] == base_count
+    assert withdrawn["record_notes"]["lobbyist"] is False
     # A fresh lobbyist confirmation cannot count once the person-to-identity link is withdrawn.
     confirmation("lobbyist", "9912")
     public.active = False
@@ -418,12 +428,13 @@ def test_people_count_includes_only_active_identity_lobbyist_links(
     )
     finance_db.add(empty)
     finance_db.flush()
-    assert (
-        get(finance_api, type="persons", q=empty.name)["rows"][0][
-            "confirmed_record_count"
-        ]
-        == 0
-    )
+    empty_row = get(finance_api, type="persons", q=empty.name)["rows"][0]
+    assert empty_row["confirmed_record_count"] == 0
+    assert empty_row["record_notes"] == {
+        "candidacy_years": [],
+        "services": [],
+        "lobbyist": False,
+    }
 
 
 def test_people_link_cue_read_cost_is_bounded_to_the_selected_page(
@@ -458,3 +469,45 @@ def test_people_link_cue_read_cost_is_bounded_to_the_selected_page(
     # This fixture includes the actual retained civic-person register plus the
     # seeded legislature. Linked records are batched, not one profile read per row.
     assert len(statements) <= 20
+
+
+def test_people_note_service_status_follows_the_profile_after_a_term_ends(
+    finance_api, finance_db, monkeypatch
+):
+    """A held "current" record whose term has ended reads "unknown" in the note
+    exactly as on the person profile, never "current"."""
+    from datetime import UTC, datetime
+    from uuid import UUID
+
+    from alethical.api.services import finance_people, person_records
+
+    monkeypatch.setattr(
+        finance_people, "read_time", lambda: datetime(2026, 10, 29, 18, tzinfo=UTC)
+    )
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    person = next(
+        r for r in get(finance_api, q="Kim Ellison")["rows"] if r["kind"] == "person"
+    )
+    statuses = {s["status"] for s in person["record_notes"]["services"]}
+    assert "current" in statuses
+    later = date(2029, 3, 1)
+    profile = person_records.load_person(
+        finance_db, person["id"], now=datetime(2029, 3, 1, 18, tzinfo=UTC)
+    )
+    *_, notes = person_records.directory_record_cues(
+        finance_db,
+        person_ids=[UUID(person["id"])],
+        candidate_ids=[],
+        legislator_ids=[],
+        today=later,
+    )
+    served = notes[person["id"]]["services"]
+    assert [(s["office"], s["status"]) for s in served] == [
+        (s.get("office"), s["status"]) for s in profile["service"]
+    ]
+    assert "current" not in {s["status"] for s in served}
+    assert all(
+        s.get("current_service_confirmed") is False
+        for s in served
+        if s["status"] == "unknown"
+    )

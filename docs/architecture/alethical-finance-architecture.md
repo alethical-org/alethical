@@ -96,6 +96,15 @@ candidate identity or reviewed legislative source invalidates the corresponding 
 The count describes the person's full linked record set, independent of filters that
 selected that person for the directory page. These metadata reads share the page's
 snapshot and version token, including confirmation, candidacy-link and service changes.
+`record_notes` breaks the same validated entries down: `candidacy_years` (each
+distinct candidacy election year, newest first), `services` (each service's `office`
+and `voting_area` as the record holds them, with the status the person profile shows
+today and in the profile's order: a held "current" record whose term has ended reads
+"unknown" with `current_service_confirmed` false, and an "elected" record carries
+`current_service_confirmed` and `expected_start_passed`) and `lobbyist` (whether an
+active lobbyist confirmation counts). Its items need not add up to the count: years
+are distinct and several lobbyist records are 1 flag. A link that stops validating
+leaves the note as it leaves the count; nothing is parsed from free text.
 
 `GET /api/v1/finance/people` pages held candidacies, public person records and
 legislative records as separate kinds, even when their names match. Literal name
