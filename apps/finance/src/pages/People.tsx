@@ -27,6 +27,10 @@ export interface PersonDirectoryRow {
   office?: string;
   voting_area?: string;
   party?: string | null;
+  /** Validated candidacy, service and lobbying links, never payment coverage. */
+  confirmed_record_count?: number;
+  /** Presence is a cue; the row still opens its own candidacy or service record. */
+  person_links?: Array<{ id: string; name: string }>;
   source?: { authority?: string; checkedDate?: string };
   service_status?: 'current' | 'former' | 'unknown';
   matching_periods?: PersonDirectoryRow['periods'];
@@ -117,6 +121,13 @@ export function rowNote(row: PersonDirectoryRow) {
 }
 /** The row's source, at its end. */
 export function rowEnd(row: PersonDirectoryRow) {
+  if (row.kind === 'person') {
+    const count = row.confirmed_record_count;
+    return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0
+      ? plural(count, 'confirmed record', 'confirmed records')
+      : '';
+  }
+  if (row.person_links?.length) return 'Linked to person profile';
   return row.kind === 'legislator'
     ? 'Minnesota Legislature'
     : row.kind === 'candidate'

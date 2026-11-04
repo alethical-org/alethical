@@ -231,6 +231,10 @@ figure is ever added across committees or members.
   from the Legislature record. A district search shows the matching held service period,
   with its own seat, party and dates or session, not an unrelated latest seat. Former
   service requires a held service end; missing current membership never establishes it.
+  A Person row shows its count of validated candidacy, service and lobbying records,
+  including 0, never a count of payment records. Candidate and Legislator rows say "Linked
+  to person profile" only when a validated link is served; otherwise they name their source.
+  Each row still opens its own record, without choosing between multiple linked people.
   Record-type definitions sit under "About these records" below the results.
 - **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
   carries no current title, party, district or committees), each confirmed campaign account

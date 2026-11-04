@@ -115,6 +115,56 @@ const button = (label: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent === label)!;
 
 describe('People', () => {
+  it('prints confirmed source-record counts including zero without inventing a missing count', async () => {
+    await render('/people', async (url) => {
+      const body = await loaded(url).json();
+      return json({
+        ...body.data,
+        rows: [
+          { kind: 'person', id: 'one', name: 'One source', confirmed_record_count: 1 },
+          { kind: 'person', id: 'several', name: 'Several sources', confirmed_record_count: 4 },
+          { kind: 'person', id: 'zero', name: 'No source links', confirmed_record_count: 0 },
+          { kind: 'person', id: 'older', name: 'Older reply' },
+        ],
+      });
+    });
+    const rows = [...container.querySelectorAll<HTMLAnchorElement>('.pp-row')];
+    expect(rows[0].textContent).toContain('1 confirmed record');
+    expect(rows[1].textContent).toContain('4 confirmed records');
+    expect(rows[2].textContent).toContain('0 confirmed records');
+    expect(rows[3].textContent).not.toContain('confirmed record');
+    expect(rows[0].getAttribute('href')).toBe('/people/one?from=%2Fpeople');
+  });
+
+  it('shows validated person-link presence while keeping candidacy and service navigation distinct', async () => {
+    const links = [
+      { id: 'person-a', name: 'Held person A' },
+      { id: 'person-b', name: 'Held person B' },
+    ];
+    await render('/people', async (url) => {
+      const body = await loaded(url).json();
+      return json({
+        ...body.data,
+        rows: [
+          { kind: 'candidate', id: 'candidate-a', name: 'Linked candidate', person_links: links },
+          { ...legislator(1), person_links: links },
+          { kind: 'candidate', id: 'candidate-b', name: 'Unlinked candidate', person_links: [] },
+          { ...legislator(2), person_links: [] },
+        ],
+      });
+    });
+    const rows = [...container.querySelectorAll<HTMLAnchorElement>('.pp-row')];
+    expect(rows[0].textContent).toContain('Linked to person profile');
+    expect(rows[1].textContent).toContain('Linked to person profile');
+    expect(rows[2].textContent).toContain('Minnesota Secretary of State');
+    expect(rows[3].textContent).toContain('Minnesota Legislature');
+    expect(rows[0].getAttribute('href')).toBe('/candidates/candidate-a?from=%2Fpeople');
+    expect(rows[1].getAttribute('href')).toBe('/legislators/member-01?from=%2Fpeople');
+    expect(container.querySelector('a[href^="/people/person-a"]')).toBeNull();
+    expect(container.querySelector('a[href^="/people/person-b"]')).toBeNull();
+    expect(rows[0].textContent).not.toContain('Held person A');
+  });
+
   it.each([
     [
       'candidates',
