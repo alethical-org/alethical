@@ -209,7 +209,7 @@ def queue(
     db: Session = Depends(get_db),
 ) -> dict:
     """Exact printed names by recorded amount; each payment file stays separate."""
-    token = finance_versions.check(db, version, "money", "identity")
+    token = finance_versions.check(db, version, "money", "identity", "name_summary")
     return {
         "data": {
             "version": token,

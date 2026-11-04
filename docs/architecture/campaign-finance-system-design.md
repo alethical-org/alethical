@@ -804,9 +804,10 @@ whole files and replaces whole sets.
    [#1346](https://github.com/alethical-org/alethical/issues/1346).
 3. **Validate** (§4.3). A snapshot that fails is kept for diagnosis and never published.
 4. **Publish** by replacing the previous published set entirely. The same transaction
-   writes each loaded file's money-graph summary (`cf_graph_money_summary`, §11), so the
-   pointer never names a file whose summary is half-built; pruning a file's rows removes
-   its summary with them.
+   writes each loaded file's money-graph summary (`cf_graph_money_summary`, §11) and the
+   Confirm identities queue's per-name totals (`cf_identity_name_summary`, with a
+   completion marker per file and kind), so the pointer never names a file whose
+   summary is half-built; pruning a file's rows removes its summaries with them.
 
    **The reader's half of that contract, in one place.** A request resolves one release id and uses
    it for all 3 datasets, because re-resolving per query can hand back a mixed set: each statement
