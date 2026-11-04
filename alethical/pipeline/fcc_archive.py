@@ -331,10 +331,20 @@ def collect(
 
             if incremental:
                 # Deferred and metadata-only observations must not become the
-                # baseline for a download we have not performed yet.
+                # baseline for a download we have not performed yet. Only a
+                # linked file with a retained document is compared with one.
                 successful = {
                     (row.facility_id, row.file_id): row
-                    for row in for_listed_files(db, listed_ids, LATEST_BASELINE)
+                    for row in for_listed_files(
+                        db,
+                        (
+                            (station.facility_id, file.file_id)
+                            for station, file in work
+                            if file.url is not None
+                            and (station.facility_id, file.file_id) in previous_by_id
+                        ),
+                        LATEST_BASELINE,
+                    )
                 }
                 due = []
                 changed_ids = set()
