@@ -22,7 +22,9 @@ lower-priority archive.
 
 On a phone, the same record is 1 page with sticky jump controls. The order is Summary,
 Actions, Votes, Versions, and Bill Text. Bill Text closes the page so the phone needs
-only 1 source line.
+only 1 source line. The jump strip scrolls sideways just enough to keep the current
+section control visible, whether a shared link, a tap, or reading down the page selects
+it. This does not move the page vertically or move keyboard focus.
 
 The heading uses the short plain-language title. The full statutory title remains
 available as extra context on a computer, but it does not replace the readable heading

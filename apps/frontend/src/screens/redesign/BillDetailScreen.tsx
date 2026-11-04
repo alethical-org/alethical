@@ -28,6 +28,7 @@ import { shouldAnnounceTrack, trackReturnAction } from '../../lib/trackReturn';
 import { useBill, usePrefetchSuggestedAnswer } from '../../hooks/useAppQueries';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { useInitialBillSectionJump } from '../../hooks/useInitialBillSectionJump';
+import { useActiveBillChip } from '../../hooks/useActiveBillChip';
 import { isNotFoundError } from '../../data/api';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
@@ -462,6 +463,8 @@ function BillDetailMobileScreen() {
     fulltext: 0,
   });
   const [active, setActive] = useState<SectionId>('summary');
+  const chipStripRef = useRef<ScrollView>(null);
+  const revealActiveChip = useActiveBillChip(chipStripRef, active);
   // Section a cited-section chip asked to jump to; consumed by FullTextTab.
   const [ftAnchor, setFtAnchor] = useState<string | null>(null);
 
@@ -834,8 +837,11 @@ function BillDetailMobileScreen() {
               <View style={styles.chipBar}>
                 <View style={styles.chipBarCenter}>
                   <ScrollView
+                    ref={chipStripRef}
                     horizontal
                     showsHorizontalScrollIndicator={false}
+                    onLayout={revealActiveChip}
+                    onContentSizeChange={revealActiveChip}
                     contentContainerStyle={styles.chipBarInner}
                   >
                     {SECTIONS.map((s) => (
