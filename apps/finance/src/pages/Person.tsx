@@ -1,3 +1,4 @@
+import { MediaBuysCard } from './media/MediaBuysCard';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDay, formatMoney } from '../ui/money';
 import { apiPath, useRead } from '../api/read';
@@ -421,6 +422,12 @@ export function Person({ match }: { match: RouteMatch }) {
                     from={here}
                   />
                 )}
+                <MediaBuysCard
+                  kind="person"
+                  target={id}
+                  name={record?.name ?? identity?.name ?? ''}
+                  personIsCandidate={isCandidate}
+                />
                 {identity && identity.status === 'active' && (
                   <PersonMoney identity={identity} here={here} onSources={setSourceItems} />
                 )}

@@ -1,3 +1,4 @@
+import { MediaBuysCard } from './media/MediaBuysCard';
 import { useEffect, useRef } from 'react';
 
 import { statusLabel } from '@alethical/shared/billStatus';
@@ -462,6 +463,7 @@ export function LegislatorProfile({ match }: { match: RouteMatch }) {
                   emptyLine="No campaign committee is confirmed for this service record"
                   from={here}
                 />
+                <MediaBuysCard kind="legislator" target={record.slug} name={record.full_name} />
                 {(current || (history && history.lines.length > 0)) && (
                   <section aria-labelledby="service-heading" className="lg2-section">
                     <h2 id="service-heading" className="f-section-title">

@@ -740,6 +740,79 @@ describe('Media buys card', () => {
     );
   });
 
+  it.each(['person', 'legislator', 'organization'] as const)(
+    'keeps %s profile file versions, page links and failure states',
+    async (kind) => {
+      const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+      vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+      let response = json({
+        files: [INVOICE],
+        total: 1,
+        groups: [
+          {
+            kind: 'committee',
+            label: 'Files with a checked connection to Example Committee',
+            files: [{ ...INVOICE, page: 2 }],
+          },
+          {
+            kind: 'named',
+            label: 'Untrusted candidate description',
+            files: [{ ...INVOICE, page: 4 }],
+          },
+        ],
+      });
+      serve(() => response.clone());
+      await render('/people/example', () => (
+        <MediaBuysCard kind={kind} target="example" name="Example" personIsCandidate={true} />
+      ));
+      const links = [...container.querySelectorAll('.mb-buys-card a')];
+      expect(links).toHaveLength(2);
+      expect(links[0].getAttribute('href')).toContain(
+        `version=${VERSION}&page=2&from=%2Fpeople%2Fexample`,
+      );
+      expect(links[1].getAttribute('href')).toContain(
+        `version=${VERSION}&page=4&from=%2Fpeople%2Fexample`,
+      );
+      expect([...container.querySelectorAll('.mb-buys-card h3')].map((x) => x.textContent)).toEqual(
+        kind === 'organization'
+          ? []
+          : [
+              'Files with a checked connection to Example Committee',
+              'TV station files that name this candidate',
+            ],
+      );
+      // A new profile with an unavailable read never gets the previous profile's files or an empty claim.
+      response = new Response(null, { status: 503 });
+      await render('/people/other', () => (
+        <MediaBuysCard kind={kind} target="other" name="Other" />
+      ));
+      expect(container.querySelectorAll('.mb-buys-card a')).toHaveLength(0);
+      expect(text()).toContain('We couldn’t load these TV station files');
+      expect(text()).not.toContain('No TV station files have a checked connection');
+      response = json({ files: [], groups: [], total: 0 });
+      await click('Try again');
+      expect(text()).toContain('No TV station files have a checked connection to Other');
+    },
+  );
+
+  it('does not call an identity-only person a candidate from a server group label', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    serve(() =>
+      json({
+        files: [INVOICE],
+        groups: [{ kind: 'named', label: 'Files naming this candidate', files: [INVOICE] }],
+        total: 1,
+      }),
+    );
+    await render('/people/example', () => (
+      <MediaBuysCard kind="person" target="example" name="Example" />
+    ));
+    expect(container.querySelector('.mb-buys-card h3')).toBeNull();
+    expect(container.querySelectorAll('.mb-buys-card a')).toHaveLength(1);
+    expect(text()).not.toContain('candidate');
+  });
+
   it('lists each connected file once, at its exact version, with a way back', async () => {
     const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
     vi.spyOn(routes, 'isBuilt').mockReturnValue(true);

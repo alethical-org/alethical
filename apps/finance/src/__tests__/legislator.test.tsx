@@ -578,3 +578,18 @@ describe('Legislator helpers', () => {
     expect(contestLabel('Governor', null, 2026)).toBe('Governor · 2026');
   });
 });
+
+it('reads checked station files for the exact legislator slug', async () => {
+  await render(
+    '/legislators/patty-acomb',
+    answering(CURRENT, {
+      '/media-buys/connections': json({ files: [], groups: [], total: 0 }),
+    }),
+  );
+  expect(text()).toContain('No TV station files have a checked connection to Patty Acomb');
+  const path = requests
+    .map((url) => new URL(url))
+    .find((url) => url.pathname.endsWith('/media-buys/connections'));
+  expect(path?.searchParams.get('kind')).toBe('legislator');
+  expect(path?.searchParams.get('target')).toBe('patty-acomb');
+});

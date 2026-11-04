@@ -322,3 +322,21 @@ it('returns to People when opened with no earlier page', async () => {
   expect(back?.textContent).toBe('Back to People');
   expect(back?.getAttribute('href')).toBe('/people');
 });
+
+it('reads checked station files for the exact person profile', async () => {
+  const paths: URL[] = [];
+  await render((url) => {
+    paths.push(url);
+    if (url.pathname.endsWith('/media-buys/connections'))
+      return json({ files: [], groups: [], total: 0 });
+    if (url.pathname.endsWith('/people/p')) return json(profile, false);
+    if (url.pathname.endsWith('/lookup')) return json(null);
+    return json({ link_state: 'unconfirmed', years: [] });
+  });
+  expect(container.textContent).toContain(
+    'No TV station files have a checked connection to Example Person',
+  );
+  const path = paths.find((url) => url.pathname.endsWith('/media-buys/connections'));
+  expect(path?.searchParams.get('kind')).toBe('person');
+  expect(path?.searchParams.get('target')).toBe('p');
+});
