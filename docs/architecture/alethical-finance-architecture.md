@@ -494,7 +494,7 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   coverage or merge choices; history stays discoverable on a fresh visit after every
   confirmation was withdrawn, regardless of the current record page or year filter.
 - **The confirmation queue groups exact spellings, never inferred identities.**
-  `GET /queue` accepts `record_type` (`all`, `donor`, `payee`), `status`
+  `GET /queue` accepts `record_type` (`all`, `donor`, `employer`, `payee`), `status`
   (`unconfirmed`, `confirmed`, `all`), `q`, `page` and `page_size` (50 by default,
   at most 100). Contributions, expenditures and independent expenditures stay
   separate, even when they print the same name. Each row gives current record and
@@ -512,7 +512,25 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   `identity_count` counts distinct identities standing today for its current
   confirmed records, following merges and splits without counting withdrawn claims.
   A partly confirmed name remains in the unconfirmed queue; an empty filtered list
-  says no names match, never that every name was reviewed. `GET /identities` finds saved active
+  says no names match, never that every name was reviewed.
+  Per-name totals come from `cf_identity_name_summary`: 1 row per exact printed name,
+  kind and saved file, with records, signed amount, missing amounts, undated records,
+  the counts of records with a date and with a filing year, and first and last years
+  and dates (`alethical/pipeline/campaign_finance_name_summary.py`). A publish writes
+  a file's rows and a completion marker per file and kind
+  (`cf_identity_name_summary_build`) in 1 transaction, a rollback writes any it lacks,
+  and pruning removes both. The queue reads a kind from the summary only where its
+  marker exists, so a complete build with no names lists nothing, while an absent or
+  partial build is grouped from the raw rows; every read still refuses a file whose
+  rows are gone. Confirmations, coverage, identity counts, merges and splits are read
+  at request time over the raw rows and never stored. The list version covers each
+  build's revision, so pages from 2 builds are never joined. The 2 sources answer
+  alike, page for page (`alethical/tests/test_finance_name_summary.py`). Files loaded
+  before migration 0087 are caught up by `scripts/build_finance_name_summary.py`,
+  whose dry run counts the names it would write and whose `--remove` undoes it. To
+  undo the summary, run `--remove` or empty both tables, revert the code, then
+  downgrade migration 0087.
+  `GET /identities` finds saved active
   identities by `q` and optional `kind`, with the same paging bounds; it returns
   only id, reference, kind and name, without a suggested match or any account details.
 - Held legislator and public-person confirmations return `record_name` from the
