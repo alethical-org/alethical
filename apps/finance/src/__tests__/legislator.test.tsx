@@ -406,6 +406,32 @@ describe('Legislator profile', () => {
     expect(text()).toContain('Introduced · Apr 1, 2025');
   });
 
+  it('keeps the served bill page labelled during a slow or failed next page', async () => {
+    let finish!: (response: Response) => void;
+    const next = new Promise<Response>((resolve) => { finish = resolve; });
+    const other = answering(CURRENT);
+    await render('/legislators/patty-acomb', (url) => {
+      if (url.includes('/bills?role')) {
+        if (url.includes('offset=20')) return next;
+        return new Response(JSON.stringify({ data: [BILL], page: { total: 21, limit: 20, offset: 0 } }));
+      }
+      return other(url);
+    });
+    const bills = container.querySelector('[aria-labelledby="bills-heading"]')!;
+    const button = [...bills.querySelectorAll('button')].find((b) => b.textContent === 'Next')!;
+    await act(async () => button.click());
+    await settle();
+    expect(bills.textContent).toContain('Page 1 of 2');
+    expect(bills.textContent).toContain('Updating');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(bills.textContent).toContain(BILL.ai_analysis.short_title);
+    await act(async () => finish(new Response(null, { status: 500 })));
+    await settle();
+    expect(bills.textContent).toContain('Page 1 of 2');
+    expect(bills.textContent).not.toContain('Page 2 of');
+    expect(bills.textContent).toContain('Try again');
+  });
+
   it('explains an empty summarized list without denying held unsummarized bills', async () => {
     await render('/legislators/patty-acomb', answering(
       { ...CURRENT, stats: { chief_bill_count: 20 } },
