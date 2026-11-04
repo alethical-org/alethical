@@ -651,15 +651,38 @@ def test_changed_source_zero_fill_requires_review(setup):
 
 def stalled_owned_worker(args):
     (args.evidence / "retained.txt").write_text("already prepared evidence")
-    time.sleep(30)
+    args.ready.set()
+    args.release.wait()
 
 
-def test_cli_supervisor_stops_only_owned_worker_retaining_files(tmp_path):
+def test_cli_supervisor_stops_only_owned_worker_retaining_files(tmp_path, monkeypatch):
+    import multiprocessing
     from types import SimpleNamespace
     from scripts.run_committee_link_recovery import supervise
 
-    args = SimpleNamespace(evidence=tmp_path, max_seconds=60)
-    assert supervise(args, target=stalled_owned_worker, timeout=3) == 1
+    context = multiprocessing.get_context("spawn")
+    args = SimpleNamespace(
+        evidence=tmp_path,
+        max_seconds=60,
+        ready=context.Event(),
+        release=context.Event(),
+    )
+    owned = []
+    original_start = context.Process.start
+
+    def start_ready(process):
+        original_start(process)
+        owned.append(process)
+        # Startup/import time is not the behavior under test. Start the short
+        # join timeout only after the real worker has retained its evidence.
+        # This bound reports a broken startup, not an assumed readiness delay.
+        assert args.ready.wait(30), "owned worker did not signal readiness"
+
+    monkeypatch.setattr(context.Process, "start", start_ready)
+    assert supervise(args, target=stalled_owned_worker, timeout=0.05) == 1
+    assert args.ready.is_set() and not args.release.is_set()
+    assert len(owned) == 1 and not owned[0].is_alive()
+    assert owned[0].exitcode is not None and owned[0].exitcode < 0
     assert (tmp_path / "retained.txt").read_text() == "already prepared evidence"
 
 
