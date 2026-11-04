@@ -227,6 +227,24 @@ export const OFFICE_TITLES: Readonly<Record<string, string>> = {
   'State Auditor': 'State Auditor',
 };
 
+const ELECTION_STAGES: Record<string, string> = {
+  general: 'General election',
+  primary: 'Primary election',
+  special: 'Special election',
+};
+
+/** The contest's election as the drawing prints it ("General election · Nov 3,
+ * 2026"), only from the served `election` (the 1 held ballot that lists this
+ * seat, #2860). No election, an unknown stage or an unreadable date prints
+ * nothing; a date is never worked out from the calendar. */
+export function electionLine(
+  election: { stage?: string | null; date?: string | null } | null | undefined,
+): string | null {
+  const stage = election?.stage ? ELECTION_STAGES[election.stage.trim().toLowerCase()] : undefined;
+  const day = formatDay(election?.date ?? null);
+  return stage && day ? `${stage} · ${day}` : null;
+}
+
 /** The contest line (Money by Race drawing): "State Representative · District
  * 99A · 2026" where the office has a title, else the seat label with its year.
  * "District 99A" and its year never break apart, and a titled line breaks only
@@ -717,6 +735,15 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
   const contest = retained
     ? keptContest
     : (officeContests.find((item) => item.anchor === anchor) ?? null);
+  // The contest's election, read from the same answer its figures came from.
+  const stageLine = contest
+    ? electionLine(
+        (
+          (read.data?.contests ?? []).find((item) => item.anchor === contest.anchor) as
+            { election?: { stage?: string | null; date?: string | null } | null } | undefined
+        )?.election,
+      )
+    : null;
   useEffect(() => {
     if (settled) lastShown.current = contest ? { year, anchor: contest.anchor } : null;
   }, [settled, contest, year]);
@@ -870,6 +897,7 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
           >
             <div className="mr-contest">
               <h2 className="mr-contest-title f-num">{contestHeading(contest, viewYear)}</h2>
+              {stageLine && <span className="mr-contest-stage f-num">{stageLine}</span>}
             </div>
 
             <section aria-labelledby="mr-cc-heading" className="mr-section">

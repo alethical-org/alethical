@@ -124,6 +124,15 @@
 /* ---------- Contest heading and sections ---------- */
 .mr-contest {
   margin-top: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.mr-contest-stage {
+  font-size: 14px;
+  color: var(--secondary);
 }
 .mr-contest-title {
   margin: 0;
