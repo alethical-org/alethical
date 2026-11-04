@@ -139,6 +139,11 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   sort, page, search) are kept in the address, so a copied link or a new tab opens the same
   view.
 
+The shared tabs on Campaign money, Committee, Bill and Media buys scroll sideways when
+needed. Selecting a tab or reaching it by keyboard brings it fully into view. Pointer
+focus alone does not move a tab during a press, so one click or tap selects it. Existing
+focus, hover and pressed treatments stay visible; this scroll never moves the page vertically.
+
 ## Addresses
 
 The addresses follow Design's system map (decision D20), with the station-file pages under
