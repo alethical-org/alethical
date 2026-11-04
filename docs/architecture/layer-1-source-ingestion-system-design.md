@@ -888,7 +888,13 @@ Historical source bytes may be unavailable even when artifact metadata survives.
 on `www.revisor.mn.gov/bills/status_result.php` or the held
 `api.revisor.mn.gov/bills/v1/<session>/<year>/<special>/<HF|SF>/<number>/` path,
 without redirects, retaining the body, address, fetch time and SHA-256 in a new
-private JSON file. More than one held address, an unheld bill, another host, an
+private JSON file. A bounded fingerprint of the bill, action IDs and row versions,
+and referenced artifact row versions is read before HTTP and must still match
+after HTTP. It is retained with the body and rechecked at plan and apply. Any
+intervening ingestion or action edit requires a fresh capture, even if an older
+artifact hash is reused and its fetched_at timestamp stays unchanged. The CLI
+uses READ COMMITTED so its post-fetch read sees newly committed changes.
+More than one held address, an unheld bill, another host, an
 oversized response, or XML naming another bill fails closed. No paid extraction
 or model call is used.
 
@@ -897,8 +903,8 @@ The default `plan` mode uses a read-only database transaction. It reads at most
 action number, exact action text/date/printed committee name, and resolves the
 literal source committee code only within that bill's session and action chamber.
 It reports missing/ambiguous codes, missing or changed source rows, existing links,
-and conflicting values. Duplicate chamber blocks fail before the general XML
-parser can discard them; nonempty unparseable dates never equal an unknown stored
+and conflicting values. Duplicate chamber blocks and repeated bill-identity/action scalar fields fail
+before the general XML parser can discard them; nonempty unparseable dates never equal an unknown stored
 date. Names never establish a link. Fresh XML may differ from
 the old whole-bill artifact hash; each selected action must still agree exactly
 on the stored fields above. The saved plan binds its exact new XML digest and

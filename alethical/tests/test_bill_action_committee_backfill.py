@@ -17,6 +17,13 @@ from alethical.tests.test_minnesota_ingestion import COMMITTEE_BILL_XML
 URL = "https://www.revisor.mn.gov/bills/status_result.php?session=0942025&body=House&type=xml&bill=HF6666"
 
 
+def fresh_plan(db, bill_key, body, url):
+    # Unit fixtures stand in for a capture that has just observed this generation.
+    return recovery.plan(
+        db, bill_key, body, url, source_generation=recovery.generation(db, bill_key)
+    )
+
+
 @pytest.fixture()
 def held(finance_db):
     db = finance_db
@@ -64,7 +71,7 @@ def test_plan_rejects_other_bill_xml(finance_db, held):
 
 
 def prepared(db, held):
-    return recovery.plan(db, held[0].bill_key, COMMITTEE_BILL_XML, URL)
+    return fresh_plan(db, held[0].bill_key, COMMITTEE_BILL_XML, URL)
 
 
 def test_dry_run_apply_rollback_changes_only_committee(finance_db, held, tmp_path):
@@ -104,7 +111,7 @@ def test_changed_row_cannot_be_applied(finance_db, held, tmp_path, field, value)
     saved = prepared(finance_db, held)
     setattr(held[3], field, value)
     finance_db.commit()
-    with pytest.raises(ValueError, match="no longer matches"):
+    with pytest.raises(ValueError, match="no longer matches|generation changed"):
         recovery.apply(finance_db, saved, COMMITTEE_BILL_XML, tmp_path / "apply.json")
     assert held[3].committee_id is None
     assert not (tmp_path / "apply.json").exists()
@@ -116,10 +123,10 @@ def test_changed_date_source_and_duplicate_committee_are_rejected(
     db = finance_db
     saved = prepared(db, held)
     changed = COMMITTEE_BILL_XML.replace("2025-01-10", "2025-01-11")
-    assert recovery.plan(db, held[0].bill_key, changed, URL)["counts"] == {
+    assert fresh_plan(db, held[0].bill_key, changed, URL)["counts"] == {
         "source_row_changed": 1
     }
-    with pytest.raises(ValueError, match="no longer matches"):
+    with pytest.raises(ValueError, match="no longer matches|generation changed"):
         recovery.apply(db, saved, changed, tmp_path / "different.xml.json")
     db.add(
         m.Committee(
@@ -131,7 +138,7 @@ def test_changed_date_source_and_duplicate_committee_are_rejected(
     )
     db.commit()
     assert prepared(db, held)["counts"] == {"ambiguous_code": 1}
-    with pytest.raises(ValueError, match="no longer matches"):
+    with pytest.raises(ValueError, match="no longer matches|generation changed"):
         recovery.apply(db, saved, COMMITTEE_BILL_XML, tmp_path / "ambiguous.json")
 
 
@@ -192,7 +199,7 @@ def test_missing_codes_names_other_chambers_do_not_infer(finance_db, held):
             "source_action_missing_or_ambiguous",
         ),
     ]:
-        result = recovery.plan(db, held[0].bill_key, body, URL)
+        result = fresh_plan(db, held[0].bill_key, body, URL)
         assert result["counts"] == {state: 1}
         assert not result["fills"]
     assert held[3].committee_id is None
@@ -280,7 +287,7 @@ def test_changed_bill_scope_and_already_used_receipt_abort(finance_db, held, tmp
     assert path.read_text() == "preserved"
     held[0].title = "A later source edit"
     db.commit()
-    with pytest.raises(ValueError, match="no longer matches"):
+    with pytest.raises(ValueError, match="no longer matches|generation changed"):
         recovery.apply(db, saved, COMMITTEE_BILL_XML, tmp_path / "new.json")
 
 
@@ -289,7 +296,7 @@ def test_duplicate_source_action_is_not_arbitrarily_chosen(finance_db, held):
     body = COMMITTEE_BILL_XML.replace(
         "</house>", "<ACTION>" + action + "</ACTION></house>"
     )
-    assert recovery.plan(finance_db, held[0].bill_key, body, URL)["counts"] == {
+    assert fresh_plan(finance_db, held[0].bill_key, body, URL)["counts"] == {
         "source_action_missing_or_ambiguous": 1
     }
 
@@ -332,14 +339,14 @@ def test_duplicate_chamber_blocks_cannot_hide_conflicting_source_id(finance_db, 
         "<HOUSE>" + duplicate.replace("94012", "other-code") + "</HOUSE></ACTIONS>",
     )
     with pytest.raises(ValueError, match="duplicate.*chamber"):
-        recovery.plan(finance_db, held[0].bill_key, body, URL)
+        fresh_plan(finance_db, held[0].bill_key, body, URL)
 
 
 def test_unparseable_date_is_not_equal_to_unknown_stored_date(finance_db, held):
     held[3].action_at = None
     finance_db.commit()
     body = COMMITTEE_BILL_XML.replace("2025-01-10 00:00:00", "not a date")
-    result = recovery.plan(finance_db, held[0].bill_key, body, URL)
+    result = fresh_plan(finance_db, held[0].bill_key, body, URL)
     assert result["counts"] == {"source_row_changed": 1}
     assert not result["fills"]
 
@@ -349,7 +356,7 @@ def test_limits_reject_2001_actions_and_oversized_xml(finance_db, held):
 
     db = finance_db
     with pytest.raises(ValueError, match="source size"):
-        recovery.plan(db, held[0].bill_key, "x" * (recovery.MAX_XML_BYTES + 1), URL)
+        fresh_plan(db, held[0].bill_key, "x" * (recovery.MAX_XML_BYTES + 1), URL)
     db.execute(
         insert(m.BillAction),
         [
@@ -448,6 +455,7 @@ def test_plan_read_count_does_not_grow_with_distinct_artifacts_and_committees(
 
     def reads(body):
         db.expire_all()
+        captured_generation = recovery.generation(db, bill_key)
         statements = []
         connection = db.connection()
 
@@ -457,7 +465,9 @@ def test_plan_read_count_does_not_grow_with_distinct_artifacts_and_committees(
 
         event.listen(connection, "before_cursor_execute", record)
         try:
-            result = recovery.plan(db, bill_key, body, URL)
+            result = recovery.plan(
+                db, bill_key, body, URL, source_generation=captured_generation
+            )
         finally:
             event.remove(connection, "before_cursor_execute", record)
         return len(statements), result
@@ -512,7 +522,7 @@ def test_plan_read_count_does_not_grow_with_distinct_artifacts_and_committees(
     )
     multiple, result = reads(body)
     assert result["counts"] == {"would_fill": 21}
-    assert multiple == single <= 8
+    assert multiple == single <= 10
 
 
 def test_capture_refuses_redirects(monkeypatch):
@@ -532,3 +542,72 @@ def test_capture_refuses_redirects(monkeypatch):
     monkeypatch.setattr(command.httpx, "stream", stream)
     with pytest.raises(httpx.HTTPStatusError):
         command.fetch(URL)
+
+
+@pytest.mark.parametrize(
+    "tag,value",
+    [
+        ("COMMITTEE_ID", "other-code"),
+        ("ACTION_NUMBER", "2"),
+        ("ACTION_TEXT", "Another action"),
+        ("ACTION_DATE", "2025-01-11"),
+        ("COMMITTEE_NAME", "Another name"),
+    ],
+)
+def test_repeated_action_scalar_fields_are_rejected(finance_db, held, tag, value):
+    body = COMMITTEE_BILL_XML.replace(f"</{tag}>", f"</{tag}><{tag}>{value}</{tag}>", 1)
+    with pytest.raises(ValueError, match="duplicate source field"):
+        fresh_plan(finance_db, held[0].bill_key, body, URL)
+
+
+def test_repeated_bill_identity_field_is_rejected(finance_db, held):
+    body = COMMITTEE_BILL_XML.replace(
+        "</FILE_NUMBER>", "</FILE_NUMBER><FILE_NUMBER>7777</FILE_NUMBER>"
+    )
+    with pytest.raises(ValueError, match="duplicate source field"):
+        fresh_plan(finance_db, held[0].bill_key, body, URL)
+
+
+def test_capture_rejects_generation_change_during_fetch_even_with_reused_artifact(
+    finance_db, held, tmp_path
+):
+    from scripts import recover_bill_action_committee_links as command
+
+    db = finance_db
+    artifact = db.get(m.SourceArtifact, held[3].source_artifact_id)
+    old_date, old_hash = artifact.fetched_at, artifact.content_hash
+
+    def fetch(url):
+        artifact.is_current = not artifact.is_current
+        db.commit()
+        assert artifact.fetched_at == old_date and artifact.content_hash == old_hash
+        return COMMITTEE_BILL_XML
+
+    with pytest.raises(ValueError, match="generation changed"):
+        command.capture(db, held[0].bill_key, tmp_path / "source.json", fetch)
+    assert not (tmp_path / "source.json").exists()
+
+
+def test_old_capture_cannot_make_new_plan_after_later_ingestion(
+    finance_db, held, tmp_path
+):
+    from scripts import recover_bill_action_committee_links as command
+
+    db = finance_db
+    path = tmp_path / "source.json"
+    command.capture(db, held[0].bill_key, path, lambda _: COMMITTEE_BILL_XML)
+    retained = command.source(path, held[0].bill_key)
+    artifact = db.get(m.SourceArtifact, held[3].source_artifact_id)
+    old_date = artifact.fetched_at
+    artifact.is_current = not artifact.is_current
+    db.commit()
+    assert artifact.fetched_at == old_date
+    with pytest.raises(ValueError, match="generation changed"):
+        recovery.plan(
+            db,
+            held[0].bill_key,
+            retained["xml"],
+            retained["source_url"],
+            source_generation=retained["generation"],
+        )
+    assert held[3].committee_id is None

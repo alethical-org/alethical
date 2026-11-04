@@ -58,9 +58,12 @@ def capture(db, bill_key, path, fetcher=fetch):
     if len(urls) != 1:
         raise ValueError("bill must have one held XML source address")
     url = recovery.official(urls[0])
+    captured_generation = recovery.generation(db, bill_key)
     body = fetcher(url)
     # Parse and verify bill identity before saving newly fetched bytes.
-    probe = recovery.plan(db, bill_key, body, url)
+    probe = recovery.plan(
+        db, bill_key, body, url, source_generation=captured_generation
+    )
     if probe["counts"].get("source_bill_mismatch"):
         raise ValueError("source names a different bill")
     recovery.write_evidence(
@@ -71,6 +74,7 @@ def capture(db, bill_key, path, fetcher=fetch):
             "fetched_at": datetime.now(UTC).isoformat(),
             "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
             "xml": body,
+            "generation": captured_generation,
         },
     )
 
@@ -121,12 +125,19 @@ def run(db, args):
         return recovery.rollback(db, receipt, args.rollback_receipt)
     retained = source(args.source, args.bill_key)
     if args.mode == "plan":
-        plan = recovery.plan(db, args.bill_key, retained["xml"], retained["source_url"])
+        plan = recovery.plan(
+            db,
+            args.bill_key,
+            retained["xml"],
+            retained["source_url"],
+            source_generation=retained["generation"],
+        )
         recovery.write_evidence(args.plan, plan)
         return {"counts": plan["counts"], "database_writes": 0}
     saved = json.loads(args.plan.read_text())
     if (
-        saved["bill"]["bill_key"] != args.bill_key
+        saved["source_generation"] != retained["generation"]
+        or saved["bill"]["bill_key"] != args.bill_key
         or saved["source_url"] != retained["source_url"]
     ):
         raise ValueError("plan names another bill or source")
@@ -146,7 +157,9 @@ def main():
         if getattr(args, field) is None:
             cli.error(f"{args.mode} requires --{field.replace('_', '-')}")
     engine = create_engine(
-        database_url_for_target(args.target), connect_args=NO_PREPARED_STATEMENTS
+        database_url_for_target(args.target),
+        connect_args=NO_PREPARED_STATEMENTS,
+        isolation_level="READ COMMITTED",
     )
     try:
         with Session(engine) as db, db.begin():

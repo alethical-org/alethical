@@ -112,6 +112,50 @@ def write_evidence(path, value):
         os.close(descriptor)
 
 
+def generation(db, bill_key, *, deadline=None):
+    """Bounded evidence fingerprint, independent of local clocks and reused hashes."""
+    bill = execute(
+        db,
+        select(Bill.id, Bill.session_id, literal_column("bill.xmin::text")).where(
+            Bill.bill_key == bill_key
+        ),
+        deadline=deadline,
+    ).one_or_none()
+    if bill is None:
+        raise ValueError("bill is not held")
+    rows = execute(
+        db,
+        select(
+            BillAction.id,
+            BillAction.chamber_id,
+            BillAction.action_number,
+            BillAction.source_artifact_id,
+            literal_column("bill_action.xmin::text"),
+            literal_column("source_artifact.xmin::text"),
+        )
+        .outerjoin(SourceArtifact, SourceArtifact.id == BillAction.source_artifact_id)
+        .where(BillAction.bill_id == bill.id)
+        .order_by(BillAction.id)
+        .limit(MAX_ACTIONS + 1),
+        deadline=deadline,
+    ).all()
+    if len(rows) > MAX_ACTIONS:
+        raise ValueError("bill exceeds bounded action count")
+    values = [
+        [encode(value) for value in bill],
+        [[encode(value) for value in row] for row in rows],
+    ]
+    digest = hashlib.sha256(
+        json.dumps(values, separators=(",", ":")).encode()
+    ).hexdigest()
+    return {
+        "format": 1,
+        "bill_id": str(bill.id),
+        "actions": len(rows),
+        "sha256": digest,
+    }
+
+
 def plan_bill(db, bill, xml_text, chambers, *, source_url=None, deadline=None):
     """Return exact proposed fills and skipped/conflicting row counts; write nothing."""
     if len(xml_text.encode("utf-8")) > MAX_XML_BYTES:
@@ -121,6 +165,25 @@ def plan_bill(db, bill, xml_text, chambers, *, source_url=None, deadline=None):
     chamber_blocks = [node.tag.lower() for node in root.findall("./ACTIONS/*")]
     if len(set(chamber_blocks)) != len(chamber_blocks):
         raise ValueError("duplicate source chamber blocks")
+    for field in (
+        "SESSION_NUMBER",
+        "SESSION_YEAR",
+        "SESSION_TYPE",
+        "FILE_TYPE",
+        "FILE_NUMBER",
+    ):
+        if len(root.findall(field)) > 1:
+            raise ValueError(f"duplicate source field: {field}")
+    for action_node in root.findall("./ACTIONS/*/ACTION"):
+        for field in (
+            "ACTION_NUMBER",
+            "ACTION_TEXT",
+            "ACTION_DATE",
+            "COMMITTEE_ID",
+            "COMMITTEE_NAME",
+        ):
+            if len(action_node.findall(field)) > 1:
+                raise ValueError(f"duplicate source field: {field}")
     parsed = parse_bill_xml(xml_text)
     if parsed["bill_key"] != bill.bill_key:
         return [], Counter(source_bill_mismatch=1)
@@ -235,8 +298,10 @@ def plan_bill(db, bill, xml_text, chambers, *, source_url=None, deadline=None):
     return fills, counts
 
 
-def plan(db, bill_key, xml_text, source_url, *, deadline=None):
+def plan(db, bill_key, xml_text, source_url, *, source_generation, deadline=None):
     official(source_url)
+    if generation(db, bill_key, deadline=deadline) != source_generation:
+        raise ValueError("source generation changed; capture fresh official XML")
     bill = execute(
         db, select(Bill).where(Bill.bill_key == bill_key), deadline=deadline
     ).scalar()
@@ -259,6 +324,7 @@ def plan(db, bill_key, xml_text, source_url, *, deadline=None):
         "bill_version": version(db, "bill", bill.id, deadline=deadline),
         "source_url": source_url,
         "xml_sha256": hashlib.sha256(xml_text.encode("utf-8")).hexdigest(),
+        "source_generation": source_generation,
         "database": execute(
             db, text("SELECT current_database()"), deadline=deadline
         ).scalar(),
@@ -299,6 +365,7 @@ def apply(db, saved_plan, xml_text, receipt):
         saved_plan["bill"]["bill_key"],
         xml_text,
         saved_plan["source_url"],
+        source_generation=saved_plan["source_generation"],
         deadline=deadline,
     )
     if current != saved_plan:
