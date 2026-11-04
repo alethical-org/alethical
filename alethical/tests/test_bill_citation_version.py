@@ -17,6 +17,9 @@ from alethical.db import models as m
 from alethical.db.session import get_engine
 
 KEY = "94-2099-HF9301"
+# Another bill whose only version holds the same section ids and quotes, so a link
+# to it would place every citation if the version were not checked to be this bill's.
+OTHER_KEY = "94-2099-HF9302"
 OLD = (
     # (section id, heading, text): a repeated id, as the Revisor hands every
     # section outside an article.
@@ -43,25 +46,29 @@ def bill_with_two_versions(client):
     """A bill whose summary may link to its older version while a newer one is current."""
     with Session(get_engine()) as db:
         seed = db.scalar(select(m.Bill).where(m.Bill.bill_key == "94-2025-SF1832"))
-        bill = m.Bill(
-            session_id=seed.session_id,
-            chamber_id=seed.chamber_id,
-            bill_key=KEY,
-            file_type="HF",
-            file_number=9301,
-            title="Citation version fixture",
-            official_url="https://www.revisor.mn.gov/bills/bill.php?b=House&f=HF9301",
-            current_status="Chapter number",
-        )
-        db.add(bill)
+        bills = {}
+        for key in (KEY, OTHER_KEY):
+            bills[key] = m.Bill(
+                session_id=seed.session_id,
+                chamber_id=seed.chamber_id,
+                bill_key=key,
+                file_type="HF",
+                file_number=int(key.split("HF")[-1]),
+                title="Citation version fixture",
+                official_url=f"https://www.revisor.mn.gov/bills/bill.php?b=House&f={key}",
+                current_status="Chapter number",
+            )
+            db.add(bills[key])
         db.flush()
+        bill = bills[KEY]
         versions = {}
-        for code, sequence, current, sections, effective in (
-            ("old", 1, False, OLD, "July 1, 2026"),
-            ("new", 2, True, NEW, "July 1, 2027"),
+        for key, code, sequence, current, sections, effective in (
+            (KEY, "old", 1, False, OLD, "July 1, 2026"),
+            (KEY, "new", 2, True, NEW, "July 1, 2027"),
+            (OTHER_KEY, "other", 1, True, OLD, "July 1, 2026"),
         ):
             version = m.BillVersion(
-                bill_id=bill.id,
+                bill_id=bills[key].id,
                 version_code=code,
                 version_name=code.title(),
                 sequence_number=sequence,
@@ -99,9 +106,7 @@ def bill_with_two_versions(client):
         db.add(enrichment)
         db.commit()
         enrichment_id = enrichment.id
-        other_version = db.scalar(
-            select(m.BillVersion.id).where(m.BillVersion.bill_id == seed.id).limit(1)
-        )
+        other_version = versions.pop("other")
 
     def link(version_id):
         with Session(get_engine()) as db:
@@ -116,21 +121,26 @@ def bill_with_two_versions(client):
     finally:
         with Session(get_engine()) as db:
             db.execute(delete(m.AIEnrichment).where(m.AIEnrichment.id == enrichment_id))
+            every_version = [*versions.values(), other_version]
             db.execute(
                 delete(m.BillVersionSection).where(
-                    m.BillVersionSection.bill_version_id.in_(versions.values())
+                    m.BillVersionSection.bill_version_id.in_(every_version)
                 )
             )
-            db.execute(
-                delete(m.BillVersion).where(m.BillVersion.id.in_(versions.values()))
-            )
-            db.execute(delete(m.Bill).where(m.Bill.bill_key == KEY))
+            db.execute(delete(m.BillVersion).where(m.BillVersion.id.in_(every_version)))
+            db.execute(delete(m.Bill).where(m.Bill.bill_key.in_((KEY, OTHER_KEY))))
             db.commit()
 
 
 def chips(payload):
     return [
-        (c["section_id"], c["excerpt"], c["section_order"], c["section_topic"])
+        (
+            c["section_id"],
+            c["label"],
+            c["excerpt"],
+            c["section_order"],
+            c["section_topic"],
+        )
         for c in payload["ai_analysis"]["citations"]
     ]
 
@@ -144,9 +154,9 @@ def test_an_older_linked_summary_places_and_captions_its_own_version(
     # Each chip opens the section its quote was taken from, in the linked version:
     # a unique id at its own position, and 2 repeats of 1 id told apart by quote.
     assert chips(payload) == [
-        ("sec-a", "the board may act", 1, "Old alpha"),
-        ("laws.0.1.0", "funds the grant program", 2, "Old beta"),
-        ("laws.0.1.0", "repeals the old rule", 3, "Old gamma"),
+        ("sec-a", "Section 1", "the board may act", 1, "Old alpha"),
+        ("laws.0.1.0", "Sec. 2", "funds the grant program", 2, "Old beta"),
+        ("laws.0.1.0", "Sec. 3", "repeals the old rule", 3, "Old gamma"),
     ]
     # The effective date still comes from the current version's text.
     assert payload["effective_date"] == "July 1, 2027"
@@ -157,9 +167,9 @@ def test_a_summary_linked_to_the_current_version_is_unchanged(bill_with_two_vers
     payload = link(versions["new"])
     assert payload["summary_source_version"]["version_code"] == "new"
     assert chips(payload) == [
-        ("sec-a", "the board may act", 2, "New alpha"),
-        ("laws.0.1.0", "funds the grant program", 3, "New beta"),
-        ("laws.0.1.0", "repeals the old rule", 1, "New gamma"),
+        ("sec-a", "Section 1", "the board may act", 2, "New alpha"),
+        ("laws.0.1.0", "Sec. 2", "funds the grant program", 3, "New beta"),
+        ("laws.0.1.0", "Sec. 3", "repeals the old rule", 1, "New gamma"),
     ]
     assert payload["effective_date"] == "July 1, 2027"
 
@@ -174,8 +184,8 @@ def test_without_a_resolvable_link_no_current_version_detail_is_served(
     # The chips keep their stored quote and label, with no position or topic
     # borrowed from the current version.
     assert chips(payload) == [
-        ("sec-a", "the board may act", None, ""),
-        ("laws.0.1.0", "funds the grant program", None, ""),
-        ("laws.0.1.0", "repeals the old rule", None, ""),
+        ("sec-a", "Section 1", "the board may act", None, ""),
+        ("laws.0.1.0", "Sec. 2", "funds the grant program", None, ""),
+        ("laws.0.1.0", "Sec. 3", "repeals the old rule", None, ""),
     ]
     assert payload["effective_date"] == "July 1, 2027"
