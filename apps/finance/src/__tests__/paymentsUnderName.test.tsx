@@ -420,6 +420,16 @@ describe('Payments under this name', () => {
     let calls = 0;
     await render('/money/names/Example', (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) return json(NO_IDENTITY);
+      if (url.pathname.endsWith('/similar-names'))
+        return json({
+          name: 'Example',
+          role: 'payee',
+          year: null,
+          version: 'aaaaaaaaaaaaaaaa',
+          offset: 0,
+          rows: [],
+          has_more: false,
+        });
       calls += 1;
       if (calls <= 2) return json(null, 500);
       return json(page(role(url)!, [], { name: 'Example' }));
@@ -871,10 +881,7 @@ describe('Payments under this name helpers', () => {
     expect(scopedSections('payee', 'independent').map((spec) => spec.id)).toEqual([
       'outside-payments',
     ]);
-    expect(scopedSections('payee', 'contributions').map((spec) => spec.id)).toEqual([
-      'campaign-payments',
-      'outside-payments',
-    ]);
+    expect(scopedSections('payee', 'contributions')).toEqual([]);
     expect(scopedSections('donor', '').map((spec) => spec.id)).toEqual(['campaign-payments']);
     expect(scopeLine('A', 'independentExpenditures')).toBe(
       'Showing records filed by A, outside spending file',

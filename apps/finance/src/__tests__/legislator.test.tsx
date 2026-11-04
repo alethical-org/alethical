@@ -109,6 +109,10 @@ const OUTSIDE_2025 = {
       spender_linkable: true,
       direction: 'For',
       amount: '5297.7400',
+      amount_state: 'reported',
+      first_paid_on: '2025-08-13',
+      last_paid_on: '2025-10-11',
+      undated_count: 0,
       row_count: 8,
     },
     {
@@ -313,6 +317,56 @@ describe('Legislator profile', () => {
     expect(text()).not.toContain('No confirmed records held');
   });
 
+  it('uses each outside group’s own dates and distinguishes missing amounts from missing periods', async () => {
+    const base = answering(CURRENT);
+    await render('/legislators/patty-acomb', (url) => {
+      if (url.includes('/outside-spending'))
+        return json({
+          ...OUTSIDE_2025,
+          groups: [
+            {
+              ...OUTSIDE_2025.groups[0],
+              first_paid_on: '2025-02-01',
+              last_paid_on: '2025-02-02',
+              amount: '-50',
+              amount_state: 'reported',
+            },
+            {
+              ...OUTSIDE_2025.groups[1],
+              amount: null,
+              amount_state: 'incomplete_period',
+              undated_count: 1,
+              first_paid_on: null,
+              last_paid_on: null,
+            },
+            {
+              ...OUTSIDE_2025.groups[0],
+              spender: 'Zero Fund',
+              amount: '0',
+              amount_state: 'reported',
+              first_paid_on: null,
+              last_paid_on: null,
+              undated_count: 2,
+              first_year: 2024,
+              last_year: 2025,
+            },
+          ],
+        });
+      return base(url);
+    });
+    const rows = [...container.querySelectorAll('.cf-outside li')];
+    expect(rows[0].textContent).toContain('Payments dated Feb 1, 2025 to Feb 2, 2025');
+    expect(rows[0].textContent).toContain('−$50');
+    expect(rows[0].textContent).not.toContain('Oct 11');
+    expect(rows[1].textContent).toContain('Reporting period incomplete');
+    expect(rows[1].textContent).not.toContain('Missing payment amount');
+    expect(rows[2].textContent).toContain('$0');
+    expect(rows[2].textContent).toContain('Filing years 2024–2025');
+    expect(container.querySelector('.cf-contest-head')?.textContent).not.toContain(
+      'Payments dated',
+    );
+  });
+
   it('a year with no report total and no itemized rows says so, never $0', async () => {
     await render('/legislators/patty-acomb?year=2024', answering(CURRENT));
     const card = container.querySelector('.cf-account')!;
@@ -343,12 +397,77 @@ describe('Legislator profile', () => {
     expect(text()).not.toContain('No chief-authored bills held');
   });
 
+  it('uses the served bill total instead of the broader profile total', async () => {
+    await render(
+      '/legislators/patty-acomb',
+      answering(
+        { ...CURRENT, stats: { chief_bill_count: 200 } },
+        {
+          '/bills?role': new Response(JSON.stringify({ data: [BILL], page: { total: 1 } }), {
+            status: 200,
+          }),
+        },
+      ),
+    );
+    expect(text()).not.toContain('Page 1 of');
+    expect(text()).toContain('Introduced · Apr 1, 2025');
+  });
+
+  it('keeps the served bill page labelled during a slow or failed next page', async () => {
+    let finish!: (response: Response) => void;
+    const next = new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+    const other = answering(CURRENT);
+    await render('/legislators/patty-acomb', (url) => {
+      if (url.includes('/bills?role')) {
+        if (url.includes('offset=20')) return next;
+        return new Response(
+          JSON.stringify({ data: [BILL], page: { total: 21, limit: 20, offset: 0 } }),
+        );
+      }
+      return other(url);
+    });
+    const bills = container.querySelector('[aria-labelledby="bills-heading"]')!;
+    const button = [...bills.querySelectorAll('button')].find((b) => b.textContent === 'Next')!;
+    await act(async () => button.click());
+    await settle();
+    expect(bills.textContent).toContain('Page 1 of 2');
+    expect(bills.textContent).toContain('Updating');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(bills.textContent).toContain(BILL.ai_analysis.short_title);
+    await act(async () => finish(new Response(null, { status: 500 })));
+    await settle();
+    expect(bills.textContent).toContain('Page 1 of 2');
+    expect(bills.textContent).not.toContain('Page 2 of');
+    expect(bills.textContent).toContain('Try again');
+  });
+
+  it('explains an empty summarized list without denying held unsummarized bills', async () => {
+    await render(
+      '/legislators/patty-acomb',
+      answering(
+        { ...CURRENT, stats: { chief_bill_count: 20 } },
+        {
+          '/bills?role': new Response(JSON.stringify({ data: [], page: { total: 0 } }), {
+            status: 200,
+          }),
+        },
+      ),
+    );
+    expect(text()).toContain(
+      'No chief-authored bills with summaries are available for this session',
+    );
+  });
+
   it('a former legislator inherits no current title, party, district or committees', async () => {
     await render(
       '/legislators/former-member',
       answering(FORMER, {
         '/campaign-finance/years': json({ link_state: 'unconfirmed', years: [] }),
-        '/bills?role': json([]),
+        '/bills?role': new Response(JSON.stringify({ data: [], page: { total: 0 } }), {
+          status: 200,
+        }),
       }),
     );
     expect(container.querySelector('h1')?.textContent).toBe('Former Member');
@@ -356,7 +475,9 @@ describe('Legislator profile', () => {
     expect(text()).not.toContain('Party as recorded');
     expect(text()).toContain('Committee assignments are held for current service only');
     expect(text()).toContain('No campaign committee is confirmed for this service record');
-    expect(text()).toContain('No chief-authored bills held for this service');
+    expect(text()).toContain(
+      'No chief-authored bills with summaries are available for this session',
+    );
     expect(text()).not.toContain('Official source website');
     expect(requests.some((url) => url.includes('/finance/legislative-committees'))).toBe(false);
   });
@@ -480,4 +601,19 @@ describe('Legislator helpers', () => {
     );
     expect(contestLabel('Governor', null, 2026)).toBe('Governor · 2026');
   });
+});
+
+it('reads checked station files for the exact legislator slug', async () => {
+  await render(
+    '/legislators/patty-acomb',
+    answering(CURRENT, {
+      '/media-buys/connections': json({ files: [], groups: [], total: 0 }),
+    }),
+  );
+  expect(text()).toContain('No TV station files have a checked connection to Patty Acomb');
+  const path = requests
+    .map((url) => new URL(url))
+    .find((url) => url.pathname.endsWith('/media-buys/connections'));
+  expect(path?.searchParams.get('kind')).toBe('legislator');
+  expect(path?.searchParams.get('target')).toBe('patty-acomb');
 });

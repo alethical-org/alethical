@@ -46,13 +46,78 @@ Finance). Identity confirmations (§4) answer under `/identities/`
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
+### Paged lists name the source state they read
+
+Every paged Finance list answers `version`, a 16-character token for the exact source
+state it read (`alethical/api/services/finance_versions.py`): `/connections`, `/payees`,
+`/people`, `/identities`, `/identities/queue`, `/media-buys/browse` and
+`/media-buys/queue`. A request that sends a `version` back is refused with 409, type
+`records-changed`, "These records changed. Reload the list.", once anything that list
+reads has changed, so pages read before and after a change are never joined. The token
+covers only that list's sources: the published payment release (its files never
+change), identity changes (every one writes an identity event), reviewed campaign
+accounts and legislator names, the lobbying release, station files and their checks,
+copy review state, accepted/rejected expense links, machine-read facts and searchable
+page text. People covers
+legislators, service periods, their session/chamber/district references, candidacies,
+public persons, their reviewed candidacy and service links, identity entities and
+confirmations, and the Minnesota date used for current/past membership. The page and
+token share one clock reading. Mutable tables use ordered row keys and
+PostgreSQL row revisions (`xmin`) rather than observation timestamps alone, avoiding
+a read of every saved text body. These opaque tokens may invalidate conservatively
+after maintenance; they are not record IDs. Each token is read in the request's
+pinned view before the list, so token and page describe 1 instant. An already-open
+transaction without a stable snapshot is refused with 503, never treated as pinned.
+A changed token says only that something the list reads changed, never what. Reads that already take a pin
+keep it: `release_id` on the money reads and payments under a name, `snapshot_id` on
+identity records.
+
+The `invoice_links` mark covers checked Finance/public-copy facts and connections,
+copy withdrawals, public publication state, exact FCC documents and expense-link decisions.
+It deliberately excludes extraction suggestions and page text, which the checked-invoice
+reverse reader does not use. Combine it with money and filing-register marks for payment
+pages carrying invoice links; those lists still reject any change to their read evidence.
+
 ### People records
+
+Candidate and legislator rows include `person_links: [{id, name}]` for validated
+public-person links, or an empty array. Matching spelling and a bare legislator foreign
+key are never link evidence. A candidate may have several individually reviewed person
+links; a consumer must not silently choose one. The directory keeps the candidate or
+legislator as its row target and uses link presence for the profile-link cue.
+
+Person rows include `confirmed_record_count`, an integer including zero. It counts the
+same distinct validated candidacy records, held service records and active lobbyist
+identifier confirmations shown by the person profile, never payment coverage or research
+articles. A service record retains its own current/former/unknown status; counting its
+link does not assert current service. Identity merges retain their active confirmations;
+withdrawn public-person or lobbyist confirmations do not add to the count. A changed
+candidate identity or reviewed legislative source invalidates the corresponding link.
+The count describes the person's full linked record set, independent of filters that
+selected that person for the directory page. These metadata reads share the page's
+snapshot and version token, including confirmation, candidacy-link and service changes.
 
 `GET /api/v1/finance/people` pages held candidacies, public person records and
 legislative records as separate kinds, even when their names match. Literal name
-search, stable paging and whole-filter counts apply to every kind. Candidate
-filters use the election year and date; legislative filters use current or former
-service evidence. Each legislative record carries its held seat, party, source and
+search, stable paging and whole-filter counts apply to every kind. Search also
+matches a candidacy's held voting-area text and a legislative service period's district;
+no district is inferred for a bare public-person name. A complete query such as
+`District 32A`, `House District 32A` or `Senate District 12` matches the exact held
+code after case/space normalization, not a substring of another district. An explicit
+chamber must match that same service period. A candidacy must hold that chamber in its
+own voting-area label to match an explicit-chamber query; an unqualified label cannot
+borrow it from another record. Other text keeps literal name/voting-area search. Candidate filters use the election
+year and date; legislative filters use current or former service evidence.
+Exact `party` filters read the candidacy's party or a legislative period's party;
+`office` selects candidacies by their held office text, and `chamber` selects legislative
+records by `house` or `senate`. Neither filter borrows facts from another record kind.
+A legislative party/chamber/district combination must match one held period, not fields
+from different terms. These filters describe held records, not current office or party.
+`matching_periods` carries their matching evidence so a screen can label a historical
+match honestly; `periods` keeps the full held history. `parties`, `offices` and `chambers`
+list distinct held values for the selected record kind, independent of the current search,
+so an empty result does not erase the available choices. Candidate rows carry the held
+`party`; missing values stay null. Each legislative record carries its held seat, party, source and
 personal service dates. Missing personal dates stay null, never session dates.
 An ended older term does not establish former service when a later term is undated.
 When sibling sessions leave the latest service ambiguous, status remains unknown.
@@ -108,7 +173,12 @@ held produce an unavailable state, never a zero. A requested release that change
   the election year, and the Board's held office and district against that candidacy.
   Only that account set can appear in its historical years, each still subject to the
   existing reviewed or filed year coverage. Missing seat or identity evidence means
-  unconfirmed; names alone never create a link.
+  unconfirmed; names alone never create a link. Both responses add `register_contest`
+  only when those accepted Board rows hold one exact office/district pair: `office`,
+  `district`, candidacy election `year`, and the register's existing contest `anchor`.
+  Missing or ambiguous evidence yields null. Changing the requested payment year never
+  changes this contest year; consumers link only the matching selected year. Two accounts
+  for the same exact seat share the one contest, without combining their money.
 - `/committees/{number}/report-figures?year=Y` lists the held catalogue's filed report names
   and effective amendments. A catalogue entry without an amendment marker is not proof
   of filing. The latest held cumulative figures attach only to a unique regular report
@@ -117,12 +187,31 @@ held produce an unavailable state, never a zero. A requested release that change
   period start. Beginning and ending balance dates come from their own printed labels;
   an undated balance is withheld. Expenditures are never relabelled as all
   disbursements. Filing dates never come from period ends. Retained figures keep their
-  own copy date.
+  own copy date. `figures_reason` is null for a uniquely matched report, otherwise
+  `missing_filing` (no held financial-figures row), `missing_reported_through`,
+  `special_election`, `missing_cutoff`, `cutoff_mismatch`, or `ambiguous_cutoff`.
+  These describe missing or mismatched held evidence, never a failure to file.
+- `/committees/{number}/payments` inside Finance reuses the public raw payment reader,
+  with identical rows, amounts, paging, source/release dates and disclosure attachments.
+  On outgoing rows, `recipient_type` is a held register kind only for an exact receiving
+  registration on a `Contribution` row; no name or processor identity creates it.
+  `recipient_type_source` carries its register snapshot, own copied date, source URL
+  and retained flag. This is current or retained register metadata, not a claim about
+  the recipient's kind in the payment year. Missing evidence gives null fields.
+  Both the raw Finance read and grouped payment list return a `version` covering
+  the money release and held filing-register snapshot, read in one pinned view.
+  Later pages send it back; a register change alone returns `409 records-changed`
+  even when the payment release is unchanged. The public payment response remains unchanged.
 - `/committees/{number}/payment-groups` pages exact named groups for one filing year and
   direction, with whole-filter group/payment counts and itemized amount before paging.
   The same missing-amount and complete-period rules apply to that whole-filter total.
   An optional exact source `record_number` locates its complete group and exact row
   offset for a notice link, even beyond its first preview page.
+  With `direction=made`, `tab=made` contains only filed `Contribution` rows and
+  `tab=expenditures` excludes them, matching the approved disjoint Committee tabs.
+  Omitting the tab still returns all outgoing rows. Made groups carry the same
+  exact-register recipient type/source fields as the raw Finance read; tab counts
+  cover the full year before page filtering.
   Contribution categories stay separate; candidate committees belong with committees
   and funds; outgoing transfers retain the receiving committee's filed number. Unnamed
   records stay individual. A sum is withheld if any amount is missing; every shown sum
@@ -163,6 +252,42 @@ number, link availability and printed transaction types. These fields never chan
 fingerprint. Conflicting names or types on repeated fingerprints remain distinguishable;
 no unresolved filer number becomes a link.
 
+### Exact matching station invoices
+
+Finance’s committee `payments` wrapper adds `matching_invoice: {key, version, page}`
+only to an expenditure row with one unique checked invoice destination. The evidence
+must name the exact expenditures dataset, source snapshot, content hash and row, still
+match the published source, and point to a held station-file version. The file’s standing
+checked document kind must be Invoice, with no conflicting kind. Finance and non-draft
+copy checks use the same correction and withdrawal rules as the station-file reader;
+an accepted expense link that is later rejected no longer qualifies. No payee name,
+date or amount can substitute for that evidence. No private check notes or reviewer
+identity are returned; public payment responses stay unchanged.
+
+The link opens the exact file version and evidence page. A collapsed payee group shows
+a link only when its rows yield one distinct destination; differing destinations remain
+on their own expanded payment rows. Missing or ambiguous row evidence produces no link.
+The made-payment paging token includes `invoice_links`, so a withdrawal between pages
+requires reloading instead of mixing old and new checks. That mark excludes extraction
+suggestions and machine-read page text, which this projection does not use.
+
+### Campaign register filters
+
+The shared `/api/v1/campaign-finance/committees` reader accepts exact filed `party`
+only with `kind=candidate_committee`; other kinds ignore it and echo `party: null`.
+`candidate_parties` lists distinct nonempty held candidate party strings, including
+retained registrations, independently of search, status, selected party and paging.
+Case and spaces stay source-exact; a name never supplies a party. `held_by_kind` and
+`held_register_total` count all held rows for full-directory tabs, while existing
+`by_kind` and `register_total` continue counting the current register only. A missing
+or replaced register returns null options and counts, never a false empty set.
+
+A retained registration's `captured_at` is its last-listed copy time: ingestion writes
+the source snapshot's fetch-completion time when received and preserves that timestamp
+when carrying the row forward. It is not the later register copy's timestamp or the
+registration date. A missing captured time stays unknown; the client never borrows the
+current snapshot date for the last-listed caption.
+
 ### Recorded connections
 
 `alethical/api/services/finance_connections.py` serves `/connections` inside Finance's
@@ -172,9 +297,19 @@ never infers that one payment funded another. Station-file relationships carry n
 Outgoing committee contributions use the separately filed recipient, never a processor's
 confirmed identity. A recipient without held filer evidence remains a printed name.
 
+Graph nodes retain the exact printed spellings behind their loaded confirmed-name
+relationships, the held filer registration kind, and a station file's first-saved date.
+Filed positions remain on independent-spending relationships, with missing-position
+record counts; they never become a person's stance. Map labels grow and preserve exact
+source spaces, and the table carries the same metadata. Pagination resets when filters
+change. Its version includes the live filing-register pointer and latest summary row ID,
+so a same-release metadata rebuild cannot mix pages. Summary writers must continue to
+hold `PUBLISH_LOCK_KEY` and delete/insert rows, never update metadata in place; the indexed
+latest-ID read conservatively invalidates even an unrelated summary rebuild.
+
 Money groups are read from `cf_graph_money_summary`, 1 row per distinct set of node
 inputs (filer number and name, printed name, donor number, payment type, named
-transfer) and filing year of each saved payment file, with its record count, signed
+transfer), exact independent-spending position and filing year of each saved payment file, with its record count, signed
 amount sum, missing-amount count, first and last dates and undated count
 (`alethical/pipeline/campaign_finance_graph_summary.py`). A publish writes a file's
 summary inside the same transaction as its rows, a rollback writes any it lacks, and
@@ -191,6 +326,30 @@ file has no vendor-name index, so a confirmed name there reads that whole file (
 (`alethical/tests/test_finance_graph_summary.py`). To undo the summary, empty
 `cf_graph_money_summary` first (reads then group the raw rows), then revert the code,
 then downgrade migration 0081.
+The nullable `position` summary column added in migration 0085 keeps the independent
+file's exact `for_against` text as another grouping dimension, including whitespace;
+it does not turn that text into an inferred stance or candidate link. Other files
+have no position. Old summaries keep null until an authorized rebuild from their
+saved source rows; null means the position is not held here, never proof that none
+was filed. Migration 0085 only adds the column and never rebuilds summaries or moves
+a live pointer. Reads must combine position groups without multiplying money or
+record counts. Deploy the column before its reader/writer code. Undo behavior with a
+forward release retaining migration files 0084/0085 and the additive schema; an older
+API image is not a safe rollback because readiness requires matching migration heads.
+Drop the derived column only after deploying compatible readers/writers and planning
+the migration rollback. Source payment rows retain the text.
+
+Before rebuilding only `independent_expenditures`, verify migration 0085 and both
+0084 indexes, the current source snapshot and its complete raw rows; retain a backup
+of that snapshot's derived summary. The summary script's dry run selects files but does
+not prove schema readiness or rebuilt totals. The actual rebuild holds the publication
+lock, rechecks the current source and replaces rows in one transaction. Confirm an
+actual rebuilt result, unchanged live pointers, matching signed amounts and record,
+missing-amount and date counts, exact position groups, and invalidation of old page
+tokens. A changed-release skip can exit successfully without rebuilding. A failed
+transaction retains the old summary. If a later restore is needed, hold the same
+publication lock and recheck the snapshot, then insert restored groups with fresh
+row IDs so page versions change; never replay old IDs or update groups in place.
 Before the summary, every broad request re-read all 1.07 million payment rows (469 MB
 against a 256 MB buffer pool) and spilled to temp files: 14 s for the first signed-in
 page, 6 to 7 s repeated, against the client's 10 s limit (2 Nov 2026).
@@ -256,6 +415,21 @@ of approval to build the graph frontend.
 - **The server checks the list on every Finance request.** A request carrying an
   Authorization header is never marked cacheable (`default_public_cache` in
   `alethical/api/main.py`), so 1 account's response never reaches another.
+- **What the access check answers** (`alethical/api/finance_access.py`), so a
+  client can tell an ended listing from an ended session:
+
+  | Answer | When | What the client does |
+  |---|---|---|
+  | 200 (`GET /access`: `{"data": {"allowed": true}}`) | A listed account with a valid session | Shows Finance |
+  | 401, "Sign in to continue." | No token | Asks the person to sign in |
+  | 401, "Sign in again to continue." | An expired, invalid or unreadable token | Asks the person to sign in again |
+  | 403, type `finance-no-access`, "This account does not have access to Alethical Finance." | Refused: never listed, revoked, unconfirmed address, locked, banned or deleted account | Shows the no-access state |
+  | 503, type `service-unavailable` | The sign-in service or the list cannot be read | Keeps the page and offers Try again; never reads it as no access |
+
+  A listing has no expiry date: it ends only when Alethical revokes it
+  (`scripts/finance_access.py`), and the very next request answers 403. The 403 is
+  identical for every refused reason, which is never named. Restoring an ended listing
+  keeps the same entry with new dates.
 
 ## 4. Every tool has 1 home: Finance
 
@@ -308,6 +482,17 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   stored; a record added later is never covered. Explicit selections have a 16 MiB
   request limit, with a refusal naming Alethical's limit and the quick-selection route.
   An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
+  Printed keys retain surrounding spaces exactly: `" Target "` and `"Target"` are
+  separate source spellings for listing, evidence matching and confirmation. Their
+  reads use `GET /records`, which can return several identities, not the identifier-only
+  `GET /lookup`. Blank or unsavable keys remain invalid; no name normalization or
+  similar-name identity matching occurs.
+  The records reply keeps active coverage in `identities` and adds `history_identities`
+  (id, reference, kind and name) for owners of withdrawn confirmations of that exact
+  spelling and record kind. History owners keep their original ids after a merge or
+  split. Clients load those identity reads for History without treating them as active
+  coverage or merge choices; history stays discoverable on a fresh visit after every
+  confirmation was withdrawn, regardless of the current record page or year filter.
 - **The confirmation queue groups exact spellings, never inferred identities.**
   `GET /queue` accepts `record_type` (`all`, `donor`, `payee`), `status`
   (`unconfirmed`, `confirmed`, `all`), `q`, `page` and `page_size` (50 by default,
@@ -323,10 +508,16 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   payment-date year can disagree, so a missing filing year is never derived from
   a date. `amount_state` distinguishes `reported`, `incomplete_amount` and
   `incomplete_period`; `undated_records` counts records lacking both year and date.
-  A partly confirmed
-  name remains in the unconfirmed queue. `GET /identities` finds saved active
+  The queue includes employer spellings separately from donor and payee spellings.
+  `identity_count` counts distinct identities standing today for its current
+  confirmed records, following merges and splits without counting withdrawn claims.
+  A partly confirmed name remains in the unconfirmed queue; an empty filtered list
+  says no names match, never that every name was reviewed. `GET /identities` finds saved active
   identities by `q` and optional `kind`, with the same paging bounds; it returns
   only id, reference, kind and name, without a suggested match or any account details.
+- Held legislator and public-person confirmations return `record_name` from the
+  held source record, separately from `record_key` and the saved identity name.
+  The UI prints the source name when held, otherwise the role alone, never a UUID.
 - **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
   registration number, a principal's id, or the id of a held legislator or public person
   is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
@@ -361,6 +552,88 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   never shows; no answer names who made a change. Every Finance account reads every
   confirmation, so the names, relations, bases and reasons typed into them must never hold
   anything confidential; the API's field descriptions say so.
+
+### Similar printed names
+
+`GET /api/v1/finance/similar-names` supplies the Payments under this name suggestions.
+It takes the exact `name` (1 to 500 characters, not blank), `role` (`donor`, `payee`,
+`employer`), optional `year` (1900 to 2100), exact `filer` registration string
+(1 to 20 characters, no NUL), `dataset` (`contributions`, `expenditures`, `independent`),
+`limit` (1 to 50, default 25), `offset`
+and optional `version`. Access is the same Finance allowlist as every private read.
+The reply echoes these choices and returns `rows`, `has_more`, payment `release_id`,
+per-file `sources` (dataset, snapshot id, source URL and copy date), and `version`.
+A version covers both the payment release and identity events through the shared
+paged-list marks. A stale version returns 409 `records-changed`; the whole list reloads.
+
+Each row has its exact source `name`, selected-year `records`, and `identities`
+with id, reference, name, kind and `records` covered by existing active confirmations.
+The same confirmed-record fingerprint rules as Payments under this name apply:
+repeated source rows count separately, withdrawals do not count, and merges follow the
+standing identity. No amount, matching score, inferred identity or combined total is
+sent. The client labels each established identity's kind beside its name.
+
+Candidates come from all years of the role's published files within the requested
+filer and dataset. These filters narrow candidate discovery, record counts and identity
+counts. Omitting dataset keeps all role-compatible files; an inapplicable recognized
+dataset returns no rows or sources, never a broader list. `independent` names the
+independent-expenditures file. Filer uses each source file's filing registration column,
+never the printed donor or payee's registration. The response echoes filer and dataset.
+The selected year limits
+only row and confirmation counts, so a similar spelling with no records that year stays
+in the list with 0 records. Payees include both campaign and independent expenditure
+rows; their confirmation kinds remain separate before grouping established identities.
+The exact starting string alone is excluded. Case, punctuation and surrounding spaces
+stay distinct source keys. All matching spellings are sorted by exact name (C collation)
+before paging; no top-score or pre-page candidate cap discards alphabetically later names.
+The client initially shows 3 and uses Show more without replacing earlier rows.
+
+Matching is a search aid, never identity evidence. The indexed PostgreSQL trigram `%`
+operator uses threshold 0.35 against at most 3 probes: the original name, tokens with
+organization words expanded, and tokens with those words shortened. The equivalences
+are association/assn/assoc, company/co, corporation/corp, incorporated/inc and limited/ltd;
+dotted L.L.C. becomes LLC in probes only. No acronym expansion, initials-to-person link,
+nickname rule or source rewrite occurs. Punctuation-only input has no matching probe.
+Short/common strings use the same bounded probe and page counts. Names outside this
+matching rule are not asserted to be different identities.
+
+After the shared version read, source and candidate statements have a 3-second
+timeout scoped to the read transaction. This is not a full-request time guarantee. Timeout, read
+failure, absent source or a partially pruned payment file returns 503, never an empty
+success. Full source row counts are checked before suggestions or year counts are served.
+Donor and campaign-payee matching reuse their existing trigram indexes. Migration 0084
+adds employer and independent-payee trigram indexes concurrently, repairs invalid
+interrupted builds on retry, and changes no source records. The earlier small-file scan
+exception from migration 0040 does not fit the 3-probe similarity query: the held
+45,741-row outside-spending file took 548 ms warm by itself, and a combined candidate
+read reached 2,687 ms near its 3,000 ms timeout. Rollback drops only the added indexes and reverts the reader/client changes;
+no confirmations or source records are changed by these reads or their rollback.
+
+### Similar printed agency names
+
+`GET /api/v1/finance/media-buys/agencies/{key}/similar-names` uses the existing
+source-derived agency key, `limit` (1 to 50, default 25), `offset`, and optional
+16-character `version`. The Finance allowlist still applies. The response's `data`
+contains key, exact name, version, limit, offset, has_more and rows with the same
+shape as the agency browse list: key, label, file_count, stations and unchecked.
+
+Candidates are exact labels held in the same originals and checks as the agency
+browse list, including machine-read labels and checked older versions. Each label's
+count covers its own distinct station/file pairs. `unchecked` is true if any file
+represented under that name lacks a standing name check; a checked name on one file
+never checks another file or similar spelling. Similarity never links an address or
+identity, and suggestions contain neither addresses nor identity claims.
+
+The spelling policy is the same 3-probe, 0.35 trigram rule as Payments under this
+name. It searches all held labels before exact-name A–Z paging; the input's exact
+label alone is excluded. Labels and source-derived keys are never normalized.
+The existing station version marks cover file, extraction and check changes, returning
+409 `records-changed` when paging is stale. Unknown keys return 404. After the shared version read, subsequent database statements
+have a transaction-local 3-second timeout; more than 20,000 held labels,
+a starting label outside the spelling reader's 500-character bound, or a failed read
+returns 503 `service-unavailable`, never a truncated candidate set or empty success.
+The bounded held-label catalogue is compared in PostgreSQL without a new source-table
+similarity scan. This read changes no source, check, identity, publication or address.
 
 ## 5. What alethical.com prints from work done in Finance
 
@@ -405,6 +678,37 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
 - Station-file amounts (ordered, billed, credited, paid) stay on the file. They never enter
   money totals, recipient sums or profile money figures, and a Money connections line to a
   station file carries no amount, because an order or invoice does not prove payment.
+
+The Media buys browse answer carries `tab_counts` for the whole held inventory, before
+the open tab's filters or result cap. Station rows carry their held folder years.
+The Finance Media buys `connections` answer also accepts `kind=person` (a held
+public-person id or a confirmed person identity id), `kind=legislator` (held id or
+slug), and `kind=organization` (a confirmed organization identity id). Person and
+legislator profiles keep confirmed committee files in `kind=committee` groups and
+files naming their source-verified candidacies in a separate `kind=named` group.
+Organization profiles use only their active confirmed committee and principal
+identifiers; a payee identity never becomes a TV agency by matching its spelling.
+Merged identities follow the standing successor. Split parents have no combined
+file list; each replacement uses its own active confirmations. Withdrawn links
+stop supplying files. A file shared by groups counts once in `total` and `files`,
+while each group keeps its newest matching checked version and cited page. These
+Finance-only reads do not change the public site's approved-copy projection.
+
+`search_scope=tab` searches the selected tab's labels; the default `files` scope keeps
+file-name, checked-fact and text search available. Neither search establishes an identity.
+File rows carry the displayed version's `first_saved_at`. Connected rows carry a page
+actually cited by their checks, and groups identify `committee` or `named` without the
+client interpreting a display label. Checked address evidence includes its exact quote
+and check date; no account or public-copy metadata is exposed.
+
+Each station year carries current file count, distinct saved contents across versions,
+current-version text-reading failures, and the latest file/folder download outcomes.
+Years come from held document metadata or the FCC folder path, as in ingestion; a failure
+without a held year remains in a `null` year group. Distinct contents across different
+years can overlap and must not be summed as a station-wide distinct count. The latest
+check date is the latest held check on a saved version, never proof that every file was
+checked. A missing date stays null. These fields supplement the separately labelled
+all-years counts and preserve the distinction between files, contents and purchases.
 
 ## 7. Finance never links to alethical.com
 

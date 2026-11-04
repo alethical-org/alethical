@@ -9,7 +9,16 @@ import type { Connected, FileRow } from './types';
 import './media.css';
 
 /** The record kinds the server can list connected TV station files for. */
-export type MediaBuysKind = 'committee' | 'candidate' | 'principal' | 'election' | 'race' | 'name';
+export type MediaBuysKind =
+  | 'committee'
+  | 'candidate'
+  | 'principal'
+  | 'election'
+  | 'race'
+  | 'name'
+  | 'person'
+  | 'legislator'
+  | 'organization';
 
 /** The server's title for a candidacy's files that print the candidate's name
  * (`connected` in alethical/api/services/tv_ads.py), and the drawing's words for
@@ -32,20 +41,35 @@ interface CardGroup {
 
 /**
  * The groups as the card prints them. Every row the server lists sits in a group
- * with its role line (its flat `files` list repeats them without one). Only a
- * candidacy's groups carry titles: its committees' files first, then the files
- * that name the candidate, never mixed (Media Buys Card drawing). A race's groups
- * are named by their election stage, which each row's role line already prints.
+ * with its role line (its flat `files` list repeats them without one). Candidate
+ * and legislator groups, and a person's committee groups, carry titles. A person's
+ * named files carry a candidate title only when their loaded profile holds a
+ * candidacy. A legislator's title names the service record, not a candidacy.
+ * A race's groups are named by their election
+ * stage, which each row's role line already prints.
  */
-export function cardGroups(kind: MediaBuysKind, data: Connected): CardGroup[] {
+export function cardGroups(
+  kind: MediaBuysKind,
+  data: Connected,
+  personIsCandidate = false,
+): CardGroup[] {
+  const titled = kind === 'candidate' || kind === 'legislator' || kind === 'person';
+  const namedTitle =
+    kind === 'legislator'
+      ? 'TV station files that name this legislator'
+      : kind !== 'person' || personIsCandidate
+        ? NAMED_TITLE
+        : '';
   const groups = data.groups
     .filter((group) => group.files.length > 0)
     .map((group, index) => {
-      const named = group.label === NAMED_GROUP || group.label === NAMED_TITLE;
+      const named =
+        group.kind === 'named' ||
+        (group.kind == null && (group.label === NAMED_GROUP || group.label === NAMED_TITLE));
       return {
         key: `${index}-${group.label}`,
         named,
-        title: kind !== 'candidate' ? '' : named ? NAMED_TITLE : group.label,
+        title: !titled ? '' : named ? namedTitle : group.label,
         files: group.files,
       };
     });
@@ -60,7 +84,10 @@ function Row({ row, here }: { row: FileRow; here: string }) {
     : `${row.station} ${row.label}`;
   return (
     <li>
-      <Link className="mb-link-row" to={withFrom(fileHref(row.key, row.version_id), here)}>
+      <Link
+        className="mb-link-row"
+        to={withFrom(fileHref(row.key, row.version_id, row.page ?? undefined), here)}
+      >
         <span>
           <span className="mb-link-name mb-buys-lead">
             <span>{lead} ·</span>
@@ -86,10 +113,12 @@ export function MediaBuysCard({
   kind,
   target,
   name,
+  personIsCandidate = false,
 }: {
   kind: MediaBuysKind;
   target: string;
   name: string;
+  personIsCandidate?: boolean;
 }) {
   const location = useLocation();
   const here = location.pathname + location.search;
@@ -100,7 +129,7 @@ export function MediaBuysCard({
   });
   if (!built) return null;
   const data = read.data;
-  const groups = data ? cardGroups(kind, data) : [];
+  const groups = data ? cardGroups(kind, data, personIsCandidate) : [];
   return (
     <section aria-labelledby="media-buys-h" className="mb-card mb-buys-card">
       <h2 id="media-buys-h">Media buys</h2>

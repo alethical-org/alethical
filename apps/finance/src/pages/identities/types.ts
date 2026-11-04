@@ -18,6 +18,8 @@ export interface QueueRow extends QueueSource {
   name: string;
   records: number;
   confirmed: number;
+  /** Distinct identities standing today for this exact name’s current records. */
+  identity_count?: number;
   amount: string | null;
   amount_state: 'reported' | 'incomplete_amount' | 'incomplete_period';
   missing_amounts: number;
@@ -30,6 +32,7 @@ export interface QueueRow extends QueueSource {
 }
 
 export interface QueuePage {
+  version?: string;
   rows: QueueRow[];
   page: number;
   page_size: number;
@@ -78,6 +81,8 @@ export interface RecordsPage {
   pages: number;
   years: number[];
   identities: Array<IdentitySummary & { confirmed: number }>;
+  /** Original owners with exact-spelling history, never active coverage or merge choices. */
+  history_identities?: IdentitySummary[];
   fingerprints: Fingerprint[];
   no_longer_in_board_file: Array<{
     fingerprint: string;
@@ -94,6 +99,8 @@ export interface ConfirmedRecord {
 }
 
 export interface Confirmation {
+  /** Source name for a held legislator or public-person record; never its internal id. */
+  record_name?: string | null;
   id: string;
   identity_id: string;
   record_kind: string;
@@ -161,6 +168,7 @@ export interface Identity {
 }
 
 export interface EntityPage {
+  version?: string;
   rows: IdentitySummary[];
   total: number;
   page: number;

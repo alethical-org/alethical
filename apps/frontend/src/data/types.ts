@@ -968,6 +968,13 @@ export interface CommitteeConfirmation {
   currentClaim: CurrentClaimFreshness;
 }
 
+/** A known gap in one Board payment file for one committee-year, in fixed words. */
+export interface CommitteeSourceNotice {
+  key: string;
+  dataset: 'contributions' | 'expenditures' | 'independent_expenditures';
+  text: string;
+}
+
 export interface CommitteeMoney {
   releaseId?: string;
   statedByKind?: CommitteeStatedByKind | null;
@@ -999,6 +1006,8 @@ export interface CommitteeMoney {
   paymentCopiedAt?: PaymentCopyDates;
   /** The report source’s own copy time, separate from the payment files. */
   filingsCopiedAt?: string | null;
+  /** Reviewed sentences about this year in one of the Board’s payment files (#2831). */
+  sourceNotices?: CommitteeSourceNotice[];
   register: CommitteeRegisterEntry;
   moneyIn: {
     state: MoneyBlockState;

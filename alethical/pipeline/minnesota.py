@@ -26,6 +26,9 @@ from alethical.pipeline.roster_pdf import (
     name_matches,
     parse_roster_pdf,
 )
+from alethical.pipeline.bill_action_committees import (
+    resolve as resolve_action_committee,
+)
 from alethical.pipeline.sessions import (
     CURRENT_SESSION_SLUG,
     DEFAULT_SESSION_CODE,
@@ -3813,6 +3816,7 @@ class MinnesotaIngestionPipeline:
         canonical: dict[str, Any],
         xml_artifact: Any,
     ) -> None:
+        committee_matches = {}
         for chamber_name, actions in canonical.get("actions", {}).items():
             chamber = refs["chambers"].get(chamber_name)
             for action in actions:
@@ -3835,6 +3839,20 @@ class MinnesotaIngestionPipeline:
                 action_row.action_text = action["action_text"]
                 action_row.action_description = action.get("action_description") or None
                 action_row.committee_name = action.get("committee_name") or None
+                committee_key = (
+                    chamber.id if chamber else None,
+                    action.get("committee_id") or None,
+                )
+                if committee_key not in committee_matches:
+                    committee_matches[committee_key] = resolve_action_committee(
+                        self.db,
+                        session_id=bill.session_id,
+                        chamber_id=committee_key[0],
+                        source_id=committee_key[1],
+                    ).committee_id
+                # A later source row lacking or changing its ID must not keep a
+                # stale link. The printed name remains exactly source-backed.
+                action_row.committee_id = committee_matches[committee_key]
                 action_row.action_at = parse_datetime(action.get("action_date"))
                 action_row.journal_page = action.get("journal_page") or None
                 action_row.roll_call_text = action.get("roll_call") or None

@@ -2,12 +2,19 @@ import { formatDay, formatMoney } from '../../ui/money';
 import { isInKind } from '@alethical/shared/committeeMoneyShared';
 import { madePaymentRow, receivedPaymentRow } from '@alethical/shared/committeePaymentsPage';
 
-import type { AttachedStatementRow, Filing, MadePayment, ReceivedPayment } from './types';
+import type {
+  AttachedStatementRow,
+  Filing,
+  MadePayment,
+  MatchingInvoice,
+  ReceivedPayment,
+  RecipientTypeSource,
+} from './types';
 
-/** The 6 tabs (Committee drawing, build notes Round 20). */
+/** The approved contribution kinds, expenditures and outgoing contributions. */
 export type TabKey =
-  'individuals' | 'lobbyists' | 'committees' | 'party' | 'other' | 'expenditures';
-export type ContributionTab = Exclude<TabKey, 'expenditures'>;
+  'individuals' | 'lobbyists' | 'committees' | 'party' | 'other' | 'expenditures' | 'made';
+export type ContributionTab = Exclude<TabKey, 'expenditures' | 'made'>;
 
 export const TABS: ReadonlyArray<{ value: TabKey; label: string }> = [
   { value: 'individuals', label: 'Individuals' },
@@ -16,6 +23,7 @@ export const TABS: ReadonlyArray<{ value: TabKey; label: string }> = [
   { value: 'party', label: 'Party units' },
   { value: 'other', label: 'Other kinds' },
   { value: 'expenditures', label: 'Expenditures' },
+  { value: 'made', label: 'Contributions made' },
 ];
 
 export function isTab(value: string): value is TabKey {
@@ -92,6 +100,8 @@ export interface Row {
   amount: string | null;
   kind: string;
   statement: AttachedStatementRow | null;
+  recipientTypeSource?: RecipientTypeSource | null;
+  matchingInvoice?: MatchingInvoice | null;
 }
 
 export interface Group {
@@ -203,12 +213,27 @@ export function madeKind(payment: MadePayment): string {
   return payment.purpose ?? payment.expenditure_type ?? '';
 }
 
+export function recipientTypeLabel(payment: MadePayment): string {
+  switch (payment.recipient_type) {
+    case 'candidate_committee':
+      return 'Candidate committee';
+    case 'party_unit':
+      return 'Party unit';
+    case 'political_committee_or_fund':
+      return 'Political committee or fund';
+    default:
+      return 'Type not given';
+  }
+}
+
 export function expenditureGroups(
   payments: readonly MadePayment[],
   linkable: ReadonlySet<string>,
+  tab: 'expenditures' | 'made' = 'expenditures',
 ): Group[] {
   const groups = new Map<string, Group>();
   payments.forEach((payment, index) => {
+    if ((payment.expenditure_type === 'Contribution') !== (tab === 'made')) return;
     const shown = madePaymentRow(
       {
         vendorName: payment.vendor_name,
@@ -232,7 +257,7 @@ export function expenditureGroups(
       groups,
       `${number}|${shown.name}`,
       () => ({
-        key: `expenditures|${number}|${shown.name}`,
+        key: `${tab}|${number}|${shown.name}`,
         name: shown.name,
         committeeNumber: shown.linkNumber,
         printed: shown.nameLink ? { name: shown.nameLink.name, role: 'payee' } : null,
@@ -242,7 +267,9 @@ export function expenditureGroups(
         recordNumber: payment.record_number,
         date: payment.paid_on,
         amount: payment.amount,
-        kind: madeKind(payment),
+        kind: tab === 'made' ? recipientTypeLabel(payment) : madeKind(payment),
+        recipientTypeSource: tab === 'made' ? payment.recipient_type_source : null,
+        matchingInvoice: payment.matching_invoice,
         statement: null,
       },
       isInKind(payment.in_kind),

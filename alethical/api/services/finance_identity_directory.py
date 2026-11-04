@@ -16,7 +16,8 @@ from alethical.db import models as m
 from alethical.pipeline import campaign_finance_reader as reader
 
 KINDS = {
-    "all": ("donor_name", "payee_name", "independent_payee_name"),
+    "all": ("donor_name", "employer_name", "payee_name", "independent_payee_name"),
+    "employer": ("employer_name",),
     "donor": ("donor_name",),
     "payee": ("payee_name", "independent_payee_name"),
 }
@@ -92,7 +93,11 @@ def entities(
 def _names(kind, snapshot_id, q):
     printed = identities._PRINTED[kind]
     model = printed.model
-    date = model.receipt_date if kind == "donor_name" else model.transaction_date
+    date = (
+        model.receipt_date
+        if kind in {"donor_name", "employer_name"}
+        else model.transaction_date
+    )
     where = [
         model.snapshot_id == snapshot_id,
         printed.name.is_not(None),
@@ -126,7 +131,13 @@ def _names(kind, snapshot_id, q):
     # Start with actual saved claims, so a queue with no confirmations never
     # fingerprints the whole payment file. Match every repeated current row.
     coverage = (
-        select(printed.name.label("name"), func.count().label("confirmed"))
+        select(
+            printed.name.label("name"),
+            func.count().label("confirmed"),
+            func.array_agg(m.IdentityConfirmation.entity_id.distinct()).label(
+                "identity_ids"
+            ),
+        )
         .select_from(model)
         .join(
             m.IdentityConfirmation,
@@ -152,6 +163,7 @@ def _names(kind, snapshot_id, q):
         literal(kind).label("record_kind"),
         totals,
         func.coalesce(coverage.c.confirmed, 0).label("confirmed"),
+        coverage.c.identity_ids,
     ).select_from(totals.outerjoin(coverage, totals.c.name == coverage.c.name))
 
 
@@ -218,6 +230,10 @@ def queue(
         }
     except reader.ReleaseNoLongerHeld:
         raise identities.Unavailable("The Board's current file is not loaded") from None
+    # Resolve only owners on this page. A merged predecessor and its successor
+    # are 1 identity today, while a later split can create several owners.
+    owners = {owner for row in results for owner in (row.identity_ids or [])}
+    standing = {owner: identities._today(db, owner).id for owner in owners}
     return {
         **_pagination(results[0].total, page, page_size),
         "sources": metadata,
@@ -228,6 +244,9 @@ def queue(
                 "name": row.name,
                 "records": row.records,
                 "confirmed": row.confirmed,
+                "identity_count": len(
+                    {standing[owner] for owner in (row.identity_ids or [])}
+                ),
                 "amount": str(row.amount)
                 if row.amount is not None
                 and not row.missing_amounts

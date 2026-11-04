@@ -102,6 +102,7 @@ export interface VoteRecord {
   legislator_name?: string | null;
   slug?: string | null;
   party?: string | null;
+  district?: string | null;
   vote_value: string;
 }
 

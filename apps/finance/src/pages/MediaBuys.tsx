@@ -1,3 +1,4 @@
+import { useVersionedRead } from '../api/versionedRead';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
@@ -86,7 +87,7 @@ export function browseRow(tab: Tab, row: Group | FileRow): BrowseRow {
     return {
       key: row.key,
       name: row.label,
-      note: '',
+      note: row.years?.length ? `Folders held for ${row.years.join(', ')}` : '',
       mid: row.folder_count != null ? plural(row.folder_count, 'folder', 'folders') : '',
       end: files,
       href: hrefFor('station', { id: row.key }),
@@ -129,16 +130,17 @@ export function MediaBuys() {
   const [typed, setTyped] = useState(state.q);
   useEffect(() => setTyped(state.q), [state.q]);
   const folders = tab === 'folders';
-  const read = useRead<Browse>(
+  const read = useVersionedRead<Browse>(
     mediaPath(['browse'], {
       tab,
+      search_scope: 'tab',
       q: state.q,
       page,
       station: folders ? state.station : '',
       year: folders ? state.year : '',
       category: folders ? state.category : '',
     }),
-    { keepPrevious: true },
+    { page, onRestart: () => setState({ page: '1' }) },
   );
   const sources = useRead<Sources>(mediaPath(['sources']));
   const data = read.data;
@@ -148,7 +150,8 @@ export function MediaBuys() {
   }
   const shownTab = (TABS.find((t) => t.value === data?.tab)?.value ?? tab) as Tab;
   const searching = !!data?.q;
-  const noun = NOUNS[searching ? 'files' : shownTab];
+  const filesShown = data?.rows.some(isFile) ?? false;
+  const noun = NOUNS[filesShown ? 'files' : shownTab];
   const rows = (data?.rows ?? []).map((row) => browseRow(shownTab, row));
   const check = isBuilt('check-station-files');
   return (
@@ -197,7 +200,10 @@ export function MediaBuys() {
           <ScrollingTabs
             label="Browse"
             value={tab}
-            tabs={TABS}
+            tabs={TABS.map((item) => ({
+              ...item,
+              count: data?.tab_counts?.[item.value]?.toLocaleString('en-US'),
+            }))}
             onChange={(value) =>
               setState({ tab: value, page: '1', station: '', year: '', category: '' })
             }
@@ -249,14 +255,13 @@ export function MediaBuys() {
                 <p aria-live="polite" className="f-count-line mb-count">
                   {data.capped ? 'At least ' : ''}
                   {data.total.toLocaleString('en-US')} {data.total === 1 ? noun[0] : noun[1]}
-                  {/* A search lists TV station files, whatever tab is open. */}
                   {searching ? ` matching “${data.q}”` : ''}
                 </p>
                 {rows.length === 0 ? (
-                  <Empty title="No TV station files match this search" />
+                  <Empty title={`No ${noun[1]} match this search`} />
                 ) : (
                   <>
-                    <ul className="mb-list" data-tab={searching ? 'files' : shownTab}>
+                    <ul className="mb-list" data-tab={filesShown ? 'files' : shownTab}>
                       {rows.map((row) => (
                         <li key={row.key}>
                           <Link className="mb-row" to={withFrom(row.href, here)}>

@@ -10,6 +10,7 @@ import {
   edgeAmount,
   edgeEvidence,
   edgePeriod,
+  edgePosition,
   loadedLine,
   moreLabel,
   paymentCopyLine,
@@ -23,7 +24,10 @@ import { columnOf, wrapLabel } from '../pages/connections/Map';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 // Every screen the page links to counts as built here, so link targets are tested.
 vi.mock('../routes', async (original) => {
@@ -85,7 +89,11 @@ describe('the shared total rule on edges (Rounds 34, 36, 41, 43)', () => {
     expect(edgePeriod({ ...payment, last_year: 2026 })).toBe('Filing years 2025–2026');
   });
   it('withholds a total with a missing amount, worded by position', () => {
-    const missing = { ...payment, amount: null, amount_state: 'incomplete' as const };
+    const missing = {
+      ...payment,
+      amount: null,
+      amount_state: 'incomplete' as const,
+    };
     expect(edgeAmount(missing, { heading: true })).toBe('Incomplete');
     expect(edgeAmount(missing)).toBe('Missing payment amount');
   });
@@ -103,7 +111,11 @@ describe('the shared total rule on edges (Rounds 34, 36, 41, 43)', () => {
     expect(edgeAmount({ ...payment, amount: '-150' })).toMatch(/^[-−]\$150$/);
     expect(edgeAmount({ ...payment, amount: '0' })).toBe('$0');
     expect(
-      edgeAmount({ ...payment, relationship: 'station_payer', amount_state: 'not_applicable' }),
+      edgeAmount({
+        ...payment,
+        relationship: 'station_payer',
+        amount_state: 'not_applicable',
+      }),
     ).toBe('');
   });
   it('dates a station-file line by its page and a representation by its list copy', () => {
@@ -113,7 +125,12 @@ describe('the shared total rule on edges (Rounds 34, 36, 41, 43)', () => {
       amount: null,
       amount_state: 'not_applicable' as const,
       period_basis: 'not_applicable' as const,
-      source: { dataset: 'station_file', file_key: 'kstp/1', version_id: 'v2', page: 2 },
+      source: {
+        dataset: 'station_file',
+        file_key: 'kstp/1',
+        version_id: 'v2',
+        page: 2,
+      },
     };
     expect(edgePeriod(station)).toBe('Payer, as printed on page 2');
     expect(edgePeriod({ ...station, relationship: 'station_named' })).toBe('Named on page 2');
@@ -144,7 +161,13 @@ describe('names and links', () => {
     const evidence = edgeEvidence(
       {
         ...payment,
-        source: { dataset: 'station_file', file_key: 'f', version_id: 'v', page: 3, quote: 'Q' },
+        source: {
+          dataset: 'station_file',
+          file_key: 'f',
+          version_id: 'v',
+          page: 3,
+          quote: 'Q',
+        },
       },
       payee,
       committee,
@@ -240,7 +263,13 @@ describe('copy dates (grounded-answers rule 12; settled wording row 74)', () => 
   it('prints no copy line without a dated payment file', () => {
     expect(
       paymentCopyLine([
-        { ...spent, source: { dataset: 'station_file', copied_at: '2026-10-09T21:05:10Z' } },
+        {
+          ...spent,
+          source: {
+            dataset: 'station_file',
+            copied_at: '2026-10-09T21:05:10Z',
+          },
+        },
       ]),
     ).toBeNull();
     expect(
@@ -299,6 +328,7 @@ function answer(data: unknown, status = 200) {
 }
 function page(overrides: Partial<ConnectionsPage> = {}): ConnectionsPage {
   return {
+    version: 'aaaaaaaaaaaaaaaa',
     state: 'reported',
     nodes: [committee, payee],
     edges: [payment],
@@ -354,7 +384,11 @@ describe('Money connections page', () => {
   it('keeps an explicit Table choice in the address and prints the amount heading words', async () => {
     window.history.replaceState(null, '', '/money/connections?view=table');
     serve(() =>
-      answer(page({ edges: [{ ...payment, amount: null, amount_state: 'incomplete' }] })),
+      answer(
+        page({
+          edges: [{ ...payment, amount: null, amount_state: 'incomplete' }],
+        }),
+      ),
     );
     await act(async () => root.render(<MoneyConnections />));
     await flush();
@@ -368,11 +402,89 @@ describe('Money connections page', () => {
     expect(decodeURIComponent(link.getAttribute('href')!)).toContain('edge=payments%3Aa');
   });
 
+  it('starts at page one when returning to a filter after loading more', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      ...payment,
+      id: `e${i}`,
+    }));
+    serve((url) =>
+      url.searchParams.get('q') === 'other'
+        ? answer(page({ q: 'other', edges: [{ ...payment, id: 'other' }] }))
+        : url.searchParams.get('offset') === '100'
+          ? answer(
+              page({
+                edges: [{ ...payment, id: 'last' }],
+                total: 101,
+                offset: 100,
+              }),
+            )
+          : answer(page({ edges: first, total: 101, has_more: true })),
+    );
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    await act(async () => button('Show 1 more connection')!.click());
+    await flush();
+    await act(async () => {
+      window.history.pushState(null, '', '/money/connections?q=other');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await flush();
+    const before = requests.length;
+    await act(async () => {
+      window.history.pushState(null, '', '/money/connections');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await flush();
+    expect(requests.slice(before).some((url) => url.searchParams.get('offset') === '100')).toBe(
+      false,
+    );
+    expect(container.textContent).toContain('100 of 101 connections loaded');
+  });
+
+  it('shows held record metadata in map nodes as well as table subtitles', async () => {
+    const named = {
+      ...org,
+      printed_names: [' Example Media LLC ', 'Example Media Inc'],
+    };
+    const account = { ...committee, register_kind: 'candidate_committee' };
+    serve(() =>
+      answer(
+        page({
+          nodes: [account, named],
+          edges: [{ ...payment, to: named.key }],
+        }),
+      ),
+    );
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    const map = container.querySelector('.mc-map svg')!;
+    const subtitles = [...map.querySelectorAll('.mc-node-sub')]
+      .map((el) => el.textContent)
+      .join(' ')
+      .replace(/\s+/g, ' ');
+    expect(subtitles).toContain('Candidate committee');
+    expect(subtitles).toContain('printed as');
+    expect(subtitles).toContain('Example Media Inc');
+    expect(nodeSub(named)).toContain('“ Example Media LLC ”');
+    expect(nodeSub({ ...committee, kind: 'file', saved_at: '2026-11-03T12:00:00Z' })).toContain(
+      'Nov 3, 2026',
+    );
+  });
+
   it('loads the next 100 on Show more and keeps the loaded count', async () => {
-    const first = Array.from({ length: 100 }, (_, i) => ({ ...payment, id: `e${i}` }));
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      ...payment,
+      id: `e${i}`,
+    }));
     serve((url) =>
       url.searchParams.get('offset') === '100'
-        ? answer(page({ edges: [{ ...payment, id: 'last' }], total: 101, offset: 100 }))
+        ? answer(
+            page({
+              edges: [{ ...payment, id: 'last' }],
+              total: 101,
+              offset: 100,
+            }),
+          )
         : answer(page({ edges: first, total: 101, has_more: true })),
     );
     await act(async () => root.render(<MoneyConnections />));
@@ -386,12 +498,64 @@ describe('Money connections page', () => {
     expect(button('more connection')).toBeUndefined();
   });
 
+  it('restarts the whole graph after a changed source without combining versions', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      ...payment,
+      id: `old${i}`,
+    }));
+    let changed = false;
+    serve((url) => {
+      if (url.searchParams.get('offset') === '100') {
+        changed = true;
+        return new Response(
+          JSON.stringify({
+            type: 'https://api.alethical.com/problems/records-changed',
+          }),
+          { status: 409 },
+        );
+      }
+      return answer(
+        changed
+          ? page({
+              version: 'bbbbbbbbbbbbbbbb',
+              edges: [{ ...payment, id: 'fresh', amount: '987' }],
+            })
+          : page({ edges: first, total: 101, has_more: true }),
+      );
+    });
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    await act(async () => button('Show 1 more connection')!.click());
+    await flush();
+    expect(requests.at(-1)!.searchParams.get('version')).toBe('aaaaaaaaaaaaaaaa');
+    expect(container.textContent).toContain(
+      'These records changed. Reload the list. Previous results are shown.',
+    );
+    expect(container.textContent).toContain('100 connections');
+    await act(async () => button('Try again')!.click());
+    await flush();
+    expect(requests.at(-1)!.searchParams.get('offset')).toBe('0');
+    expect(requests.at(-1)!.searchParams.has('version')).toBe(false);
+    expect(container.textContent).toContain('1 connection ·');
+    expect(container.textContent).not.toContain('100 connections');
+    expect(container.textContent).not.toContain('These records changed');
+  });
+
   it('reloads the pages a return names, so a line beyond the first page is selected again', async () => {
     window.history.replaceState(null, '', '/money/connections?edge=last&pages=2');
-    const first = Array.from({ length: 100 }, (_, i) => ({ ...payment, id: `e${i}` }));
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      ...payment,
+      id: `e${i}`,
+    }));
     serve((url) =>
       url.searchParams.get('offset') === '100'
-        ? answer(page({ edges: [{ ...payment, id: 'last' }], total: 101, offset: 100 }))
+        ? answer(
+            page({
+              edges: [{ ...payment, id: 'last' }],
+              total: 101,
+              offset: 100,
+            }),
+          )
         : answer(page({ edges: first, total: 101, has_more: true })),
     );
     await act(async () => root.render(<MoneyConnections />));
@@ -403,7 +567,10 @@ describe('Money connections page', () => {
   });
 
   it('keeps loaded rows when the next page fails, with Try again', async () => {
-    const first = Array.from({ length: 100 }, (_, i) => ({ ...payment, id: `e${i}` }));
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      ...payment,
+      id: `e${i}`,
+    }));
     serve((url) =>
       url.searchParams.get('offset') === '100'
         ? answer(null, 500)
@@ -419,10 +586,16 @@ describe('Money connections page', () => {
   });
 
   it('keeps loaded rows with the drawn busy notice when the server stays busy', async () => {
-    const first = Array.from({ length: 100 }, (_, i) => ({ ...payment, id: `e${i}` }));
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      ...payment,
+      id: `e${i}`,
+    }));
     serve((url) =>
       url.searchParams.get('offset') === '100'
-        ? new Response(null, { status: 503, headers: { 'Retry-After': '0.01' } })
+        ? new Response(null, {
+            status: 503,
+            headers: { 'Retry-After': '0.01' },
+          })
         : answer(page({ edges: first, total: 150, has_more: true })),
     );
     await act(async () => root.render(<MoneyConnections />));
@@ -454,7 +627,12 @@ describe('Money connections page', () => {
 
   it('names unavailable sources without counting them', async () => {
     serve(() =>
-      answer(page({ state: 'partial', unavailable_sources: ['independent_expenditures'] })),
+      answer(
+        page({
+          state: 'partial',
+          unavailable_sources: ['independent_expenditures'],
+        }),
+      ),
     );
     await act(async () => root.render(<MoneyConnections />));
     await flush();
@@ -527,4 +705,27 @@ describe('Money connections page', () => {
     expect(panel.textContent).toContain('$420');
     expect(panel.textContent).toContain('Filing year 2025');
   });
+});
+
+it('preserves exact source spaces when wrapping quoted graph spellings', () => {
+  const text = '“  Target  ”';
+  const lines = wrapLabel(text, 24, (line) => line.length * 8, true);
+  expect(lines.join('')).toBe(text);
+  expect(lines.every((line) => line.length <= 3)).toBe(true);
+});
+
+it('keeps filed positions separate from the identity and names missing positions', () => {
+  const outside = {
+    ...payment,
+    source: { dataset: 'independent_expenditures' },
+    positions: ['Against', 'For'],
+    position_missing_count: 2,
+  };
+  expect(edgePosition(outside)).toBe(
+    'Position as filed: Against; For · Position not held for 2 records',
+  );
+  expect(edgePosition({ ...outside, positions: [], position_missing_count: 1 })).toBe(
+    'Position not held for 1 record',
+  );
+  expect(edgePosition({ ...outside, source: { dataset: 'expenditures' } })).toBeNull();
 });

@@ -60,6 +60,7 @@ from alethical.api.services.campaign_finance_register import (
     MAX_COMMITTEES,
     MAX_FILINGS,
     CommitteeSort,
+    RegistrationStatus,
     committee_filings,
     committees as register_committees,
     committees_worth_indexing,
@@ -88,6 +89,7 @@ from alethical.api.services.committee_notices import (
     statements_copied_on,
 )
 from alethical.api.services.committee_donor_states import donor_states
+from alethical.api.services.source_notices import source_notices
 from alethical.api.services.committee_name_connections import name_connections
 from alethical.api.services.committee_finance import (
     filings_copied_at,
@@ -834,8 +836,8 @@ def member_slug_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
     return {str(legislator_id): slug for legislator_id, slug in rows}
 
 
-def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
-    """Parties held for this Legislature/chamber and date, with ambiguity withheld."""
+def service_at_vote(db: Session, bill, events) -> dict[tuple, dict[str, str | None]]:
+    """Held party and district for the vote period, independently unambiguous."""
     voters = {record.legislator_id for event in events for record in event.records}
     if not voters:
         return {}
@@ -848,10 +850,17 @@ def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
             period.party,
             period.start_date,
             period.end_date,
+            District.code.label("district"),
             session.year_start,
             session.year_end,
         )
         .join(session, session.id == period.session_id)
+        .outerjoin(
+            District,
+            (District.id == period.district_id)
+            & (District.chamber_id == period.chamber_id)
+            & (District.jurisdiction_id == session.jurisdiction_id),
+        )
         .where(
             period.legislator_id.in_(voters),
             session.jurisdiction_id == bill.session.jurisdiction_id,
@@ -865,18 +874,33 @@ def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
     for event in events:
         day = event.occurred_at.date() if event.occurred_at else None
         for record in event.records:
-            parties = {
-                row.party
+            matches = [
+                row
                 for row in held[(record.legislator_id, event.chamber_id)]
                 if day is not None
                 and row.year_start <= day.year <= row.year_end
                 and (row.start_date is None or row.start_date <= day)
                 and (row.end_date is None or day <= row.end_date)
+            ]
+            parties = {row.party for row in matches}
+            districts = {
+                row.district
+                if row.district and not row.district.lower().endswith("-unknown")
+                else None
+                for row in matches
             }
-            result[(event.id, record.legislator_id)] = (
-                next(iter(parties)) if len(parties) == 1 else None
-            )
+            result[(event.id, record.legislator_id)] = {
+                "party": next(iter(parties)) if len(parties) == 1 else None,
+                "district": next(iter(districts)) if len(districts) == 1 else None,
+            }
     return result
+
+
+def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
+    """Compatibility for callers that need only the held party."""
+    return {
+        key: value["party"] for key, value in service_at_vote(db, bill, events).items()
+    }
 
 
 def chamber_slug_by_id(db: Session, chamber_ids) -> dict[str, str | None]:
@@ -2889,7 +2913,7 @@ def bill_version_text(
 def vote_payloads(db: Session, bill, events):
     voter_ids = {record.legislator_id for event in events for record in event.records}
     names = member_name_by_legislator(db, voter_ids)
-    parties = party_at_vote(db, bill, events)
+    service = service_at_vote(db, bill, events)
     slugs = member_slug_by_legislator(db, voter_ids)
     chambers = chamber_slug_by_id(db, [event.chamber_id for event in events])
     return [
@@ -2910,7 +2934,7 @@ def vote_payloads(db: Session, bill, events):
                     "legislator_id": str(record.legislator_id),
                     "legislator_name": names.get(str(record.legislator_id)),
                     "slug": slugs.get(str(record.legislator_id)),
-                    "party": parties.get((event.id, record.legislator_id)),
+                    **service[(event.id, record.legislator_id)],
                     "vote_value": record.vote_value.value,
                 }
                 for record in event.records
@@ -3107,7 +3131,7 @@ def legislator_bills(
             raise HTTPException(
                 status_code=422, detail=f"Unknown role: {role}"
             ) from exc
-    rows, has_more = paginated_scalars(
+    rows, has_more, total = paginated_scalars_with_total(
         db,
         legislator_sponsored_bills_stmt(
             legislator.id, session_row.id, role=role_filter
@@ -3131,6 +3155,7 @@ def legislator_bills(
             "offset": offset,
             "next_cursor": None,
             "has_more": has_more,
+            "total": total,
         },
     )
 
@@ -3533,6 +3558,11 @@ def committee_finance_for_year(
             **({"stated_by_kind": asdict(by_kind)} if by_kind is not None else {}),
             **({"donor_states": asdict(by_state)} if by_state is not None else {}),
             "name_connections": asdict(connections),
+            # Reviewed sentences about this committee-year in one of the Board's
+            # payment files, each withdrawn once the file's rows change (#2831).
+            "source_notices": source_notices(
+                db, release, finance.committee.registration_number, finance.year
+            ),
             "split": {
                 "state": split.state,
                 "reported_total": split.reported_total,
@@ -4595,6 +4625,10 @@ def campaign_finance_committees(
     limit: int = Query(default=25, ge=1, le=MAX_COMMITTEES),
     offset: int = Query(default=0, ge=0),
     sort: CommitteeSort = Query(default="name"),
+    status: RegistrationStatus | None = Query(default=None),
+    party: str | None = Query(
+        default=None, min_length=1, max_length=200, pattern=r"^[^\x00]*$"
+    ),
     db: Session = Depends(get_db),
 ):
     """Everyone registered to raise or spend money in Minnesota state politics.
@@ -4671,11 +4705,23 @@ def campaign_finance_committees(
     label themselves from it, and counts that moved when a filter was applied would read
     as the filter having found fewer of a kind than exist.
 
-    ``q`` is the screen's "find a committee by name" box: case-insensitive containment of
-    exactly what was typed, and **no closest-spelling suggestion of any kind**. 178
+    ``q`` matches the filed name or registration number by literal, case-insensitive
+    containment, with escaped wildcards and **no closest-spelling suggestion of any kind**. 178
     registered names sit a single character apart from another registered name and every
     one of those pairs is a different organisation, so a correction would quietly swap
     one for another (``campaign_finance_register.name_contains``).
+
+    ``status`` defaults to the current register, including its terminated rows.
+    ``open`` and ``terminated`` split those rows by the held termination date;
+    ``not_listed`` requests retained earlier copies, and ``all`` includes both sets.
+    Retention does not prove termination. Row status, dates, party and retention
+    provenance come from the held register, never a name or inferred date. The headline
+    ``register_total`` and ``by_kind`` still count only the current register.
+
+    ``party`` matches the exact filed party only for ``candidate_committee``; other
+    kinds ignore it and echo null. ``candidate_parties`` lists the held candidate
+    strings, including retained rows, independently of search, status and paging.
+    Nothing derives a party from a name or registration number.
 
     ``state`` decides whether ``committees`` may be read: ``unavailable`` with a
     ``reason`` means we hold no register (``no_filings_snapshot``) or the snapshot we
@@ -4692,6 +4738,7 @@ def campaign_finance_committees(
         # absent. No 503: refusing the whole register over a missing label would report a
         # gap in one source as an absence in the other.
         release = None
+    party = party if kind == "candidate_committee" else None
     page = register_committees(
         db,
         limit=limit,
@@ -4700,11 +4747,19 @@ def campaign_finance_committees(
         query=q,
         release=release,
         sort=sort,
+        status=status,
+        search_registration=True,
+        party=party,
     )
     return DetailResponse(
         data={
             "state": page.state,
             "ordered_by": page.ordered_by,
+            "status": status,
+            "party": party,
+            "candidate_parties": page.candidate_parties,
+            "held_by_kind": page.held_by_kind,
+            "held_register_total": page.held_register_total,
             "kind": kind,
             "q": q,
             "committees": [_committee_payload(row) for row in page.committees],
@@ -4951,6 +5006,14 @@ def _committee_payload(row: CommitteeRow) -> dict:
         "district": row.district,
         "is_closed": row.is_closed,
         "termination_date": row.termination_date,
+        "registration_date": row.registration_date,
+        "party": row.party,
+        "registration_status": row.registration_status,
+        "retained": row.retained,
+        "retained_from_snapshot_id": str(row.retained_from_snapshot_id)
+        if row.retained_from_snapshot_id
+        else None,
+        "captured_at": row.captured_at,
     }
 
 

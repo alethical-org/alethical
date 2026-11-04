@@ -23,6 +23,8 @@ export interface FileRow {
   category: string;
   kind?: string | null;
   uploaded_at: string | null;
+  first_saved_at?: string | null;
+  page?: number | null;
   version_id: string;
   version_count: number;
   source_changed: boolean;
@@ -41,9 +43,11 @@ export interface Group {
   year?: number | null;
   category?: string | null;
   folder_count?: number | null;
+  years?: number[] | null;
   unchecked?: boolean;
 }
 export interface Browse {
+  version?: string;
   tab: string;
   q: string;
   station: string;
@@ -53,6 +57,7 @@ export interface Browse {
   page_size: number;
   total: number;
   capped: boolean;
+  tab_counts?: Partial<Record<'folders' | 'agencies' | 'stations' | 'years', number>>;
   /** File rows while a search runs; folder, name, station or year groups otherwise. */
   rows: Array<Group | FileRow>;
   years: number[];
@@ -134,6 +139,7 @@ export interface AddressEvidence {
   page: number;
   uploaded_at?: string | null;
   checked_at: string;
+  quote?: string | null;
   role?: string | null;
 }
 export interface Agency {
@@ -154,10 +160,18 @@ export interface Station extends Source {
   counts: Counts;
   folder_count: number;
   folder_failures: number;
+  latest_check_at?: string | null;
   years: {
     year: number | null;
     categories: { name: string; count: number }[];
     file_count: number;
+    counts?: Partial<
+      Pick<
+        Counts,
+        'station_files_held' | 'unique_file_contents' | 'text_read_failures' | 'download_failures'
+      > & { folder_failures: number }
+    >;
+    latest_check_at?: string | null;
   }[];
 }
 export interface QueueRow extends FileRow {
@@ -166,6 +180,7 @@ export interface QueueRow extends FileRow {
   reasons: Array<{ kind: 'agency_checked_elsewhere' | 'folder_committee_checked'; label: string }>;
 }
 export interface Queue {
+  version?: string;
   rows: QueueRow[];
   total: number;
   limit: number;
@@ -207,5 +222,5 @@ export interface Connected {
   exact_name_count: number;
   files: FileRow[];
   total: number;
-  groups: { label: string; files: FileRow[] }[];
+  groups: { label: string; kind?: 'committee' | 'named' | null; files: FileRow[] }[];
 }

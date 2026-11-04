@@ -516,6 +516,7 @@ def _row(db, p):
         "category": p.category,
         "kind": kind,
         "uploaded_at": doc.uploaded_at,
+        **({"first_saved_at": iso(doc.first_seen_at)} if _originals(db) else {}),
         "version_id": p.content_hash,
         "copy_id": None if p.status == "archive" else str(p.id),
         "airing_periods": [
@@ -834,6 +835,7 @@ def browse(
     category="",
     page=1,
     default_year=False,
+    search_scope="files",
 ):
     # These controls exist only in folder browsing; hidden constraints must not filter other tabs.
     if tab != "folders":
@@ -868,7 +870,8 @@ def browse(
         {(p.facility_id, docs[p.id].folder_id): docs[p.id].year for p in copies}
     )
     rows = []
-    if q:
+    tab_search = _originals(db) and search_scope == "tab"
+    if q and not tab_search:
         if _archive_access(db):
             page_cache = defaultdict(list)
             hashes = {p.content_hash for p in selected if p.status == "archive"}
@@ -1033,6 +1036,20 @@ def browse(
                 "key": s.slug,
                 "label": s.call_sign,
                 "station": s.call_sign,
+                **(
+                    {
+                        "years": sorted(
+                            {
+                                y
+                                for (facility, _), y in folder_years.items()
+                                if facility == s.facility_id and y is not None
+                            },
+                            reverse=True,
+                        )
+                    }
+                    if _originals(db)
+                    else {}
+                ),
                 "folder_count": sum(
                     facility == s.facility_id for facility, _ in folder_years
                 ),
@@ -1057,6 +1074,18 @@ def browse(
         ]
     else:
         raise ValueError("Unknown browse view")
+    if q and tab_search:
+        rows = [row for row in rows if q.casefold() in row["label"].casefold()]
+    tab_counts = {}
+    if _originals(db):
+        tab_counts = {
+            "folders": len(folder_years),
+            "agencies": len(
+                {name for p in copies for name in _names_by_version(db, p)}
+            ),
+            "stations": len(DEFAULT_STATIONS),
+            "years": len(years),
+        }
     rows.sort(key=lambda r: (r["label"].casefold(), r["key"]))
     total = len(rows)
     rows = rows[:500]
@@ -1073,6 +1102,7 @@ def browse(
         "rows": rows[(page - 1) * 12 : page * 12],
         "years": years,
         "categories": categories,
+        **({"tab_counts": tab_counts} if _originals(db) else {}),
     }
 
 
@@ -1589,6 +1619,7 @@ def agency_detail(db, key):
                         "page": f.page,
                         "uploaded_at": row["uploaded_at"],
                         "checked_at": iso(f.checked_at),
+                        **({"quote": f.quote} if _originals(db) else {}),
                         "role": f.role,
                     }
                 )
@@ -1775,7 +1806,7 @@ def _lookup_checks(db, p, kind, target, race_context, committees):
     return checked, matches, hits
 
 
-def _connected_files(db, kind, target, registrations):
+def _connected_files(db, kind, target, registrations, *, targets=None):
     """Every file (station, FCC file id) holding a check, on any version, that a
     connection lookup could match: from copies and Finance's own checks alike."""
     copy = m.TVAdPublication
@@ -1800,6 +1831,8 @@ def _connected_files(db, kind, target, registrations):
     else:
 
         def names(model):
+            if targets is not None:
+                return tuple_(model.kind, model.target_id).in_(sorted(targets))
             condition = (
                 model.kind == "election"
                 if kind == "race"
@@ -1831,8 +1864,62 @@ def _connected_files(db, kind, target, registrations):
     return {tuple(row) for row in db.execute(query)}
 
 
+def _profile_connected(db, profile_groups):
+    """Read each file once, retaining each group's newest checked exact version."""
+    if not _originals(db):
+        raise ValueError("Profile connections require the Finance reading")
+    targets = set().union(*(group.targets for group in profile_groups))
+    files, groups = [], [[] for _ in profile_groups]
+    if targets:
+        _original_checks(db, _connected_files(db, None, None, [], targets=targets))
+        for current in _latest_copies(db, metadata=False):
+            remaining = set(range(len(profile_groups)))
+            first = None
+            for version in _file_versions(db, current):
+                checked, _, _ = _lookup_checks(db, version, None, None, None, [])
+                for index in sorted(remaining):
+                    group = profile_groups[index]
+                    matches = [
+                        c for c in checked if (c.kind, c.target_id) in group.targets
+                    ]
+                    if not matches:
+                        continue
+                    row = {
+                        **_row(db, version),
+                        "page": _cited_page(matches),
+                        "role": _joined(
+                            _candidate_role(
+                                (c.target_snapshot or {}).get("role"), c.page
+                            )
+                            if c.kind == "candidate"
+                            else _role_line(c.kind, c.target_snapshot or {})
+                            for c in matches
+                        ),
+                    }
+                    groups[index].append(row)
+                    first = first or row
+                    remaining.remove(index)
+                if not remaining:
+                    break
+            if first is not None:
+                files.append(first)
+    return {
+        "agency_key": None,
+        "exact_name_count": len(files),
+        "files": files,
+        "total": len(files),
+        "groups": [
+            {"label": group.label, "kind": group.kind, "files": rows}
+            for group, rows in zip(profile_groups, groups)
+            if rows
+        ],
+    }
+
+
 @projection
-def connected(db, kind, target):
+def connected(db, kind, target, *, profile_groups=None):
+    if profile_groups is not None:
+        return _profile_connected(db, profile_groups)
     rows = []
     groups = defaultdict(list)
     race_context = None
@@ -1883,6 +1970,11 @@ def connected(db, kind, target):
                 groups[("committee", registration_number)].append(
                     {
                         **row,
+                        **(
+                            {"page": _cited_page(hits[registration_number])}
+                            if _originals(db)
+                            else {}
+                        ),
                         "role": _joined(
                             _printed_role((c.target_snapshot or {}).get("role"))
                             for c in hits[registration_number]
@@ -1891,9 +1983,18 @@ def connected(db, kind, target):
                 )
         if not matches:
             if row:
+                if _originals(db):
+                    row = {
+                        **row,
+                        "page": _cited_page(
+                            [c for group in hits.values() for c in group]
+                        ),
+                    }
                 rows.append(row)
             continue
         row = row or _row(db, p)
+        if _originals(db):
+            row = {**row, "page": _cited_page(matches)}
         snapshots = [(getattr(c, "target_snapshot", {}) or {}, c) for c in matches]
         if kind == "race":
             for label in sorted(
@@ -1902,7 +2003,27 @@ def connected(db, kind, target):
                     for s, _ in snapshots
                 }
             ):
-                groups[label].append({**row, "role": label})
+                groups[label].append(
+                    {
+                        **row,
+                        "role": label,
+                        **(
+                            {
+                                "page": _cited_page(
+                                    [
+                                        c
+                                        for s, c in snapshots
+                                        if str(s.get("election_stage", "")).capitalize()
+                                        + " election"
+                                        == label
+                                    ]
+                                )
+                            }
+                            if _originals(db)
+                            else {}
+                        ),
+                    }
+                )
         elif kind == "candidate":
             groups[named].append(
                 {
@@ -1933,7 +2054,21 @@ def connected(db, kind, target):
         "files": rows,
         "total": len(rows),
         "groups": [
-            {"label": labels.get(key, key), "files": items}
+            {
+                "label": labels.get(key, key),
+                "files": items,
+                **(
+                    {
+                        "kind": "committee"
+                        if kind == "committee"
+                        or isinstance(key, tuple)
+                        and key[0] == "committee"
+                        else "named"
+                    }
+                    if _originals(db)
+                    else {}
+                ),
+            }
             for key, items in groups.items()
             if items
         ],
@@ -1941,6 +2076,12 @@ def connected(db, kind, target):
     if kind == "committee":
         result["committee"] = _committee_identity(db, target)
     return result
+
+
+def _cited_page(checks):
+    """A held page cited by these checks; no guessed first page."""
+    pages = [c.page for c in checks if getattr(c, "page", None) is not None]
+    return min(pages) if pages else None
 
 
 def _fcc_available(db, facility, file_id):

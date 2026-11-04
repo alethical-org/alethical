@@ -50,6 +50,7 @@ import {
 } from './payments/data';
 import { quotedSpelling } from './payments/printedName';
 import './payments.css';
+import { SimilarNames, similarBack } from './payments/SimilarNames';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 export const BOARD_FILES_URL =
@@ -543,12 +544,11 @@ const SCOPE_FILE: Record<SectionSpec['file'], string> = {
 };
 
 /** The sections an address's `dataset` keeps for this role. A dataset the role does
- * not read narrows nothing, so the page never empties itself on a mismatched link. */
+ * does not read has no matching sections; it never broadens to unrelated files. */
 export function scopedSections(role: Role, dataset: string): SectionSpec[] {
   const all = sectionsFor(role);
   const file = DATASET_FILE[dataset];
-  const kept = file ? all.filter((spec) => spec.file === file) : [];
-  return kept.length ? kept : all;
+  return file ? all.filter((spec) => spec.file === file) : all;
 }
 
 /** "Showing records filed by {committee}, {file}" (Design Round 40), or null with no
@@ -591,10 +591,11 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const from = location.searchParams.get('from');
-  const back = returnTarget(location.search) ?? {
-    to: hrefFor('campaign-money'),
-    name: 'Campaign money',
-  };
+  const back = similarBack(location.search) ??
+    returnTarget(location.search) ?? {
+      to: hrefFor('campaign-money'),
+      name: 'Campaign money',
+    };
   const band = useBand();
   // The printed spelling exactly as the address carries it: " Schmidt, Steven" and
   // "Schmidt, Steven" are 2 spellings (settled wording row 63).
@@ -614,7 +615,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const keeps = (spec: SectionSpec | undefined) =>
     !!spec && sections.some((item) => item.id === spec.id);
   const filer = filerFromParam(address.filer);
-  const datasetFile = sections.length < all.length ? sections[0].file : null;
+  const datasetFile = DATASET_FILE[address.dataset] ?? null;
 
   const [draft, setDraft] = useState(name);
   // Back and Forward restore the earlier name into the field.
@@ -637,7 +638,8 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   // the earlier view's answer is not this view's count.
   const own = (data: NamePayments<unknown> | null) =>
     data && data.name === name && data.year === year && data.filer === filer ? data : null;
-  const coverage = name ? identityCoverage(reads.map((read) => own(read.data))) : null;
+  const coverage =
+    name && sections.length > 0 ? identityCoverage(reads.map((read) => own(read.data))) : null;
   const filerName = filer
     ? (reads
         .flatMap((read) => (read.data?.state === 'reported' ? rowsFor(read.data, here) : []))
@@ -661,8 +663,8 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
     );
   }
 
-  const allLoading = reads.every((read) => read.loading);
-  const allFailed = reads.every((read) => read.failed && !read.data);
+  const allLoading = reads.length > 0 && reads.every((read) => read.loading);
+  const allFailed = reads.length > 0 && reads.every((read) => read.failed && !read.data);
   const updating = reads.some((read) => read.updating);
   const requestedSection = location.searchParams.get('section');
   const focusedSection = useRef<string | null>(null);
@@ -691,92 +693,122 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
           <h1 tabIndex={-1} className="f-page-title pn-title">
             Payments under this name
           </h1>
-          <form onSubmit={submit} className="pn-form">
-            <div className="pn-fields">
-              <label className="pn-label">
-                <span className="pn-label-text">
-                  {role === 'employer' ? 'Employer name as reported' : 'Name as reported'}
-                </span>
-                <input
-                  type="text"
-                  className="f-field pn-field"
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  autoComplete="off"
+        </header>
+        <div className="pn-similar-layout">
+          <div className="pn-name-controls">
+            <form onSubmit={submit} className="pn-form">
+              <div className="pn-fields">
+                <label className="pn-label">
+                  <span className="pn-label-text">
+                    {role === 'employer' ? 'Employer name as reported' : 'Name as reported'}
+                  </span>
+                  <input
+                    type="text"
+                    className="f-field pn-field"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    autoComplete="off"
+                  />
+                </label>
+                <Dropdown
+                  name="Record type"
+                  value={role}
+                  options={ROLES}
+                  onChange={(value) => setAddress({ role: value })}
                 />
-              </label>
-              <Dropdown
-                name="Record type"
-                value={role}
-                options={ROLES}
-                onChange={(value) => setAddress({ role: value })}
-              />
-              <Dropdown
-                name="Year"
-                value={year === null ? 'all' : String(year)}
-                options={[
-                  { value: 'all', label: 'All years' },
-                  ...years.map((value) => ({ value: String(value), label: String(value) })),
-                ]}
-                onChange={(value) => setAddress({ year: value })}
-              />
-              <button type="submit" className="f-btn pn-submit">
-                Search
-              </button>
-            </div>
-            <p className="pn-notice">
-              {role === 'employer'
-                ? 'Employer name as written in contribution records, not the organization’s giving'
-                : 'Records are grouped by the name printed in the source'}
-            </p>
-            {scope && (
-              <p className="pn-scope">
-                {scope}
-                <ClearAll onClick={() => setAddress({ filer: '', dataset: '' })} />
+                <Dropdown
+                  name="Year"
+                  value={year === null ? 'all' : String(year)}
+                  options={[
+                    { value: 'all', label: 'All years' },
+                    ...years.map((value) => ({ value: String(value), label: String(value) })),
+                  ]}
+                  onChange={(value) => setAddress({ year: value })}
+                />
+                <button type="submit" className="f-btn pn-submit">
+                  Search
+                </button>
+              </div>
+              <p className="pn-notice">
+                {role === 'employer'
+                  ? 'Employer name as written in contribution records, not the organization’s giving'
+                  : 'Records are grouped by the name printed in the source'}
+              </p>
+              {scope && (
+                <p className="pn-scope">
+                  {scope}
+                  <ClearAll onClick={() => setAddress({ filer: '', dataset: '' })} />
+                </p>
+              )}
+            </form>
+            {coverage && (
+              <IdentityCard coverage={coverage} name={name} role={role} year={year} here={here} />
+            )}
+          </div>
+          <div className="pn-payment-results">
+            {sections.length === 0 && (
+              <p className="f-empty-box pn-gap">
+                This file does not contain records for the selected record type
               </p>
             )}
-          </form>
-          {coverage && (
-            <IdentityCard coverage={coverage} name={name} role={role} year={year} here={here} />
-          )}
-        </header>
-
-        {updating && !allLoading && (
-          <div className="pn-gap">
-            <Updating />
+            {updating && !allLoading && (
+              <div className="pn-gap">
+                <Updating />
+              </div>
+            )}
+            {allLoading && (
+              <div role="status" aria-busy="true" className="pn-loading">
+                <span className="f-spinner" aria-hidden="true" />
+                Loading…
+              </div>
+            )}
+            {!allLoading && allFailed && (
+              <div className="pn-gap pn-narrow">
+                <Refused
+                  onRetry={() => reads.forEach((read) => read.retry())}
+                  retrying={reads.some((read) => read.pending)}
+                >
+                  We couldn’t load these results. This is a problem on our side and says nothing
+                  about what was filed under this name.
+                </Refused>
+              </div>
+            )}
+            {!allLoading &&
+              !allFailed &&
+              sections.map((spec, index) => (
+                <Section
+                  key={spec.id}
+                  spec={spec}
+                  read={reads[index]}
+                  phone={band === 'phone'}
+                  here={here}
+                  filerName={filerName}
+                  view={{ name, year, filer }}
+                  onView={setEvidence}
+                />
+              ))}
           </div>
-        )}
-        {allLoading && (
-          <div role="status" aria-busy="true" className="pn-loading">
-            <span className="f-spinner" aria-hidden="true" />
-            Loading…
-          </div>
-        )}
-        {!allLoading && allFailed && (
-          <div className="pn-gap pn-narrow">
-            <Refused
-              onRetry={() => reads.forEach((read) => read.retry())}
-              retrying={reads.some((read) => read.pending)}
-            >
-              We couldn’t load these results. This is a problem on our side and says nothing about
-              what was filed under this name.
-            </Refused>
-          </div>
-        )}
-        {!allLoading &&
-          !allFailed &&
-          sections.map((spec, index) => (
-            <Section
-              key={spec.id}
-              spec={spec}
-              read={reads[index]}
-              phone={band === 'phone'}
-              here={here}
-              filerName={filerName}
-              view={{ name, year, filer }}
-              onView={setEvidence}
-            />
-          ))}
+          <aside className="pn-similar-aside">
+            {name && (
+              <SimilarNames
+                name={name}
+                role={role}
+                year={year}
+                here={here}
+                filer={filer}
+                dataset={datasetFile === 'independentExpenditures' ? 'independent' : datasetFile}
+                copyDates={Object.fromEntries(
+                  loaded.map(({ spec, data }) => [
+                    spec.file === 'independentExpenditures'
+                      ? 'independent_expenditures'
+                      : spec.file,
+                    data?.fetchedAt ?? null,
+                  ]),
+                )}
+              />
+            )}
+          </aside>
+        </div>
       </div>
       <SourcesAndUpdates>
         {copies.map((line) => (

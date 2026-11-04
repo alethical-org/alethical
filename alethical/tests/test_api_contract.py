@@ -6837,6 +6837,7 @@ def test_a_read_of_only_dated_money_records_gets_the_long_window(client):
     """
     for path in [
         "/api/v1/campaign-finance/committees",
+        "/api/v1/campaign-finance/committees?kind=candidate_committee&party=DFL",
         "/api/v1/campaign-finance/filings",
         "/api/v1/campaign-finance/races?year=2026",
     ]:
@@ -6847,6 +6848,12 @@ def test_a_read_of_only_dated_money_records_gets_the_long_window(client):
 
         data = response.json()["data"]
         assert "as_of" in data, path
+        if response.request.url.path == "/api/v1/campaign-finance/committees":
+            # The top-level party is the requested filter, not a person's
+            # current party. Verify that distinction before excluding only
+            # this echo; nested record fields still face the claim sweep.
+            assert data["party"] == response.request.url.params.get("party")
+            data = {key: value for key, value in data.items() if key != "party"}
         assert not _every_key(data) & CURRENT_CLAIM_KEYS, path
 
 

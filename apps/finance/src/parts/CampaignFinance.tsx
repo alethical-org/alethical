@@ -53,7 +53,15 @@ export const INCOMPLETE = 'Missing payment amount';
 /** No outside-spending rows for the selected years (Design Round 34, fewest words). */
 export const NO_OUTSIDE = 'No confirmed records held';
 
+interface RegisterContest {
+  office: string;
+  district: string;
+  year: number;
+  anchor: string;
+}
+
 export interface FinanceYears {
+  register_contest?: RegisterContest | null;
   link_state: 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
   payment_copied_at?: {
     contributions?: string | null;
@@ -103,6 +111,12 @@ interface OutsideGroup {
   direction?: string | null;
   amount?: string | null;
   row_count?: number | null;
+  amount_state?: 'reported' | 'incomplete' | 'incomplete_period';
+  first_paid_on?: string | null;
+  last_paid_on?: string | null;
+  undated_count?: number;
+  first_year?: number | null;
+  last_year?: number | null;
 }
 
 interface OutsideAnswer {
@@ -120,15 +134,27 @@ export interface Account {
   years: number[];
 }
 
-/** The years read for one legislator, from 2015 to this year. */
-export function useFinanceYears(legislatorId: string | null): Read<FinanceYears> {
+/** Held years for the displayed legislator or candidacy, from 2015 to this year. */
+export function useFinanceYears(
+  legislatorId: string | null,
+  candidateId?: string | null,
+): Read<FinanceYears> {
   const to = new Date().getFullYear();
+  const id = candidateId ?? legislatorId;
   return useRead<FinanceYears>(
-    legislatorId
-      ? apiPath(['legislators', legislatorId, 'campaign-finance', 'years'], {
-          from: FIRST_MONEY_YEAR,
-          to,
-        })
+    id
+      ? apiPath(
+          [
+            ...(candidateId ? ['finance', 'candidates'] : ['legislators']),
+            id,
+            'campaign-finance',
+            'years',
+          ],
+          {
+            from: FIRST_MONEY_YEAR,
+            to,
+          },
+        )
       : null,
   );
 }
@@ -254,15 +280,20 @@ export function contestLabel(
   return [title, tail].filter(Boolean).join(' · ');
 }
 
-/** One account's figures for one year, read for one legislator. */
+/** One account's figures for one year, within the displayed profile's scope. */
 export function useAccountYear(
   legislatorId: string | null,
   registrationNumber: string | null,
   year: number | null,
+  candidateId?: string | null,
 ): { committee: CommitteeYear | null; read: Read<FinanceYear> } {
+  const id = candidateId ?? legislatorId;
   const read = useRead<FinanceYear>(
-    legislatorId && registrationNumber && year
-      ? apiPath(['legislators', legislatorId, 'campaign-finance'], { year })
+    id && registrationNumber && year
+      ? apiPath(
+          [...(candidateId ? ['finance', 'candidates'] : ['legislators']), id, 'campaign-finance'],
+          { year },
+        )
       : null,
   );
   const committee =
@@ -290,9 +321,11 @@ function FigureList({ figures, className }: { figures: Figure[]; className: stri
  * confirmed account, from the same answer the Campaign finance card reads. */
 export function KeyFigures({
   legislatorId,
+  candidateId,
   account,
 }: {
-  legislatorId: string;
+  legislatorId: string | null;
+  candidateId?: string | null;
   account: Account | null;
 }) {
   const year = account?.years[0] ?? null;
@@ -300,6 +333,7 @@ export function KeyFigures({
     legislatorId,
     account?.registrationNumber ?? null,
     year,
+    candidateId,
   );
   if (!account || !year || !read.data || !committee) return null;
   return (
@@ -314,12 +348,14 @@ export function KeyFigures({
 
 function AccountCard({
   legislatorId,
+  candidateId,
   account,
   year,
   onYear,
   from,
 }: {
-  legislatorId: string;
+  legislatorId: string | null;
+  candidateId?: string | null;
   account: Account;
   year: number;
   onYear: (year: number) => void;
@@ -330,6 +366,7 @@ function AccountCard({
     legislatorId,
     account.registrationNumber,
     held ? year : null,
+    candidateId,
   );
   const chips = held ? account.years : [...account.years, year].sort((a, b) => b - a);
   const name = committee?.committee_name ?? account.name;
@@ -385,7 +422,7 @@ function AccountCard({
         ))}
       </div>
       {held && read.loading && <LoadingRows />}
-      {held && read.failed && (
+      {held && (read.failed || read.notFound) && (
         <Refused onRetry={read.retry} retrying={read.pending}>
           We couldn’t load these accounts
         </Refused>
@@ -410,11 +447,13 @@ function AccountCard({
 }
 
 function OutsideContest({
+  registerContest,
   registrationNumber,
   year,
   from,
   onSettled,
 }: {
+  registerContest?: RegisterContest | null;
   registrationNumber: string;
   year: number;
   from: string;
@@ -439,20 +478,48 @@ function OutsideContest({
     );
   }
   if (groups.length === 0) return null;
-  const dated = period(answer?.figures?.first_paid_on, answer?.figures?.last_paid_on);
+  const raceHref =
+    registerContest &&
+    registerContest.year === year &&
+    registerContest.office === answer?.about?.office &&
+    registerContest.district === answer?.about?.district &&
+    isBuilt('money-by-race')
+      ? withFrom(
+          hrefFor('money-by-race', { id: registerContest.anchor }, { year: String(year) }),
+          from,
+        )
+      : null;
   return (
     <article className="cf-contest">
       <div className="cf-contest-head">
         <span className="cf-contest-label f-num">
           {contestLabel(answer?.about?.office, answer?.about?.district, year)}
         </span>
-        {dated && <span className="cf-contest-dates f-num">Payments dated {dated}</span>}
+        {raceHref && (
+          <Link to={raceHref} className="f-dest">
+            <WithArrow>Open race</WithArrow>
+          </Link>
+        )}
       </div>
       <ul className="cf-outside">
         {groups.map((group, index) => {
           const linkable =
             isBuilt('committee') && group.spender_linkable && group.spender_registration_number;
-          const amount = formatMoney(group.amount ?? null);
+          const amount =
+            group.amount_state === 'incomplete_period' || group.amount_state === 'incomplete'
+              ? null
+              : formatMoney(group.amount ?? null)?.replace(/^-/, '−');
+          const missing =
+            group.amount_state === 'incomplete_period' ? 'Reporting period incomplete' : INCOMPLETE;
+          const dated = period(group.first_paid_on, group.last_paid_on);
+          const filingYears =
+            group.first_year != null && group.last_year != null
+              ? group.first_year === group.last_year
+                ? `Filing year ${group.first_year}`
+                : `Filing years ${group.first_year}–${group.last_year}`
+              : null;
+          const ownPeriod =
+            (group.undated_count ?? 0) > 0 ? filingYears : dated ? `Payments dated ${dated}` : null;
           return (
             <li
               key={`${group.spender_registration_number ?? group.spender}-${group.direction}-${index}`}
@@ -477,9 +544,10 @@ function OutsideContest({
               </span>
               {group.direction && <span className="cf-position">{group.direction}</span>}
               <span className="cf-amount f-num" data-missing={amount ? undefined : true}>
-                {amount ?? INCOMPLETE}
+                {amount ?? missing}
               </span>
               <span className="cf-count f-num">{paymentCountLabel(group.row_count) ?? ''}</span>
+              {ownPeriod && <span className="cf-group-period f-num">{ownPeriod}</span>}
             </li>
           );
         })}
@@ -489,10 +557,12 @@ function OutsideContest({
 }
 
 function OutsideSpending({
+  registerContest,
   accounts,
   years,
   from,
 }: {
+  registerContest?: RegisterContest | null;
   accounts: Account[];
   years: Record<string, number>;
   from: string;
@@ -524,6 +594,7 @@ function OutsideSpending({
           year={years[account.registrationNumber]}
           from={from}
           onSettled={onSettled}
+          registerContest={registerContest}
         />
       ))}
       {none && <div className="f-empty-box">{NO_OUTSIDE}</div>}
@@ -532,17 +603,19 @@ function OutsideSpending({
 }
 
 /**
- * The Campaign finance section. With no `legislatorId` (a candidacy no
- * account is confirmed for) it shows the empty line and no outside records.
+ * The Campaign finance section. Candidate profiles use candidacy-scoped reads;
+ * other profiles use the confirmed legislator. No confirmed accounts means no outside records.
  */
 export function CampaignFinance({
   legislatorId,
+  candidateId,
   years,
   accounts,
   emptyLine = 'No campaign committee is confirmed for this candidacy',
   from,
 }: {
   legislatorId?: string | null;
+  candidateId?: string | null;
   years?: Read<FinanceYears> | null;
   accounts: Account[];
   emptyLine?: string;
@@ -556,8 +629,9 @@ export function CampaignFinance({
     selected[account.registrationNumber] =
       chosen[account.registrationNumber] ?? wanted ?? account.years[0];
   }
-  const loading = Boolean(legislatorId && years?.loading);
-  const failed = Boolean(legislatorId && years?.failed);
+  const profileId = candidateId ?? legislatorId;
+  const loading = Boolean(profileId && years?.loading);
+  const failed = Boolean(profileId && (years?.failed || years?.notFound));
   return (
     <section aria-labelledby="cf-h" className="cf">
       <h2 id="cf-h" className="f-section-title">
@@ -574,11 +648,12 @@ export function CampaignFinance({
         {!loading && !failed && accounts.length === 0 && (
           <div className="f-empty-box">{emptyLine}</div>
         )}
-        {legislatorId &&
+        {profileId &&
           accounts.map((account) => (
             <AccountCard
               key={account.registrationNumber}
-              legislatorId={legislatorId}
+              legislatorId={legislatorId ?? null}
+              candidateId={candidateId}
               account={account}
               year={selected[account.registrationNumber]}
               from={from}
@@ -589,7 +664,14 @@ export function CampaignFinance({
             />
           ))}
       </div>
-      {!loading && !failed && <OutsideSpending accounts={accounts} years={selected} from={from} />}
+      {!loading && !failed && (
+        <OutsideSpending
+          accounts={accounts}
+          years={selected}
+          from={from}
+          registerContest={candidateId ? years?.data?.register_contest : null}
+        />
+      )}
     </section>
   );
 }

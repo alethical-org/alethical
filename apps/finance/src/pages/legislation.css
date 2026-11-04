@@ -823,7 +823,7 @@ a.bl-companion:active {
 }
 .rc-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 110px;
+  grid-template-columns: minmax(0, 1.6fr) 120px minmax(0, 1fr) 110px;
   gap: 12px;
   align-items: center;
   min-height: 44px;
@@ -857,6 +857,10 @@ a.bl-companion:active {
 .rc-party {
   color: var(--secondary);
 }
+.rc-district {
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
 .rc-vote {
   font-weight: 700;
 }
@@ -879,9 +883,6 @@ a.bl-companion:active {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 2px 12px;
     padding: 10px 16px;
-  }
-  .rc-name {
-    grid-column: 1 / -1;
   }
   .rc-members-head .f-chip {
     min-height: 44px;

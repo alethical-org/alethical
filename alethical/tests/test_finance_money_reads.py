@@ -433,6 +433,7 @@ def test_report_figures_match_only_unique_filed_regular_report(
     data = get(finance_api, "/committees/18135/report-figures", year=2026)
     assert len(data["reports"]) == 2
     latest, older = data["reports"]
+    assert latest["figures_reason"] is None
     assert latest["report_name"] == "2026 Pre-Primary Report"
     assert Decimal(latest["total_receipts"]) == Decimal("2345.67")
     assert Decimal(latest["ending_cash_balance"]) == 0
@@ -447,6 +448,7 @@ def test_report_figures_match_only_unique_filed_regular_report(
     assert latest["figures_copied_at"].startswith("2026-07-23")
     assert older["total_receipts"] is None and older["ending_cash_balance"] is None
     assert older["figures_state"] == "unavailable"
+    assert older["figures_reason"] == "cutoff_mismatch"
     finance_db.execute(
         delete(m.CampaignFinanceFilingFigure).where(
             m.CampaignFinanceFilingFigure.filing_id == filing.id,
@@ -480,6 +482,10 @@ def test_report_figures_match_only_unique_filed_regular_report(
     _report(finance_db, snapshot, "18135", report_type="E", cut_off=date(2026, 7, 20))
     ambiguous = get(finance_api, "/committees/18135/report-figures", year=2026)
     assert all(row["total_receipts"] is None for row in ambiguous["reports"])
+    assert {row["figures_reason"] for row in ambiguous["reports"]} == {
+        "ambiguous_cutoff",
+        "cutoff_mismatch",
+    }
 
 
 def test_candidacy_accounts_require_reviewed_identity_election_year_and_seat(
@@ -577,10 +583,44 @@ def test_candidacy_accounts_require_reviewed_identity_election_year_and_seat(
         for entry in years["years"]
     )
     assert years["election_year"] == 2026
+    expected_contest = {
+        "office": office,
+        "district": period.district.code,
+        "year": 2026,
+        "anchor": f"{office.lower()}-{period.district.code.lower()}",
+    }
+    assert year["register_contest"] == expected_contest
+    assert years["register_contest"] == expected_contest
+    # Selected payment year cannot change the candidacy's contest year.
+    assert get(finance_api, path, year=2025)["register_contest"] == expected_contest
+
+    # Two accepted accounts for one exact held seat still give one contest.
+    _link(
+        finance_db,
+        member,
+        "55555",
+        m.CommitteeLinkReviewDecision.confirmed,
+        office=office,
+    )
+    _filer(finance_db, snapshot, "55555", office=office, district=period.district.code)
+    finance_db.commit()
+    assert get(finance_api, path, year=2026)["register_contest"] == expected_contest
+    other = finance_db.scalar(
+        select(m.CampaignFinanceFiler).where(
+            m.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            m.CampaignFinanceFiler.registration_number == "55555",
+        )
+    )
+    # Seat matching tolerates zero padding, but the register has two exact
+    # distinct group keys. Do not guess which register contest to link.
+    other.district = "0" + period.district.code
+    finance_db.commit()
+    assert get(finance_api, path, year=2026)["register_contest"] is None
     # Same name is never sufficient when the checked candidate identity changes.
     evidence["candidate_name"] = "Another person"
     refused = get(finance_api, path, year=2026)
     assert refused["link_state"] == "unconfirmed" and refused["committees"] == []
+    assert refused["register_contest"] is None
     assert (
         finance_api.get(
             BASE + path + "/years", params={"from": 2026, "to": 2025}
@@ -732,3 +772,194 @@ def test_notice_locator_reports_offset_beyond_preview_and_zero_year_sum(
         and summary["first_year"] == summary["last_year"] == 2026
     )
     assert summary["first_date"] is None and summary["last_date"] is None
+
+
+def test_made_tab_is_disjoint_and_recipient_kind_needs_exact_registration(
+    finance_api, finance_db, board
+):
+    from alethical.db import models as m
+    from alethical.tests.test_campaign_finance_landing_reads import (
+        _filings_snapshot,
+        _filer,
+    )
+
+    snapshot = _filings_snapshot(finance_db)
+    _filer(
+        finance_db,
+        snapshot,
+        "40100",
+        kind=m.CampaignFinanceFilerKind.party_unit,
+        name="Different held name",
+    )
+    for number, target, kind in [
+        (80, "40100", "Contribution"),
+        (81, "40101", "Contribution"),
+        (82, "40100", "Refund"),
+    ]:
+        finance_db.add(
+            m.CampaignFinanceExpenditureRow(
+                snapshot_id=board.expenditures_snapshot_id,
+                row_number=number,
+                committee_reg_num="18135",
+                type=kind,
+                vendor_name="Different held name",
+                affected_committee_reg_num=target,
+                affected_committee_name="Receiving committee",
+                amount=Decimal("30"),
+                transaction_date=date(2026, 6, 1),
+                year=2026,
+            )
+        )
+    finance_db.commit()
+    made = get(
+        finance_api,
+        "/committees/18135/payment-groups",
+        year=2026,
+        direction="made",
+        tab="made",
+    )
+    assert made["total_payments"] == 2
+    assert made["tab_counts"] == {"made": 2, "expenditures": 2}
+    known = next(row for row in made["rows"] if row["registration_number"] == "40100")
+    unknown = next(row for row in made["rows"] if row["registration_number"] == "40101")
+    assert known["recipient_type"] == "party_unit"
+    assert known["recipient_type_source"]["snapshot_id"] == str(snapshot.id)
+    assert known["recipient_type_source"]["copied_at"]
+    assert unknown["recipient_type"] is None
+    assert unknown["recipient_type_source"] is None
+    spent = get(
+        finance_api,
+        "/committees/18135/payment-groups",
+        year=2026,
+        direction="made",
+        tab="expenditures",
+    )
+    assert spent["total_payments"] == 2
+    assert all("Contribution" not in row["kinds"] for row in spent["rows"])
+    assert all(row["recipient_type"] is None for row in spent["rows"])
+    raw = get(finance_api, "/committees/18135/payments", year=2026, direction="made")
+    assert raw["page"]["total_payments"] == 4
+    raw_known = next(row for row in raw["payments"] if row["record_number"] == 80)
+    raw_unknown = next(row for row in raw["payments"] if row["record_number"] == 81)
+    assert raw_known["recipient_type"] == "party_unit"
+    assert raw_known["recipient_type_source"] == known["recipient_type_source"]
+    assert raw_unknown["recipient_type"] is None
+    public = finance_api.get(
+        "/api/v1/committees/18135/payments", params={"year": 2026, "direction": "made"}
+    ).json()["data"]
+    stripped = {
+        **raw,
+        "payments": [
+            {
+                key: value
+                for key, value in row.items()
+                if key not in {"recipient_type", "recipient_type_source"}
+            }
+            for row in raw["payments"]
+        ],
+    }
+    stripped.pop("version")
+    assert stripped == public
+    received = get(
+        finance_api, "/committees/18135/payments", year=2026, direction="received"
+    )
+    public_received = finance_api.get(
+        "/api/v1/committees/18135/payments",
+        params={"year": 2026, "direction": "received"},
+    ).json()["data"]
+    received.pop("version")
+    assert received == public_received
+
+
+def test_report_reasons_describe_missing_held_evidence_not_failure_to_file(
+    finance_api, finance_db, board
+):
+    from sqlalchemy import select
+    from alethical.db import models as m
+    from alethical.tests.test_campaign_finance_landing_reads import (
+        _filings_snapshot,
+        _report,
+        _reported_figures,
+    )
+
+    snapshot = _filings_snapshot(finance_db)
+    _report(finance_db, snapshot, "18135", cut_off=date(2026, 7, 20))
+
+    def first():
+        return get(finance_api, "/committees/18135/report-figures", year=2026)[
+            "reports"
+        ][0]
+
+    assert first()["figures_reason"] == "missing_filing"
+    _reported_figures(finance_db, snapshot, "18135")
+    filing = finance_db.scalar(
+        select(m.CampaignFinanceFiling).where(
+            m.CampaignFinanceFiling.snapshot_id == snapshot.id
+        )
+    )
+    filing.reported_through = None
+    finance_db.commit()
+    assert first()["figures_reason"] == "missing_reported_through"
+    filing.reported_through = date(2026, 7, 20)
+    report = finance_db.scalar(
+        select(m.CampaignFinanceFilingReport).where(
+            m.CampaignFinanceFilingReport.snapshot_id == snapshot.id
+        )
+    )
+    report.special_election = True
+    finance_db.commit()
+    assert first()["figures_reason"] == "special_election"
+    report.special_election = False
+    report.cut_off_date = None
+    finance_db.commit()
+    assert first()["figures_reason"] == "missing_cutoff"
+    assert first()["total_receipts"] is None
+
+
+def test_finance_raw_payment_wrapper_keeps_access_boundary(
+    finance_api, finance_db, board
+):
+    from alethical.api.services import finance_access
+    from alethical.tests.finance_fixtures import FINANCE_EMAIL
+
+    path = BASE + "/committees/18135/payments?direction=made&year=2026"
+    finance_access.revoke(finance_db, FINANCE_EMAIL)
+    finance_db.commit()
+    refused = finance_api.get(path)
+    assert refused.status_code == 403
+    assert refused.headers["cache-control"] == "private, no-store"
+    finance_api.headers.pop("Authorization")
+    assert finance_api.get(path).status_code == 401
+
+
+def test_finance_raw_payments_reject_new_register_with_unchanged_payment_release(
+    finance_api, finance_db, board
+):
+    from alethical.tests.test_campaign_finance_landing_reads import _filings_snapshot
+
+    _filings_snapshot(finance_db)
+    path = "/committees/18135/payments"
+    before = get(finance_api, path, year=2026, direction="made", limit=1)
+    version = before["version"]
+    groups = get(
+        finance_api,
+        "/committees/18135/payment-groups",
+        year=2026,
+        direction="made",
+        limit=1,
+    )
+    _filings_snapshot(finance_db)
+    stale = finance_api.get(
+        BASE + path,
+        params={"year": 2026, "direction": "made", "offset": 1, "version": version},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["type"].endswith("records-changed")
+    stale_groups = finance_api.get(
+        BASE + "/committees/18135/payment-groups",
+        params={"year": 2026, "direction": "made", "version": groups["version"]},
+    )
+    assert stale_groups.status_code == 409
+    after = get(finance_api, path, year=2026, direction="made")
+    assert before["release_id"] == after["release_id"]
+    assert before["version"] != after["version"]
