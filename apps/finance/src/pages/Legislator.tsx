@@ -26,7 +26,7 @@ import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
-import { LoadingRows, Refused } from '../ui/controls';
+import { LoadingRows, Refused, Updating } from '../ui/controls';
 import {
   Arrow,
   BackLink,
@@ -220,6 +220,7 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
   // summarized results. Only the returned page total can determine its pages.
   const total = read.page?.total ?? null;
   const pages = total === null ? 1 : Math.max(1, Math.ceil(total / BILLS_PER_PAGE));
+  const shownPage = Math.floor((read.page?.offset ?? 0) / BILLS_PER_PAGE) + 1;
   useEffect(() => {
     if (read.data && !read.pending && !read.failed && total !== null && page > pages) {
       setAddress({ bills: String(pages) });
@@ -248,6 +249,7 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
       </div>
       <div ref={list}>
         {read.loading && <LoadingRows />}
+        {read.updating && <Updating />}
         {read.failed && !read.data && (
           <Refused onRetry={read.retry} retrying={read.pending}>
             We couldn’t load these bills. This is a problem on our side.
@@ -305,19 +307,19 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
                 <button
                   type="button"
                   className="f-btn f-btn-secondary pp-page-btn"
-                  aria-disabled={page <= 1 || undefined}
-                  onClick={() => page > 1 && go(page - 1)}
+                  aria-disabled={read.pending || shownPage <= 1 || undefined}
+                  onClick={() => !read.pending && shownPage > 1 && go(shownPage - 1)}
                 >
                   Previous
                 </button>
                 <span aria-live="polite" className="pp-page-line f-num">
-                  Page {page} of {pages}
+                  Page {shownPage} of {pages}
                 </span>
                 <button
                   type="button"
                   className="f-btn f-btn-secondary pp-page-btn"
-                  aria-disabled={page >= pages || undefined}
-                  onClick={() => page < pages && go(page + 1)}
+                  aria-disabled={read.pending || shownPage >= pages || undefined}
+                  onClick={() => !read.pending && shownPage < pages && go(shownPage + 1)}
                 >
                   Next
                 </button>
