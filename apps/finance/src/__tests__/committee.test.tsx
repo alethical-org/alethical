@@ -1265,3 +1265,67 @@ it('explains each served report-match reason without claiming the committee fail
     'No matched financial figures are held for this report',
   );
 });
+
+describe('Committee matching station invoices', () => {
+  const invoice = { key: 'a'.repeat(64), version: 'saved-version-2', page: 7 };
+  const invoiceLinks = (scope: ParentNode = container) =>
+    [...scope.querySelectorAll<HTMLAnchorElement>('a')].filter(
+      (link) => link.textContent === 'Matching station invoice',
+    );
+  const answers = (payments: unknown[]) =>
+    loadedAnswers({
+      '/finance/committees/90001/payments?direction=made': {
+        status: 200,
+        body: page('reported', payments),
+      },
+    });
+  it('links the exact checked row and its group to the saved invoice page with a return path', async () => {
+    await render(
+      '/money/committees/90001?year=2026&tab=expenditures',
+      answers([
+        { ...made('Example Printing Co', '20.0000', '2026-04-22', 21), matching_invoice: invoice },
+        made('Example Printing Co', '20.0000', '2026-04-22', 22),
+      ]),
+    );
+    expect(invoiceLinks()).toHaveLength(1);
+    const target = new URL(invoiceLinks()[0].href);
+    expect(target.pathname).toContain(invoice.key);
+    expect(target.searchParams.get('version')).toBe(invoice.version);
+    expect(target.searchParams.get('page')).toBe('7');
+    expect(target.searchParams.get('from')).toBe(
+      '/money/committees/90001?year=2026&tab=expenditures',
+    );
+    await act(async () => container.querySelector<HTMLButtonElement>('.cmt-toggle')!.click());
+    expect(invoiceLinks(container.querySelector('#cmt-pay-m0')!)).toHaveLength(1);
+    expect(invoiceLinks(container.querySelector('#cmt-pay-m1')!)).toHaveLength(0);
+  });
+  it('does not infer an invoice from an identical payment without a checked link', async () => {
+    await render(
+      '/money/committees/90001?tab=expenditures',
+      answers([made('Example Printing Co', '20.0000', '2026-04-22', 21)]),
+    );
+    expect(invoiceLinks()).toHaveLength(0);
+    await act(async () => container.querySelector<HTMLButtonElement>('.cmt-toggle')!.click());
+    expect(invoiceLinks()).toHaveLength(0);
+  });
+  it('keeps different invoices on their own rows rather than choosing a group invoice', async () => {
+    await render(
+      '/money/committees/90001?tab=expenditures',
+      answers([
+        { ...made('Example Printing Co', '20.0000', '2026-04-22', 21), matching_invoice: invoice },
+        {
+          ...made('Example Printing Co', '30.0000', '2026-04-23', 22),
+          matching_invoice: { ...invoice, page: 8 },
+        },
+      ]),
+    );
+    expect(invoiceLinks()).toHaveLength(0);
+    await act(async () => container.querySelector<HTMLButtonElement>('.cmt-toggle')!.click());
+    expect(invoiceLinks()).toHaveLength(2);
+    expect(
+      invoiceLinks()
+        .map((link) => new URL(link.href).searchParams.get('page'))
+        .sort(),
+    ).toEqual(['7', '8']);
+  });
+});

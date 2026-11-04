@@ -123,7 +123,14 @@ export interface RecipientTypeSource {
   retained: boolean;
 }
 
+export interface MatchingInvoice {
+  key: string;
+  version: string;
+  page: number;
+}
+
 export interface MadePayment {
+  matching_invoice?: MatchingInvoice | null;
   recipient_type?: 'candidate_committee' | 'party_unit' | 'political_committee_or_fund' | null;
   recipient_type_source?: RecipientTypeSource | null;
   vendor_name: string | null;

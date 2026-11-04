@@ -1153,3 +1153,27 @@ dd[data-missing] {
     grid-column: 1;
   }
 }
+
+/* The Committee drawing places the checked invoice beneath its payee name. */
+.cmt-invoice-link {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .cmt-invoice-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 767px) {
+  .cmt-invoice-link {
+    min-height: 44px;
+  }
+}

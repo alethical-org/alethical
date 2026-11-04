@@ -13,6 +13,8 @@ import {
   type SortKey,
 } from './data';
 import { StatementPanel } from './StatementPanel';
+import { fileHref } from '../media/shared';
+import type { MatchingInvoice } from './types';
 
 /** A name links to its own committee, or to payments under that exact spelling, only
  * where that page is built; otherwise it is plain text. Either link carries the
@@ -68,6 +70,31 @@ function GroupName({ group, here, year }: { group: Group; here: string; year: nu
   ) : (
     <span className="cmt-name">{group.name}</span>
   );
+}
+
+function InvoiceLink({ invoice, here }: { invoice?: MatchingInvoice | null; here: string }) {
+  if (!invoice || !isBuilt('station-file')) return null;
+  return (
+    <Link
+      to={withFrom(fileHref(invoice.key, invoice.version, invoice.page), here)}
+      className="cmt-invoice-link"
+    >
+      Matching station invoice
+    </Link>
+  );
+}
+
+/** A group may expose one unique checked destination; differing invoices stay on
+ * their exact payment rows instead of choosing an arbitrary group destination. */
+function groupInvoice(rows: readonly Row[]): MatchingInvoice | null {
+  const invoices = new Map<string, MatchingInvoice>();
+  for (const row of rows) {
+    if (row.matchingInvoice) {
+      const invoice = row.matchingInvoice;
+      invoices.set(JSON.stringify([invoice.key, invoice.version, invoice.page]), invoice);
+    }
+  }
+  return invoices.size === 1 ? [...invoices.values()][0] : null;
 }
 
 function InKind() {
@@ -133,6 +160,7 @@ export function PaymentTable({
         );
         const withheld = group.total === null;
         const rows = orderedRows(group, sort);
+        const invoice = groupInvoice(rows);
         return (
           <div
             role="rowgroup"
@@ -145,6 +173,7 @@ export function PaymentTable({
                 <div className="cmt-phone-top">
                   <span role="cell" className="cmt-phone-name">
                     <GroupName group={group} here={here} year={year} />
+                    <InvoiceLink invoice={invoice} here={here} />
                     {group.inKind && (
                       <>
                         {' '}
@@ -174,6 +203,7 @@ export function PaymentTable({
                 <span role="cell" className="cmt-wrap">
                   <GroupName group={group} here={here} year={year} />{' '}
                   <span className="cmt-count">· {countLabel}</span>
+                  <InvoiceLink invoice={invoice} here={here} />
                   {group.inKind && (
                     <>
                       {' '}
@@ -212,6 +242,7 @@ export function PaymentTable({
                       </span>
                       <span role="cell" className="cmt-secondary cmt-wrap cmt-detail-label">
                         Payment record · {group.name}
+                        <InvoiceLink invoice={row.matchingInvoice} here={here} />
                       </span>
                       <span
                         role="cell"

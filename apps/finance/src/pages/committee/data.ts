@@ -6,6 +6,7 @@ import type {
   AttachedStatementRow,
   Filing,
   MadePayment,
+  MatchingInvoice,
   ReceivedPayment,
   RecipientTypeSource,
 } from './types';
@@ -100,6 +101,7 @@ export interface Row {
   kind: string;
   statement: AttachedStatementRow | null;
   recipientTypeSource?: RecipientTypeSource | null;
+  matchingInvoice?: MatchingInvoice | null;
 }
 
 export interface Group {
@@ -267,6 +269,7 @@ export function expenditureGroups(
         amount: payment.amount,
         kind: tab === 'made' ? recipientTypeLabel(payment) : madeKind(payment),
         recipientTypeSource: tab === 'made' ? payment.recipient_type_source : null,
+        matchingInvoice: payment.matching_invoice,
         statement: null,
       },
       isInKind(payment.in_kind),
