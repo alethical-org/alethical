@@ -105,6 +105,7 @@ describe('summary citations on the Bill Text tab (#2857)', () => {
     expect(bill.citations[0].sectionOrder).toBe(3);
     expect(text.match(/CITED IN SUMMARY/g)).toHaveLength(1);
     expect(summary).toContain(JUMP);
+    expect(summary).toContain('→');
     expect(served).toContain(JUMP);
   });
 
@@ -114,8 +115,9 @@ describe('summary citations on the Bill Text tab (#2857)', () => {
     expect(text).not.toContain('CITED IN SUMMARY');
     expect(summary).not.toContain('#ft-');
     expect(served).not.toContain('#ft-');
-    // The chip keeps its label and quote.
+    // The chip keeps its label and quote, and draws no link arrow.
     expect(summary).toContain('The old rule is repealed.');
+    expect(summary).not.toContain('→');
     expect(served).toContain('Sec. 3');
   });
 
