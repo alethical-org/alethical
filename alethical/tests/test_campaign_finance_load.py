@@ -2754,3 +2754,95 @@ def test_rolling_back_writes_any_graph_summary_the_restored_release_lacks(
             )
             == count
         )
+
+
+def test_publishing_writes_the_name_summary_and_pruning_and_rollback_keep_it(
+    db, board, store
+) -> None:
+    """The identity queue's per-name totals are written, removed and restored with
+    the rows they total, each (file, kind) with its completion marker."""
+    from alethical.pipeline import campaign_finance_name_summary as name_summary
+
+    summary = models.CampaignFinanceIdentityNameSummary
+    first = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, first.release_id)
+    generation_1 = snapshot_of(db, release, Dataset.contributions)
+    for spec in cf.DATASETS:
+        snapshot = snapshot_of(db, release, spec.dataset)
+        assert name_summary.held(db, spec.dataset, [snapshot.id]) == {snapshot.id}
+        for kind in name_summary.kinds_for(spec.dataset):
+            names = name_summary.NAME_KINDS[kind]
+            distinct = db.scalar(
+                select(func.count(func.distinct(names.name))).where(
+                    *name_summary.named(kind, snapshot.id)
+                )
+            )
+            rows = db.scalars(
+                select(summary).where(
+                    summary.snapshot_id == snapshot.id, summary.record_kind == kind
+                )
+            ).all()
+            assert len(rows) == distinct, f"{kind}: 1 row per exact printed name"
+            assert sum(row.records for row in rows) == db.scalar(
+                select(func.count())
+                .select_from(spec.table)
+                .where(*name_summary.named(kind, snapshot.id))
+            )
+    totals = {
+        row.name: row
+        for row in db.scalars(
+            select(summary).where(
+                summary.snapshot_id == generation_1.id,
+                summary.record_kind == "donor_name",
+            )
+        )
+    }
+    assert totals["Refund, Ray"].amount == Decimal("-40")
+
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Nurse") for row in CONTRIBUTION_ROWS],
+    )
+    run(db, board, store)
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Baker") for row in CONTRIBUTION_ROWS],
+    )
+    third = run(db, board, store)
+    assert third.published and third.pruned_snapshots == 1
+    db.expire_all()
+    assert generation_1.status == SnapshotStatus.pruned
+    assert not name_summary.complete(
+        db, [(generation_1.id, kind) for kind in ("donor_name", "employer_name")]
+    )
+    assert (
+        db.scalar(
+            select(func.count())
+            .select_from(summary)
+            .where(summary.snapshot_id == generation_1.id)
+        )
+        == 0
+    )
+
+    # A restored release whose totals were cleared gets them back before the
+    # pointer moves.
+    second_release = live(db)
+    slots = {
+        spec.dataset: getattr(second_release, cf.RELEASE_SNAPSHOT_COLUMN[spec.dataset])
+        for spec in cf.DATASETS
+    }
+    board.set_rows(
+        Dataset.expenditures,
+        [
+            row.replace("Parade and Event Fees", "Event Fees")
+            for row in EXPENDITURE_ROWS
+        ],
+    )
+    assert run(db, board, store).published
+    name_summary.remove(db, slots[Dataset.contributions])
+    db.commit()
+    cf.rollback_release(db, second_release.id)
+    db.expire_all()
+    assert live(db).id == second_release.id
+    for dataset, snapshot_id in slots.items():
+        assert name_summary.held(db, dataset, [snapshot_id]) == {snapshot_id}
