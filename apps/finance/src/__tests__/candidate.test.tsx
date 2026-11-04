@@ -103,7 +103,7 @@ function wrapped(data: unknown) {
   return raw({ data });
 }
 
-/** The candidacy, plus the connected legislator's campaign-account reads. */
+/** The candidacy and its scoped campaign-account reads. */
 function answering(record: CandidateRecord, confirmed = false) {
   return (url: string): Response => {
     if (url.includes('/campaign-finance/years'))
@@ -153,7 +153,7 @@ describe('Candidate profile', () => {
       'Candidate records from the Minnesota Secretary of State · Checked Oct 20, 2026.',
     );
     expect(text()).toContain('Election results pending');
-    // Accounts come from the connected legislator record; none confirmed here.
+    // Accounts must be confirmed for this candidacy; none are confirmed here.
     expect(text()).toContain('No campaign committee is confirmed for this candidacy');
     expect(text()).toContain('No confirmed records held');
     const legislator = [...container.querySelectorAll('a')].find((a) =>
@@ -212,7 +212,7 @@ describe('Candidate profile', () => {
     );
   });
 
-  it('shows the connected legislator’s confirmed account, linked to the report it summarizes', async () => {
+  it('shows the candidacy’s confirmed account, linked to the report it summarizes', async () => {
     await render(`/candidates/${ID}`, answering(UPCOMING, true));
     const card = container.querySelector('.cf-account')!;
     expect(card.textContent).toContain('Acomb, Patty House Committee');
@@ -248,19 +248,54 @@ describe('Candidate profile', () => {
       }
       return answering(UPCOMING, true)(url);
     });
-    expect(urls.some((url) => url.includes(`/candidates/${ID}/campaign-finance/years?`))).toBe(
-      true,
-    );
-    expect(urls.some((url) => url.includes(`/candidates/${ID}/campaign-finance?year=2026`))).toBe(
-      true,
-    );
+    expect(
+      urls.some((url) =>
+        url.startsWith(
+          `https://api.example.test/api/v1/finance/candidates/${ID}/campaign-finance/years?`,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      urls.some(
+        (url) =>
+          url ===
+          `https://api.example.test/api/v1/finance/candidates/${ID}/campaign-finance?year=2026`,
+      ),
+    ).toBe(true);
     expect(
       urls.some((url) => url.includes('/legislators/') && url.includes('/campaign-finance')),
     ).toBe(false);
     expect(text()).toContain('Acomb, Patty House Committee');
     expect(text()).not.toContain('Other race committee');
+    const financeCalls = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) =>
+        String(url).includes(`/finance/candidates/${ID}/campaign-finance`),
+      );
+    expect(financeCalls.length).toBeGreaterThan(0);
+    for (const [, init] of financeCalls) {
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer token');
+    }
     expect(container.querySelector('.cf-key')?.textContent).toContain('$1,200');
   });
+
+  it.each(['years', 'figures'])(
+    'offers recovery when the candidacy %s read disappears',
+    async (kind) => {
+      await render(`/candidates/${ID}`, (url) => {
+        const missing =
+          kind === 'years'
+            ? url.includes(`/finance/candidates/${ID}/campaign-finance/years?`)
+            : url.includes(`/finance/candidates/${ID}/campaign-finance?year=2026`);
+        return missing
+          ? raw({ detail: 'No such candidacy is held' }, 404)
+          : answering(UPCOMING, true)(url);
+      });
+      expect(text()).toContain('We couldn’t load these accounts');
+      expect(text()).toContain('Try again');
+      expect(text()).not.toContain('No campaign committee is confirmed for this candidacy');
+    },
+  );
 
   it('shows Loading until the record answers, and never another record', async () => {
     window.history.replaceState(null, '', `/candidates/${ID}`);

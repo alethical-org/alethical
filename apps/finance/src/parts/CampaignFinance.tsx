@@ -135,10 +135,18 @@ export function useFinanceYears(
   const id = candidateId ?? legislatorId;
   return useRead<FinanceYears>(
     id
-      ? apiPath([candidateId ? 'candidates' : 'legislators', id, 'campaign-finance', 'years'], {
-          from: FIRST_MONEY_YEAR,
-          to,
-        })
+      ? apiPath(
+          [
+            ...(candidateId ? ['finance', 'candidates'] : ['legislators']),
+            id,
+            'campaign-finance',
+            'years',
+          ],
+          {
+            from: FIRST_MONEY_YEAR,
+            to,
+          },
+        )
       : null,
   );
 }
@@ -274,7 +282,10 @@ export function useAccountYear(
   const id = candidateId ?? legislatorId;
   const read = useRead<FinanceYear>(
     id && registrationNumber && year
-      ? apiPath([candidateId ? 'candidates' : 'legislators', id, 'campaign-finance'], { year })
+      ? apiPath(
+          [...(candidateId ? ['finance', 'candidates'] : ['legislators']), id, 'campaign-finance'],
+          { year },
+        )
       : null,
   );
   const committee =
@@ -403,7 +414,7 @@ function AccountCard({
         ))}
       </div>
       {held && read.loading && <LoadingRows />}
-      {held && read.failed && (
+      {held && (read.failed || read.notFound) && (
         <Refused onRetry={read.retry} retrying={read.pending}>
           We couldn’t load these accounts
         </Refused>
@@ -591,7 +602,7 @@ export function CampaignFinance({
   }
   const profileId = candidateId ?? legislatorId;
   const loading = Boolean(profileId && years?.loading);
-  const failed = Boolean(profileId && years?.failed);
+  const failed = Boolean(profileId && (years?.failed || years?.notFound));
   return (
     <section aria-labelledby="cf-h" className="cf">
       <h2 id="cf-h" className="f-section-title">

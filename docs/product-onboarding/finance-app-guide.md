@@ -241,8 +241,9 @@ figure is ever added across committees or members.
   summaries are available for this session". Media buys follows Campaign finance.
 - **Candidate profile (`/candidates/:id`)**: the held candidacy facts, the election and its
   result, and confirmed related records. The office and district print once each, as on
-  People. Campaign finance shows the accounts confirmed for
-  the legislator record the candidacy is connected to; a candidacy connected to none shows
+  People. Campaign finance and the header figures read only accounts confirmed for
+  this candidacy’s held seat and election, excluding the person’s other races; a candidacy
+  with none shows
   "No campaign committee is confirmed for this candidacy". Media buys sits between
   Campaign finance and Election.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
