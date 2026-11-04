@@ -298,3 +298,129 @@ def test_people_party_and_filter_options_change_version(finance_api, finance_db)
     after = get(finance_api, type="candidates", q="Kim Ellison")
     assert after["rows"][0]["party"] == "Changed source party"
     assert "Changed source party" in after["parties"]
+
+
+def test_people_record_cues_follow_validated_profile_records(finance_api, finance_db):
+    from copy import deepcopy
+    from uuid import UUID
+
+    from alethical.api.services import person_records
+
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    data = get(finance_api, q="Kim Ellison")
+    person = next(r for r in data["rows"] if r["kind"] == "person")
+    candidate = next(r for r in data["rows"] if r["kind"] == "candidate")
+    profile = person_records.load_person(finance_db, person["id"])
+    assert person["confirmed_record_count"] == len(profile["elections"]) + len(
+        profile["service"]
+    )
+    assert candidate["person_links"] == [{"id": person["id"], "name": "Kim Ellison"}]
+    old_version = data["version"]
+    link = finance_db.get(m.PersonCandidacy, (UUID(person["id"]), candidate["id"]))
+    changed = deepcopy(link.identity)
+    changed["name"] = "Not this candidate"
+    link.identity = changed
+    finance_db.flush()
+    assert finance_api.get(BASE, params={"version": old_version}).status_code == 409
+    updated = get(finance_api, q="Kim Ellison")
+    assert (
+        next(r for r in updated["rows"] if r["kind"] == "candidate")["person_links"]
+        == []
+    )
+    assert next(r for r in updated["rows"] if r["kind"] == "person")[
+        "confirmed_record_count"
+    ] == len(profile["service"])
+
+
+def test_people_count_includes_only_active_identity_lobbyist_links(
+    finance_api, finance_db
+):
+    from datetime import UTC, datetime
+
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    person = next(
+        r for r in get(finance_api, q="Kim Ellison")["rows"] if r["kind"] == "person"
+    )
+    base_count = person["confirmed_record_count"]
+    identity = m.IdentityEntity(
+        kind="person",
+        name="Kim Ellison",
+        reference="PER-9911",
+        made_by_alethical_team=False,
+    )
+    finance_db.add(identity)
+    finance_db.flush()
+
+    def confirmation(kind, key):
+        row = m.IdentityConfirmation(
+            entity_id=identity.id,
+            record_kind=kind,
+            record_key=key,
+            relation="Confirmed record",
+            evidence_source="official_page",
+            evidence_url="https://example.test/record",
+            evidence_quote="Exact record",
+            basis="Reviewed exact record",
+            made_by_alethical_team=False,
+        )
+        finance_db.add(row)
+        return row
+
+    public = confirmation("public_person", person["id"])
+    lobbyist = confirmation("lobbyist", "9911")
+    finance_db.flush()
+    current = get(finance_api, q="Kim Ellison", type="persons")
+    assert current["rows"][0]["confirmed_record_count"] == base_count + 1
+    # The public-person anchor and lobbyist confirmation remain on the merged
+    # identity; the directory must follow the same standing identity as the profile.
+    target = m.IdentityEntity(
+        kind="person",
+        name="Kim Ellison",
+        reference="PER-9912",
+        made_by_alethical_team=False,
+    )
+    finance_db.add(target)
+    finance_db.flush()
+    identity.status = "merged"
+    identity.merged_into_id = target.id
+    finance_db.flush()
+    assert (
+        finance_api.get(BASE, params={"version": current["version"]}).status_code == 409
+    )
+    current = get(finance_api, q="Kim Ellison", type="persons")
+    assert current["rows"][0]["confirmed_record_count"] == base_count + 1
+    token = current["version"]
+    lobbyist.active = False
+    lobbyist.withdrawn_at = datetime.now(UTC)
+    lobbyist.withdrawal_reason = "Wrong record"
+    finance_db.flush()
+    assert finance_api.get(BASE, params={"version": token}).status_code == 409
+    assert (
+        get(finance_api, q="Kim Ellison", type="persons")["rows"][0][
+            "confirmed_record_count"
+        ]
+        == base_count
+    )
+    # A fresh lobbyist confirmation cannot count once the person-to-identity link is withdrawn.
+    confirmation("lobbyist", "9912")
+    public.active = False
+    public.withdrawn_at = datetime.now(UTC)
+    public.withdrawal_reason = "Wrong person"
+    finance_db.flush()
+    assert (
+        get(finance_api, q="Kim Ellison", type="persons")["rows"][0][
+            "confirmed_record_count"
+        ]
+        == base_count
+    )
+    empty = m.PublicPerson(
+        name="No linked records", identity_evidence={"review": "test"}
+    )
+    finance_db.add(empty)
+    finance_db.flush()
+    assert (
+        get(finance_api, type="persons", q=empty.name)["rows"][0][
+            "confirmed_record_count"
+        ]
+        == 0
+    )

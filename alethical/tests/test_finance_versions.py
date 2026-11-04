@@ -73,17 +73,10 @@ def test_an_identity_change_changes_money_and_identity_lists(finance_api, board)
         "/api/v1/finance/connections",
         "/api/v1/finance/payees",
         "/api/v1/finance/identities/queue",
+        # People now includes active identity-linked lobbyist record counts.
+        "/api/v1/finance/people",
     ):
         read(finance_api, path, status=409, version=before[path])
-    # People read no identity, so its version is unchanged.
-    assert (
-        read(
-            finance_api,
-            "/api/v1/finance/people",
-            version=before["/api/v1/finance/people"],
-        )["data"]["version"]
-        == before["/api/v1/finance/people"]
-    )
 
 
 def test_a_people_change_changes_only_the_people_version(
@@ -318,3 +311,27 @@ def test_connections_refuses_pages_after_summary_metadata_rebuild(
     )
     finance_db.commit()
     read(finance_api, path, status=409, version=first["version"])
+
+
+def test_station_version_covers_accepted_expense_link_withdrawal(finance_api, original):
+    from uuid import uuid4
+
+    link = m.FCCExpenseLink(
+        content_hash=original.document.content_hash,
+        extraction_version=EXTRACTOR_VERSION,
+        source_dataset="expenditures",
+        source_snapshot_id=uuid4(),
+        source_content_hash="a" * 64,
+        source_row_number=1,
+        source_row={},
+        status="accepted",
+        evidence="Exact saved row and document",
+        reviewed_by="test",
+    )
+    original.db.add(link)
+    original.db.commit()
+    path = "/api/v1/finance/media-buys/queue"
+    version = read(finance_api, path)["data"]["version"]
+    link.status = "rejected"
+    original.db.commit()
+    read(finance_api, path, status=409, version=version)

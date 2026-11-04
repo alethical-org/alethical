@@ -57,9 +57,11 @@ reads has changed, so pages read before and after a change are never joined. The
 covers only that list's sources: the published payment release (its files never
 change), identity changes (every one writes an identity event), reviewed campaign
 accounts and legislator names, the lobbying release, station files and their checks,
-copy review state, machine-read facts and searchable page text. People covers
+copy review state, accepted/rejected expense links, machine-read facts and searchable
+page text. People covers
 legislators, service periods, their session/chamber/district references, candidacies,
-public persons and the Minnesota date used for current/past membership. The page and
+public persons, their reviewed candidacy and service links, identity entities and
+confirmations, and the Minnesota date used for current/past membership. The page and
 token share one clock reading. Mutable tables use ordered row keys and
 PostgreSQL row revisions (`xmin`) rather than observation timestamps alone, avoiding
 a read of every saved text body. These opaque tokens may invalidate conservatively
@@ -70,7 +72,30 @@ A changed token says only that something the list reads changed, never what. Rea
 keep it: `release_id` on the money reads and payments under a name, `snapshot_id` on
 identity records.
 
+The `invoice_links` mark covers checked Finance/public-copy facts and connections,
+copy withdrawals, public publication state, exact FCC documents and expense-link decisions.
+It deliberately excludes extraction suggestions and page text, which the checked-invoice
+reverse reader does not use. Combine it with money and filing-register marks for payment
+pages carrying invoice links; those lists still reject any change to their read evidence.
+
 ### People records
+
+Candidate and legislator rows include `person_links: [{id, name}]` for validated
+public-person links, or an empty array. Matching spelling and a bare legislator foreign
+key are never link evidence. A candidate may have several individually reviewed person
+links; a consumer must not silently choose one. The directory keeps the candidate or
+legislator as its row target and uses link presence for the profile-link cue.
+
+Person rows include `confirmed_record_count`, an integer including zero. It counts the
+same distinct validated candidacy records, held service records and active lobbyist
+identifier confirmations shown by the person profile, never payment coverage or research
+articles. A service record retains its own current/former/unknown status; counting its
+link does not assert current service. Identity merges retain their active confirmations;
+withdrawn public-person or lobbyist confirmations do not add to the count. A changed
+candidate identity or reviewed legislative source invalidates the corresponding link.
+The count describes the person's full linked record set, independent of filters that
+selected that person for the directory page. These metadata reads share the page's
+snapshot and version token, including confirmation, candidacy-link and service changes.
 
 `GET /api/v1/finance/people` pages held candidacies, public person records and
 legislative records as separate kinds, even when their names match. Literal name
