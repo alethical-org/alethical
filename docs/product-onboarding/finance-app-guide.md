@@ -587,6 +587,10 @@ one names its exact saved version and page.
   page. A link naming a version that is not held says "This version is not held" with
   Open the current version, and shows no checks. Images carry the account's access header,
   never a token in an address.
+  An image that cannot load or decode uses the existing error and retry control,
+  just like a failed request. Retry reads the same file, saved version and page.
+  Changing page, version, API source or account discards the prior image. Finance's
+  image policy allows these local Blob images; tokens never appear in image URLs.
 - **Check TV station files (`/media-buys/check`)**: a queue of current versions with each
   file's reason and an "Unsaved draft" tag; the chosen file's page and machine-read text;
   suggestions read from that version (Use suggestion fills the form; Dismiss and Restore

@@ -13,7 +13,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'none'; base-uri 'none'; connect-src 'self' https://api.alethical.com https://naakzorbkqqgbsreulqi.supabase.co; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests"
+          "value": "default-src 'none'; base-uri 'none'; connect-src 'self' https://api.alethical.com https://naakzorbkqqgbsreulqi.supabase.co; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests"
         },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
         {
