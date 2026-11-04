@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 
 from alethical.api.services import tv_ads as reader
 from alethical.db import models as m
@@ -62,32 +62,40 @@ def station_years(db, facility):
         years[doc.year]["station_files_held"] += 1
         years[doc.year]["text_read_failures"] += doc.content_hash in failed
     observation = m.FCCObservation
-    for kind in ("file", "folder"):
-        identity = (
-            observation.details["file_id"].astext if kind == "file" else observation.url
+    file_id = observation.details["file_id"].astext
+    for row in db.scalars(
+        select(observation)
+        .where(
+            observation.facility_id == facility,
+            observation.kind == "file",
+            file_id.is_not(None),
+            observation.status.in_(("stored", "failed", "unavailable")),
         )
-        query = select(observation).where(
-            observation.facility_id == facility, observation.kind == kind
+        .distinct(file_id)
+        .order_by(file_id, observation.observed_at.desc(), observation.scan_id.desc())
+    ):
+        if row.status in {"failed", "unavailable"}:
+            path = row.details.get("folder_path")
+            years[_year(path)]["download_failures"] += 1
+    # Each folder's newest status comes from the station folder index alone; a
+    # whole row per observation fetched about 54,000 rows for KSTP-TV's 229
+    # folders and took 11 s. Only a failed folder needs its path.
+    latest_folders = db.execute(
+        select(observation.url, observation.scan_id, observation.status)
+        .where(observation.facility_id == facility, observation.kind == "folder")
+        .distinct(observation.url)
+        .order_by(
+            observation.url, observation.observed_at.desc(), observation.scan_id.desc()
         )
-        if kind == "file":
-            query = query.where(
-                identity.is_not(None),
-                observation.status.in_(("stored", "failed", "unavailable")),
+    ).all()
+    failed = [(scan, url) for url, scan, status in latest_folders if status == "failed"]
+    if failed:
+        for details in db.scalars(
+            select(observation.details).where(
+                tuple_(observation.scan_id, observation.url).in_(failed)
             )
-        latest = db.scalars(
-            query.distinct(identity).order_by(
-                identity, observation.observed_at.desc(), observation.scan_id.desc()
-            )
-        )
-        for row in latest:
-            if row.status not in (
-                {"failed", "unavailable"} if kind == "file" else {"failed"}
-            ):
-                continue
-            path = row.details.get("folder_path" if kind == "file" else "path")
-            years[_year(path)][
-                "download_failures" if kind == "file" else "folder_failures"
-            ] += 1
+        ):
+            years[_year(details.get("path"))]["folder_failures"] += 1
     dates = defaultdict(list)
     checks = reader._original_checks(db)
     for by_version in checks.values():
