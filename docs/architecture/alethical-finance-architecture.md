@@ -214,7 +214,7 @@ confirmed identity. A recipient without held filer evidence remains a printed na
 
 Money groups are read from `cf_graph_money_summary`, 1 row per distinct set of node
 inputs (filer number and name, printed name, donor number, payment type, named
-transfer) and filing year of each saved payment file, with its record count, signed
+transfer), exact independent-spending position and filing year of each saved payment file, with its record count, signed
 amount sum, missing-amount count, first and last dates and undated count
 (`alethical/pipeline/campaign_finance_graph_summary.py`). A publish writes a file's
 summary inside the same transaction as its rows, a rollback writes any it lacks, and
@@ -231,6 +231,15 @@ file has no vendor-name index, so a confirmed name there reads that whole file (
 (`alethical/tests/test_finance_graph_summary.py`). To undo the summary, empty
 `cf_graph_money_summary` first (reads then group the raw rows), then revert the code,
 then downgrade migration 0081.
+The nullable `position` summary column added in migration 0085 keeps the independent
+file's exact `for_against` text as another grouping dimension, including whitespace;
+it does not turn that text into an inferred stance or candidate link. Other files
+have no position. Old summaries keep null until an authorized rebuild from their
+saved source rows; null means the position is not held here, never proof that none
+was filed. Migration 0085 only adds the column and never rebuilds summaries or moves
+a live pointer. Reads must combine position groups without multiplying money or
+record counts. Deploy the column before its reader/writer code; revert that code
+before dropping the derived column on rollback. Source payment rows retain the text.
 Before the summary, every broad request re-read all 1.07 million payment rows (469 MB
 against a 256 MB buffer pool) and spilled to temp files: 14 s for the first signed-in
 page, 6 to 7 s repeated, against the client's 10 s limit (2 Nov 2026).

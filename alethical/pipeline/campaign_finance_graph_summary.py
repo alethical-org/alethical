@@ -58,6 +58,7 @@ class GraphInputs:
     payment_type: Optional[Any] = None
     transfer_number: Optional[Any] = None
     transfer_name: Optional[Any] = None
+    position: Optional[Any] = None
 
     def eligible(self) -> list:
         """The rows that can form a graph edge: an account on 1 side, a name on the other.
@@ -123,6 +124,7 @@ GRAPH_INPUTS: dict[Dataset, GraphInputs] = {
         _Independent.amount,
         _Independent.transaction_date,
         _Independent.year,
+        position=_Independent.for_against,
     ),
 }
 
@@ -137,6 +139,7 @@ SUMMARY_COLUMNS = (
     "payment_type",
     "transfer_number",
     "transfer_name",
+    "position",
     "year",
     "record_count",
     "amount_sum",
@@ -166,6 +169,7 @@ def rebuild(db: Session, dataset: Dataset, snapshot_id: uuid.UUID) -> int:
         inputs.payment_type,
         inputs.transfer_number,
         inputs.transfer_name,
+        inputs.position,
         inputs.year,
     ]
     group = [inputs.optional(column) for column in columns]
