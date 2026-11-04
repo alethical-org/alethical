@@ -8,11 +8,24 @@ claims supply coverage; names alone never supply a confirmed identity.
 
 from __future__ import annotations
 
-from sqlalchemy import and_, case, func, literal, select, true, union_all
+from sqlalchemy import (
+    Numeric,
+    and_,
+    case,
+    cast,
+    func,
+    literal,
+    null,
+    select,
+    true,
+    tuple_,
+    union_all,
+)
 from sqlalchemy.orm import Session
 
 from alethical.api.services import identity_confirmations as identities
 from alethical.db import models as m
+from alethical.pipeline import campaign_finance_name_summary as name_summary
 from alethical.pipeline import campaign_finance_reader as reader
 
 KINDS = {
@@ -23,9 +36,15 @@ KINDS = {
 }
 
 
-def _page(query, *, page, page_size, order):
-    """Count and page 1 shared query, including a truthful empty last page."""
+def _page(query, *, page, page_size, order, inline=False):
+    """Count and page 1 shared query, including a truthful empty last page.
+
+    ``inline`` lets the count and the page each plan the query on its own, so the
+    page can walk an index in the requested order instead of sorting every row.
+    """
     rows = query.cte("listed")
+    if inline:
+        rows = rows.prefix_with("NOT MATERIALIZED")
     total = select(func.count().label("total")).select_from(rows).subquery()
     paged = (
         select(rows)
@@ -90,55 +109,31 @@ def entities(
     }
 
 
-def _names(kind, snapshot_id, q):
-    printed = identities._PRINTED[kind]
-    model = printed.model
-    date = (
-        model.receipt_date
-        if kind in {"donor_name", "employer_name"}
-        else model.transaction_date
-    )
-    where = [
-        model.snapshot_id == snapshot_id,
-        printed.name.is_not(None),
-        func.btrim(printed.name) != "",
-    ]
+def _where(kind, snapshot_id, q):
+    """The raw rows of 1 file that print a searched name of this kind."""
+    where = name_summary.named(kind, snapshot_id)
     if q:
-        where.append(printed.name.icontains(q, autoescape=True))
-    totals = (
+        where.append(identities._PRINTED[kind].name.icontains(q, autoescape=True))
+    return where
+
+
+def _coverage(kind, snapshot_id, q):
+    """Each printed name's active record-level claims, read at request time.
+
+    Starts with actual saved claims, so a queue with no confirmations never
+    fingerprints the whole payment file. Matches every repeated current row.
+    """
+    printed = identities._PRINTED[kind]
+    return (
         select(
-            printed.name.label("name"),
-            func.count().label("records"),
-            func.sum(model.amount).label("amount"),
-            (func.count() - func.count(model.amount)).label("missing_amounts"),
-            func.count()
-            .filter(and_(model.year.is_(None), date.is_(None)))
-            .label("undated_records"),
-            case(
-                (func.count(date) == func.count(), "dates"),
-                (func.count(model.year) == func.count(), "years"),
-                else_=None,
-            ).label("period_basis"),
-            func.min(model.year).label("first_year"),
-            func.max(model.year).label("last_year"),
-            func.min(date).label("first_date"),
-            func.max(date).label("last_date"),
-        )
-        .where(*where)
-        .group_by(printed.name)
-        .subquery()
-    )
-    # Start with actual saved claims, so a queue with no confirmations never
-    # fingerprints the whole payment file. Match every repeated current row.
-    coverage = (
-        select(
+            literal(kind).label("record_kind"),
             printed.name.label("name"),
             func.count().label("confirmed"),
             func.array_agg(m.IdentityConfirmation.entity_id.distinct()).label(
                 "identity_ids"
             ),
         )
-        .select_from(model)
+        .select_from(printed.model)
         .join(
             m.IdentityConfirmation,
             and_(
@@ -155,16 +150,108 @@ def _names(kind, snapshot_id, q):
                 m.IdentityConfirmedRecord.fingerprint == printed.fingerprint(kind),
             ),
         )
-        .where(*where)
+        .where(*_where(kind, snapshot_id, q))
+        .group_by(printed.name)
+    )
+
+
+def _period_basis(dated, yeared, records):
+    return case(
+        (dated == records, "dates"),
+        (yeared == records, "years"),
+        else_=None,
+    )
+
+
+def _names(kind, snapshot_id, q):
+    """1 file's printed names of 1 kind, grouped from its raw rows."""
+    printed = identities._PRINTED[kind]
+    model = printed.model
+    date = name_summary.NAME_KINDS[kind].date
+    totals = (
+        select(
+            printed.name.label("name"),
+            func.count().label("records"),
+            func.sum(model.amount).label("amount"),
+            (func.count() - func.count(model.amount)).label("missing_amounts"),
+            func.count()
+            .filter(and_(model.year.is_(None), date.is_(None)))
+            .label("undated_records"),
+            _period_basis(func.count(date), func.count(model.year), func.count()).label(
+                "period_basis"
+            ),
+            func.min(model.year).label("first_year"),
+            func.max(model.year).label("last_year"),
+            func.min(date).label("first_date"),
+            func.max(date).label("last_date"),
+        )
+        .where(*_where(kind, snapshot_id, q))
         .group_by(printed.name)
         .subquery()
     )
+    coverage = _coverage(kind, snapshot_id, q).subquery()
     return select(
         literal(kind).label("record_kind"),
         totals,
         func.coalesce(coverage.c.confirmed, 0).label("confirmed"),
         coverage.c.identity_ids,
     ).select_from(totals.outerjoin(coverage, totals.c.name == coverage.c.name))
+
+
+def _summarized(pairs, q):
+    """The printed names of these (file, kind) pairs, from their complete builds.
+
+    The same columns as ``_names``. Only the per-file totals come from the summary;
+    confirmation coverage and identities are read now, over the raw rows.
+    """
+    summary = name_summary.Summary
+    coverage = union_all(
+        *(_coverage(kind, snapshot_id, q) for snapshot_id, kind in pairs)
+    ).subquery()
+    where = [tuple_(summary.snapshot_id, summary.record_kind).in_(pairs)]
+    if q:
+        where.append(summary.name.icontains(q, autoescape=True))
+    return (
+        select(
+            summary.record_kind,
+            summary.name,
+            summary.records,
+            summary.amount,
+            summary.missing_amounts,
+            summary.undated_records,
+            _period_basis(
+                summary.dated_records, summary.yeared_records, summary.records
+            ).label("period_basis"),
+            summary.first_year,
+            summary.last_year,
+            summary.first_date,
+            summary.last_date,
+            func.coalesce(coverage.c.confirmed, 0).label("confirmed"),
+            coverage.c.identity_ids,
+            summary.sort_amount,
+        )
+        .select_from(
+            summary.__table__.outerjoin(
+                coverage,
+                and_(
+                    coverage.c.record_kind == summary.record_kind,
+                    coverage.c.name == summary.name,
+                ),
+            )
+        )
+        .where(*where)
+    )
+
+
+def _complete_amount(rows):
+    """The amount the queue sorts by: only a complete amount over a known period."""
+    return case(
+        (
+            and_(rows.c.missing_amounts == 0, rows.c.period_basis.is_not(None)),
+            rows.c.amount,
+        ),
+        else_=None,
+    )
 
 
 def queue(
@@ -185,36 +272,43 @@ def queue(
             kind: release.file_for(identities._PRINTED[kind].dataset)
             for kind in KINDS[record_type]
         }
-        grouped = union_all(
-            *(_names(kind, source.snapshot_id, q) for kind, source in sources.items())
-        ).subquery()
+        pairs = [(source.snapshot_id, kind) for kind, source in sources.items()]
+        built = name_summary.complete(db, pairs)
+        if len(built) == len(pairs):
+            # Every kind has a complete build: 1 read of the summary, paged
+            # through its order index.
+            grouped = _summarized(pairs, q).subquery()
+            order = lambda rows: (  # noqa: E731
+                rows.c.sort_amount.desc().nulls_last(),
+                rows.c.name,
+                rows.c.record_kind,
+            )
+            inline = True
+        else:
+            # A kind without a complete build is grouped from its raw rows.
+            grouped = union_all(
+                *(
+                    _summarized([pair], q)
+                    if pair in built
+                    else _names(pair[1], pair[0], q).add_columns(
+                        cast(null(), Numeric).label("sort_amount")
+                    )
+                    for pair in pairs
+                )
+            ).subquery()
+            order = lambda rows: (  # noqa: E731
+                _complete_amount(rows).desc().nulls_last(),
+                rows.c.name,
+                rows.c.record_kind,
+            )
+            inline = False
         query = select(grouped)
         if status == "unconfirmed":
             query = query.where(grouped.c.confirmed < grouped.c.records)
         elif status == "confirmed":
             query = query.where(grouped.c.confirmed == grouped.c.records)
         results = db.execute(
-            _page(
-                query,
-                page=page,
-                page_size=page_size,
-                order=lambda rows: (
-                    case(
-                        (
-                            and_(
-                                rows.c.missing_amounts == 0,
-                                rows.c.period_basis.is_not(None),
-                            ),
-                            rows.c.amount,
-                        ),
-                        else_=None,
-                    )
-                    .desc()
-                    .nulls_last(),
-                    rows.c.name,
-                    rows.c.record_kind,
-                ),
-            )
+            _page(query, page=page, page_size=page_size, order=order, inline=inline)
         ).all()
         # A pruned source must not turn into a claim that no names remain.
         for source in sources.values():

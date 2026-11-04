@@ -3265,6 +3265,104 @@ class CampaignFinanceGraphMoneySummary(Base):
     )
 
 
+class CampaignFinanceIdentityNameSummary(Base):
+    """The Confirm identities queue's totals for 1 exact printed name in 1 saved file.
+
+    The queue (``alethical/api/services/finance_identity_directory.py``) lists each
+    exact spelling of a donor, employer or payee name with its records, signed
+    amount, missing amounts, undated records and period. Grouping the live files'
+    rows on every request took 2.0 to 8.3 seconds on production (measured 4 Nov
+    2026). These rows hold the same totals, built inside the publish transaction
+    (``alethical/pipeline/campaign_finance_name_summary.py``). They are read only
+    for a (file, kind) whose ``cf_identity_name_summary_build`` marker exists.
+
+    Keyed on the snapshot: the rows are a fact about those payment rows and go with
+    them when they are pruned. Nothing here records a confirmation or an identity;
+    those are read at request time. ``amount`` is the signed sum of the amounts
+    held and ``missing_amounts`` counts the rest (rule 12 of
+    ``.claude/rules/grounded-answers.md``).
+    """
+
+    __tablename__ = "cf_identity_name_summary"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), nullable=False
+    )
+    # donor_name, employer_name, payee_name or independent_payee_name.
+    record_kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    # The spelling exactly as printed, never trimmed or folded.
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    records: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric)
+    missing_amounts: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Records with neither a date nor a filing year.
+    undated_records: Mapped[int] = mapped_column(Integer, nullable=False)
+    # How many records carry a date, and a filing year: the period basis is dates
+    # when every record has one, else years when every record has one, else none.
+    dated_records: Mapped[int] = mapped_column(Integer, nullable=False)
+    yeared_records: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_year: Mapped[Optional[int]] = mapped_column(Integer)
+    last_year: Mapped[Optional[int]] = mapped_column(Integer)
+    first_date: Mapped[Optional[date]] = mapped_column(Date)
+    last_date: Mapped[Optional[date]] = mapped_column(Date)
+    # The amount the queue sorts by: held only when no amount is missing and the
+    # period is known, the same rule that decides whether the amount is shown.
+    sort_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric,
+        Computed(
+            "CASE WHEN missing_amounts = 0 AND "
+            "(dated_records = records OR yeared_records = records) THEN amount END",
+            persisted=True,
+        ),
+    )
+
+    __table_args__ = (
+        # The queue's default order, walked from the top for a page.
+        Index(
+            "ix_cf_identity_name_summary_order",
+            text("sort_amount DESC NULLS LAST"),
+            "name",
+            "record_kind",
+        ),
+        # Counting and filtering 1 file's kind.
+        Index(
+            "ix_cf_identity_name_summary_snapshot_kind", "snapshot_id", "record_kind"
+        ),
+        # The queue's name search (a contains match).
+        Index(
+            "ix_cf_identity_name_summary_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+    )
+
+
+class CampaignFinanceIdentityNameSummaryBuild(Base):
+    """1 complete build of ``cf_identity_name_summary`` for 1 file and 1 name kind.
+
+    Written in the same transaction as the rows, so its presence means the rows are
+    complete, including a build that found no names. Without it the queue reads the
+    raw rows. Each build gets a new ``revision``, which the queue's list version
+    covers, so pages read before and after a rebuild are never joined.
+    """
+
+    __tablename__ = "cf_identity_name_summary_build"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    record_kind: Mapped[str] = mapped_column(String(40), primary_key=True)
+    revision: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, default=uuid.uuid4
+    )
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    built_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --- Campaign finance: what each filer itself reported -----------------------
 #
 # The 3 tables above hold the payments Minnesota itemized. These hold what each

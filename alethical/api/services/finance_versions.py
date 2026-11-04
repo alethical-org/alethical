@@ -51,6 +51,10 @@ MARKS = {
     # in place. A same-release metadata rebuild therefore gets newer row IDs.
     # The PK backward read stays cheap; unrelated rebuilds may safely invalidate.
     "graph_summary": "(SELECT id::text FROM cf_graph_money_summary ORDER BY id DESC LIMIT 1)",
+    # Each identity-queue summary build writes a fresh revision with its rows.
+    "name_summary": _digest(
+        "cf_identity_name_summary_build", "r.snapshot_id, r.record_kind, r.revision"
+    ),
     "filing_register": "(SELECT snapshot_id::text FROM cf_filing_current WHERE id)",
     "money": "(SELECT release_id::text FROM cf_current_release WHERE id)",
     "identity": _digest("identity_event", "r.id"),
