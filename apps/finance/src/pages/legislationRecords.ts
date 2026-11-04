@@ -410,10 +410,27 @@ export function versionPhrase(label: string): string {
   return label.charAt(0).toLowerCase() + label.slice(1);
 }
 
+const ENDS_IN_VERSION = /\bversion$/i;
+
+/** The name with "version" for a sentence ("the introduced version"), never doubled
+ * when the name already says it ("the current version"). */
+export function versionInSentence(label: string): string {
+  const phrase = versionPhrase(label);
+  return ENDS_IN_VERSION.test(phrase) ? phrase : `${phrase} version`;
+}
+
+/** The name with "version" as a label, as drawn ("Introduced version", "3rd
+ * engrossment version"), never doubled. */
+export function versionTitle(label: string): string {
+  const name = /^as introduced$/i.test(label) ? 'Introduced' : label;
+  return ENDS_IN_VERSION.test(name) ? name : `${name} version`;
+}
+
 /**
  * Newest first, 1 row per name. The "current" alias row loses to the real
- * record of the same name, and among equals the earliest date (the real
- * posting date) wins. "As introduced" carries the bill's introduction date,
+ * record of the same name, the version the record marks current wins over
+ * another of its name (2 conference committee reports), and among equals the
+ * earliest date (the real posting date) wins. "As introduced" carries the bill's introduction date,
  * because the source sometimes stamps that version with a later revision date.
  */
 export function orderVersions(versions: ServedVersion[], actions: ServedAction[]): VersionRow[] {
@@ -445,7 +462,10 @@ export function orderVersions(versions: ServedVersion[], actions: ServedAction[]
     if (
       !incumbent ||
       (incumbent.pointer && !candidate.pointer) ||
-      (incumbent.pointer === candidate.pointer && candidate.time < incumbent.time)
+      (incumbent.pointer === candidate.pointer &&
+        (candidate.row.isCurrent !== incumbent.row.isCurrent
+          ? candidate.row.isCurrent
+          : candidate.time < incumbent.time))
     ) {
       best.set(key, candidate);
     }
@@ -474,23 +494,39 @@ export function summaryVersionRow(
   if (!code || code === 'current' || code === 'session-law') return null;
   const held = served.find((version) => version.version_code === code);
   if (!held) return null;
-  return (
-    rows.find((row) => row.code === code) ?? {
-      code,
-      label: versionLabel(code, held.version_name ?? source?.version_name),
-      date: dayLabel(held.document_date ?? null),
-      url: held.html_url ?? null,
-      isLaw: false,
-      // A row the list folded into another of the same name (2 conference
-      // reports) is opened by its own code, never by the default current text.
-      isCurrent: false,
-    }
-  );
+  // A row the list folded into another of the same name (2 conference reports)
+  // is opened by its own code, never by the default current text.
+  return rows.find((row) => row.code === code) ?? heldRow(held, source?.version_name, false);
 }
 
-/** The version Bill Text opens by default: the one the record marks current,
- * else the newest that is not the session law. */
-export function defaultTextVersion(rows: VersionRow[]): VersionRow | null {
+/** A served version as a row, for one the list folded into another of the same name. */
+function heldRow(held: ServedVersion, name: string | null | undefined, isCurrent: boolean) {
+  return {
+    code: held.version_code,
+    label: versionLabel(held.version_code, held.version_name ?? name),
+    date: dayLabel(held.document_date ?? null),
+    url: held.html_url ?? null,
+    isLaw: false,
+    isCurrent,
+  };
+}
+
+/** The version Bill Text opens by default: the one the record marks current, by
+ * its exact code even when the list folded it into another of the same name (2
+ * conference committee reports), else the newest that is not the session law. */
+export function defaultTextVersion(
+  rows: VersionRow[],
+  served: ServedVersion[] = [],
+): VersionRow | null {
+  const marked = served.find(
+    (version) =>
+      version.is_current === true &&
+      version.version_code !== 'current' &&
+      version.version_code !== 'session-law',
+  );
+  if (marked) {
+    return rows.find((row) => row.code === marked.version_code) ?? heldRow(marked, null, true);
+  }
   const readable = rows.filter((row) => !row.isLaw);
   return readable.find((row) => row.isCurrent) ?? readable[0] ?? null;
 }

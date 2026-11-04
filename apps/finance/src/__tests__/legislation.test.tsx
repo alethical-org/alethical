@@ -22,8 +22,10 @@ import {
   ownAuthors,
   seatLabel,
   sessionShortLabel,
+  versionInSentence,
   versionLabel,
   versionPhrase,
+  versionTitle,
   voteForAction,
   type BillDetail,
   type ServedVote,
@@ -326,6 +328,13 @@ describe('legislation records', () => {
     expect(versionLabel('3', '2025.0-SF0334-3')).toBe('3rd engrossment');
     expect(versionLabel('x', '2026.0-CCRHF1141A')).toBe('Conference committee report');
     expect(versionPhrase('As introduced')).toBe('introduced');
+    // "version" is added once, never to a name that already says it.
+    expect(versionTitle('As introduced')).toBe('Introduced version');
+    expect(versionTitle('3rd engrossment')).toBe('3rd engrossment version');
+    expect(versionTitle('Current version')).toBe('Current version');
+    expect(versionInSentence('As introduced')).toBe('introduced version');
+    expect(versionInSentence('Current version')).toBe('current version');
+    expect(versionInSentence('Bill version')).toBe('bill version');
     const rows = orderVersions(DETAIL.versions!, DETAIL.actions!);
     expect(rows.map((row) => row.label)).toEqual([
       'Session Law — Chapter 120',
@@ -660,9 +669,7 @@ describe('Bill', () => {
     await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
     // A newer current version exists (3rd engrossment); the summary still names its own.
     expect(text()).toContain('Alethical summary of the introduced version');
-    expect(container.querySelector('.bl-citation-version')?.textContent).toBe(
-      'As introduced version',
-    );
+    expect(container.querySelector('.bl-citation-version')?.textContent).toBe('Introduced version');
     expect(text()).not.toContain('3rd engrossment version');
     await readCitation();
     expect(new URLSearchParams(window.location.search).get('version')).toBe('0');
@@ -694,14 +701,16 @@ describe('Bill', () => {
         report('ccr-0', '2026-05-10T00:00:00Z', false),
         report('ccr-1', '2026-05-15T00:00:00Z', true),
       ],
-      summary_source_version: { version_code: 'ccr-1', version_name: '2026.0-CCRSF0334A' },
+      summary_source_version: { version_code: 'ccr-0', version_name: '2026.0-CCRSF0334' },
     };
     await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
     expect(text()).toContain('Alethical summary of the conference committee report version');
     await readCitation();
-    expect(new URLSearchParams(window.location.search).get('version')).toBe('ccr-1');
-    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
-    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+    // The list keeps the current report under that name; the earlier one the summary
+    // quotes is still opened by its own code.
+    expect(new URLSearchParams(window.location.search).get('version')).toBe('ccr-0');
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
   });
 
   it.each([
@@ -759,6 +768,66 @@ describe('Bill', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       'We couldn’t load the full textTry again',
     );
+  });
+
+  it('opens the current conference report by its exact code when 2 share a name', async () => {
+    const report = (code: string, date: string, current: boolean) => ({
+      version_code: code,
+      version_name: `2026.0-CCRSF0334${code === 'ccr-1' ? 'A' : ''}`,
+      document_date: date,
+      html_url: `https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/${code}/`,
+      is_current: current,
+    });
+    const detail = {
+      ...DETAIL,
+      versions: [
+        DETAIL.versions![0],
+        report('ccr-0', '2026-05-10T00:00:00Z', false),
+        report('ccr-1', '2026-05-15T00:00:00Z', true),
+      ],
+      summary_source_version: null,
+    };
+    await renderBill('/bills/94-2025-SF334?tab=text', billAnswer({ detail: () => json(detail) }));
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+    expect(text()).toContain('Bill text · conference committee report version');
+  });
+
+  it('lists the current conference report and opens it from Versions and the summary', async () => {
+    const report = (code: string, date: string, current: boolean) => ({
+      version_code: code,
+      version_name: `2026.0-CCRSF0334${code === 'ccr-1' ? 'A' : ''}`,
+      document_date: date,
+      html_url: `https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/${code}/`,
+      is_current: current,
+    });
+    const versions = [
+      DETAIL.versions![0],
+      report('ccr-0', '2026-05-10T00:00:00Z', false),
+      report('ccr-1', '2026-05-15T00:00:00Z', true),
+    ];
+    const rows = orderVersions(versions, DETAIL.actions!);
+    expect(rows.map((row) => row.code)).toEqual(['ccr-1', '0']);
+    const detail = { ...DETAIL, versions, summary_source_version: null };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    await readCitation();
+    expect(new URLSearchParams(window.location.search).get('version')).toBeNull();
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+  });
+
+  it('never prints "version" twice for a version named only by the current pointer', async () => {
+    const detail = {
+      ...DETAIL,
+      versions: [{ version_code: 'current', version_name: null, is_current: true }],
+      summary_source_version: null,
+    };
+    await renderBill(
+      '/bills/94-2025-SF334?tab=text',
+      billAnswer({ detail: () => json(detail), text: missing }),
+    );
+    expect(text()).toContain('Text of the current version not held');
+    expect(text()).not.toContain('version version');
   });
 
   it('says when a version’s text is not held', async () => {
