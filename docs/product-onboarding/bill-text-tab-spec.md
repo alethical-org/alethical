@@ -289,7 +289,8 @@ Splitting the two halves back apart is unambiguous: all 71,150 section ids in pr
 hyphen".
 
 **A citation chip carries the same anchor value.** The stored citation records only the section id, so
-the API resolves the position at request time and serves it as `section_order`
+the API resolves the position at request time and serves it as `section_order`, a position in
+the version the summary was written from (`summary_source_version`)
 (`_citation_section_orders` in `alethical/api/routers/public.py`, `resolve_cited_section` in
 `alethical/pipeline/ai_enrichment.py`) — recovered from the citation's own verbatim quote, with its
 label breaking a tie when a bill repeats one sentence section for section. Of the 95 affected

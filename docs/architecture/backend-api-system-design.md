@@ -682,6 +682,9 @@ Optional includes:
   `summary_source_version` identifies the enrichment's explicitly linked bill version
   with `id`, `version_code`, `version_name`, `document_date`, `html_url` and `pdf_url`.
   It is absent when that link is not held; the current version is never substituted.
+  Each citation's `section_order` and `section_topic` come from that same linked
+  version, and without it a citation carries neither. The effective date stays on the
+  current version's text.
 - `include=topics` — **NOT BUILT**; no branch reads it, so it changes nothing.
 
 Default shape:
