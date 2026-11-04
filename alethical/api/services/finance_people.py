@@ -7,6 +7,7 @@ addresses, emails or account records are read.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
@@ -139,9 +140,31 @@ def directory(
         status,
     )
     typed = query.strip()
+    # Only a complete district expression changes interpretation. Ordinary name
+    # queries retain their literal spelling, including the word "District".
+    district_query = re.fullmatch(
+        r"(?:(house|senate)\s+)?district\s*(\d{1,3}[ab]?)", typed, re.IGNORECASE
+    )
+    district_chamber = (
+        district_query[1].lower() if district_query and district_query[1] else None
+    )
+    district_code = district_query[2].upper() if district_query else None
     candidate_party = candidate.public_payload["candidate"]["party"].astext
     candidate_office = candidate.public_payload["office"].astext
-    if typed:
+    if district_query:
+        area = func.upper(func.btrim(candidate.public_payload["votingArea"].astext))
+        area_code = func.regexp_replace(
+            area, r"^((HOUSE|SENATE)[[:space:]]+)?DISTRICT[[:space:]]*", ""
+        )
+        candidates = candidates.where(area_code == district_code)
+        if district_chamber:
+            # An unqualified area cannot prove a candidate's chamber. Do not
+            # infer it from a linked legislator or a similar office name.
+            candidates = candidates.where(
+                area.op("~")(district_chamber.upper() + r"[[:space:]]+DISTRICT")
+            )
+        people = people.where(False)
+    elif typed:
         candidates = candidates.where(
             or_(
                 name_contains(
@@ -169,7 +192,13 @@ def directory(
         period_filters.append(period.party == party)
     if chamber is not None:
         period_filters.append(m.Chamber.chamber_type == m.ChamberType(chamber))
-    if typed:
+    if district_query:
+        period_filters.append(func.upper(func.btrim(m.District.code)) == district_code)
+        if district_chamber:
+            period_filters.append(
+                m.Chamber.chamber_type == m.ChamberType(district_chamber)
+            )
+    elif typed:
         period_filters.append(
             or_(
                 name_contains(member.full_name, typed),
@@ -191,7 +220,9 @@ def directory(
         members = members.where(matching_period)
     elif typed:
         members = members.where(
-            or_(name_contains(member.full_name, typed), matching_period)
+            matching_period
+            if district_query
+            else or_(name_contains(member.full_name, typed), matching_period)
         )
     rows = union_all(candidates, people, members).subquery()
     where = []
