@@ -3417,6 +3417,17 @@ keep their filed sign. Expenditure and independent-expenditure files remain
 separate rows and amounts because a payment can appear in both. A confirmed
 person or organization covers only active matching fingerprints, follows identity merges,
 and loses withdrawn claims; new records under the same spelling stay unconfirmed.
+`min_amount` and `max_amount` bound each row's itemized total, inclusive and signed (a
+negative bound reaches refunds), and apply with the other filters before counting and
+paging, tab counts included. A withheld total cannot be placed in a range, so while
+either bound is set those rows are left out and counted in exactly 1 of
+`range_excluded.incomplete_amount` (any missing amount) or
+`range_excluded.incomplete_period`, over the selected tab's filtered set; with no bound
+`range_excluded` is null. A bound must be a plain number (no currency sign or thousands
+separator) within ±1 trillion with at most 4 decimal places; a minimum above the maximum,
+a non-finite value or anything else answers 422. Bounds echo back as plain numbers. `sort=amount` is largest total first and
+`sort=amount_smallest` smallest first; withheld totals sort last either way.
+
 ## 11. Finance money connections
 
 `GET /api/v1/finance/connections` returns a paged set of direct relations, with

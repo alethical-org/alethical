@@ -232,3 +232,106 @@ def test_payee_sum_period_covers_every_row(finance_api, finance_db, board):
         assert rows[name]["amount"] is None
         assert rows[name]["amount_state"] == "incomplete_period"
         assert rows[name]["period_basis"] == "unknown"
+
+
+def _range_rows(finance_db, board):
+    """5 expenditure groups: 3 totals, 1 missing amount, 1 incomplete period."""
+    rows = [
+        (71, "Range big", "5000", date(2026, 3, 1), 2026),
+        (72, "Range small", "50", date(2026, 3, 2), 2026),
+        (73, "Range refund", "-300", date(2026, 3, 3), 2026),
+        (74, "Range missing", None, date(2026, 3, 4), 2026),
+        (75, "Range missing", "10", date(2026, 3, 5), 2026),
+        (76, "Range undated", "40", None, None),
+    ]
+    for number, name, amount, paid_on, year in rows:
+        finance_db.add(
+            m.CampaignFinanceExpenditureRow(
+                snapshot_id=board.expenditures_snapshot_id,
+                row_number=number,
+                committee_reg_num="18135",
+                vendor_name=name,
+                amount=None if amount is None else Decimal(amount),
+                transaction_date=paid_on,
+                year=year,
+            )
+        )
+    finance_db.commit()
+
+
+def test_a_range_bounds_whole_totals_before_paging_and_counts_exclusions(
+    finance_api, finance_db, board
+):
+    _range_rows(finance_db, board)
+    plain = get(finance_api, q="Range")
+    assert plain["range_excluded"] is None and plain["total"] == 5
+    ranged = get(finance_api, q="Range", min_amount="-1000", max_amount="100")
+    assert {r["name"] for r in ranged["rows"]} == {"Range small", "Range refund"}
+    assert ranged["total"] == 2 and ranged["payment_count"] == 2
+    # Withheld totals cannot be placed in a range: each is counted once, by cause.
+    assert ranged["range_excluded"] == {"incomplete_amount": 1, "incomplete_period": 1}
+    assert (ranged["min_amount"], ranged["max_amount"]) == ("-1000", "100")
+    # Inclusive bounds, either bound alone, and paging after the filter.
+    exact = get(finance_api, q="Range", min_amount="50", max_amount="50")
+    assert [r["name"] for r in exact["rows"]] == ["Range small"]
+    floor = get(finance_api, q="Range", min_amount="0", limit=1)
+    assert floor["total"] == 2 and floor["has_more"] and len(floor["rows"]) == 1
+    ceiling = get(finance_api, q="Range", max_amount="-1")
+    assert [r["amount"] for r in ceiling["rows"]] == ["-300.0000"]
+    assert ceiling["range_excluded"] == {"incomplete_amount": 1, "incomplete_period": 1}
+    # Exclusion counts follow the other filters: year 2026 has no undated group.
+    by_year = get(finance_api, q="Range", year=2026, min_amount="0")
+    assert by_year["range_excluded"] == {"incomplete_amount": 1, "incomplete_period": 0}
+
+
+def test_amount_sorts_put_withheld_totals_last_both_ways(
+    finance_api, finance_db, board
+):
+    _range_rows(finance_db, board)
+    largest = [r["name"] for r in get(finance_api, q="Range", sort="amount")["rows"]]
+    smallest = [
+        r["name"] for r in get(finance_api, q="Range", sort="amount_smallest")["rows"]
+    ]
+    assert largest[:3] == ["Range big", "Range small", "Range refund"]
+    assert smallest[:3] == ["Range refund", "Range small", "Range big"]
+    assert set(largest[3:]) == set(smallest[3:]) == {"Range missing", "Range undated"}
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"min_amount": "100", "max_amount": "10"},
+        {"min_amount": "Infinity"},
+        {"max_amount": "NaN"},
+        {"min_amount": "abc"},
+        {"min_amount": "1.00001"},
+        {"max_amount": "1e20"},
+    ],
+)
+def test_a_range_refuses_bad_bounds(finance_api, board, params):
+    finance_api.app.dependency_overrides[get_db]().connection()
+    assert finance_api.get(BASE, params=params).status_code == 422
+
+
+def test_a_missing_amount_takes_precedence_over_a_missing_period_in_a_range(
+    finance_api, finance_db, board
+):
+    finance_db.add(
+        m.CampaignFinanceExpenditureRow(
+            snapshot_id=board.expenditures_snapshot_id,
+            row_number=81,
+            committee_reg_num="18135",
+            vendor_name="Range both missing",
+            amount=None,
+            transaction_date=None,
+            year=None,
+        )
+    )
+    finance_db.commit()
+    data = get(finance_api, q="Range both", min_amount="0")
+    assert data["range_excluded"] == {"incomplete_amount": 1, "incomplete_period": 0}
+
+
+def test_bounds_echo_as_plain_numbers(finance_api, board):
+    data = get(finance_api, min_amount="-0", max_amount="1e3")
+    assert (data["min_amount"], data["max_amount"]) == ("0", "1000")

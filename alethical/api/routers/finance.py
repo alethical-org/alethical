@@ -7,6 +7,7 @@ under ``/api/v1/finance/`` private, so 1 account's answer never reaches another.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -293,6 +294,22 @@ def payees(
     ),
     tab: finance_payees.PayeeTab = "all",
     sort: finance_payees.PayeeSort = "name",
+    min_amount: Decimal | None = Query(
+        default=None,
+        ge=Decimal("-1000000000000"),
+        le=Decimal("1000000000000"),
+        allow_inf_nan=False,
+        decimal_places=4,
+        description="Inclusive lower bound on each group's itemized total; may be negative.",
+    ),
+    max_amount: Decimal | None = Query(
+        default=None,
+        ge=Decimal("-1000000000000"),
+        le=Decimal("1000000000000"),
+        allow_inf_nan=False,
+        decimal_places=4,
+        description="Inclusive upper bound on each group's itemized total.",
+    ),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     version: str | None = Query(
@@ -303,6 +320,10 @@ def payees(
     db: Session = Depends(get_db),
 ) -> dict:
     """Itemized payee rows, keeping source files and confirmation coverage separate."""
+    if min_amount is not None and max_amount is not None and min_amount > max_amount:
+        raise problem_exception(
+            422, "Unprocessable Entity", "Minimum is more than maximum."
+        )
     token = finance_versions.check(db, version, "money", "identity")
     return {
         "data": {
@@ -314,6 +335,8 @@ def payees(
                 payment_type=payment_type,
                 tab=tab,
                 sort=sort,
+                min_amount=min_amount,
+                max_amount=max_amount,
                 limit=limit,
                 offset=offset,
             ),
