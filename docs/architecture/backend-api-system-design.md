@@ -15,6 +15,15 @@ client against it, and do not treat a "Status: pass" user story below as evidenc
 When you add or change a route, update the entry here in the same PR (`.claude/rules/workflow.md`
 rule 6); when you find drift, fix it rather than adding another hedge.
 
+## Private Finance spelling suggestions
+
+Finance's allowlisted reads include `GET /api/v1/finance/similar-names` for exact
+donor, payee and employer spellings, and
+`GET /api/v1/finance/media-buys/agencies/{key}/similar-names` for held agency labels.
+Both return separately named records, never an inferred identity or combined money.
+The [Finance architecture](alethical-finance-architecture.md#similar-printed-names)
+owns their matching, counts, paging versions, source evidence and failure contracts.
+
 ## Goal
 
 Design a REST API for Alethical v1 that:
