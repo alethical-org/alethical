@@ -778,7 +778,9 @@ describe('Media buys card', () => {
           ? []
           : [
               'Files with a checked connection to Example Committee',
-              'TV station files that name this candidate',
+              kind === 'legislator'
+                ? 'TV station files that name this legislator'
+                : 'TV station files that name this candidate',
             ],
       );
       // A new profile with an unavailable read never gets the previous profile's files or an empty claim.

@@ -44,7 +44,8 @@ interface CardGroup {
  * with its role line (its flat `files` list repeats them without one). Candidate
  * and legislator groups, and a person's committee groups, carry titles. A person's
  * named files carry a candidate title only when their loaded profile holds a
- * candidacy (Media Buys Card drawing). A race's groups are named by their election
+ * candidacy. A legislator's title names the service record, not a candidacy.
+ * A race's groups are named by their election
  * stage, which each row's role line already prints.
  */
 export function cardGroups(
@@ -53,7 +54,12 @@ export function cardGroups(
   personIsCandidate = false,
 ): CardGroup[] {
   const titled = kind === 'candidate' || kind === 'legislator' || kind === 'person';
-  const namedTitle = kind !== 'person' || personIsCandidate ? NAMED_TITLE : '';
+  const namedTitle =
+    kind === 'legislator'
+      ? 'TV station files that name this legislator'
+      : kind !== 'person' || personIsCandidate
+        ? NAMED_TITLE
+        : '';
   const groups = data.groups
     .filter((group) => group.files.length > 0)
     .map((group, index) => {
