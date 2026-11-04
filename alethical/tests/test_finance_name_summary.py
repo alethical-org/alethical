@@ -29,8 +29,11 @@ from alethical.tests.test_identity_confirmations import (  # noqa: F401
     board,
     create,
     donor,
+    get,
     gift,
+    post,
     prints,
+    refresh,
 )
 
 Dataset = m.CampaignFinanceDataset
@@ -310,3 +313,152 @@ def test_the_build_and_the_raw_read_name_the_same_columns():
             printed.name,
         )
     assert set(name_summary.NAME_KINDS) == set(directory.KINDS["all"])
+
+
+def test_identity_changes_after_a_build_read_alike_from_both_sources(
+    names, finance_api, finance_db, monkeypatch
+):
+    """Confirmations, withdrawals, merges, splits and a changed record are read
+    live over a summary built once: each answer equals the raw answer, and each
+    change refuses a page token read before it."""
+    build(finance_db, names)
+    built = finance_db.scalars(select(name_summary.Summary.id)).all()
+    complete = name_summary.complete
+
+    def answers():
+        cases = {}
+        for kind, status in product(
+            ("all", "donor"), ("unconfirmed", "confirmed", "all")
+        ):
+            page = 1
+            while True:
+                answer = directory.queue(
+                    finance_db, record_type=kind, status=status, page=page, page_size=3
+                )
+                cases[(kind, status, page)] = answer
+                if page > answer["pages"]:
+                    break
+                page += 1
+        return cases
+
+    def donor_row():
+        """The donor spelling's row, read from both sources, which must agree."""
+        summarized = answers()
+        monkeypatch.setattr(name_summary, "complete", lambda db, pairs: set())
+        raw = answers()
+        monkeypatch.setattr(name_summary, "complete", complete)
+        assert summarized == raw
+        [row] = [
+            row
+            for (kind, status, _), answer in summarized.items()
+            if (kind, status) == ("donor", "all")
+            for row in answer["rows"]
+            if row["name"] == DONOR
+        ]
+        confirmed_listing = {
+            row["name"]
+            for (kind, status, _), answer in summarized.items()
+            if (kind, status) == ("donor", "confirmed")
+            for row in answer["rows"]
+        }
+        return (row["confirmed"], row["identity_count"], DONOR in confirmed_listing)
+
+    def changed(before):
+        """The queue's version moved, so a page read before the change is refused."""
+        after = read(finance_api, QUEUE, page_size=3)["data"]["version"]
+        assert after != before
+        read(finance_api, QUEUE, status=409, page=2, page_size=3, version=before)
+        return after
+
+    version = read(finance_api, QUEUE, page_size=3)["data"]["version"]
+    assert donor_row() == (0, 0, False)
+    rows = prints(finance_api)
+
+    # Confirm: rows 31 and 33 are identical, so 1 fingerprint covers 2 of 3.
+    first = create(finance_api, "person", "Jordan A", donor(names, [rows[31]]))
+    version = changed(version)
+    assert donor_row() == (2, 1, False)
+
+    # A second identity confirms the last record: fully confirmed, 2 owners.
+    second = create(finance_api, "person", "Jordan B", donor(names, [rows[32]]))
+    version = changed(version)
+    assert donor_row() == (3, 2, True)
+
+    # Merge: 1 identity stands today.
+    assert (
+        post(
+            finance_api,
+            f"/{first['id']}/merge",
+            {"into": second["id"], "reason": "Both identities refer to this person."},
+        ).status_code
+        == 200
+    )
+    version = changed(version)
+    assert donor_row() == (3, 1, True)
+
+    # Split: 2 identities again.
+    claims = get(finance_api, second["id"])["confirmations"]
+    response = post(
+        finance_api,
+        f"/{second['id']}/split",
+        {
+            "reason": "Separate source records",
+            "parts": [
+                {"name": "Jordan A", "confirmations": [claims[0]["id"]]},
+                {"name": "Jordan B", "confirmations": [claims[1]["id"]]},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    version = changed(version)
+    assert donor_row() == (3, 2, True)
+
+    # Withdraw the claim on the single record: back to partly confirmed.
+    [single] = [
+        claim
+        for part in response.json()["data"]["split_into"]
+        for claim in get(finance_api, part["id"])["confirmations"]
+        if claim["status"] == "confirmed"
+        and {record["fingerprint"] for record in claim["records"]} == {rows[32]}
+    ]
+    assert (
+        post(
+            finance_api,
+            f"/confirmations/{single['id']}/withdraw",
+            {"reason": "This record belongs to someone else."},
+        ).status_code
+        == 200
+    )
+    version = changed(version)
+    assert donor_row() == (2, 1, False)
+
+    # The immutable totals were never rebuilt by any of these changes.
+    assert finance_db.scalars(select(name_summary.Summary.id)).all() == built
+
+    # A record's printed field changes in the Board's next file: its fingerprint
+    # no longer matches the confirmed one. The new file publishes with its own
+    # totals, and the coverage read over it drops the changed record.
+    release = refresh(
+        finance_db,
+        (5, {}),
+        (6, {}),
+        (
+            7,
+            {
+                "receipt_date": date(2025, 5, 1),
+                "amount": Decimal(100),
+                "year": 2025,
+                "contrib_zip": "55102",
+            },
+        ),
+    )
+    for dataset, snapshot_id in snapshots(release).items():
+        name_summary.rebuild(finance_db, dataset, snapshot_id)
+    finance_db.commit()
+    changed(version)
+    assert donor_row() == (2, 1, False)
+    moved = finance_api.get(
+        "/api/v1/finance/identities/records",
+        params={"record_kind": "donor_name", "record_key": DONOR},
+    ).json()["data"]
+    assert moved["confirmed"] == 2 and moved["records"] == 3
