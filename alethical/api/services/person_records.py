@@ -330,6 +330,7 @@ def _valid_people(
     profile: dict,
     *,
     today: date,
+    connection_cache: dict[str, dict | None] | None = None,
 ) -> list[PublicPerson]:
     from alethical.api.services.candidate_legislators import confirmed_legislator
 
@@ -339,7 +340,18 @@ def _valid_people(
         if link.identity != identity:
             continue
         if person.legislator_id and link.evidence.get("legislator_slug"):
-            confirmed = confirmed_legislator(db, profile, today=today)
+            # A directory page can read one candidacy through both its person
+            # and candidate rows. Its held profile is immutable in the pinned
+            # view; share only that source validation, never the person-link test.
+            key = profile["candidate"]["id"]
+            if connection_cache is None:
+                confirmed = confirmed_legislator(db, profile, today=today)
+            else:
+                if key not in connection_cache:
+                    connection_cache[key] = confirmed_legislator(
+                        db, profile, today=today
+                    )
+                confirmed = connection_cache[key]
             if confirmed is None or confirmed["id"] != str(person.legislator_id):
                 continue
         result.append(person)
@@ -792,7 +804,7 @@ def directory_record_cues(
     """
     from sqlalchemy import or_
     from alethical.db import models as m
-    from alethical.api.services import candidate_legislators, identity_confirmations
+    from alethical.api.services import identity_confirmations
 
     selected_people = (
         list(
@@ -833,9 +845,16 @@ def directory_record_cues(
     legislator_links = {str(key): [] for key in legislator_ids}
     entries: dict[uuid.UUID, set[tuple[str, str]]] = {key: set() for key in person_ids}
     service_connections = {}
+    connection_cache: dict[str, dict | None] = {}
     for link, record, person in pairs:
         profile = record.public_payload
-        if not _valid_people(db, [(link, person)], profile, today=today):
+        if not _valid_people(
+            db,
+            [(link, person)],
+            profile,
+            today=today,
+            connection_cache=connection_cache,
+        ):
             continue
         target = {"id": str(person.id), "name": person.name}
         if record.id in candidate_links:
@@ -844,9 +863,7 @@ def directory_record_cues(
             entries[person.id].add(("candidate", record.id))
         # A person FK alone never establishes the reviewed legislative link.
         if person.legislator_id and link.evidence.get("legislator_slug"):
-            connection = candidate_legislators.confirmed_legislator(
-                db, profile, today=today
-            )
+            connection = connection_cache.get(record.id)
             if connection and connection["id"] == str(person.legislator_id):
                 if (
                     str(person.legislator_id) in legislator_links
