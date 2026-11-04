@@ -264,6 +264,12 @@ reserved for the oldest attempts and the rest favors new or changed records,
 with unused capacity shared. This is a rolling source comparison, not a promise
 that every file is re-downloaded within 7 days while a backlog exists.
 
+To choose that work, a run reads the saved history of only the files it listed,
+1 file at a time: each file's newest download attempt, its newest stored, reused
+or unchanged observation, and, when capacity is short, the earliest scan that
+listed a due file with no attempt. 2 partial indexes on `fcc_observation` serve
+those reads (migration `0086_fcc_observation_file_reads`).
+
 A recent unchanged file receives a metadata observation without reading its body
 again from private storage. That observation is not a fresh byte-integrity check.
 The separate daily [source-file backup workflow](../../.github/workflows/mirror-raw-files.yml)
