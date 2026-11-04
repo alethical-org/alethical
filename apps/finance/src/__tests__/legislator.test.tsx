@@ -397,12 +397,29 @@ describe('Legislator profile', () => {
     expect(text()).not.toContain('No chief-authored bills held');
   });
 
+  it('uses the served bill total instead of the broader profile total', async () => {
+    await render('/legislators/patty-acomb', answering(
+      { ...CURRENT, stats: { chief_bill_count: 200 } },
+      { '/bills?role': new Response(JSON.stringify({ data: [BILL], page: { total: 1 } }), { status: 200 }) },
+    ));
+    expect(text()).not.toContain('Page 1 of');
+    expect(text()).toContain('Introduced · Apr 1, 2025');
+  });
+
+  it('explains an empty summarized list without denying held unsummarized bills', async () => {
+    await render('/legislators/patty-acomb', answering(
+      { ...CURRENT, stats: { chief_bill_count: 20 } },
+      { '/bills?role': new Response(JSON.stringify({ data: [], page: { total: 0 } }), { status: 200 }) },
+    ));
+    expect(text()).toContain('No chief-authored bills with summaries are available for this session');
+  });
+
   it('a former legislator inherits no current title, party, district or committees', async () => {
     await render(
       '/legislators/former-member',
       answering(FORMER, {
         '/campaign-finance/years': json({ link_state: 'unconfirmed', years: [] }),
-        '/bills?role': json([]),
+        '/bills?role': new Response(JSON.stringify({ data: [], page: { total: 0 } }), { status: 200 }),
       }),
     );
     expect(container.querySelector('h1')?.textContent).toBe('Former Member');
@@ -410,7 +427,7 @@ describe('Legislator profile', () => {
     expect(text()).not.toContain('Party as recorded');
     expect(text()).toContain('Committee assignments are held for current service only');
     expect(text()).toContain('No campaign committee is confirmed for this service record');
-    expect(text()).toContain('No chief-authored bills held for this service');
+    expect(text()).toContain('No chief-authored bills with summaries are available for this session');
     expect(text()).not.toContain('Official source website');
     expect(requests.some((url) => url.includes('/finance/legislative-committees'))).toBe(false);
   });
