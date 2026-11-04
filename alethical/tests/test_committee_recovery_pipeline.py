@@ -1,6 +1,7 @@
 """Local Postgres wire proof; the proxy only accepts disposable test connections."""
 
 import select as sockets
+import re
 import socket
 import threading
 import time
@@ -22,8 +23,8 @@ setup = batch_tests.setup
 @contextmanager
 def protocol_proxy(engine, *, delay=0):
     """Count server ReadyForQuery boundaries; optional synthetic RTT, never production."""
-    assert engine.url.host == "127.0.0.1"
-    assert engine.url.database == "alethical"
+    assert engine.url.host in {"127.0.0.1", "localhost"}
+    assert re.fullmatch(r"alethical(?:_gw\d+)?", engine.url.database or "")
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen()
@@ -34,7 +35,7 @@ def protocol_proxy(engine, *, delay=0):
     lock = threading.Lock()
 
     def serve(client):
-        upstream = socket.create_connection((engine.url.host, engine.url.port))
+        upstream = socket.create_connection(("127.0.0.1", engine.url.port))
         client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         upstream.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         pending = bytearray()
@@ -78,7 +79,7 @@ def protocol_proxy(engine, *, delay=0):
     thread = threading.Thread(target=accept, daemon=True)
     thread.start()
     proxied = create_engine(
-        engine.url.set(port=listener.getsockname()[1]),
+        engine.url.set(host="127.0.0.1", port=listener.getsockname()[1]),
         connect_args={**NO_PREPARED_STATEMENTS, "sslmode": "disable"},
     )
     try:
