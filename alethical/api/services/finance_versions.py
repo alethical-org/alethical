@@ -60,6 +60,22 @@ MARKS = {
     + _digest("legislator", "r.id")
     + ")",
     "lobbying": "(SELECT release_id::text FROM lobbying_current_release WHERE id)",
+    # Checked invoice links do not read extraction suggestions or page text.
+    "invoice_links": "jsonb_build_array("
+    + ", ".join(
+        _digest(table, key)
+        for table, key in [
+            ("finance_tv_fact", "r.id"),
+            ("finance_tv_connection", "r.id"),
+            ("tv_ad_fact", "r.id"),
+            ("tv_ad_connection", "r.id"),
+            ("finance_tv_copy_withdrawal", "r.id"),
+            ("tv_ad_publication", "r.id"),
+            ("fcc_document", "r.facility_id, r.file_id, r.content_hash"),
+            ("fcc_expense_link", "r.id"),
+        ]
+    )
+    + ")",
     "station": "jsonb_build_array("
     + ", ".join(
         [
@@ -71,6 +87,7 @@ MARKS = {
             _digest("fcc_document", "r.facility_id, r.file_id, r.content_hash"),
             _digest("tv_ad_publication", "r.id"),
             _digest("fcc_extraction", "r.content_hash, r.version"),
+            _digest("fcc_expense_link", "r.id"),
             _digest("fcc_page", "r.content_hash, r.version, r.page"),
         ]
     )
@@ -86,8 +103,13 @@ MARKS = {
             "district",
             "candidate_record",
             "public_person",
+            "person_service_record",
+            "identity_entity",
+            "identity_confirmation",
         ]
     )
+    + ", "
+    + _digest("person_candidacy", "r.person_id, r.candidate_id")
     + ")",
 }
 

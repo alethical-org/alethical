@@ -306,6 +306,19 @@ def directory(
                 .where(member.id.in_(member_ids), *period_filters)
             )
         )
+    from alethical.api.services import person_records
+
+    record_counts, candidate_people, legislator_people = (
+        person_records.directory_record_cues(
+            db,
+            person_ids=[UUID(row.id) for row in selected if row.kind == "person"],
+            candidate_ids=[row.id for row in selected if row.kind == "candidate"],
+            legislator_ids=[
+                UUID(row.id) for row in selected if row.kind == "legislator"
+            ],
+            today=today,
+        )
+    )
     result = []
     for row in selected:
         item = {"kind": row.kind, "id": row.id, "name": row.name}
@@ -324,6 +337,7 @@ def directory(
                 party=(profile.get("candidate") or {}).get("party"),
                 voting_area=profile.get("votingArea"),
                 source=source,
+                person_links=candidate_people[row.id],
             )
         elif row.kind == "legislator":
             held = legislators[row.id]
@@ -334,10 +348,13 @@ def directory(
             )
             item.update(
                 slug=held.slug,
+                person_links=legislator_people[row.id],
                 service_status=row.service_status,
                 periods=[_period(p) for p in periods],
                 matching_periods=[_period(p) for p in periods if p.id in matching_ids],
             )
+        elif row.kind == "person":
+            item["confirmed_record_count"] = record_counts[row.id]
         result.append(item)
     years = list(
         db.scalars(
