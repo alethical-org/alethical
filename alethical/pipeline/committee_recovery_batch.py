@@ -55,6 +55,10 @@ class Deferred(RuntimeError):
     """No unsafe retry in the current turn."""
 
 
+class LockBudgetYield(Deferred):
+    """A partial apply allowance ran out; keep evidence without a source retry."""
+
+
 class AmbiguousReceipt(RuntimeError):
     """A later writer or incomplete evidence requires owner review."""
 
@@ -64,13 +68,22 @@ class CleanupOwnershipLost(RuntimeError):
 
 
 @contextmanager
-def sql_deadline(engine, deadline):
+def sql_deadline(engine, deadline, *, independent=False):
     """Bound every query, including reads inside existing coordination helpers."""
     previous = SQL_DEADLINE.get()
-    token = SQL_DEADLINE.set(deadline)
+    token = SQL_DEADLINE.set(
+        min(previous, deadline)
+        if previous is not None and not independent
+        else deadline
+    )
+    previous_engine = recovery.SQL_TIMEOUT_ENGINE.get()
+    engine_token = recovery.SQL_TIMEOUT_ENGINE.set(engine)
 
     def before_sql(connection, cursor, statement, parameters, context, many):
         bound = SQL_DEADLINE.get()
+        helper_bound = context.execution_options.get("committee_recovery_deadline")
+        if helper_bound is not None:
+            bound = min(bound, helper_bound) if bound is not None else helper_bound
         if bound is not None:
             check_time(bound)
             milliseconds = max(1, min(15000, int((bound - time.monotonic()) * 1000)))
@@ -94,15 +107,16 @@ def sql_deadline(engine, deadline):
                 )
             check_time(bound)
 
-    if previous is None:
+    if previous_engine is not engine:
         event.listen(engine, "before_cursor_execute", before_sql)
         event.listen(engine, "commit", before_commit)
     try:
         yield
     finally:
-        if previous is None:
+        if previous_engine is not engine:
             event.remove(engine, "before_cursor_execute", before_sql)
             event.remove(engine, "commit", before_commit)
+        recovery.SQL_TIMEOUT_ENGINE.reset(engine_token)
         SQL_DEADLINE.reset(token)
 
 
@@ -252,28 +266,49 @@ def check_time(deadline, reserve=0):
         raise Deferred("turn deadline reached")
 
 
+@contextmanager
+def stage(seconds, name):
+    started = time.monotonic()
+    try:
+        yield
+    finally:
+        seconds[name] = seconds.get(name, 0.0) + time.monotonic() - started
+
+
 class SourceClient:
     def __init__(self, engine, client, deadline):
         self.limiter = DatabaseRequestLimiter(engine)
         self.client = client
         self.deadline = deadline
+        self.seconds = {}
 
     def __call__(self, url):
         recovery.official(url)
         check_time(self.deadline)
-        self.limiter.wait(url, deadline=self.deadline)
+        with (
+            stage(self.seconds, "source_wait"),
+            sql_deadline(self.limiter.engine, self.deadline),
+        ):
+            self.limiter.wait(url, deadline=self.deadline)
         timeout = min(10, self.deadline - time.monotonic())
         check_time(self.deadline)
         body = bytearray()
-        with self.client.stream(
-            "GET", url, timeout=timeout, follow_redirects=False
-        ) as response:
+        with (
+            stage(self.seconds, "source_fetch"),
+            self.client.stream(
+                "GET", url, timeout=timeout, follow_redirects=False
+            ) as response,
+        ):
             if response.status_code in {429, 503}:
-                self.limiter.defer(
-                    url,
-                    retry_after_seconds(response.headers.get("Retry-After")),
-                    deadline=self.deadline,
-                )
+                with (
+                    stage(self.seconds, "source_cooldown"),
+                    sql_deadline(self.limiter.engine, self.deadline),
+                ):
+                    self.limiter.defer(
+                        url,
+                        retry_after_seconds(response.headers.get("Retry-After")),
+                        deadline=self.deadline,
+                    )
                 raise Deferred("source requested a shared cooldown")
             response.raise_for_status()
             for chunk in response.iter_bytes():
@@ -347,9 +382,17 @@ def pending_attempt(engine, folder, entry):
             with Session(engine) as db, db.begin():
                 readonly(db)
                 outcome = reconcile(db, receipt)
+            timing_path = attempt / "timings.json"
+            timing = json.loads(timing_path.read_text()) if timing_path.exists() else {}
             result(
                 attempt,
-                "applied" if outcome == "committed" else "aborted",
+                "applied"
+                if outcome == "committed"
+                else (
+                    "budget_yield"
+                    if timing.get("apply_budget_exhausted")
+                    else "aborted"
+                ),
                 filled=len(receipt["written"]) if outcome == "committed" else 0,
                 **target_status(
                     receipt["plan"], entry, committed=outcome == "committed"
@@ -394,11 +437,19 @@ def process_bill(
         return {"status": "retry_exhausted"}
     path = folder / f"attempt-{len(attempts) + 1:04d}"
     path.mkdir(parents=True, exist_ok=False, mode=0o700)
+    seconds = {}
+    started = time.monotonic()
+    source_before = dict(getattr(fetcher, "seconds", {}))
+    apply_budget_exhausted = False
+
+    def finish(status, **fields):
+        return result(path, status, **fields)
+
     try:
         check_time(deadline, APPLY_RESERVE)
-        with Session(engine) as db, db.begin():
+        with stage(seconds, "lease_check"), Session(engine) as db, db.begin():
             guard_lease(db, held)
-        with Session(engine) as db, db.begin():
+        with stage(seconds, "capture"), Session(engine) as db, db.begin():
             readonly(db)
             bill = db.get(Bill, UUID(entry["id"]))
             if bill is None or bill.bill_key != entry["key"]:
@@ -412,7 +463,7 @@ def process_bill(
                 deadline=deadline - APPLY_RESERVE,
             )
         retained = source(path / "source.json", entry["key"])
-        with Session(engine) as db, db.begin():
+        with stage(seconds, "plan"), Session(engine) as db, db.begin():
             readonly(db)
             plan = recovery.plan(
                 db,
@@ -427,59 +478,99 @@ def process_bill(
             fill["before"]["id"] not in entry["actions"] for fill in plan["fills"]
         ):
             raise ValueError("proposed fills extend the frozen inventory")
-        recovery.write_evidence(path / "plan.json", plan)
+        with stage(seconds, "plan_save"):
+            recovery.write_evidence(path / "plan.json", plan)
         if not plan["fills"]:
-            return result(
-                path, "no_fill", counts=plan["counts"], **target_status(plan, entry)
+            return finish(
+                "no_fill", counts=plan["counts"], **target_status(plan, entry)
             )
         if not apply:
-            return result(
-                path, "planned", counts=plan["counts"], **target_status(plan, entry)
+            return finish(
+                "planned", counts=plan["counts"], **target_status(plan, entry)
             )
         check_time(deadline, APPLY_RESERVE)
         lock_started = time.monotonic()
         lock_deadline = min(deadline, lock_started + lock_budget)
-        with sql_deadline(engine, lock_deadline), Session(engine) as db, db.begin():
-            guard_lease(db, held, reserve=APPLY_RESERVE)
-            recovery.apply(
-                db, plan, retained["xml"], path / "receipt.json", deadline=lock_deadline
+        try:
+            with (
+                stage(seconds, "apply"),
+                sql_deadline(engine, lock_deadline),
+                Session(engine) as db,
+                db.begin(),
+            ):
+                guard_lease(db, held, reserve=APPLY_RESERVE)
+                recovery.apply(
+                    db,
+                    plan,
+                    retained["xml"],
+                    path / "receipt.json",
+                    deadline=lock_deadline,
+                )
+                check_time(lock_deadline)
+        except (Deferred, TimeoutError, DBAPIError) as exc:
+            timed_out = (
+                isinstance(exc, TimeoutError)
+                or isinstance(exc, Deferred)
+                and str(exc) == "turn deadline reached"
+                or isinstance(exc, DBAPIError)
+                and getattr(exc.orig, "sqlstate", None) == "57014"
             )
-            check_time(lock_deadline)
+            if lock_budget < LOCK_BUDGET and timed_out:
+                apply_budget_exhausted = True
+                raise LockBudgetYield("remaining apply lock budget exhausted") from exc
+            raise
         lock_seconds = time.monotonic() - lock_started
         receipt = json.loads((path / "receipt.json").read_text())
-        with Session(engine) as db, db.begin():
+        with stage(seconds, "readback"), Session(engine) as db, db.begin():
             readonly(db)
             if reconcile(db, receipt) != "committed":
                 raise AmbiguousReceipt("apply commit not confirmed")
-        return result(
-            path,
+        return finish(
             "applied",
             filled=len(receipt["written"]),
             counts=plan["counts"],
             lock_seconds=lock_seconds,
             **target_status(plan, entry, committed=True),
         )
+    except LockBudgetYield as exc:
+        if (path / "receipt.json").exists():
+            raise  # Reconcile commit before any retry, even for a partial budget.
+        finish("budget_yield", reason=str(exc))
+        raise
     except DBAPIError as exc:
         if (path / "receipt.json").exists():
             raise
         if getattr(exc.orig, "sqlstate", None) not in {"57014", "55P03"}:
             raise
-        result(path, "deferred", reason="database statement or lock deadline")
+        finish("deferred", reason="database statement or lock deadline")
         raise Deferred("database statement or lock deadline") from exc
     except (Deferred, TimeoutError, httpx.HTTPError) as exc:
         if (path / "receipt.json").exists():
             raise  # Leave prepared evidence for explicit commit reconciliation.
-        result(path, "deferred", reason=str(exc))
+        finish("deferred", reason=str(exc))
         raise Deferred(str(exc)) from exc
     except ValueError as exc:
         if (path / "receipt.json").exists():
             raise
-        return result(
-            path,
+        return finish(
             "review",
             reason=str(exc),
             targets={action: "bill_evidence_rejected" for action in entry["actions"]},
             review_required=True,
+        )
+
+    finally:
+        seconds["total"] = time.monotonic() - started
+        for name, value in getattr(fetcher, "seconds", {}).items():
+            seconds[name] = value - source_before.get(name, 0.0)
+        recovery.write_evidence(
+            path / "timings.json",
+            {
+                "seconds": seconds,
+                "apply_budget_seconds": lock_budget,
+                "apply_budget_exhausted": apply_budget_exhausted,
+                "note": "Capture includes source wait and fetch; source fetch includes response handling and any source cooldown write; total includes all stages. Apply includes locks through commit, readback is separate. Total ends before saving this timing file and excludes turn cleanup. Missing stages were not reached.",
+            },
         )
 
 
@@ -535,6 +626,8 @@ def _run_turn(
         }
     counts = Counter()
     lock_seconds = 0.0
+    largest_apply = 0.0
+    yield_reason = None
     code = 75
     owns_client = client is None
     try:
@@ -546,6 +639,12 @@ def _run_turn(
         for index in range(
             progress[mode], min(len(manifest["bills"]), progress[mode] + max_bills)
         ):
+            # Never spend a new source request/attempt on less allowance than
+            # a completed apply already needed in this turn. This is admission,
+            # not a promise that another, different bill has the same cost.
+            if apply and largest_apply and LOCK_BUDGET - lock_seconds < largest_apply:
+                yield_reason = "remaining lock budget below observed apply duration"
+                break
             entry = manifest["bills"][index]
             check_time(deadline, APPLY_RESERVE)
             outcome = process_bill(
@@ -563,8 +662,10 @@ def _run_turn(
             if outcome["status"] != "skipped":
                 progress["outcomes"][entry["id"]] = outcome
             save_progress(root, progress)
-            if outcome["status"] == "applied":
-                lock_seconds += outcome.get("lock_seconds", 0)
+            if outcome["status"] == "applied" and not outcome.get("resumed"):
+                spent = outcome.get("lock_seconds", 0)
+                lock_seconds += spent
+                largest_apply = max(largest_apply, spent)
                 if lock_seconds >= LOCK_BUDGET:
                     break
                 # No product lock is held while pacing or between turn invocations.
@@ -588,6 +689,7 @@ def _run_turn(
             "cursor": progress[mode],
             "inventory_bills": len(manifest["bills"]),
             "outcomes": dict(counts),
+            **({"yield_reason": yield_reason} if yield_reason else {}),
         }
     except Deferred as exc:
         code = 76
@@ -604,7 +706,7 @@ def _run_turn(
         if owns_client and client is not None:
             client.close()
         with (
-            sql_deadline(engine, time.monotonic() + CLEANUP_BUDGET),
+            sql_deadline(engine, time.monotonic() + CLEANUP_BUDGET, independent=True),
             Session(engine) as db,
         ):
             db.execute(text("SET LOCAL statement_timeout = '5s'"))

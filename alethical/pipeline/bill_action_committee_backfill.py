@@ -15,6 +15,7 @@ import os
 import re
 import time
 from collections import Counter, defaultdict
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
@@ -37,6 +38,8 @@ from alethical.pipeline.minnesota import parse_bill_xml, parse_datetime
 MAX_XML_BYTES = 2_000_000
 MAX_ACTIONS = 2000
 LOCK_DEADLINE_SECONDS = 20
+# Set only while the batch listener is registered on this exact engine.
+SQL_TIMEOUT_ENGINE = ContextVar("committee_recovery_timeout_engine", default=None)
 
 
 def check_deadline(deadline):
@@ -48,14 +51,20 @@ def check_deadline(deadline):
 
 def execute(db, statement, params=None, *, deadline=None):
     check_deadline(deadline)
-    if deadline is not None:
+    bound = db.get_bind()
+    listener_owned = SQL_TIMEOUT_ENGINE.get() is getattr(bound, "engine", bound)
+    if deadline is not None and not listener_owned:
         # Cap each statement to the remaining caller budget, including lock waits.
         remaining_ms = max(1, min(15000, int((deadline - time.monotonic()) * 1000)))
         db.execute(
             text("SELECT set_config('statement_timeout', :timeout, true)"),
             {"timeout": str(remaining_ms)},
         )
-    result = db.execute(statement, params or {})
+    result = db.execute(
+        statement,
+        params or {},
+        execution_options={"committee_recovery_deadline": deadline},
+    )
     check_deadline(deadline)
     return result
 

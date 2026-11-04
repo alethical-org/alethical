@@ -747,3 +747,223 @@ def test_commit_timeout_refreshes_after_receipt_time(setup, monkeypatch):
     assert observed == ["3s"]
     with Session(engine) as db:
         assert db.get(m.BillAction, ids[1]).committee_id == ids[2]
+
+
+def test_listener_owns_one_timeout_and_keeps_tighter_helper_deadline(
+    setup, monkeypatch
+):
+    engine, _, _, _ = setup
+    clock = 100.0
+    monkeypatch.setattr(time, "monotonic", lambda: clock)
+    with batch.sql_deadline(engine, 110.0), Session(engine) as db:
+        calls = []
+        original = db.execute
+
+        def tracked(statement, *args, **kwargs):
+            calls.append(str(statement))
+            return original(statement, *args, **kwargs)
+
+        monkeypatch.setattr(db, "execute", tracked)
+        timeout = recovery.execute(
+            db, text("SELECT current_setting('statement_timeout')"), deadline=103.0
+        ).scalar()
+    assert timeout == "3s"
+    assert len(calls) == 1  # The engine listener, not a second helper setter, owns it.
+    with Session(engine) as db:
+        assert (
+            recovery.execute(
+                db, text("SELECT current_setting('statement_timeout')"), deadline=102.0
+            ).scalar()
+            == "2s"
+        )  # Standalone helper remains bounded after context exit.
+
+
+def test_partial_lock_budget_yields_before_next_attempt(setup, monkeypatch):
+    engine, root, _, client = setup
+    manifest = json.loads((root / "inventory.json").read_text())
+    manifest["bills"].append(
+        {"id": str(uuid.uuid4()), "key": "94-2025-HF9999", "actions": []}
+    )
+    manifest["sha256"] = batch.digest(
+        {k: v for k, v in manifest.items() if k != "sha256"}
+    )
+    (root / "inventory.json").write_text(json.dumps(manifest))
+    calls = []
+
+    def apply(*args, **kwargs):
+        calls.append(args[2]["key"])
+        return {"status": "applied", "lock_seconds": 2.8, "filled": 1}
+
+    monkeypatch.setattr(batch, "process_bill", apply)
+    answer = batch.run_turn(engine, root, "local", apply=True, client=client)
+    assert answer["status"] == "continuing"
+    assert answer["cursor"] == 1
+    assert calls == ["94-2025-HF6666"]
+    assert (
+        answer["yield_reason"] == "remaining lock budget below observed apply duration"
+    )
+    assert not list(root.glob("*/attempt-*"))
+
+
+def test_attempt_timings_persist_source_and_database_stages(setup, monkeypatch):
+    engine, root, _, client = setup
+    answer = batch.run_turn(engine, root, "local", apply=True, client=client)
+    assert answer["status"] == "pass_finished"
+    saved = json.loads(next(root.glob("*/attempt-*/timings.json")).read_text())
+    stages = saved["seconds"]
+    assert set(stages) >= {
+        "source_wait",
+        "source_fetch",
+        "lease_check",
+        "capture",
+        "plan",
+        "apply",
+        "readback",
+        "total",
+    }
+    assert all(value >= 0 for value in stages.values())
+    assert stages["capture"] >= stages["source_wait"] + stages["source_fetch"]
+    assert (
+        stages["total"]
+        >= stages["capture"] + stages["plan"] + stages["apply"] + stages["readback"]
+    )
+
+
+def test_partial_allowance_timeout_does_not_spend_source_attempt(setup, monkeypatch):
+    engine, root, ids, client = setup
+    held = batch.claim(engine)
+    entry = json.loads((root / "inventory.json").read_text())["bills"][0]
+    folder = root / entry["id"]
+    original = recovery.apply
+
+    def slow(db, *args, **kwargs):
+        recovery.execute(db, text("SELECT pg_sleep(0.3)"), deadline=kwargs["deadline"])
+        return original(db, *args, **kwargs)
+
+    monkeypatch.setattr(recovery, "apply", slow)
+    fetcher = batch.SourceClient(engine, client, time.monotonic() + 60)
+    for _ in range(batch.MAX_ATTEMPTS + 1):
+        with pytest.raises(batch.Deferred, match="remaining apply lock budget"):
+            batch.process_bill(
+                engine,
+                held,
+                entry,
+                folder,
+                fetcher,
+                time.monotonic() + 90,
+                apply=True,
+                lock_budget=0.08,
+            )
+    results = [json.loads(p.read_text()) for p in folder.glob("*/result.json")]
+    assert len(results) == batch.MAX_ATTEMPTS + 1
+    assert {r["status"] for r in results} == {"budget_yield"}
+    assert not list(folder.glob("*/receipt.json"))
+    for p in folder.glob("*/timings.json"):
+        value = json.loads(p.read_text())
+        assert value["apply_budget_exhausted"] is True
+        assert value["seconds"]["apply"] >= 0.05
+    with Session(engine) as db:
+        assert db.get(m.BillAction, ids[1]).committee_id is None
+        refresh.finish_job(db, held, code=76)
+
+
+def test_partial_budget_prepared_receipt_is_reconciled_before_retry(setup, monkeypatch):
+    engine, root, ids, client = setup
+    held = batch.claim(engine)
+    entry = json.loads((root / "inventory.json").read_text())["bills"][0]
+    folder = root / entry["id"]
+    original = recovery.apply
+
+    def expired_after_receipt(*args, **kwargs):
+        original(*args, **kwargs)
+        raise TimeoutError(
+            "recovery lock deadline exceeded; transaction must roll back"
+        )
+
+    monkeypatch.setattr(recovery, "apply", expired_after_receipt)
+    fetcher = batch.SourceClient(engine, client, time.monotonic() + 60)
+    with pytest.raises(batch.Deferred, match="remaining apply lock budget"):
+        batch.process_bill(
+            engine,
+            held,
+            entry,
+            folder,
+            fetcher,
+            time.monotonic() + 90,
+            apply=True,
+            lock_budget=2,
+        )
+    assert list(folder.glob("*/receipt.json"))
+    assert not list(folder.glob("*/result.json"))
+    batch.pending_attempt(engine, folder, entry)
+    saved = json.loads(next(folder.glob("*/result.json")).read_text())
+    assert saved["status"] == "budget_yield"
+    with Session(engine) as db:
+        assert db.get(m.BillAction, ids[1]).committee_id is None
+        refresh.finish_job(db, held, code=76)
+
+
+def test_helper_timeout_owner_never_leaks_to_other_engine(setup, monkeypatch):
+    from sqlalchemy import create_engine
+
+    engine, _, _, _ = setup
+    other = create_engine(engine.url)
+    monkeypatch.setattr(time, "monotonic", lambda: 100.0)
+    try:
+        with batch.sql_deadline(engine, 110.0), Session(other) as db:
+            assert (
+                recovery.execute(
+                    db,
+                    text("SELECT current_setting('statement_timeout')"),
+                    deadline=102.0,
+                ).scalar()
+                == "2s"
+            )
+    finally:
+        other.dispose()
+
+
+@pytest.mark.parametrize("cooldown", [False, True])
+def test_source_database_wait_keeps_shorter_bound_under_turn_listener(
+    setup, monkeypatch, cooldown
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from sqlalchemy.exc import DBAPIError
+
+    engine, _, _, _ = setup
+    DatabaseRequestLimiter(engine).wait(URL)
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda req: httpx.Response(
+                429 if cooldown else 200, text=COMMITTEE_BILL_XML
+            )
+        )
+    )
+    executor = ThreadPoolExecutor(max_workers=1)
+    blocker = engine.connect()
+    transaction = blocker.begin()
+
+    def request():
+        with batch.sql_deadline(engine, time.monotonic() + 10):
+            fetcher = batch.SourceClient(engine, client, time.monotonic() + 0.15)
+            if cooldown:
+                # Reach cooldown persistence without waiting at reservation first.
+                monkeypatch.setattr(
+                    fetcher.limiter, "wait", lambda *args, **kwargs: None
+                )
+            return fetcher(URL)
+
+    try:
+        blocker.execute(
+            text(
+                "SELECT * FROM source_request_limits WHERE host='revisor.mn.gov' FOR UPDATE"
+            )
+        )
+        future = executor.submit(request)
+        with pytest.raises(DBAPIError, match="statement timeout"):
+            future.result(timeout=1)
+    finally:
+        transaction.rollback()
+        blocker.close()
+        executor.shutdown(wait=True)
+        client.close()
