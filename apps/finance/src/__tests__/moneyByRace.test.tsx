@@ -7,6 +7,7 @@ import {
   clearOutsideSpending,
   contestAnchor,
   contestHeading,
+  electionLine,
   groupAmountText,
   MoneyByRace,
   moneyByRaceHref,
@@ -525,6 +526,51 @@ describe('Money by race page', () => {
     await render('/money/races/house?year=2026', answers());
     expect(window.location.pathname).toBe('/money/races/house-1a');
     expect(window.location.search).toBe('?year=2026');
+  });
+
+  const withElection = (election: unknown) =>
+    races({
+      contests: races().contests.map((contest, i) =>
+        i === 0 ? { ...contest, election } : contest,
+      ),
+    });
+
+  it('prints the served election beside the contest, as drawn', async () => {
+    await render(
+      '/money/races/house-1a',
+      answers({}, withElection({ stage: 'general', date: '2026-11-03' })),
+    );
+    expect(container.querySelector('.mr-contest-stage')?.textContent).toBe(
+      'General election · Nov 3, 2026',
+    );
+  });
+
+  it('prints no election line when the race carries none', async () => {
+    await render('/money/races/house-1a', answers({}, withElection(null)));
+    expect(container.querySelector('.mr-contest-stage')).toBeNull();
+    expect(container.textContent).not.toContain('election ·');
+  });
+
+  it('names a special election by its own stage', async () => {
+    await render(
+      '/money/races/house-1a',
+      answers({}, withElection({ stage: 'special', date: '2026-02-10' })),
+    );
+    expect(container.querySelector('.mr-contest-stage')?.textContent).toBe(
+      'Special election · Feb 10, 2026',
+    );
+  });
+
+  it('never guesses a stage or a date', () => {
+    expect(electionLine({ stage: 'primary', date: '2026-08-11' })).toBe(
+      'Primary election · Aug 11, 2026',
+    );
+    expect(electionLine({ stage: 'runoff', date: '2026-11-03' })).toBeNull();
+    expect(electionLine({ stage: 'general', date: null })).toBeNull();
+    expect(electionLine({ stage: 'general', date: 'soon' })).toBeNull();
+    expect(electionLine({ stage: null, date: '2026-11-03' })).toBeNull();
+    expect(electionLine(null)).toBeNull();
+    expect(electionLine(undefined)).toBeNull();
   });
 
   it('shows Loading while the race is read', async () => {
