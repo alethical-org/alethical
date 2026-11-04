@@ -1239,3 +1239,89 @@ def test_finance_withdrawal_removes_a_copy_facts_history_only_in_finance(origina
     )
     assert standing["history"] == []
     assert db.get(m.TVAdFact, old.id).value == "Example Media"
+
+
+def test_agency_rows_carry_the_date_of_their_own_check(
+    finance_api, original, monkeypatch
+):
+    """A file row names when its own shown agency check was made; a similar
+    spelling names 1 date only when every file printing it was checked that day."""
+    from zoneinfo import ZoneInfo
+
+    db = original.db
+    text = PAGE_1 + " Agency: Exmaple Media."
+    db.scalar(
+        select(m.FCCPage).where(
+            m.FCCPage.content_hash == original.version,
+            m.FCCPage.version == EXTRACTOR_VERSION,
+            m.FCCPage.page == 1,
+        )
+    ).text = text
+    second = _file(db, original.store)
+    _read(db, second, {1: text, 2: PAGE_2})
+    db.commit()
+    checks.add_fact(db, CLIENT, original.key, original.version, _fact())
+    for document in (original.document, second):
+        checks.add_fact(
+            db,
+            CLIENT,
+            _key(document),
+            document.content_hash,
+            _fact(value="Exmaple Media", quote="Agency: Exmaple Media."),
+        )
+    db.commit()
+
+    def get(path):
+        response = finance_api.get(BASE + path)
+        assert response.status_code == 200, (path, response.text)
+        return response.json()["data"]
+
+    def similar():
+        (row,) = [
+            r
+            for r in get(
+                f"/agencies/{reader.agency_key('Example Media')}/similar-names"
+            )["rows"]
+            if r["label"] == "Exmaple Media"
+        ]
+        return row
+
+    times = {
+        f.content_hash: f.checked_at
+        for f in db.scalars(
+            select(m.FinanceTVFact).where(
+                m.FinanceTVFact.field == "agency_name",
+                m.FinanceTVFact.value == "Exmaple Media",
+            )
+        )
+    }
+    assert set(times) == {original.version, second.content_hash}
+    key = reader.agency_key("Exmaple Media")
+    files = [
+        row for group in get(f"/agencies/{key}")["groups"] for row in group["files"]
+    ]
+    assert {row["version_id"]: row["agency_checked_at"] for row in files} == {
+        version: when.isoformat() for version, when in times.items()
+    }
+    row = similar()
+    assert (row["file_count"], row["unchecked"]) == (2, False)
+    day = {
+        when.astimezone(ZoneInfo("America/Chicago")).date() for when in times.values()
+    }
+    assert len(day) == 1 and row["checked_on"] == day.pop().isoformat()
+    # A third file checked 3 days later: no single date stands for every file.
+    later = review.now() + timedelta(days=3)
+    third = _file(db, original.store)
+    _read(db, third, {1: text, 2: PAGE_2})
+    db.commit()
+    monkeypatch.setattr(review, "now", lambda: later)
+    checks.add_fact(
+        db,
+        CLIENT,
+        _key(third),
+        third.content_hash,
+        _fact(value="Exmaple Media", quote="Agency: Exmaple Media."),
+    )
+    db.commit()
+    row = similar()
+    assert (row["file_count"], row["unchecked"], row["checked_on"]) == (3, False, None)

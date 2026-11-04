@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -14,6 +15,7 @@ from alethical.api.services import tv_ads as reader
 from alethical.api.services.identity_confirmations import IdentityError
 
 MAX_NAMES = 20_000
+MINNESOTA = ZoneInfo("America/Chicago")
 
 
 class Unavailable(Exception):
@@ -26,10 +28,18 @@ def _read(db, key, limit, offset):
     # A check for one name, address, file or version never checks another.
     groups = defaultdict(set)
     unchecked = defaultdict(bool)
+    # Each file's check date for a name, in Minnesota time; None when a checked
+    # file's own check has no single time.
+    checked_on = defaultdict(set)
     for current in reader._latest_copies(db):
-        for name, (_, pending) in reader._names_by_version(db, current).items():
+        for name, (version, pending) in reader._names_by_version(db, current).items():
             groups[name].add((current.facility_id, current.file_id))
             unchecked[name] |= pending
+            if not pending:
+                when = reader.agency_checked_at(db, version, name)
+                checked_on[name].add(
+                    when.astimezone(MINNESOTA).date() if when else None
+                )
             if len(groups) > MAX_NAMES:
                 raise Unavailable
     name = next((value for value in groups if reader.agency_key(value) == key), None)
@@ -78,6 +88,13 @@ def _read(db, key, limit, offset):
                     }
                 ),
                 "unchecked": unchecked[label],
+                # A date only when every file is checked and all were checked on
+                # the same Minnesota day; 1 date is never a check of other files.
+                "checked_on": next(iter(checked_on[label])).isoformat()
+                if not unchecked[label]
+                and len(checked_on[label]) == 1
+                and None not in checked_on[label]
+                else None,
             }
             for label in names[:limit]
         ],

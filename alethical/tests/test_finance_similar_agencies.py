@@ -61,6 +61,7 @@ def test_agency_typos_are_exact_distinct_names_with_own_evidence(
             "file_count": 1,
             "stations": ["KSTP-TV"],
             "unchecked": True,
+            "checked_on": None,
         }
     assert problems(data) == []
     assert not data["has_more"]
