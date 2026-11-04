@@ -157,12 +157,28 @@ held produce an unavailable state, never a zero. A requested release that change
   period start. Beginning and ending balance dates come from their own printed labels;
   an undated balance is withheld. Expenditures are never relabelled as all
   disbursements. Filing dates never come from period ends. Retained figures keep their
-  own copy date.
+  own copy date. `figures_reason` is null for a uniquely matched report, otherwise
+  `missing_filing` (no held financial-figures row), `missing_reported_through`,
+  `special_election`, `missing_cutoff`, `cutoff_mismatch`, or `ambiguous_cutoff`.
+  These describe missing or mismatched held evidence, never a failure to file.
+- `/committees/{number}/payments` inside Finance reuses the public raw payment reader,
+  with identical rows, amounts, paging, source/release dates and disclosure attachments.
+  On outgoing rows, `recipient_type` is a held register kind only for an exact receiving
+  registration on a `Contribution` row; no name or processor identity creates it.
+  `recipient_type_source` carries its register snapshot, own copied date, source URL
+  and retained flag. This is current or retained register metadata, not a claim about
+  the recipient's kind in the payment year. Missing evidence gives null fields.
+  The public payment response remains unchanged.
 - `/committees/{number}/payment-groups` pages exact named groups for one filing year and
   direction, with whole-filter group/payment counts and itemized amount before paging.
   The same missing-amount and complete-period rules apply to that whole-filter total.
   An optional exact source `record_number` locates its complete group and exact row
   offset for a notice link, even beyond its first preview page.
+  With `direction=made`, `tab=made` contains only filed `Contribution` rows and
+  `tab=expenditures` excludes them, matching the approved disjoint Committee tabs.
+  Omitting the tab still returns all outgoing rows. Made groups carry the same
+  exact-register recipient type/source fields as the raw Finance read; tab counts
+  cover the full year before page filtering.
   Contribution categories stay separate; candidate committees belong with committees
   and funds; outgoing transfers retain the receiving committee's filed number. Unnamed
   records stay individual. A sum is withheld if any amount is missing; every shown sum
