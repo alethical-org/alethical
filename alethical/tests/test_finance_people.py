@@ -424,3 +424,37 @@ def test_people_count_includes_only_active_identity_lobbyist_links(
         ]
         == 0
     )
+
+
+def test_people_link_cue_read_cost_is_bounded_to_the_selected_page(
+    finance_api, finance_db
+):
+    from time import perf_counter
+    from sqlalchemy import event
+
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    # The retained register and seed contain 17 records. Add three independent
+    # held service records to exercise a full 20-row request without fake links.
+    for index in range(3):
+        service_member(finance_db, f"read-cost-service-{index}")
+    finance_db.flush()
+    statements = []
+    connection = finance_db.connection()
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", capture)
+    started = perf_counter()
+    try:
+        result = get(finance_api, limit=20)
+    finally:
+        elapsed = perf_counter() - started
+        event.remove(connection, "before_cursor_execute", capture)
+    print(
+        f"People read cost: {len(result['rows'])} rows; {len(statements)} statements; {elapsed:.4f}s"
+    )
+    assert len(result["rows"]) == 20
+    # This fixture includes the actual retained civic-person register plus the
+    # seeded legislature. Linked records are batched, not one profile read per row.
+    assert len(statements) <= 20

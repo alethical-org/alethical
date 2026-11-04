@@ -455,7 +455,20 @@ def test_legislator_person_link_requires_existing_full_review_checks(
             today=NOW.date(),
         )
 
+    from alethical.api.services import candidate_legislators
+
+    original_lookup = candidate_legislators.confirmed_legislator
+    calls = []
+
+    def measured_lookup(*args, **kwargs):
+        calls.append(1)
+        return original_lookup(*args, **kwargs)
+
+    monkeypatch.setattr(candidate_legislators, "confirmed_legislator", measured_lookup)
     counts, candidates, legislators = cues()
+    assert len(calls) == 1, (
+        "One validated candidate must not load legislative evidence twice"
+    )
     expected_link = {"id": pid, "name": result["name"]}
     assert counts[pid] == len(result["elections"]) + len(result["service"])
     assert candidates[profile["candidate"]["id"]] == [expected_link]
