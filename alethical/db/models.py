@@ -4214,6 +4214,25 @@ class FCCObservation(Base):
                 "AND (details ->> 'file_id') IS NOT NULL"
             ),
         ),
+        # The collector's per-file reads of the files a scan listed: the newest
+        # download attempt, and the newest baseline and first listing (0086).
+        Index(
+            "ix_fcc_observation_file_attempt",
+            "facility_id",
+            text("(details ->> 'file_id')"),
+            text("observed_at DESC"),
+            postgresql_where=text(
+                "kind = 'file' AND status NOT IN ('unchanged', 'deferred')"
+            ),
+        ),
+        Index(
+            "ix_fcc_observation_file_history",
+            "facility_id",
+            text("(details ->> 'file_id')"),
+            text("observed_at DESC"),
+            text("scan_id DESC"),
+            postgresql_where=text("kind = 'file'"),
+        ),
     )
 
 
