@@ -1,12 +1,40 @@
+import { quotedSpelling } from '../payments/printedName';
 import { useEffect, useId, useRef, useState } from 'react';
-import { edgeAmount, nodeKind, RELATIONSHIPS, type GraphEdge, type GraphNode } from './data';
+import {
+  edgeAmount,
+  nodeKind,
+  nodeSub,
+  RELATIONSHIPS,
+  type GraphEdge,
+  type GraphNode,
+} from './data';
 
 /** Wrap using the rendered font's width, including one long word. No label is shortened. */
 export function wrapLabel(
   label: string,
   width: number,
   measure: (text: string) => number,
+  preserveWhitespace = false,
 ): string[] {
+  if (preserveWhitespace) {
+    const lines: string[] = [];
+    let line = '';
+    for (const token of label.match(/\s+|\S+/g) ?? []) {
+      if (line && measure(line + token) > width) {
+        lines.push(line);
+        line = '';
+      }
+      for (const char of token) {
+        if (line && measure(line + char) > width) {
+          lines.push(line);
+          line = '';
+        }
+        line += char;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
   const lines: string[] = [];
   let line = '';
   for (const word of label.split(/\s+/)) {
@@ -107,6 +135,7 @@ export function ConnectionsMap({
     return ctx.measureText(s).width;
   };
   const measureLabel = measureWith('600 12.5px Inter, sans-serif');
+  const measureSub = measureWith('400 11px Inter, sans-serif');
   const measureHead = measureWith('700 11px Inter, sans-serif');
   const stacked = width < 600,
     pad = 16,
@@ -118,7 +147,10 @@ export function ConnectionsMap({
   const columns: GraphNode[][] = [[], [], []];
   for (const node of nodes) columns[columnOf(node, edges)].push(node);
   columns.forEach((col) => col.sort((a, b) => a.label.localeCompare(b.label)));
-  const positions = new Map<string, { x: number; y: number; height: number; lines: string[] }>();
+  const positions = new Map<
+    string,
+    { x: number; y: number; height: number; lines: string[]; sub: string[] }
+  >();
   const labels: Array<{ x: number; y: number; lines: string[] }> = [];
   let height = 0,
     top = 8;
@@ -130,11 +162,17 @@ export function ConnectionsMap({
     labels.push({ x, y: y + 14, lines: title });
     y += 12 + title.length * 16;
     col.forEach((node) => {
-      const lines = wrapLabel(node.label, boxWidth - 42, measureLabel);
-      const natural = 12 + lines.length * 16 + (node.unresolved ? 16 : 0);
+      const lines = wrapLabel(
+        node.unresolved ? quotedSpelling(node.label) : node.label,
+        boxWidth - 42,
+        measureLabel,
+        node.unresolved,
+      );
+      const sub = wrapLabel(nodeSub(node), boxWidth - 42, measureSub, true);
+      const natural = 12 + (lines.length + sub.length) * 16 + (node.unresolved ? 16 : 0);
       // A phone target is at least 44px tall (eug-8, the brief's touch rule).
       const h = stacked ? Math.max(44, natural) : natural;
-      positions.set(node.key, { x, y, height: h, lines });
+      positions.set(node.key, { x, y, height: h, lines, sub });
       y += h + 10;
     });
     top = y + 10;
@@ -318,8 +356,22 @@ export function ConnectionsMap({
                   {line}
                 </text>
               ))}
+              {p.sub.map((line, i) => (
+                <text
+                  key={`sub-${i}`}
+                  x={32}
+                  y={19.5 + (p.lines.length + i) * 16}
+                  className="mc-node-sub"
+                >
+                  {line}
+                </text>
+              ))}
               {node.unresolved && (
-                <text x={32} y={19.5 + p.lines.length * 16} className="mc-node-printed">
+                <text
+                  x={32}
+                  y={19.5 + (p.lines.length + p.sub.length) * 16}
+                  className="mc-node-printed"
+                >
                   PRINTED
                 </text>
               )}

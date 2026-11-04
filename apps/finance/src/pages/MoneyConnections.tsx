@@ -1,3 +1,4 @@
+import { PrintedName, quotedSpelling } from './payments/printedName';
 import { RECORDS_CHANGED, useVersionedRead } from '../api/versionedRead';
 import { useFinanceSession } from '../auth/session';
 import { useCallback, useEffect, useState } from 'react';
@@ -19,6 +20,7 @@ import {
   edgeAmount,
   edgeEvidence,
   edgePeriod,
+  edgePosition,
   loadedLine,
   moreLabel,
   nodeHref,
@@ -88,6 +90,7 @@ export function MoneyConnections() {
   const authScope = `${apiBaseUrl}|${accessToken}`;
   const scope = JSON.stringify([authScope, q, year, relation, focus]);
   const [wanted, setWanted] = useState({ scope, count: 1 });
+  if (wanted.scope !== scope) setWanted({ scope, count: 1 });
   const count = wanted.scope === scope ? wanted.count : 1;
   const offset = (count - 1) * PAGE_SIZE;
   const read = useVersionedRead<ConnectionsPage>(
@@ -196,7 +199,7 @@ export function MoneyConnections() {
         : selectedNode.kind === 'committee'
           ? 'committee'
           : 'plain',
-      title: selectedNode.label,
+      title: selectedNode.unresolved ? quotedSpelling(selectedNode.label) : selectedNode.label,
       sub: nodeSub(selectedNode),
       href: href && withFrom(href, here),
       hrefLabel: href ? label : null,
@@ -218,7 +221,7 @@ export function MoneyConnections() {
     selection = {
       kind: RELATIONSHIPS[selectedEdge.relationship] ?? selectedEdge.relationship,
       tone: 'plain',
-      title: `${from.label} to ${to.label}`,
+      title: `${from.unresolved ? quotedSpelling(from.label) : from.label} to ${to.unresolved ? quotedSpelling(to.label) : to.label}`,
       sub: sourceLabel(selectedEdge.source.dataset),
       href: href && withFrom(href, hereWith(selectedEdge.id)),
       hrefLabel: href ? (to.kind === 'committee' ? 'Open committee' : 'Open record') : null,
@@ -277,7 +280,10 @@ export function MoneyConnections() {
               value={year}
               options={[
                 { value: '', label: 'All years' },
-                ...yearOptions.map((value) => ({ value: String(value), label: String(value) })),
+                ...yearOptions.map((value) => ({
+                  value: String(value),
+                  label: String(value),
+                })),
               ]}
               onChange={(value) => setAddress({ year: value, focus: '', edge: '', pages: '' })}
             />
@@ -286,7 +292,10 @@ export function MoneyConnections() {
               value={relation}
               options={[
                 { value: '', label: 'All relationships' },
-                ...RELATION_KEYS.map((value) => ({ value, label: RELATIONSHIPS[value] })),
+                ...RELATION_KEYS.map((value) => ({
+                  value,
+                  label: RELATIONSHIPS[value],
+                })),
               ]}
               onChange={(value) => setAddress({ rel: value, focus: '', edge: '', pages: '' })}
             />
@@ -295,7 +304,14 @@ export function MoneyConnections() {
               className="f-btn f-btn-secondary"
               onClick={() => {
                 setTyped('');
-                setAddress({ q: '', year: '', rel: '', focus: '', edge: '', pages: '' });
+                setAddress({
+                  q: '',
+                  year: '',
+                  rel: '',
+                  focus: '',
+                  edge: '',
+                  pages: '',
+                });
               }}
             >
               Reset view
@@ -391,7 +407,13 @@ export function MoneyConnections() {
                             return (
                               <li key={edge.id}>
                                 <span className="mc-note">{dir}</span>
-                                <span className="mc-other">{other.label}</span>
+                                <span className="mc-other">
+                                  {other.unresolved ? (
+                                    <PrintedName name={other.label} />
+                                  ) : (
+                                    other.label
+                                  )}
+                                </span>
                                 {amount && (
                                   <span
                                     className="mc-amount"
@@ -401,6 +423,11 @@ export function MoneyConnections() {
                                   </span>
                                 )}
                                 <span className="mc-note f-num">{edgePeriod(edge)}</span>
+                                {edgePosition(edge) && (
+                                  <span className="mc-note mc-filed-position">
+                                    {edgePosition(edge)}
+                                  </span>
+                                )}
                                 <span className="mc-actions">
                                   <button
                                     type="button"
@@ -465,6 +492,11 @@ export function MoneyConnections() {
                               </td>
                               <td className="mc-muted">
                                 {RELATIONSHIPS[edge.relationship] ?? edge.relationship}
+                                {edgePosition(edge) && (
+                                  <span className="mc-block mc-filed-position">
+                                    {edgePosition(edge)}
+                                  </span>
+                                )}
                               </td>
                               <td>
                                 <NodeCell
@@ -599,10 +631,12 @@ function NodeCell({
     <>
       {href ? (
         <Link to={withFrom(href, from)} className="mc-name-link" onClick={onOpen}>
-          {node.label}
+          {node.unresolved ? <PrintedName name={node.label} /> : node.label}
         </Link>
       ) : (
-        <span className="mc-name">{node.label}</span>
+        <span className="mc-name">
+          {node.unresolved ? <PrintedName name={node.label} /> : node.label}
+        </span>
       )}
       {sub && <span className="mc-sub">{sub}</span>}
     </>

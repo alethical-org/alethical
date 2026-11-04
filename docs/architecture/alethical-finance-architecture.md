@@ -207,6 +207,16 @@ never infers that one payment funded another. Station-file relationships carry n
 Outgoing committee contributions use the separately filed recipient, never a processor's
 confirmed identity. A recipient without held filer evidence remains a printed name.
 
+Graph nodes retain the exact printed spellings behind their loaded confirmed-name
+relationships, the held filer registration kind, and a station file's first-saved date.
+Filed positions remain on independent-spending relationships, with missing-position
+record counts; they never become a person's stance. Map labels grow and preserve exact
+source spaces, and the table carries the same metadata. Pagination resets when filters
+change. Its version includes the live filing-register pointer and latest summary row ID,
+so a same-release metadata rebuild cannot mix pages. Summary writers must continue to
+hold `PUBLISH_LOCK_KEY` and delete/insert rows, never update metadata in place; the indexed
+latest-ID read conservatively invalidates even an unrelated summary rebuild.
+
 Money groups are read from `cf_graph_money_summary`, 1 row per distinct set of node
 inputs (filer number and name, printed name, donor number, payment type, named
 transfer), exact independent-spending position and filing year of each saved payment file, with its record count, signed

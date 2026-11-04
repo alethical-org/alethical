@@ -3,6 +3,7 @@ import { formatMoney } from '../../ui/money';
 import { hrefFor, isBuilt, type RouteName } from '../../routes';
 import type { Evidence } from '../../ui/controls';
 import { day } from '../media/shared';
+import { quotedSpelling } from '../payments/printedName';
 import { periodOf } from '../organization/data';
 
 /** Relationships per page: the server's default and the drawing's (Round 37 item 7). */
@@ -27,6 +28,9 @@ export interface GraphNode {
   unresolved: boolean;
   role?: string | null;
   version_id?: string;
+  printed_names?: string[];
+  register_kind?: string | null;
+  saved_at?: string | null;
   target: { kind: string; id: string; role?: string; version?: string } | null;
 }
 export interface GraphEdge {
@@ -42,6 +46,8 @@ export interface GraphEdge {
   first_year: number | null;
   last_year: number | null;
   record_count: number;
+  positions?: string[];
+  position_missing_count?: number;
   undated_count: number;
   source: {
     dataset: string;
@@ -92,20 +98,25 @@ export function nodeKind(node: GraphNode) {
   return KINDS[node.kind] ?? node.kind;
 }
 
-/**
- * The line under a name (the drawing's node `sub`): what kind of record it is.
- * A confirmed identity's "printed as {spelling}" needs the printed spelling,
- * which the server does not serve yet. Kinds the drawing gives no words for
- * (legislator, candidate, election, file) have no line.
- */
+/** Source-backed detail under a name; printed spellings cover loaded relationships. */
+const REGISTER_KINDS: Record<string, string> = {
+  candidate_committee: 'Candidate committee',
+  party_unit: 'Party unit',
+  political_committee_or_fund: 'Political committee or fund',
+};
 export function nodeSub(node: GraphNode): string {
+  const spellings = node.printed_names?.map(quotedSpelling).join('; ');
+  const printed = spellings ? ` · printed as ${spellings}` : '';
+  const registerKind = REGISTER_KINDS[node.register_kind ?? ''];
   switch (node.kind) {
     case 'person':
-      return 'Confirmed person';
+      return `Confirmed person${printed}`;
     case 'organization':
-      return 'Confirmed organization';
+      return `Confirmed organization${printed}`;
     case 'committee':
-      return `Registration ${node.record_id}`;
+      return `${registerKind ? `${registerKind} · ` : ''}Registration ${node.record_id}`;
+    case 'file':
+      return node.saved_at ? `Saved ${day(node.saved_at)}` : '';
     case 'lobbyist':
       return `Lobbyist registration ${node.record_id}`;
     case 'principal':
@@ -257,6 +268,23 @@ export function edgePeriod(edge: GraphEdge) {
   );
 }
 
+/** Filed positions stay on their payment relationship, never become a person's stance. */
+export function edgePosition(edge: GraphEdge): string | null {
+  if (edge.source.dataset !== 'independent_expenditures') return null;
+  const positions = edge.positions?.map(quotedSpelling).join('; ');
+  const missing = edge.position_missing_count;
+  return (
+    [
+      positions ? `Position as filed: ${positions}` : '',
+      missing
+        ? `Position not held for ${formatCount(missing)} ${missing === 1 ? 'record' : 'records'}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || null
+  );
+}
+
 /** The source's name as the drawings print it (finance-data SNAPSHOTS labels). */
 export function sourceLabel(dataset: string) {
   return (
@@ -285,9 +313,15 @@ export function edgeEvidence(edge: GraphEdge, from: GraphNode, to: GraphNode): E
       { label: 'Source', value: sourceLabel(edge.source.dataset) },
       { label: 'Period', value: edgePeriod(edge) },
       { label: 'Records', value: String(edge.record_count) },
+      ...(edgePosition(edge) ? [{ label: 'Filed position', value: edgePosition(edge)! }] : []),
       // The copy is named by its date, never by its internal id (settled wording row 21).
       ...(edge.source.copied_at
-        ? [{ label: 'Source version', value: `Copy of ${day(edge.source.copied_at)}` }]
+        ? [
+            {
+              label: 'Source version',
+              value: `Copy of ${day(edge.source.copied_at)}`,
+            },
+          ]
         : []),
       ...(edge.source.page ? [{ label: 'Page', value: String(edge.source.page) }] : []),
     ],
@@ -319,7 +353,15 @@ export function combinePages(pages: ReadonlyArray<ConnectionsPage | undefined>) 
   for (const page of pages) {
     if (!page) continue;
     last = page;
-    for (const node of page.nodes) if (!nodes.has(node.key)) nodes.set(node.key, node);
+    for (const node of page.nodes) {
+      const prior = nodes.get(node.key);
+      nodes.set(node.key, {
+        ...node,
+        printed_names: [
+          ...new Set([...(prior?.printed_names ?? []), ...(node.printed_names ?? [])]),
+        ].sort(),
+      });
+    }
     for (const edge of page.edges) if (!edges.has(edge.id)) edges.set(edge.id, edge);
   }
   const valid = [...edges.values()].filter((edge) => nodes.has(edge.from) && nodes.has(edge.to));
