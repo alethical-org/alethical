@@ -44,6 +44,7 @@ function register(overrides: Partial<CommitteeRegister> = {}): CommitteeRegister
     page: { limit: 50, offset: 0, has_more: false, total: 1 },
     register_total: 1607,
     by_kind: { candidate_committee: 762, party_unit: 299, political_committee_or_fund: 546 },
+    held_by_kind: { candidate_committee: 762, party_unit: 299, political_committee_or_fund: 546 },
     as_of: '2026-10-28',
     reason: null,
     ...overrides,
@@ -119,6 +120,171 @@ function registerRequests() {
 }
 
 describe('Campaign money directory', () => {
+  it('renders registration search, held party and explicit retained and dated status', async () => {
+    const base = register().committees[0];
+    await render('/money?q=18135', () =>
+      json(
+        register({
+          committees: [
+            { ...base, party: 'DFL', registration_date: '2020-01-02', registration_status: 'open' },
+            {
+              ...base,
+              registration_number: '9',
+              name: 'Earlier committee',
+              is_closed: false,
+              retained: true,
+              registration_status: 'not_listed',
+              registration_date: '2019-01-02',
+            },
+          ],
+        } as Partial<CommitteeRegister>),
+      ),
+    );
+    expect(container.querySelector('input')?.getAttribute('placeholder')).toBe(
+      'Search by name or registration number',
+    );
+    expect(container.textContent).toContain('Candidate committee · DFL');
+    expect(container.textContent).toContain('Registered Jan 2, 2020');
+    expect(container.textContent).toContain('No longer listed in the current register');
+    expect(container.textContent).not.toContain('Registered Jan 2, 2019');
+    expect(registerRequests()[0]).toContain('q=18135');
+    expect(registerRequests()[0]).toContain('status=all');
+  });
+
+  it('sends registration filters to the server and resets paging', async () => {
+    await render('/money?page=3', () => json(register()));
+    const menu = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.startsWith('Registration:'),
+    );
+    expect(menu).toBeTruthy();
+    await act(async () => menu!.click());
+    const open = [...container.querySelectorAll('[role="option"] button')].find(
+      (b) => b.textContent === 'Open registrations',
+    );
+    await act(async () => (open as HTMLButtonElement).click());
+    await settle();
+    expect(registerRequests().at(-1)).toContain('status=open');
+    expect(registerRequests().at(-1)).toContain('offset=0');
+    expect(window.location.search).toContain('reg=open');
+    const clear = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Clear all',
+    );
+    await act(async () => clear!.click());
+    await settle();
+    expect(registerRequests().at(-1)).toContain('status=all');
+  });
+
+  it('keeps a failed filter change labelled with the last loaded registration scope', async () => {
+    let release: (value: Response) => void = () => {};
+    await render('/money?reg=open', (url) =>
+      url.includes('status=terminated')
+        ? new Promise<Response>((resolve) => {
+            release = resolve;
+          })
+        : json(register({ status: 'open', q: null } as Partial<CommitteeRegister>)),
+    );
+    const menu = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.startsWith('Registration:'),
+    );
+    expect(menu).toBeTruthy();
+    await act(async () => menu!.click());
+    const option = [...container.querySelectorAll('[role="option"] button')].find(
+      (b) => b.textContent === 'Terminated registrations',
+    );
+    await act(async () => (option as HTMLButtonElement).click());
+    expect(container.textContent).toContain(
+      'Previous results: Candidate committees · Open registrations',
+    );
+    expect(container.textContent).toContain('Hortman');
+    await act(async () => release(new Response('', { status: 500 })));
+    await settle();
+    expect(container.textContent).toContain(
+      'Previous results: Candidate committees · Open registrations',
+    );
+    expect(container.textContent).toContain('Try again');
+  });
+
+  it('uses all held candidate party options and clears party on a tab change', async () => {
+    await render('/money?page=3', (url) => {
+      const params = new URL(url).searchParams;
+      return json(
+        register({
+          kind: params.get('kind'),
+          party: params.get('party'),
+          candidate_parties: ['DFL', 'Republican'],
+        }),
+      );
+    });
+    const menu = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.startsWith('Party:'),
+    );
+    expect(menu).toBeTruthy();
+    await act(async () => menu!.click());
+    const option = [...container.querySelectorAll('[role="option"] button')].find(
+      (b) => b.textContent === 'DFL',
+    );
+    await act(async () => (option as HTMLButtonElement).click());
+    await settle();
+    expect(registerRequests().at(-1)).toContain('party=DFL');
+    expect(registerRequests().at(-1)).toContain('offset=0');
+    expect(window.location.search).toContain('party=DFL');
+    const nextTab = [...container.querySelectorAll('[role="tab"]')][1] as HTMLButtonElement;
+    await act(async () => nextTab.click());
+    await settle();
+    expect(registerRequests().at(-1)).not.toContain('party=');
+    expect(window.location.search).not.toContain('party=');
+    expect(
+      [...container.querySelectorAll('button')].some((b) => b.textContent?.startsWith('Party:')),
+    ).toBe(false);
+  });
+
+  it('uses retained capture date, never the current register date, and trusts explicit unknown status', async () => {
+    const base = register().committees[0];
+    await render('/money', () =>
+      json(
+        register({
+          committees: [
+            {
+              ...base,
+              registration_number: '1',
+              name: 'Retained',
+              retained: true,
+              captured_at: '2024-06-01T15:00:00Z',
+            },
+            { ...base, registration_number: '2', name: 'Unknown', registration_status: 'unknown' },
+            {
+              ...base,
+              registration_number: '3',
+              name: 'Undated retained',
+              retained: true,
+              captured_at: null,
+            },
+          ],
+        }),
+      ),
+    );
+    const rows = [...container.querySelectorAll('.cm-row:not(.cm-head)')];
+    expect(rows[0].textContent).toContain('Last listed in the register copied Jun 1, 2024');
+    expect(rows[0].textContent).not.toContain('Oct 28, 2026');
+    expect(rows[1].textContent).toContain('Registration status not held');
+    expect(rows[1].textContent).not.toContain('Open registration');
+    expect(rows[2].textContent).toContain('No longer listed in the current register');
+    expect(rows[2].textContent).not.toContain('Last listed');
+  });
+
+  it('uses all-held tab counts rather than current-only counts and never invents missing counts', async () => {
+    await render('/money', () =>
+      json(
+        register({
+          by_kind: { candidate_committee: 2 },
+          held_by_kind: { candidate_committee: 3 },
+        }),
+      ),
+    );
+    const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
+    expect(tabs).toEqual(['Candidate committees3', 'Committees and funds', 'Party units']);
+  });
+
   it('sorts the full register on the server and resets paging when the order changes', async () => {
     await render('/money?page=3', () => json(register()));
     const menu = [...container.querySelectorAll('button')].find((b) =>
@@ -140,7 +306,7 @@ describe('Campaign money directory', () => {
     const text = container.textContent ?? '';
     expect(container.querySelector('h1')?.textContent).toBe('Campaign money');
     expect(registerRequests()[0]).toBe(
-      `${API}/api/v1/campaign-finance/committees?kind=candidate_committee&limit=50&offset=0`,
+      `${API}/api/v1/campaign-finance/committees?kind=candidate_committee&limit=50&offset=0&status=all`,
     );
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
     expect(tabs).toEqual(['Candidate committees762', 'Committees and funds546', 'Party units299']);
@@ -180,7 +346,7 @@ describe('Campaign money directory', () => {
     );
     // The shared scrolling tab row (Round 35) holds the directory tabs.
     expect(container.querySelector('.f-scroll-tabs [role="tablist"]')).not.toBeNull();
-    expect(text).not.toContain('Search by name or registration number');
+    expect(text).toContain('Search by name or registration number');
     expect(text).not.toMatch(/illustrative|example|sample|fixture|demo/i);
   });
 
@@ -234,7 +400,7 @@ describe('Campaign money directory', () => {
   it('searches registered names on the server and keeps payments apart', async () => {
     await render('/money?q=caucus', () => json(register()));
     expect(registerRequests()[0]).toContain('q=caucus');
-    expect(container.textContent).toContain('Registered names matching “caucus” are listed below.');
+    expect(container.textContent).toContain('Registrations matching “caucus” are listed below.');
     expect(container.textContent).toContain('Payments under a name');
   });
 
@@ -358,7 +524,7 @@ describe('Campaign money helpers', () => {
 
   it('builds the server read for a tab, name and page', () => {
     expect(registerPath('committees', 'Example Fund', 2)).toBe(
-      'campaign-finance/committees?kind=political_committee_or_fund&limit=50&offset=50&q=Example+Fund',
+      'campaign-finance/committees?kind=political_committee_or_fund&limit=50&offset=50&q=Example+Fund&status=all',
     );
   });
 

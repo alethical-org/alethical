@@ -246,9 +246,16 @@ figure is ever added across committees or members.
   "No campaign committee is confirmed for this candidacy". Media buys sits between
   Campaign finance and Election.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
-  Committees and funds, Party units), searched by name and paged on the server, with each
-  registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
-  A to Z or numeric registration-number order. Other ways in opens Vendors and payees,
+  Committees and funds, Party units), searched by name or registration number and paged on
+  the server. Candidates has a Party menu drawn from exact filed parties; every tab has
+  All registrations, Open registrations and Terminated registrations. All includes retained
+  earlier rows, labelled "No longer listed in the current register", with their last-listed
+  copy date when held; retention never means termination. Current rows show "Registered
+  {date}" when held, "Open registration" without that date, "Terminated {date}", or
+  "Registration status not held". Party prints beside candidate committee type only from
+  the filed record. Each filter resets the page; changing tab clears Party. Sort by chooses
+  names A to Z or numeric registration-number order. Earlier rows kept during a pending or
+  failed change keep their own tab, registration, party and search labels. Other ways in opens Vendors and payees,
   Donors by employer and Money by race; About these records states the records' limits. Results stay on
   screen while an update loads or fails, with Try again.
 - **Committee (`/money/committees/:id`)**: the registration's status, the official report
