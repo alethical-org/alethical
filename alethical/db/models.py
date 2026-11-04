@@ -3238,6 +3238,9 @@ class CampaignFinanceGraphMoneySummary(Base):
     payment_type: Mapped[Optional[str]] = mapped_column(Text)
     transfer_number: Mapped[Optional[str]] = mapped_column(Text)
     transfer_name: Mapped[Optional[str]] = mapped_column(Text)
+    # Independent spending's exact For /Against text. Null also covers summaries
+    # built before this field existed; it never proves no position was filed.
+    position: Mapped[Optional[str]] = mapped_column(Text)
     year: Mapped[Optional[int]] = mapped_column(Integer)
 
     record_count: Mapped[int] = mapped_column(Integer, nullable=False)
