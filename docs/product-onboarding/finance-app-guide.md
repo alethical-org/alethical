@@ -475,7 +475,11 @@ figure is ever added across committees or members.
   no version the record still lists, or only to the moving "current" pointer or the
   session law, it reads
   "Alethical summary", the passages name no version, and "Read the bill text" opens the
-  current text at the top: a quoted section is never looked up in another version.
+  current text at the top: a quoted section is never looked up in another version. Bill
+  Text opens the version the record marks current, by its own code, even when another
+  version shares its name (2 conference committee reports). A version's name carries
+  "version" once, as drawn ("Introduced version", "Bill text · introduced version"), never
+  twice for a name that already says it ("Text of the current version not held").
 - **Roll call (`/votes/:id`)**: the exact motion, date, recorded result and each member's
   recorded vote, filtered and searched in place. The roll call is read by its own id, which
   names its bill; an older link that also carries `?bill=` still opens. Opened with no

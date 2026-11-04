@@ -39,7 +39,8 @@ import {
   seatLabel,
   sessionShortLabel,
   summaryVersionRow,
-  versionPhrase,
+  versionInSentence,
+  versionTitle,
   voteForAction,
   votesPath,
   versionTextPath,
@@ -112,7 +113,7 @@ export function Bill({ match }: { match: RouteMatch }) {
   const chosenVersion =
     versions.find((row) => row.code === address.version && !row.isLaw) ??
     (summaryVersion?.code === address.version ? summaryVersion : null) ??
-    defaultTextVersion(versions);
+    defaultTextVersion(versions, bill?.versions ?? []);
   const text = useRead<VersionText>(
     bill && tab === 'text' && chosenVersion ? versionTextPath(id, chosenVersion.code) : null,
   );
@@ -167,7 +168,7 @@ export function Bill({ match }: { match: RouteMatch }) {
     .filter((row): row is NonNullable<typeof row> => row !== null);
   const voteList = votes.data ? orderVotes(votes.data) : [];
   const source = legislatureSource(bill.last_pulled_at);
-  const current = versions.find((row) => row.isCurrent) ?? defaultTextVersion(versions);
+  const current = defaultTextVersion(versions, bill.versions ?? []);
   const sponsors = ownAuthors(bill.all_sponsors ?? bill.chief_sponsors ?? [], chamber);
   const chiefs = sponsors.filter((sponsor) => sponsor.role === 'chief_author');
   const coauthors = sponsors.filter((sponsor) => sponsor.role === 'co_author');
@@ -244,7 +245,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                     <p className="bl-summary-text">{summary}</p>
                     <p className="bl-meta">
                       {summaryVersion
-                        ? `Alethical summary of the ${versionPhrase(summaryVersion.label)} version`
+                        ? `Alethical summary of the ${versionInSentence(summaryVersion.label)}`
                         : 'Alethical summary'}
                     </p>
                   </div>
@@ -263,7 +264,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                               </span>
                               {summaryVersion && (
                                 <span className="bl-citation-version">
-                                  {summaryVersion.label} version
+                                  {versionTitle(summaryVersion.label)}
                                 </span>
                               )}
                             </div>
@@ -396,7 +397,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                 <>
                   <div className="bl-text-head">
                     <h2 className="f-card-title">
-                      Bill text · {versionPhrase(chosenVersion.label)} version
+                      Bill text · {versionInSentence(chosenVersion.label)}
                     </h2>
                     {chosenVersion.date && (
                       <span className="bl-meta-inline">Posted {chosenVersion.date}</span>
@@ -404,7 +405,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                   </div>
                   <BillText
                     read={text}
-                    versionLabel={versionPhrase(chosenVersion.label)}
+                    versionLabel={versionInSentence(chosenVersion.label)}
                     target={target}
                   />
                 </>
@@ -706,7 +707,7 @@ function BillText({
     );
   }
   if (read.notFound || sections.length === 0) {
-    return <div className="bl-missing">Text of the {versionLabel} version not held</div>;
+    return <div className="bl-missing">Text of the {versionLabel} not held</div>;
   }
   let article: string | null = null;
   return (
