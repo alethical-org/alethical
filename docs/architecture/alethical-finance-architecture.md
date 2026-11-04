@@ -267,8 +267,23 @@ have no position. Old summaries keep null until an authorized rebuild from their
 saved source rows; null means the position is not held here, never proof that none
 was filed. Migration 0085 only adds the column and never rebuilds summaries or moves
 a live pointer. Reads must combine position groups without multiplying money or
-record counts. Deploy the column before its reader/writer code; revert that code
-before dropping the derived column on rollback. Source payment rows retain the text.
+record counts. Deploy the column before its reader/writer code. Undo behavior with a
+forward release retaining migration files 0084/0085 and the additive schema; an older
+API image is not a safe rollback because readiness requires matching migration heads.
+Drop the derived column only after deploying compatible readers/writers and planning
+the migration rollback. Source payment rows retain the text.
+
+Before rebuilding only `independent_expenditures`, verify migration 0085 and both
+0084 indexes, the current source snapshot and its complete raw rows; retain a backup
+of that snapshot's derived summary. The summary script's dry run selects files but does
+not prove schema readiness or rebuilt totals. The actual rebuild holds the publication
+lock, rechecks the current source and replaces rows in one transaction. Confirm an
+actual rebuilt result, unchanged live pointers, matching signed amounts and record,
+missing-amount and date counts, exact position groups, and invalidation of old page
+tokens. A changed-release skip can exit successfully without rebuilding. A failed
+transaction retains the old summary. If a later restore is needed, hold the same
+publication lock and recheck the snapshot, then insert restored groups with fresh
+row IDs so page versions change; never replay old IDs or update groups in place.
 Before the summary, every broad request re-read all 1.07 million payment rows (469 MB
 against a 256 MB buffer pool) and spilled to temp files: 14 s for the first signed-in
 page, 6 to 7 s repeated, against the client's 10 s limit (2 Nov 2026).
