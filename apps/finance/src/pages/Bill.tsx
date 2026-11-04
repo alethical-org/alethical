@@ -38,6 +38,7 @@ import {
   roleLabel,
   seatLabel,
   sessionShortLabel,
+  summaryVersionRow,
   versionPhrase,
   voteForAction,
   votesPath,
@@ -103,8 +104,14 @@ export function Bill({ match }: { match: RouteMatch }) {
     () => (bill ? orderVersions(bill.versions ?? [], bill.actions ?? []) : []),
     [bill],
   );
+  // The version the summary and its citations were written from, never assumed
+  // to be the current one (settled wording row 46).
+  const summaryVersion = bill
+    ? summaryVersionRow(bill.summary_source_version, bill.versions ?? [], versions)
+    : null;
   const chosenVersion =
     versions.find((row) => row.code === address.version && !row.isLaw) ??
+    (summaryVersion?.code === address.version ? summaryVersion : null) ??
     defaultTextVersion(versions);
   const text = useRead<VersionText>(
     bill && tab === 'text' && chosenVersion ? versionTextPath(id, chosenVersion.code) : null,
@@ -235,7 +242,11 @@ export function Bill({ match }: { match: RouteMatch }) {
                   <div className="f-card">
                     <h2 className="f-card-title">Summary</h2>
                     <p className="bl-summary-text">{summary}</p>
-                    <p className="bl-meta">Alethical summary</p>
+                    <p className="bl-meta">
+                      {summaryVersion
+                        ? `Alethical summary of the ${versionPhrase(summaryVersion.label)} version`
+                        : 'Alethical summary'}
+                    </p>
                   </div>
                   {citations.length > 0 && (
                     <div>
@@ -250,20 +261,26 @@ export function Bill({ match }: { match: RouteMatch }) {
                               <span className="bl-citation-where">
                                 {citationLabel(citation.label, citation.section_topic)}
                               </span>
-                              {current && (
-                                <span className="bl-citation-version">{current.label} version</span>
+                              {summaryVersion && (
+                                <span className="bl-citation-version">
+                                  {summaryVersion.label} version
+                                </span>
                               )}
                             </div>
                             <blockquote>{citation.excerpt}</blockquote>
-                            {current && (
+                            {(summaryVersion ?? current) && (
                               <button
                                 type="button"
                                 className="bl-text-button"
                                 onClick={() =>
-                                  openText(current, {
-                                    sectionId: citation.section_id,
-                                    sourceOrder: citation.section_order ?? null,
-                                  })
+                                  // A section is opened only in the version it was quoted
+                                  // from; with that version unknown, the text opens at the top.
+                                  summaryVersion
+                                    ? openText(summaryVersion, {
+                                        sectionId: citation.section_id,
+                                        sourceOrder: citation.section_order ?? null,
+                                      })
+                                    : openText(current, null)
                                 }
                               >
                                 <span>
