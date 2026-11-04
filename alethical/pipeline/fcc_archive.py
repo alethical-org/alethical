@@ -15,8 +15,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from sqlalchemy import delete, func, or_, select, update
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import Text, bindparam, delete, func, or_, select, text, update
+from sqlalchemy.dialects.postgresql import ARRAY, insert
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
@@ -32,6 +32,62 @@ OPERATIONAL_READING_ERRORS = (
     "reader_process_failed",
     "reader_output_invalid",
 )
+
+# The collector reads only the history of the files a scan listed, 1 file at a
+# time, through partial indexes keyed by station and file (migration 0086).
+# Grouping every saved file observation (about 1.1 million rows) instead took
+# 38 seconds for the baseline alone.
+_SAME_FILE = (
+    "o.kind = 'file' AND o.facility_id = listed.facility_id"
+    " AND o.details ->> 'file_id' = listed.file_id"
+)
+# Each file's newest download attempt: anything but an unchanged listing or a
+# deferral (ix_fcc_observation_file_attempt).
+LATEST_ATTEMPT = f"""
+    SELECT o.observed_at FROM fcc_observation AS o
+    WHERE {_SAME_FILE} AND o.status NOT IN ('unchanged', 'deferred')
+    ORDER BY o.observed_at DESC LIMIT 1"""
+# Each file's newest successful observation, the baseline a listing is compared
+# with (ix_fcc_observation_file_history).
+LATEST_BASELINE = f"""
+    SELECT o.content_hash, o.details -> 'size_bytes' AS size_bytes,
+        o.details -> 'size_label' AS size_label
+    FROM fcc_observation AS o
+    WHERE {_SAME_FILE} AND o.status IN ('stored', 'reused', 'unchanged')
+    ORDER BY o.observed_at DESC, o.scan_id DESC LIMIT 1"""
+# The start of the earliest scan that listed each file
+# (ix_fcc_observation_file_history).
+FIRST_LISTED = f"""
+    SELECT s.started_at FROM fcc_observation AS o
+    JOIN fcc_scan AS s ON s.id = o.scan_id
+    WHERE {_SAME_FILE}
+    ORDER BY s.started_at LIMIT 1"""
+
+FOR_LISTED_FILES = (
+    "SELECT listed.facility_id, listed.file_id, found.* FROM unnest("
+    "CAST(:facilities AS text[]), CAST(:file_ids AS text[])"
+    ") AS listed(facility_id, file_id) CROSS JOIN LATERAL ({read}) AS found"
+)
+
+
+def for_listed_files(db: Session, identities, read: str) -> list:
+    """Run 1 of the reads above for each listed (facility, file) pair.
+
+    A pair with no matching observation returns no row.
+    """
+    identities = list(identities)
+    if not identities:
+        return []
+    return db.execute(
+        text(FOR_LISTED_FILES.format(read=read)).bindparams(
+            bindparam("facilities", type_=ARRAY(Text)),
+            bindparam("file_ids", type_=ARRAY(Text)),
+        ),
+        {
+            "facilities": [facility for facility, _ in identities],
+            "file_ids": [file_id for _, file_id in identities],
+        },
+    ).all()
 
 
 def _operational_reading_failure():
@@ -245,23 +301,11 @@ def collect(
             previous_by_id = {
                 (row.facility_id, row.file_id): row for row in previous_rows
             }
-            observed_file_id = m.FCCObservation.details["file_id"].astext
+            listed_ids = [(station.facility_id, file.file_id) for station, file in work]
             attempts = {
                 (facility, file_id): saved_at
-                for facility, file_id, saved_at in db.execute(
-                    select(
-                        m.FCCObservation.facility_id,
-                        observed_file_id,
-                        func.max(m.FCCObservation.observed_at),
-                    )
-                    .where(
-                        m.FCCObservation.kind == "file",
-                        m.FCCObservation.status.not_in(("unchanged", "deferred")),
-                    )
-                    .group_by(
-                        m.FCCObservation.facility_id,
-                        observed_file_id,
-                    )
+                for facility, file_id, saved_at in for_listed_files(
+                    db, listed_ids, LATEST_ATTEMPT
                 )
             }
             earliest = datetime.min.replace(tzinfo=timezone.utc)
@@ -287,24 +331,19 @@ def collect(
 
             if incremental:
                 # Deferred and metadata-only observations must not become the
-                # baseline for a download we have not performed yet.
+                # baseline for a download we have not performed yet. Only a
+                # linked file with a retained document is compared with one.
                 successful = {
-                    (row.facility_id, row.details.get("file_id")): row
-                    for row in db.scalars(
-                        select(m.FCCObservation)
-                        .where(
-                            m.FCCObservation.kind == "file",
-                            m.FCCObservation.status.in_(
-                                ("stored", "reused", "unchanged")
-                            ),
-                        )
-                        .distinct(m.FCCObservation.facility_id, observed_file_id)
-                        .order_by(
-                            m.FCCObservation.facility_id,
-                            observed_file_id,
-                            m.FCCObservation.observed_at.desc(),
-                            m.FCCObservation.scan_id.desc(),
-                        )
+                    (row.facility_id, row.file_id): row
+                    for row in for_listed_files(
+                        db,
+                        (
+                            (station.facility_id, file.file_id)
+                            for station, file in work
+                            if file.url is not None
+                            and (station.facility_id, file.file_id) in previous_by_id
+                        ),
+                        LATEST_BASELINE,
                     )
                 }
                 due = []
@@ -312,19 +351,6 @@ def collect(
                 # Attempts and discovery times use the database clock. Mixing
                 # the runner clock here can put new arrivals ahead of old work.
                 observed_now = scan.started_at
-                first_listed = {
-                    (facility, file_id): listed_at
-                    for facility, file_id, listed_at in db.execute(
-                        select(
-                            m.FCCObservation.facility_id,
-                            observed_file_id,
-                            func.min(m.FCCScan.started_at),
-                        )
-                        .join(m.FCCScan, m.FCCScan.id == m.FCCObservation.scan_id)
-                        .where(m.FCCObservation.kind == "file")
-                        .group_by(m.FCCObservation.facility_id, observed_file_id)
-                    )
-                }
                 oldest_due_age = 0
                 for station, file in work:
                     identity = (station.facility_id, file.file_id)
@@ -341,7 +367,7 @@ def collect(
                         or baseline is None
                         or baseline.content_hash != previous.content_hash
                         or any(
-                            baseline.details.get(field) != getattr(file, field)
+                            getattr(baseline, field) != getattr(file, field)
                             for field in ("size_bytes", "size_label")
                         )
                     )
@@ -366,6 +392,23 @@ def collect(
                 limited = max_files is not None and len(due) > max_files
                 if limited:
                     assert max_files is not None
+                    # Only a due file with no attempt falls back to when it was
+                    # first listed.
+                    first_listed = {
+                        (facility, file_id): listed_at
+                        for facility, file_id, listed_at in for_listed_files(
+                            db,
+                            (
+                                identity
+                                for identity in (
+                                    (station.facility_id, file.file_id)
+                                    for station, file in due
+                                )
+                                if identity not in attempts
+                            ),
+                            FIRST_LISTED,
+                        )
+                    }
 
                     def oldest_attempt(item):
                         station, file = item
