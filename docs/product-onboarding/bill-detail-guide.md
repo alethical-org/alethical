@@ -60,8 +60,9 @@ text, because a later read of the bill moved it, or when a shared link names onl
 (the older link form), Bill Text opens at the first section carrying that id and
 highlights it. When no
 section carries that id, nothing is highlighted and the page jumps to no section: on a
-computer Bill Text opens at its top, a citation tapped on a phone scrolls to the start of
-Bill Text, and a shared link opened on a phone opens the page at its top, on Summary.
+computer Bill Text opens at its top, and on a phone the page scrolls to the start of Bill
+Text, for a tapped citation and a shared link alike. Any `?tab=text` address opens Bill
+Text on a phone too, including the Ask answer page's Bill text link.
 A cited location links, and its Bill Text section says **CITED IN SUMMARY**, only when the
 summary was written from the version Bill Text shows; a summary written from another
 version keeps its labels, and on web its quotes, without those links or badges.

@@ -742,6 +742,15 @@ export function resolveSectionAnchor<T extends SectionAnchor>(
   return sections.find((s) => s.sectionId === target.sectionId) ?? null;
 }
 
+/** The phone bill page's section for a `?tab=` value, or null. The desktop tab and
+ *  every shared Bill Text link (citation links, the Ask answer page) say `text`; the
+ *  phone page names that section `fulltext`, so `text` is read as it. */
+export function phoneBillSection<T extends string>(tab: unknown, sections: readonly T[]): T | null {
+  if (typeof tab !== 'string') return null;
+  const name = tab === 'text' ? 'fulltext' : tab;
+  return (sections as readonly string[]).includes(name) ? (name as T) : null;
+}
+
 /** The version the Bill Text tab renders: the bill's current one, else the first
  *  served. The tab and every citation link read it here, so they agree. */
 export function renderedTextVersion<T extends { isCurrent: boolean }>(
