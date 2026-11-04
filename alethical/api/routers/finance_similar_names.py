@@ -19,6 +19,10 @@ def similar_names(
     name: str = Query(min_length=1, max_length=500),
     role: similar.Role = "payee",
     year: int | None = Query(default=None, ge=1900, le=2100),
+    filer: str | None = Query(
+        default=None, min_length=1, max_length=20, pattern=r"^[^\x00]*$"
+    ),
+    dataset: similar.DatasetFilter | None = None,
     limit: int = Query(default=25, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
     version: str | None = Query(default=None, pattern=r"^[0-9a-f]{16}$"),
@@ -31,6 +35,8 @@ def similar_names(
                 name=name,
                 role=role,
                 year=year,
+                filer=filer,
+                dataset=dataset,
                 limit=limit,
                 offset=offset,
                 version=version,
