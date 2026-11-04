@@ -329,12 +329,32 @@ export function Bill({ match }: { match: RouteMatch }) {
                   {actions.map((row) => {
                     const vote = voteForAction(row, voteList);
                     const href = vote ? voteLink(vote.id) : null;
+                    const committee = isBuilt('committee-members') ? row.committee : null;
                     return (
                       <li key={row.key} className="bl-action">
                         <span className="bl-action-date">{row.date ?? ''}</span>
                         <span className="bl-action-chamber">{row.chamber ?? ''}</span>
                         <span className="bl-action-text">
-                          {row.text}
+                          {committee ? (
+                            <>
+                              {row.text.slice(0, committee.offset)}
+                              <Link
+                                to={withFrom(
+                                  hrefFor('committee-members', {
+                                    id: committee.id,
+                                  }),
+                                  here,
+                                )}
+                                className="bl-inline-link"
+                                aria-label={`Members’ campaign accounts, ${committee.name}`}
+                              >
+                                {committee.name}
+                              </Link>
+                              {row.text.slice(committee.offset + committee.name.length)}
+                            </>
+                          ) : (
+                            row.text
+                          )}
                           {href && (
                             <>
                               {' '}
