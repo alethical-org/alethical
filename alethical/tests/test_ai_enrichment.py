@@ -820,8 +820,7 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
         sections: list[tuple[str, str | None, str | None]],
         orders: dict[tuple[str, str], int] | None = None,
     ) -> dict[str | tuple[str, str], str]:
-        version = SimpleNamespace(id=1, is_current=True)
-        bill = SimpleNamespace(versions=[version])
+        version = SimpleNamespace(id=1)
         db = SimpleNamespace(
             execute=lambda _stmt: SimpleNamespace(
                 all=lambda: [
@@ -834,7 +833,7 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
                 ]
             )
         )
-        return _citation_section_topics(db, bill, orders)
+        return _citation_section_topics(db, version, orders)
 
     # Unique ids resolve normally — the ordinary case, unchanged.
     assert topics(
@@ -905,14 +904,8 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
         == {}
     )
 
-    # No current version -> no topics, and no query attempted.
-    assert (
-        _citation_section_topics(
-            SimpleNamespace(execute=None),
-            SimpleNamespace(versions=[SimpleNamespace(id=1, is_current=False)]),
-        )
-        == {}
-    )
+    # No linked version -> no topics, and no query attempted.
+    assert _citation_section_topics(SimpleNamespace(execute=None), None) == {}
 
 
 def test_resolve_cited_section_places_a_citation_on_a_repeated_section_id() -> None:

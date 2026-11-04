@@ -161,6 +161,10 @@ Top to bottom inside a section card:
    on one section badges nothing at all — a badge is a claim about provenance, and there is nothing
    to ground it in (`.claude/rules/grounded-answers.md` rule 1, the same refusal
    [#853](https://github.com/alethical-org/alethical/pull/853) made for the chip's caption).
+   A citation's position belongs to the version the summary was written from
+   (`summary_source_version`), while this tab renders the current version. Badging only when the
+   2 are the same version is tracked in
+   [#2857](https://github.com/alethical-org/alethical/issues/2857).
 3. **Provenance** — "Minnesota Statutes 2024, section 62A.011 … is amended to read:" at
    `t.fontSizes.small` (14px, one step below body), regular weight, `t.colors.text.faint`
    (`#70776f`). This names which existing law the section rewrites. **It is not the
@@ -289,7 +293,8 @@ Splitting the two halves back apart is unambiguous: all 71,150 section ids in pr
 hyphen".
 
 **A citation chip carries the same anchor value.** The stored citation records only the section id, so
-the API resolves the position at request time and serves it as `section_order`
+the API resolves the position at request time and serves it as `section_order`, a position in
+the version the summary was written from (`summary_source_version`)
 (`_citation_section_orders` in `alethical/api/routers/public.py`, `resolve_cited_section` in
 `alethical/pipeline/ai_enrichment.py`) — recovered from the citation's own verbatim quote, with its
 label breaking a tie when a bill repeats one sentence section for section. Of the 95 affected
