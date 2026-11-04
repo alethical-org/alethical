@@ -308,7 +308,7 @@ def directory(
         )
     from alethical.api.services import person_records
 
-    record_counts, candidate_people, legislator_people = (
+    record_counts, candidate_people, legislator_people, record_notes = (
         person_records.directory_record_cues(
             db,
             person_ids=[UUID(row.id) for row in selected if row.kind == "person"],
@@ -355,6 +355,7 @@ def directory(
             )
         elif row.kind == "person":
             item["confirmed_record_count"] = record_counts[row.id]
+            item["record_notes"] = record_notes[row.id]
         result.append(item)
     years = list(
         db.scalars(
