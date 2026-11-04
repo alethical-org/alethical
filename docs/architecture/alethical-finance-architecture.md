@@ -76,7 +76,12 @@ identity records.
 legislative records as separate kinds, even when their names match. Literal name
 search, stable paging and whole-filter counts apply to every kind. Search also
 matches a candidacy's held voting-area text and a legislative service period's district;
-no district is inferred for a bare public-person name. Candidate filters use the election
+no district is inferred for a bare public-person name. A complete query such as
+`District 32A`, `House District 32A` or `Senate District 12` matches the exact held
+code after case/space normalization, not a substring of another district. An explicit
+chamber must match that same service period. A candidacy must hold that chamber in its
+own voting-area label to match an explicit-chamber query; an unqualified label cannot
+borrow it from another record. Other text keeps literal name/voting-area search. Candidate filters use the election
 year and date; legislative filters use current or former service evidence.
 Exact `party` filters read the candidacy's party or a legislative period's party;
 `office` selects candidacies by their held office text, and `chamber` selects legislative
