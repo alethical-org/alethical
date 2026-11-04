@@ -661,3 +661,89 @@ def test_cli_supervisor_stops_only_owned_worker_retaining_files(tmp_path):
     args = SimpleNamespace(evidence=tmp_path, max_seconds=60)
     assert supervise(args, target=stalled_owned_worker, timeout=3) == 1
     assert (tmp_path / "retained.txt").read_text() == "already prepared evidence"
+
+
+def test_receipt_stall_releases_server_locks_before_writer_returns(setup, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    from sqlalchemy.exc import DBAPIError
+
+    engine, root, ids, _ = setup
+    entered, resume = Event(), Event()
+    original = recovery.write_evidence
+
+    def stalled_receipt(path, evidence):
+        if path.name == "receipt-idle.json":
+            entered.set()
+            assert resume.wait(3)
+        return original(path, evidence)
+
+    monkeypatch.setattr(recovery, "write_evidence", stalled_receipt)
+    with Session(engine) as db:
+        saved = recovery.plan(
+            db,
+            "94-2025-HF6666",
+            COMMITTEE_BILL_XML,
+            URL,
+            source_generation=recovery.generation(db, "94-2025-HF6666"),
+        )
+
+    def apply():
+        with Session(engine) as db, db.begin():
+            recovery.apply(
+                db,
+                saved,
+                COMMITTEE_BILL_XML,
+                root / "receipt-idle.json",
+                deadline=time.monotonic() + 0.4,
+            )
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(apply)
+    try:
+        assert entered.wait(2)
+        # This incompatible write lock cannot be acquired while the stalled
+        # helper still owns its transaction. Its server idle bound must release it.
+        with engine.begin() as connection:
+            connection.execute(text("SET LOCAL lock_timeout='1s'"))
+            connection.execute(text("LOCK TABLE bill_action IN ROW EXCLUSIVE MODE"))
+        assert not future.done()
+    finally:
+        resume.set()
+        with pytest.raises((TimeoutError, DBAPIError)) as failure:
+            future.result(timeout=3)
+        if isinstance(failure.value, DBAPIError):
+            assert failure.value.orig.sqlstate == "25P03"
+        executor.shutdown(wait=True)
+    with Session(engine) as db:
+        assert db.get(m.BillAction, ids[1]).committee_id is None
+    assert (root / "receipt-idle.json").exists()
+
+
+def test_commit_timeout_refreshes_after_receipt_time(setup, monkeypatch):
+    from sqlalchemy import event
+
+    engine, _, ids, _ = setup
+    clock = 100.0
+    monkeypatch.setattr(time, "monotonic", lambda: clock)
+    observed = []
+
+    def inspect_commit(connection):
+        with connection.connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            observed.append(cursor.fetchone()[0])
+
+    with batch.sql_deadline(engine, 110.0):
+        event.listen(engine, "commit", inspect_commit)
+        try:
+            with Session(engine) as db, db.begin():
+                row = db.get(m.BillAction, ids[1])
+                row.committee_id = ids[2]
+                db.flush()
+                # Receipt persistence consumed7s since the last SQL statement.
+                clock = 107.0
+        finally:
+            event.remove(engine, "commit", inspect_commit)
+    assert observed == ["3s"]
+    with Session(engine) as db:
+        assert db.get(m.BillAction, ids[1]).committee_id == ids[2]

@@ -80,13 +80,29 @@ def sql_deadline(engine, deadline):
                 "SELECT set_config('statement_timeout', %s, true)", (str(milliseconds),)
             )
 
+    def before_commit(connection):
+        # Driver COMMIT bypasses before_cursor_execute. Refresh after receipt
+        # fsync rather than inheriting an earlier, larger statement allowance.
+        bound = SQL_DEADLINE.get()
+        if bound is not None:
+            check_time(bound)
+            milliseconds = max(1, min(15000, int((bound - time.monotonic()) * 1000)))
+            with connection.connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT set_config('statement_timeout', %s, true)",
+                    (str(milliseconds),),
+                )
+            check_time(bound)
+
     if previous is None:
         event.listen(engine, "before_cursor_execute", before_sql)
+        event.listen(engine, "commit", before_commit)
     try:
         yield
     finally:
         if previous is None:
             event.remove(engine, "before_cursor_execute", before_sql)
+            event.remove(engine, "commit", before_commit)
         SQL_DEADLINE.reset(token)
 
 

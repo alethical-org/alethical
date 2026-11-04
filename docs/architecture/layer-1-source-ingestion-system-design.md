@@ -1007,7 +1007,9 @@ commit with enough lease life remaining. The same global product-table locks and
 per-statement abort bounds remain. An applied bill is committed and read back
 before a 1-second unlocked gap. Apply receives the remaining part of a 5-second
 cumulative lock budget. Each statement is capped to that remaining time, and a
-deadline check after receipt sync aborts an overrun before commit. The existing
+remaining idle timeout releases locks if receipt sync stalls. A deadline check
+after receipt sync aborts an overrun, and the server statement timeout is refreshed
+at the driver commit boundary rather than inherited from an earlier query. The existing
 one-bill command keeps its 20-second default when no narrower budget is supplied.
 Continuation releases the lane and waits at least 1 minute before another turn.
 The fixed one-minute gap is a canary setting, not an approved full-backlog rate.

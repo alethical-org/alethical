@@ -435,6 +435,16 @@ def apply(db, saved_plan, xml_text, receipt, *, deadline=None):
         "written": written,
     }
     check_deadline(deadline)
+    # Receipt fsync may stall without another SQL statement. The server must
+    # release this transaction's locks within the remaining idle budget too.
+    execute(
+        db,
+        text(
+            "SELECT set_config('idle_in_transaction_session_timeout', :timeout, true)"
+        ),
+        {"timeout": str(max(1, min(15000, int((deadline - time.monotonic()) * 1000))))},
+        deadline=deadline,
+    )
     write_evidence(receipt, evidence)
     check_deadline(deadline)
     return {"filled": len(written)}
