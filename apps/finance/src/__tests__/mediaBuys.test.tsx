@@ -283,7 +283,9 @@ describe('Media buys', () => {
         }),
       );
       await render(`/media-buys?tab=${tab}&q=unknown`, () => <MediaBuys />);
-      expect(container.textContent).toContain(`No ${tab} match this search`);
+      expect(container.textContent).toContain(
+        `No ${tab === 'agencies' ? 'agency names' : tab} match this search`,
+      );
       expect(container.textContent).not.toContain('No TV station files match');
     },
   );
@@ -304,7 +306,7 @@ describe('Media buys', () => {
     );
     await render('/media-buys', () => <MediaBuys />);
     expect(container.textContent).not.toContain('Check TV station files');
-    expect(container.textContent).toContain('No folders match this search');
+    expect(container.textContent).toContain('No TV station folders match this search');
     act(() => root.unmount());
     root = createRoot(container);
     vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
