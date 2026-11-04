@@ -1367,3 +1367,15 @@
 .mb-note-list li + li {
   margin-top: 4px;
 }
+
+/* Exact agency spellings retain the card's approved name and metadata hierarchy. */
+.mb-agency-similar-list .mb-link-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.mb-agency-similar-meta {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--secondary);
+}

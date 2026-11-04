@@ -19,6 +19,7 @@ import {
   plural,
 } from './media/shared';
 import type { Agency, FileRow, Folder, Sources, Station } from './media/types';
+import { AgencySimilarNames } from './media/AgencySimilarNames';
 
 /** Saved/check instants use Minnesota's calendar day; a plain source date stays as filed. */
 function checkedDay(value?: string | null): string {
@@ -580,8 +581,8 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                 )}
               </section>
             </div>
-            {payments && (
-              <aside className="mb-aside">
+            <aside className="mb-aside">
+              {payments && (
                 <section className="mb-card">
                   <h2>Payment records</h2>
                   <p className="mb-card-line">
@@ -616,8 +617,9 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                     A payment under this name does not prove the file was paid
                   </p>
                 </section>
-              </aside>
-            )}
+              )}
+              <AgencySimilarNames agencyKey={data.key} here={here} />
+            </aside>
           </div>
         </>
       )}
