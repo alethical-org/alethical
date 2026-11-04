@@ -802,5 +802,13 @@
       "pdf_url": null,
       "is_current": false
     }
-  ]
+  ],
+  "summary_source_version": {
+    "id": "001b427e-93e3-44ec-b2c1-58e1d5576084",
+    "version_code": "2",
+    "version_name": "2025.0-HF0719-2",
+    "document_date": "2026-05-18T17:02:36Z",
+    "html_url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+    "pdf_url": null
+  }
 }
