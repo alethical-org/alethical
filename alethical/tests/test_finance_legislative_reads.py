@@ -188,3 +188,92 @@ def test_global_bill_search_counts_all_matches_not_just_returned_rows(finance_ap
         "/api/v1/search", params={"q": "zzzz-unheld-name", "types": "bills"}
     ).json()["data"]
     assert absent["bill_total"] == 0
+
+
+def test_roll_call_district_is_from_its_held_period_not_a_later_seat(
+    finance_api, finance_db
+):
+    bill = _bill(finance_db)
+    period = finance_db.scalar(
+        select(m.LegislatorServicePeriod).where(
+            m.LegislatorServicePeriod.session_id == bill.session_id,
+            m.LegislatorServicePeriod.chamber_id == bill.chamber_id,
+            m.LegislatorServicePeriod.is_current,
+        )
+    )
+    district = period.district.code
+    period.is_current = False
+    period.party = "R"
+    period.start_date, period.end_date = date(2025, 1, 1), date(2025, 12, 31)
+    other = m.District(
+        jurisdiction_id=period.district.jurisdiction_id,
+        chamber_id=bill.chamber_id,
+        code="99",
+        label="District 99",
+    )
+    finance_db.add(other)
+    finance_db.flush()
+    later = m.LegislatorServicePeriod(
+        legislator_id=period.legislator_id,
+        session_id=period.session_id,
+        chamber_id=period.chamber_id,
+        district_id=other.id,
+        period_sequence=100,
+        party=period.party,
+        is_current=True,
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 31),
+    )
+    finance_db.add(later)
+    event = _event(
+        finance_db, bill, period.legislator, datetime(2025, 5, 1, tzinfo=UTC)
+    )
+
+    def row():
+        return finance_api.get(f"/api/v1/votes/{event.id}").json()["data"]["records"][0]
+
+    assert row()["district"] == district
+    collection = finance_api.get(f"/api/v1/bills/{bill.bill_key}/votes").json()["data"]
+    listed = next(item for item in collection if item["id"] == str(event.id))
+    assert listed["records"][0]["district"] == district
+    later.start_date = date(2025, 1, 1)
+    finance_db.commit()
+    assert row()["district"] is None
+    assert row()["party"] == "R"
+    # District certainty does not depend on whether the party is unambiguous.
+    later.district_id, later.party = period.district_id, "DFL"
+    finance_db.commit()
+    assert row()["district"] == district
+    assert row()["party"] is None
+    event.occurred_at = None
+    finance_db.commit()
+    assert row()["district"] is None
+
+
+def test_roll_call_placeholder_district_never_hides_the_held_party(
+    finance_api, finance_db
+):
+    bill = _bill(finance_db)
+    period = finance_db.scalar(
+        select(m.LegislatorServicePeriod).where(
+            m.LegislatorServicePeriod.session_id == bill.session_id,
+            m.LegislatorServicePeriod.chamber_id == bill.chamber_id,
+            m.LegislatorServicePeriod.is_current,
+        )
+    )
+    placeholder = m.District(
+        jurisdiction_id=period.district.jurisdiction_id,
+        chamber_id=period.chamber_id,
+        code="rollcall-unknown",
+        label="District not recorded",
+    )
+    finance_db.add(placeholder)
+    finance_db.flush()
+    period.district_id, period.party = placeholder.id, "DFL"
+    period.start_date, period.end_date = date(2025, 1, 1), date(2025, 12, 31)
+    event = _event(
+        finance_db, bill, period.legislator, datetime(2025, 5, 1, tzinfo=UTC)
+    )
+    row = finance_api.get(f"/api/v1/votes/{event.id}").json()["data"]["records"][0]
+    assert row["district"] is None
+    assert row["party"] == "DFL"
