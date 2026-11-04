@@ -795,12 +795,15 @@ def directory_record_cues(
     candidate_ids: list[str],
     legislator_ids: list[uuid.UUID],
     today: date,
-) -> tuple[dict, dict, dict]:
+) -> tuple[dict, dict, dict, dict]:
     """Linked profile records for this page, never payment coverage or name matches.
 
     Use the same frozen-candidacy validation and active identifier confirmations
     as the person profile. Queries select only this page's records and their
     links; research records and private claims do not contribute to the count.
+    Each person's note breaks the same validated entries down: candidacy election
+    years, each service's office, voting area and status as held, and whether an
+    active lobbyist record is confirmed. Nothing else contributes to it.
     """
     from sqlalchemy import or_
     from alethical.db import models as m
@@ -844,6 +847,8 @@ def directory_record_cues(
     candidate_links = {key: [] for key in candidate_ids}
     legislator_links = {str(key): [] for key in legislator_ids}
     entries: dict[uuid.UUID, set[tuple[str, str]]] = {key: set() for key in person_ids}
+    years: dict[uuid.UUID, set[int]] = {key: set() for key in person_ids}
+    services: dict[uuid.UUID, dict[str, dict]] = {key: {} for key in person_ids}
     service_connections = {}
     connection_cache: dict[str, dict | None] = {}
     for link, record, person in pairs:
@@ -861,6 +866,7 @@ def directory_record_cues(
             candidate_links[record.id].append(target)
         if person.id in entries:
             entries[person.id].add(("candidate", record.id))
+            years[person.id].add(record.election_date.year)
         # A person FK alone never establishes the reviewed legislative link.
         if person.legislator_id and link.evidence.get("legislator_slug"):
             connection = connection_cache.get(record.id)
@@ -878,7 +884,13 @@ def directory_record_cues(
             "current",
             "former",
         }:
-            entries[person_id].add(("service", f"legislator:{connection['id']}"))
+            key = f"legislator:{connection['id']}"
+            entries[person_id].add(("service", key))
+            services[person_id][key] = {
+                "office": connection.get("office"),
+                "voting_area": connection.get("votingArea"),
+                "status": connection["serviceStatus"],
+            }
     if person_ids:
         for service in db.scalars(
             select(PersonServiceRecord).where(
@@ -886,6 +898,11 @@ def directory_record_cues(
             )
         ):
             entries[service.person_id].add(("service", str(service.id)))
+            services[service.person_id][str(service.id)] = {
+                "office": service.public_payload.get("office"),
+                "voting_area": service.public_payload.get("votingArea"),
+                "status": service.status,
+            }
         # Identifier confirmations survive identity merges through the same
         # standing/merged-in rules used by the profile's identity read.
         anchors = list(
@@ -925,8 +942,24 @@ def directory_record_cues(
             ):
                 for person_id in people_by_entity[confirmation.entity_id]:
                     entries[person_id].add(("lobbyist", confirmation.record_key))
+    notes = {
+        str(key): {
+            "candidacy_years": sorted(years[key], reverse=True),
+            "services": sorted(
+                services[key].values(),
+                key=lambda item: (
+                    str(item["office"] or ""),
+                    str(item["voting_area"] or ""),
+                    str(item["status"] or ""),
+                ),
+            ),
+            "lobbyist": any(kind == "lobbyist" for kind, _ in entries[key]),
+        }
+        for key in person_ids
+    }
     return (
         {str(key): len(value) for key, value in entries.items()},
         candidate_links,
         legislator_links,
+        notes,
     )

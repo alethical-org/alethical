@@ -207,11 +207,24 @@ def test_ticket_only_connects_individually_reviewed_members(public_db):
     assert result["isJointTicket"] is True
     assert result["candidate"]["name"] == "Alex Same and Pat Same"
     assert {x["id"] for x in result["people"]} == {str(x) for x in ids[:2]}
-    counts, candidates, _ = records.directory_record_cues(
+    counts, candidates, _, notes = records.directory_record_cues(
         db, person_ids=ids, candidate_ids=[cid], legislator_ids=[], today=NOW.date()
     )
     assert {item["id"] for item in candidates[cid]} == {str(x) for x in ids[:2]}
     assert counts == {str(ids[0]): 1, str(ids[1]): 1, str(ids[2]): 0}
+    # The note breaks the same count down: the candidacy's election year, and
+    # nothing for a person with no validated record.
+    election_year = int(profile["election"]["date"][:4])
+    assert notes[str(ids[0])] == {
+        "candidacy_years": [election_year],
+        "services": [],
+        "lobbyist": False,
+    }
+    assert notes[str(ids[2])] == {
+        "candidacy_years": [],
+        "services": [],
+        "lobbyist": False,
+    }
     lookup = records.enrich_lookup_results(
         db,
         {
@@ -465,7 +478,7 @@ def test_legislator_person_link_requires_existing_full_review_checks(
         return original_lookup(*args, **kwargs)
 
     monkeypatch.setattr(candidate_legislators, "confirmed_legislator", measured_lookup)
-    counts, candidates, legislators = cues()
+    counts, candidates, legislators, notes = cues()
     assert len(calls) == 1, (
         "One validated candidate must not load legislative evidence twice"
     )
@@ -473,11 +486,19 @@ def test_legislator_person_link_requires_existing_full_review_checks(
     assert counts[pid] == len(result["elections"]) + len(result["service"])
     assert candidates[profile["candidate"]["id"]] == [expected_link]
     assert legislators[str(period.legislator_id)] == [expected_link]
+    # The reviewed legislative service names its seat as the connection prints it.
+    [service] = notes[pid]["services"]
+    assert service["office"] in {"State Representative", "State Senator"}
+    assert service["voting_area"].endswith(period.district.code)
+    assert service["status"] in {"current", "former"}
+    assert notes[pid]["candidacy_years"] == [int(profile["election"]["date"][:4])]
     period.profile_url = "https://www.senate.mn/members/member_bio.html?leg_id=123"
     assert records.load_person(db, pid, now=NOW)["elections"] == []
     assert records.person_for_legislator(db, period.legislator.slug, now=NOW) is None
-    counts, candidates, legislators = cues()
+    counts, candidates, legislators, notes = cues()
     assert counts[pid] == 0
+    # A link that no longer validates leaves nothing in the note either.
+    assert notes[pid] == {"candidacy_years": [], "services": [], "lobbyist": False}
     assert candidates[profile["candidate"]["id"]] == []
     assert legislators[str(period.legislator_id)] == []
 
