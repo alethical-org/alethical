@@ -115,7 +115,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 126 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 127 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -129,6 +129,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Purpose | Files |
 | --- | --- |
 | Run and observe saved public-record deadlines | `refresh_public_records.py`, `report_source_refresh_health.py`, `discover_campaign_records.py`, `check_campaign_money_completion.py` (keeps filed campaign reports owed until totals and legislators' pages catch up), `discover_legislative_records.py`, `discover_reference_records.py` (roster, map and lobbying release signals), `clear_source_record_pages.py` (retries owed saved-page clearing without collecting), `refresh_fcc_records.py`, `run_scheduled_bill_refresh.py`, `refresh_legislative_records.py`, `refresh_lobbying_records.py` |
+| Inspect missing action links without changing data | `report_bill_action_committee_links.py` (bounded read-only sample; saved XML hash required for a proposed link) |
 | Detect official sources needing a reviewed mapping | `check_legislative_sessions.py`, `check_supporting_sources.py` |
 | Prepare private donor evidence and recover reviewed campaign totals | `prepare_lobbyist_donor_evidence.py`, `rollback_campaign_finance_filings.py` |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `build_zip_state_reference.py`, `load_campaign_finance.py`, `build_finance_graph_summary.py` (one-time catch-up of the Finance money graph's summary for the live release; every later publish writes its own), `collect_campaign_finance_notices.py`, `collect_campaign_finance_statements.py`, `load_campaign_finance_filings.py`, `refresh_campaign_finance.py` (the daily campaign-money refresh, all steps in order), `load_lobbying.py` (paired current lobbyists and spending), `load_lobbying_expenditures.py` (spending-only compatibility command), `load_minnesota_data.py`, `load_refund_summaries.py`, `load_sample_data.py` |
