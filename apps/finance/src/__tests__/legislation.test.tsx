@@ -190,6 +190,12 @@ const DETAIL: BillDetail = {
       is_current: false,
     },
   ],
+  summary_source_version: {
+    version_code: '3',
+    version_name: '2025.0-SF0334-3',
+    document_date: '2026-05-19T12:26:09Z',
+    html_url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/3/',
+  },
 };
 
 const VOTE_ID = '0b0a4d2e-5c7f-4e1a-9b3d-8f2c6a1e7d90';
@@ -634,6 +640,86 @@ describe('Bill', () => {
       'We couldn’t load the authors’ campaign accounts. This is a problem on our side.',
     );
     expect(container.querySelector('h1')?.textContent).toContain('New Council');
+  });
+
+  const readCitation = async () => {
+    const read = container.querySelector<HTMLButtonElement>('.bl-citation .bl-text-button');
+    await act(async () => read!.click());
+    await settle();
+  };
+
+  it('names the version the summary was written from and opens its quoted section', async () => {
+    const detail = {
+      ...DETAIL,
+      summary_source_version: {
+        version_code: '0',
+        version_name: '2025.0-SF0334-0',
+        document_date: '2025-01-16T14:02:47Z',
+      },
+    };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    // A newer current version exists (3rd engrossment); the summary still names its own.
+    expect(text()).toContain('Alethical summary of the introduced version');
+    expect(container.querySelector('.bl-citation-version')?.textContent).toBe(
+      'As introduced version',
+    );
+    expect(text()).not.toContain('3rd engrossment version');
+    await readCitation();
+    expect(new URLSearchParams(window.location.search).get('version')).toBe('0');
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/0/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/3/text`);
+    expect(document.activeElement?.id).toBe('ft-laws.0.2.0-2');
+  });
+
+  it('opens the current version’s quoted section when the summary was written from it', async () => {
+    await renderBill('/bills/94-2025-SF334', billAnswer());
+    expect(text()).toContain('Alethical summary of the 3rd engrossment version');
+    await readCitation();
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/3/text`);
+    expect(document.activeElement?.id).toBe('ft-laws.0.2.0-2');
+  });
+
+  it('opens the very conference report the summary quotes when 2 share a name', async () => {
+    const report = (code: string, date: string, current: boolean) => ({
+      version_code: code,
+      version_name: `2026.0-CCRSF0334${code === 'ccr-1' ? 'A' : ''}`,
+      document_date: date,
+      html_url: `https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/${code}/`,
+      is_current: current,
+    });
+    const detail = {
+      ...DETAIL,
+      versions: [
+        DETAIL.versions![0],
+        report('ccr-0', '2026-05-10T00:00:00Z', false),
+        report('ccr-1', '2026-05-15T00:00:00Z', true),
+      ],
+      summary_source_version: { version_code: 'ccr-1', version_name: '2026.0-CCRSF0334A' },
+    };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    expect(text()).toContain('Alethical summary of the conference committee report version');
+    await readCitation();
+    expect(new URLSearchParams(window.location.search).get('version')).toBe('ccr-1');
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+  });
+
+  it.each([
+    ['no linked version', null],
+    ['a version the record no longer lists', { version_code: '7', version_name: 'gone' }],
+    ['the moving current pointer', { version_code: 'current', version_name: 'Current' }],
+    ['the session law', { version_code: 'session-law', version_name: 'Session Law' }],
+  ])('never names the current version when the summary has %s', async (_, source) => {
+    const detail = { ...DETAIL, summary_source_version: source };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    const meta = [...container.querySelectorAll('.bl-summary .bl-meta')].map((p) => p.textContent);
+    expect(meta).toContain('Alethical summary');
+    expect(text()).not.toContain('Alethical summary of the');
+    expect(container.querySelector('.bl-citation-version')).toBeNull();
+    // The text opens at the top: a quoted section is never looked up in another version.
+    await readCitation();
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/3/text`);
+    expect(document.activeElement?.id).not.toBe('ft-laws.0.2.0-2');
   });
 
   it('shows the official description when no Alethical summary exists', async () => {

@@ -65,6 +65,15 @@ export interface ServedVersion {
   is_current?: boolean | null;
 }
 
+/** The saved version the Alethical summary was written from, named only when the
+ * summary is explicitly linked to it (`summary_source_version` on `/bills/{id}`). */
+export interface SummarySourceVersion {
+  version_code: string;
+  version_name?: string | null;
+  document_date?: string | null;
+  html_url?: string | null;
+}
+
 export interface ServedCitation {
   id: string;
   label: string;
@@ -95,6 +104,7 @@ export interface BillDetail {
   } | null;
   actions?: ServedAction[] | null;
   versions?: ServedVersion[] | null;
+  summary_source_version?: SummarySourceVersion | null;
 }
 
 export interface VoteRecord {
@@ -447,6 +457,35 @@ export function orderVersions(versions: ServedVersion[], actions: ServedAction[]
       return tb - ta;
     })
     .map((entry) => entry.row);
+}
+
+/**
+ * The version the summary and its citations were written from, or null when it
+ * cannot be named: no link, a version the record no longer lists, the moving
+ * "current" pointer (its text changes with the bill) or the session law (no
+ * readable text). Never the current version by default.
+ */
+export function summaryVersionRow(
+  source: SummarySourceVersion | null | undefined,
+  served: ServedVersion[],
+  rows: VersionRow[],
+): VersionRow | null {
+  const code = source?.version_code?.trim();
+  if (!code || code === 'current' || code === 'session-law') return null;
+  const held = served.find((version) => version.version_code === code);
+  if (!held) return null;
+  return (
+    rows.find((row) => row.code === code) ?? {
+      code,
+      label: versionLabel(code, held.version_name ?? source?.version_name),
+      date: dayLabel(held.document_date ?? null),
+      url: held.html_url ?? null,
+      isLaw: false,
+      // A row the list folded into another of the same name (2 conference
+      // reports) is opened by its own code, never by the default current text.
+      isCurrent: false,
+    }
+  );
 }
 
 /** The version Bill Text opens by default: the one the record marks current,
