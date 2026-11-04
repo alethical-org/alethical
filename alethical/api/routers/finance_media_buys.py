@@ -37,7 +37,17 @@ router = APIRouter(
     prefix="/finance/media-buys", dependencies=[Depends(require_finance_access)]
 )
 
-CONNECTION_KINDS = {"committee", "candidate", "principal", "election", "race", "name"}
+CONNECTION_KINDS = {
+    "committee",
+    "candidate",
+    "principal",
+    "election",
+    "race",
+    "name",
+    "person",
+    "legislator",
+    "organization",
+}
 
 
 def records(db: Session = Depends(get_db)):
