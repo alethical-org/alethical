@@ -1038,6 +1038,19 @@ writes narrow the listener to the existing source-request deadline too, so the
 turn cannot enlarge those database waits. No duplicate timeout setter is sent for
 the helper's statements; all source checks and locked re-planning remain.
 
+When the driver supports it, the exact recovery engine sends each timeout setter
+and its one query as a short psycopg pipeline pair, then drains the pair before
+SQLAlchemy reads any result. It never queues another application query, receipt
+write or commit in that pair. The receipt idle guard and separate commit-timeout
+refresh stay in place. Unsupported drivers and multi-parameter execution keep the
+serial timeout path; standalone helpers and other engines keep their own guards.
+Even engines sharing a pool/dialect do not inherit another engine's recovery
+scope. Protocol tests count local PostgreSQL synchronization boundaries, and error,
+rollback, short-deadline and receipt/commit tests cover the boundary. This reduces
+client/server waits without removing a checking query or changing any budget;
+production throughput still requires a measured canary. No transaction-wide
+server timeout replaces these guards.
+
 These conservative bounds do not substitute for the owner's measured lock cost
 and effect on normal collection. Network/filesystem failure is not promised an
 exact wall-clock completion time. The CLI supervises only its own worker, requests
