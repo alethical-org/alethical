@@ -1663,3 +1663,16 @@ def test_party_options_are_unknown_without_a_register(client, db):
     assert data["held_register_total"] is None
     assert data["held_by_kind"] is None
     assert data["party"] == "DFL"
+
+
+def test_candidate_party_rejects_nul_before_reading_register(client, db):
+    snapshot = _register(db, filer_count=1)
+    _filer(db, snapshot, CANDIDATE, name="Example")
+    response = client.get(
+        COMMITTEES_URL,
+        params={
+            "kind": "candidate_committee",
+            "party": "DFL\x00",
+        },
+    )
+    assert response.status_code == 422

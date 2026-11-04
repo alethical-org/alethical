@@ -4626,7 +4626,9 @@ def campaign_finance_committees(
     offset: int = Query(default=0, ge=0),
     sort: CommitteeSort = Query(default="name"),
     status: RegistrationStatus | None = Query(default=None),
-    party: str | None = Query(default=None, min_length=1, max_length=200),
+    party: str | None = Query(
+        default=None, min_length=1, max_length=200, pattern=r"^[^\x00]*$"
+    ),
     db: Session = Depends(get_db),
 ):
     """Everyone registered to raise or spend money in Minnesota state politics.
