@@ -636,14 +636,22 @@ no confirmations or source records are changed by these reads or their rollback.
 source-derived agency key, `limit` (1 to 50, default 25), `offset`, and optional
 16-character `version`. The Finance allowlist still applies. The response's `data`
 contains key, exact name, version, limit, offset, has_more and rows with the same
-shape as the agency browse list: key, label, file_count, stations and unchecked.
+shape as the agency browse list: key, label, file_count, stations and unchecked, plus
+`checked_on`.
 
 Candidates are exact labels held in the same originals and checks as the agency
 browse list, including machine-read labels and checked older versions. Each label's
 count covers its own distinct station/file pairs. `unchecked` is true if any file
 represented under that name lacks a standing name check; a checked name on one file
-never checks another file or similar spelling. Similarity never links an address or
-identity, and suggestions contain neither addresses nor identity claims.
+never checks another file or similar spelling. `checked_on` is a Minnesota calendar
+date only when no file under the name is unchecked and every file's own shown name
+check was made that same day; otherwise it is null, so 1 file's check date never
+stands for another file. On `GET /agencies/{key}`, each file row's `agency_checked_at`
+is the time of the shown `agency_name` check for that name on that exact version, never
+another version's, an address check or the latest of several; it is null when the name
+is machine-read or the version's shown checks for it disagree on the time.
+Similarity never links an address or identity, and suggestions contain neither
+addresses nor identity claims.
 
 The spelling policy is the same 3-probe, 0.35 trigram rule as Payments under this
 name. It searches all held labels before exact-name A–Z paging; the input's exact
