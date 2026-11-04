@@ -77,7 +77,11 @@ export function ScrollingTabs<T extends string>(props: {
       onFocus={(event) => {
         const element = row();
         const target = event.target as HTMLElement;
-        if (element && target.getAttribute('role') === 'tab') revealTab(element, target);
+        // Pointer focus arrives before click. Moving that tab here can move it
+        // out from under the release and lose the click. Selection reveals it afterward.
+        if (element && target.getAttribute('role') === 'tab' && target.matches(':focus-visible')) {
+          revealTab(element, target);
+        }
       }}
     >
       <Tabs {...props} />
