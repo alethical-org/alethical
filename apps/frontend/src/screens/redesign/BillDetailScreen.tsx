@@ -76,7 +76,7 @@ import {
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
-import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
+import { citationSectionAnchor, citationSectionHref, phoneBillSection } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
@@ -380,7 +380,12 @@ function BillDetailMobileScreen() {
   const billId = typeof params.billId === 'string' ? params.billId : '';
   // Deep link: /bills/:id?tab=votes lands on that section (grounded-answers rule 5
   // — the section is URL-addressable). Applied once, when that section lays out.
-  const initialTab = SECTIONS.some((s) => s.id === params.tab) ? (params.tab as SectionId) : null;
+  // A Bill Text link says ?tab=text; a #ft- section in it is then reached by
+  // Bill Text's own jump, which lands after this one.
+  const initialTab = phoneBillSection(
+    params.tab,
+    SECTIONS.map((s) => s.id),
+  );
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
