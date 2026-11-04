@@ -679,10 +679,36 @@ describe('Bill', () => {
     expect(document.activeElement?.id).toBe('ft-laws.0.2.0-2');
   });
 
+  it('opens the very conference report the summary quotes when 2 share a name', async () => {
+    const report = (code: string, date: string, current: boolean) => ({
+      version_code: code,
+      version_name: `2026.0-CCRSF0334${code === 'ccr-1' ? 'A' : ''}`,
+      document_date: date,
+      html_url: `https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/${code}/`,
+      is_current: current,
+    });
+    const detail = {
+      ...DETAIL,
+      versions: [
+        DETAIL.versions![0],
+        report('ccr-0', '2026-05-10T00:00:00Z', false),
+        report('ccr-1', '2026-05-15T00:00:00Z', true),
+      ],
+      summary_source_version: { version_code: 'ccr-1', version_name: '2026.0-CCRSF0334A' },
+    };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    expect(text()).toContain('Alethical summary of the conference committee report version');
+    await readCitation();
+    expect(new URLSearchParams(window.location.search).get('version')).toBe('ccr-1');
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+  });
+
   it.each([
     ['no linked version', null],
     ['a version the record no longer lists', { version_code: '7', version_name: 'gone' }],
     ['the moving current pointer', { version_code: 'current', version_name: 'Current' }],
+    ['the session law', { version_code: 'session-law', version_name: 'Session Law' }],
   ])('never names the current version when the summary has %s', async (_, source) => {
     const detail = { ...DETAIL, summary_source_version: source };
     await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));

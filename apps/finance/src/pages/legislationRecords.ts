@@ -481,7 +481,9 @@ export function summaryVersionRow(
       date: dayLabel(held.document_date ?? null),
       url: held.html_url ?? null,
       isLaw: false,
-      isCurrent: held.is_current === true,
+      // A row the list folded into another of the same name (2 conference
+      // reports) is opened by its own code, never by the default current text.
+      isCurrent: false,
     }
   );
 }

@@ -470,8 +470,10 @@ figure is ever added across committees or members.
   confirmed. Opened with no earlier page, it returns to Legislation. The summary names the
   saved version it was written from ("Alethical summary of the 3rd engrossment version"),
   each passage carries that version's name, and "Read the bill text" opens that version at
-  the quoted section, even when a newer version is current. When the summary is linked to
-  no version the record still lists, or only to the moving "current" pointer, it reads
+  the quoted section, even when a newer version is current or another version shares its
+  name (2 conference committee reports). When the summary is linked to
+  no version the record still lists, or only to the moving "current" pointer or the
+  session law, it reads
   "Alethical summary", the passages name no version, and "Read the bill text" opens the
   current text at the top: a quoted section is never looked up in another version.
 - **Roll call (`/votes/:id`)**: the exact motion, date, recorded result and each member's
