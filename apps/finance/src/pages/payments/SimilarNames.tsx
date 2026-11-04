@@ -112,7 +112,7 @@ export function SimilarNames({
   const shown = safe?.pages[0];
   const rows = safe?.pages.flatMap((p) => p.rows) ?? [];
   const more = safe?.key === read.listKey && safe.pages.at(-1)?.has_more;
-  const reveal = useRevealFocus<HTMLUListElement>();
+  const reveal = useRevealFocus<HTMLUListElement>(scope);
   const heading = useRef<HTMLHeadingElement>(null);
   const focused = useRef<string | null>(null);
   useEffect(() => {
@@ -212,7 +212,7 @@ export function SimilarNames({
               <span className="f-visually-hidden">{title}: </span>None found
             </p>
           )}
-          <ul ref={reveal.list} id="similar-list" className="pn-similar-list">
+          <ul key={safe.key} ref={reveal.list} id="similar-list" className="pn-similar-list">
             {rows.map((row) => (
               <li key={row.name}>
                 <Link to={href(row)} className="pn-similar-link">

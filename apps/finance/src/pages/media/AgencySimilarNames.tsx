@@ -61,7 +61,7 @@ export function AgencySimilarNames({ agencyKey, here }: { agencyKey: string; her
   const safe = held?.auth === auth && !read.accessDenied ? held : null;
   const rows = safe?.pages.flatMap((p) => p.rows) ?? [];
   const more = safe?.key === read.listKey && safe.pages.at(-1)?.has_more;
-  const reveal = useRevealFocus<HTMLUListElement>();
+  const reveal = useRevealFocus<HTMLUListElement>(scope);
   return (
     <section className="mb-card" aria-labelledby="agency-similar-h">
       <h2 id="agency-similar-h">Similar agency names</h2>
@@ -82,6 +82,11 @@ export function AgencySimilarNames({ agencyKey, here }: { agencyKey: string; her
       )}
       {safe && (
         <>
+          {safe.pages[0].key !== agencyKey && (
+            <p className="mb-card-line">
+              Similar to <PrintedName name={safe.pages[0].name} />
+            </p>
+          )}
           {rows.length > 0 && (
             <p className="mb-card-line">
               Each name keeps its own records and may belong to a different person or organization
@@ -92,7 +97,7 @@ export function AgencySimilarNames({ agencyKey, here }: { agencyKey: string; her
               <span className="f-visually-hidden">Similar agency names: </span>None found
             </p>
           )}
-          <ul ref={reveal.list} className="mb-link-list mb-agency-similar-list">
+          <ul key={safe.key} ref={reveal.list} className="mb-link-list mb-agency-similar-list">
             {rows.map((row) => (
               <li key={row.key}>
                 <Link

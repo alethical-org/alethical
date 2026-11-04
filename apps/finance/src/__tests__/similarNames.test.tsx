@@ -270,3 +270,26 @@ it('does not broaden a recognized incompatible file on a direct link or a role c
   );
   expect(requests.filter((url) => url.pathname.endsWith('/payments-under-name'))).toHaveLength(0);
 });
+
+it('does not carry a pending Show more focus target into another payment name', async () => {
+  await render('/money/names/Example', (url) =>
+    Number(url.searchParams.get('offset')) > 0
+      ? new Promise<Response>(() => {})
+      : json(similar(url, { has_more: true })),
+  );
+  await act(async () => button('Show more').click());
+  await settle();
+  await render('/money/names/Other', (url) =>
+    json(
+      similar(url, {
+        rows: Array.from({ length: 4 }, (_, i) => ({
+          name: `Other ${i}`,
+          records: 1,
+          identities: [],
+        })),
+      }),
+    ),
+  );
+  expect(card().querySelectorAll('li')).toHaveLength(4);
+  expect(document.activeElement).toBe(document.body);
+});

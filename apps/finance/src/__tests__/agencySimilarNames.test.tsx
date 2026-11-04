@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { clearReadCache } from '../api/read';
+import { AgencySimilarNames } from '../pages/media/AgencySimilarNames';
 import { PrintedAgency } from '../pages/StationRecords';
 import { matchRoute } from '../routes';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -147,4 +148,88 @@ it('keeps unavailable reads distinct from no matches', async () => {
   await render(() => new Response(null, { status: 503 }));
   expect(card()?.textContent).toContain('We couldn’t load similar agency names');
   expect(card().textContent).not.toContain('None found');
+});
+
+it('labels held names with their own agency during a slow scope change and restarts at the first page on return', async () => {
+  let finish: ((value: Response) => void) | undefined;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: string) => {
+      const url = new URL(input);
+      requests.push(url);
+      if (url.pathname.includes('/new-agency/'))
+        return new Promise<Response>((resolve) => {
+          finish = resolve;
+        });
+      return json(similar(url, { has_more: Number(url.searchParams.get('offset')) === 0 }));
+    }),
+  );
+  const show = async (key: string) => {
+    await act(async () =>
+      root.render(<AgencySimilarNames agencyKey={key} here={`/media-buys/agencies/${key}`} />),
+    );
+    await settle();
+  };
+  await show('agency');
+  await act(async () => button('Show more').click());
+  await settle();
+  await show('new-agency');
+  expect(card().textContent).toContain('Similar to Exact Agency');
+  expect(card().textContent).toContain('Updating');
+  expect(card().textContent).toContain('Agency Checked');
+  await act(async () =>
+    finish!(
+      json(
+        similar(new URL('https://example.test?offset=0'), {
+          key: 'new-agency',
+          name: 'New Agency',
+          rows: [],
+          has_more: false,
+        }),
+      ),
+    ),
+  );
+  await settle();
+  expect(card().textContent).not.toContain('Exact Agency');
+  await show('agency');
+  expect(card().querySelectorAll('li')).toHaveLength(2);
+  expect(button('Show more')).toBeTruthy();
+});
+
+it('does not carry a pending Show more focus target into another agency', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: string) => {
+      const url = new URL(input);
+      if (url.searchParams.get('offset') === '3') return new Promise<Response>(() => {});
+      const changed = url.pathname.includes('/new-agency/');
+      return json(
+        similar(url, {
+          key: changed ? 'new-agency' : 'agency',
+          has_more: !changed,
+          rows: Array.from({ length: changed ? 4 : 2 }, (_, i) => ({
+            key: `name-${i}`,
+            label: `Name ${i}`,
+            file_count: 1,
+            stations: [],
+            unchecked: true,
+          })),
+        }),
+      );
+    }),
+  );
+  await act(async () =>
+    root.render(<AgencySimilarNames agencyKey="agency" here="/media-buys/agencies/agency" />),
+  );
+  await settle();
+  await act(async () => button('Show more').click());
+  await settle();
+  await act(async () =>
+    root.render(
+      <AgencySimilarNames agencyKey="new-agency" here="/media-buys/agencies/new-agency" />,
+    ),
+  );
+  await settle();
+  expect(card().querySelectorAll('li')).toHaveLength(4);
+  expect(document.activeElement).toBe(document.body);
 });
