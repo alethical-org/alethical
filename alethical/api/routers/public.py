@@ -836,8 +836,8 @@ def member_slug_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
     return {str(legislator_id): slug for legislator_id, slug in rows}
 
 
-def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
-    """Parties held for this Legislature/chamber and date, with ambiguity withheld."""
+def service_at_vote(db: Session, bill, events) -> dict[tuple, dict[str, str | None]]:
+    """Held party and district for the vote period, independently unambiguous."""
     voters = {record.legislator_id for event in events for record in event.records}
     if not voters:
         return {}
@@ -850,10 +850,17 @@ def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
             period.party,
             period.start_date,
             period.end_date,
+            District.code.label("district"),
             session.year_start,
             session.year_end,
         )
         .join(session, session.id == period.session_id)
+        .outerjoin(
+            District,
+            (District.id == period.district_id)
+            & (District.chamber_id == period.chamber_id)
+            & (District.jurisdiction_id == session.jurisdiction_id),
+        )
         .where(
             period.legislator_id.in_(voters),
             session.jurisdiction_id == bill.session.jurisdiction_id,
@@ -867,18 +874,33 @@ def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
     for event in events:
         day = event.occurred_at.date() if event.occurred_at else None
         for record in event.records:
-            parties = {
-                row.party
+            matches = [
+                row
                 for row in held[(record.legislator_id, event.chamber_id)]
                 if day is not None
                 and row.year_start <= day.year <= row.year_end
                 and (row.start_date is None or row.start_date <= day)
                 and (row.end_date is None or day <= row.end_date)
+            ]
+            parties = {row.party for row in matches}
+            districts = {
+                row.district
+                if row.district and not row.district.lower().endswith("-unknown")
+                else None
+                for row in matches
             }
-            result[(event.id, record.legislator_id)] = (
-                next(iter(parties)) if len(parties) == 1 else None
-            )
+            result[(event.id, record.legislator_id)] = {
+                "party": next(iter(parties)) if len(parties) == 1 else None,
+                "district": next(iter(districts)) if len(districts) == 1 else None,
+            }
     return result
+
+
+def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
+    """Compatibility for callers that need only the held party."""
+    return {
+        key: value["party"] for key, value in service_at_vote(db, bill, events).items()
+    }
 
 
 def chamber_slug_by_id(db: Session, chamber_ids) -> dict[str, str | None]:
@@ -2891,7 +2913,7 @@ def bill_version_text(
 def vote_payloads(db: Session, bill, events):
     voter_ids = {record.legislator_id for event in events for record in event.records}
     names = member_name_by_legislator(db, voter_ids)
-    parties = party_at_vote(db, bill, events)
+    service = service_at_vote(db, bill, events)
     slugs = member_slug_by_legislator(db, voter_ids)
     chambers = chamber_slug_by_id(db, [event.chamber_id for event in events])
     return [
@@ -2912,7 +2934,7 @@ def vote_payloads(db: Session, bill, events):
                     "legislator_id": str(record.legislator_id),
                     "legislator_name": names.get(str(record.legislator_id)),
                     "slug": slugs.get(str(record.legislator_id)),
-                    "party": parties.get((event.id, record.legislator_id)),
+                    **service[(event.id, record.legislator_id)],
                     "vote_value": record.vote_value.value,
                 }
                 for record in event.records

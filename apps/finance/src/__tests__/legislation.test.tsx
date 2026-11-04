@@ -28,7 +28,7 @@ import {
   type BillDetail,
   type ServedVote,
 } from '../pages/legislationRecords';
-import { RollCall, recordedFilters, rollTallies } from '../pages/RollCall';
+import { RollCall, matchingMembers, recordedFilters, rollTallies } from '../pages/RollCall';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -211,6 +211,7 @@ const VOTE: ServedVote = {
       legislator_id: 'leg-jim',
       legislator_name: 'Jim Abeler',
       party: 'R',
+      district: '35',
       vote_value: 'yes',
     },
     {
@@ -757,6 +758,50 @@ const renderVote = (path: string, answer: Answer) =>
   render(path, () => <RollCall match={matchRoute(path.split('?')[0])!} />, answer);
 
 describe('Roll call', () => {
+  it('shows the held district in its own column and leaves missing district explicit', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}`,
+      billAnswer({
+        vote: () =>
+          json({
+            ...VOTE,
+            bill_id: DETAIL.id,
+            records: VOTE.records!.map((record, index) => ({
+              ...record,
+              district: index === 0 ? '35' : null,
+            })),
+          }),
+      }),
+    );
+    expect(
+      [...container.querySelectorAll('.rc-row-head [role="columnheader"]')].map(
+        (cell) => cell.textContent,
+      ),
+    ).toEqual(['MEMBER', 'DISTRICT', 'PARTY', 'RECORDED']);
+    expect([...container.querySelectorAll('.rc-district')].map((cell) => cell.textContent)).toEqual(
+      ['District 35', 'District not recorded'],
+    );
+  });
+
+  it('finds a member by the held district and keeps the recorded filter', async () => {
+    const records = VOTE.records!.map((record, index) => ({
+      ...record,
+      district: index === 0 ? '35A' : null,
+    }));
+    await renderVote(
+      `/votes/${VOTE_ID}?q=35a&recorded=yes`,
+      billAnswer({
+        vote: () => json({ ...VOTE, bill_id: DETAIL.id, records }),
+      }),
+    );
+    const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Jim AbelerDistrict 35A');
+    expect(matchingMembers(records, 'no', '35a')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'not recorded')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'WIKLUND')).toEqual([records[1]]);
+  });
+
   it('reads the roll call by its own id and shows the motion, date, result and members', async () => {
     await renderVote(`/votes/${VOTE_ID}`, billAnswer());
     expect(requests).toContain(`${API}/api/v1/votes/${VOTE_ID}`);
@@ -776,7 +821,7 @@ describe('Roll call', () => {
     );
     expect(text()).toContain('New Council and Fund to Modernize Human Services IT');
     const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
-    expect(rows[0].textContent).toBe('Jim AbelerRYes');
+    expect(rows[0].textContent).toBe('Jim AbelerDistrict 35RYes');
     expect(rows[1].textContent).toContain('Party not recorded');
     expect(rows[0].querySelector('a')?.getAttribute('href')).toBe(
       `/legislators/leg-jim?from=%2Fvotes%2F${VOTE_ID}`,
@@ -785,7 +830,7 @@ describe('Roll call', () => {
       `/bills/94-2025-SF334?from=%2Fvotes%2F${VOTE_ID}`,
     );
     expect(container.querySelector('.lg-note')?.textContent).toBe(
-      'Party is as recorded for this roll call. A member’s record here is a vote on one motion, never a position or an opinion. Names link only where a legislator record is confirmed.',
+      'District and party are as recorded for this roll call. A member’s record here is a vote on one motion, never a position or an opinion. Names link only where a legislator record is confirmed.',
     );
     expect(
       container.querySelector<HTMLAnchorElement>('.f-sources-link')?.getAttribute('href'),

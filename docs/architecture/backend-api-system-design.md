@@ -729,12 +729,16 @@ per-member fields as the bill's vote collection, plus `bill_id` (the canonical b
 key). An unknown event returns 404; an invalid UUID returns 422. It does not need a
 bill query parameter and never substitutes another event from that bill.
 
-Both vote reads resolve each member's `party` from held service periods in the
-vote's chamber and Legislature, including same-Legislature special sessions. A held
-personal start/end date bounds that party; no current flag or later Legislature is
-substituted. Missing vote dates, missing parties or conflicting eligible periods
-leave the party null. Neither route invents unrecorded votes. Responses remain
-publicly cacheable and names, slugs, chambers and periods are read in batches.
+Both vote reads resolve each member's `party` and `district` (the district code)
+from held service periods in the vote's chamber and Legislature, including
+same-Legislature special sessions. A held personal start/end date bounds the
+period; no current flag or later seat or Legislature is substituted. Missing vote
+dates leave both fields null. Party and district certainty are independent:
+conflicting parties leave party null without hiding an unambiguous district, and
+conflicting districts leave district null without hiding an unambiguous party.
+Missing districts and placeholder district codes ending in `-unknown` remain null.
+Neither route invents unrecorded votes. Responses remain publicly cacheable and
+names, slugs, chambers and periods with their districts are read in batches.
 
 ### Legislators
 
