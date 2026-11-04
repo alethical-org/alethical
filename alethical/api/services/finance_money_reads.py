@@ -1017,6 +1017,7 @@ def _candidate_accounts(db: Session, candidate_id: str):
         "candidate_id": candidate_id,
         "election_year": election_year,
         "link_state": "unconfirmed",
+        "register_contest": None,
     }
     snapshot = filings.live_filings_snapshot(db)
     if connection is None or election_year is None or snapshot is None:
@@ -1048,6 +1049,21 @@ def _candidate_accounts(db: Session, candidate_id: str):
         )
     }
     scope["link_state"] = "confirmed" if numbers else "unconfirmed"
+    seats = {
+        (filer.office, filer.district)
+        for filer in filers
+        if filer.registration_number in numbers
+    }
+    if len(seats) == 1:
+        from alethical.api.services.campaign_finance_races import contest_anchor
+
+        office, district = seats.pop()
+        scope["register_contest"] = {
+            "office": office,
+            "district": district,
+            "year": election_year,
+            "anchor": contest_anchor(office, district),
+        }
     return scope, connection["id"], numbers
 
 

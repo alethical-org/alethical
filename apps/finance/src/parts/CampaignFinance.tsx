@@ -53,7 +53,15 @@ export const INCOMPLETE = 'Missing payment amount';
 /** No outside-spending rows for the selected years (Design Round 34, fewest words). */
 export const NO_OUTSIDE = 'No confirmed records held';
 
+interface RegisterContest {
+  office: string;
+  district: string;
+  year: number;
+  anchor: string;
+}
+
 export interface FinanceYears {
+  register_contest?: RegisterContest | null;
   link_state: 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
   payment_copied_at?: {
     contributions?: string | null;
@@ -439,11 +447,13 @@ function AccountCard({
 }
 
 function OutsideContest({
+  registerContest,
   registrationNumber,
   year,
   from,
   onSettled,
 }: {
+  registerContest?: RegisterContest | null;
   registrationNumber: string;
   year: number;
   from: string;
@@ -468,12 +478,28 @@ function OutsideContest({
     );
   }
   if (groups.length === 0) return null;
+  const raceHref =
+    registerContest &&
+    registerContest.year === year &&
+    registerContest.office === answer?.about?.office &&
+    registerContest.district === answer?.about?.district &&
+    isBuilt('money-by-race')
+      ? withFrom(
+          hrefFor('money-by-race', { id: registerContest.anchor }, { year: String(year) }),
+          from,
+        )
+      : null;
   return (
     <article className="cf-contest">
       <div className="cf-contest-head">
         <span className="cf-contest-label f-num">
           {contestLabel(answer?.about?.office, answer?.about?.district, year)}
         </span>
+        {raceHref && (
+          <Link to={raceHref} className="f-dest">
+            <WithArrow>Open race</WithArrow>
+          </Link>
+        )}
       </div>
       <ul className="cf-outside">
         {groups.map((group, index) => {
@@ -531,10 +557,12 @@ function OutsideContest({
 }
 
 function OutsideSpending({
+  registerContest,
   accounts,
   years,
   from,
 }: {
+  registerContest?: RegisterContest | null;
   accounts: Account[];
   years: Record<string, number>;
   from: string;
@@ -566,6 +594,7 @@ function OutsideSpending({
           year={years[account.registrationNumber]}
           from={from}
           onSettled={onSettled}
+          registerContest={registerContest}
         />
       ))}
       {none && <div className="f-empty-box">{NO_OUTSIDE}</div>}
@@ -635,7 +664,14 @@ export function CampaignFinance({
             />
           ))}
       </div>
-      {!loading && !failed && <OutsideSpending accounts={accounts} years={selected} from={from} />}
+      {!loading && !failed && (
+        <OutsideSpending
+          accounts={accounts}
+          years={selected}
+          from={from}
+          registerContest={candidateId ? years?.data?.register_contest : null}
+        />
+      )}
     </section>
   );
 }
