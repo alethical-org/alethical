@@ -54,14 +54,17 @@ filed short description word-for-word under **Official description**, with an
 
 A cited location opens the exact Bill Text section and highlights it. The link carries
 both the source id and its position because the Minnesota Revisor can reuse 1 id for
-several sections. A citation the record cannot place on 1 section keeps its label and
-quote but is not a link. When a link's exact position is no longer in the text, because a
-later read of the bill moved it, or when a shared link names only the id (the older link
-form), Bill Text opens at the first section carrying that id and highlights it. When no
-section carries that id, Bill Text opens without jumping to or highlighting any section.
+several sections. A citation the record cannot place on 1 section keeps its label, and
+on web its quote, but is not a link. When a link's exact position is no longer in the
+text, because a later read of the bill moved it, or when a shared link names only the id
+(the older link form), Bill Text opens at the first section carrying that id and
+highlights it. When no
+section carries that id, nothing is highlighted and the page jumps to no section: on a
+computer Bill Text opens at its top, a citation tapped on a phone scrolls to the start of
+Bill Text, and a shared link opened on a phone opens the page at its top, on Summary.
 A cited location links, and its Bill Text section says **CITED IN SUMMARY**, only when the
 summary was written from the version Bill Text shows; a summary written from another
-version keeps its labels and quotes without those links or badges.
+version keeps its labels, and on web its quotes, without those links or badges.
 
 The facts area shows where the bill stands, its chief author, companion bill, issues,
 and official record links. A law with several proven start dates says **From {date}** or
