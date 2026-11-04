@@ -433,6 +433,7 @@ def test_report_figures_match_only_unique_filed_regular_report(
     data = get(finance_api, "/committees/18135/report-figures", year=2026)
     assert len(data["reports"]) == 2
     latest, older = data["reports"]
+    assert latest["figures_reason"] is None
     assert latest["report_name"] == "2026 Pre-Primary Report"
     assert Decimal(latest["total_receipts"]) == Decimal("2345.67")
     assert Decimal(latest["ending_cash_balance"]) == 0
@@ -447,6 +448,7 @@ def test_report_figures_match_only_unique_filed_regular_report(
     assert latest["figures_copied_at"].startswith("2026-07-23")
     assert older["total_receipts"] is None and older["ending_cash_balance"] is None
     assert older["figures_state"] == "unavailable"
+    assert older["figures_reason"] == "cutoff_mismatch"
     finance_db.execute(
         delete(m.CampaignFinanceFilingFigure).where(
             m.CampaignFinanceFilingFigure.filing_id == filing.id,
@@ -480,6 +482,10 @@ def test_report_figures_match_only_unique_filed_regular_report(
     _report(finance_db, snapshot, "18135", report_type="E", cut_off=date(2026, 7, 20))
     ambiguous = get(finance_api, "/committees/18135/report-figures", year=2026)
     assert all(row["total_receipts"] is None for row in ambiguous["reports"])
+    assert {row["figures_reason"] for row in ambiguous["reports"]} == {
+        "ambiguous_cutoff",
+        "cutoff_mismatch",
+    }
 
 
 def test_candidacy_accounts_require_reviewed_identity_election_year_and_seat(
@@ -732,3 +738,143 @@ def test_notice_locator_reports_offset_beyond_preview_and_zero_year_sum(
         and summary["first_year"] == summary["last_year"] == 2026
     )
     assert summary["first_date"] is None and summary["last_date"] is None
+
+
+def test_made_tab_is_disjoint_and_recipient_kind_needs_exact_registration(
+    finance_api, finance_db, board
+):
+    from alethical.db import models as m
+    from alethical.tests.test_campaign_finance_landing_reads import (
+        _filings_snapshot,
+        _filer,
+    )
+
+    snapshot = _filings_snapshot(finance_db)
+    _filer(
+        finance_db,
+        snapshot,
+        "40100",
+        kind=m.CampaignFinanceFilerKind.party_unit,
+        name="Different held name",
+    )
+    for number, target, kind in [
+        (80, "40100", "Contribution"),
+        (81, "40101", "Contribution"),
+        (82, "40100", "Refund"),
+    ]:
+        finance_db.add(
+            m.CampaignFinanceExpenditureRow(
+                snapshot_id=board.expenditures_snapshot_id,
+                row_number=number,
+                committee_reg_num="18135",
+                type=kind,
+                vendor_name="Different held name",
+                affected_committee_reg_num=target,
+                affected_committee_name="Receiving committee",
+                amount=Decimal("30"),
+                transaction_date=date(2026, 6, 1),
+                year=2026,
+            )
+        )
+    finance_db.commit()
+    made = get(
+        finance_api,
+        "/committees/18135/payment-groups",
+        year=2026,
+        direction="made",
+        tab="made",
+    )
+    assert made["total_payments"] == 2
+    assert made["tab_counts"] == {"made": 2, "expenditures": 2}
+    known = next(row for row in made["rows"] if row["registration_number"] == "40100")
+    unknown = next(row for row in made["rows"] if row["registration_number"] == "40101")
+    assert known["recipient_type"] == "party_unit"
+    assert known["recipient_type_source"]["snapshot_id"] == str(snapshot.id)
+    assert known["recipient_type_source"]["copied_at"]
+    assert unknown["recipient_type"] is None
+    assert unknown["recipient_type_source"] is None
+    spent = get(
+        finance_api,
+        "/committees/18135/payment-groups",
+        year=2026,
+        direction="made",
+        tab="expenditures",
+    )
+    assert spent["total_payments"] == 2
+    assert all("Contribution" not in row["kinds"] for row in spent["rows"])
+    assert all(row["recipient_type"] is None for row in spent["rows"])
+    raw = get(finance_api, "/committees/18135/payments", year=2026, direction="made")
+    assert raw["page"]["total_payments"] == 4
+    raw_known = next(row for row in raw["payments"] if row["record_number"] == 80)
+    raw_unknown = next(row for row in raw["payments"] if row["record_number"] == 81)
+    assert raw_known["recipient_type"] == "party_unit"
+    assert raw_known["recipient_type_source"] == known["recipient_type_source"]
+    assert raw_unknown["recipient_type"] is None
+    public = finance_api.get(
+        "/api/v1/committees/18135/payments", params={"year": 2026, "direction": "made"}
+    ).json()["data"]
+    stripped = {
+        **raw,
+        "payments": [
+            {
+                key: value
+                for key, value in row.items()
+                if key not in {"recipient_type", "recipient_type_source"}
+            }
+            for row in raw["payments"]
+        ],
+    }
+    assert stripped == public
+    received = get(
+        finance_api, "/committees/18135/payments", year=2026, direction="received"
+    )
+    public_received = finance_api.get(
+        "/api/v1/committees/18135/payments",
+        params={"year": 2026, "direction": "received"},
+    ).json()["data"]
+    assert received == public_received
+
+
+def test_report_reasons_describe_missing_held_evidence_not_failure_to_file(
+    finance_api, finance_db, board
+):
+    from sqlalchemy import select
+    from alethical.db import models as m
+    from alethical.tests.test_campaign_finance_landing_reads import (
+        _filings_snapshot,
+        _report,
+        _reported_figures,
+    )
+
+    snapshot = _filings_snapshot(finance_db)
+    _report(finance_db, snapshot, "18135", cut_off=date(2026, 7, 20))
+
+    def first():
+        return get(finance_api, "/committees/18135/report-figures", year=2026)[
+            "reports"
+        ][0]
+
+    assert first()["figures_reason"] == "missing_filing"
+    _reported_figures(finance_db, snapshot, "18135")
+    filing = finance_db.scalar(
+        select(m.CampaignFinanceFiling).where(
+            m.CampaignFinanceFiling.snapshot_id == snapshot.id
+        )
+    )
+    filing.reported_through = None
+    finance_db.commit()
+    assert first()["figures_reason"] == "missing_reported_through"
+    filing.reported_through = date(2026, 7, 20)
+    report = finance_db.scalar(
+        select(m.CampaignFinanceFilingReport).where(
+            m.CampaignFinanceFilingReport.snapshot_id == snapshot.id
+        )
+    )
+    report.special_election = True
+    finance_db.commit()
+    assert first()["figures_reason"] == "special_election"
+    report.special_election = False
+    report.cut_off_date = None
+    finance_db.commit()
+    assert first()["figures_reason"] == "missing_cutoff"
+    assert first()["total_receipts"] is None
