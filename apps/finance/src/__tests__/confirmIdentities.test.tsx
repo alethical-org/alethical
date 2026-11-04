@@ -886,7 +886,6 @@ describe('Confirm identities page', () => {
     expect(roleTitle({ record_kind: 'public_person', record_key: ORG })).not.toContain(ORG);
   });
 
-
   it('lists names to review with the money rules and the shared period label', async () => {
     serve((url) => {
       if (url.pathname.endsWith('/queue'))
