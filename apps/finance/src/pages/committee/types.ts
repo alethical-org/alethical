@@ -116,7 +116,16 @@ export interface ReceivedPayment {
   record_number: number;
 }
 
+export interface RecipientTypeSource {
+  snapshot_id: string;
+  copied_at: string;
+  source_url: string;
+  retained: boolean;
+}
+
 export interface MadePayment {
+  recipient_type?: 'candidate_committee' | 'party_unit' | 'political_committee_or_fund' | null;
+  recipient_type_source?: RecipientTypeSource | null;
   vendor_name: string | null;
   vendor_city: string | null;
   vendor_state: string | null;
@@ -150,6 +159,7 @@ export interface AttachedStatementRow {
 }
 
 export interface PaymentPage<T> {
+  version?: string;
   state: BlockState;
   payments: T[];
   page: { limit: number; offset: number; has_more: boolean; total_payments: number | null };
@@ -191,6 +201,7 @@ export interface ReportFigureRow {
   total_receipts: string | null;
   ending_cash_balance: string | null;
   figures_state: 'reported' | 'unavailable' | string;
+  figures_reason?: string | null;
 }
 
 export interface ReportFigures {

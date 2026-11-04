@@ -18,6 +18,7 @@ import {
   tableTotal,
 } from '../pages/committee/data';
 import { clearYearPayments } from '../pages/committee/useYearPayments';
+import { unavailableFiguresReason } from '../pages/committee/Figures';
 import { kindView, stateRows } from '../pages/committee/Breakdowns';
 import * as routes from '../routes';
 import type { MadePayment, ReceivedPayment } from '../pages/committee/types';
@@ -270,7 +271,7 @@ function loadedAnswers(overrides: Answers = {}): Answers {
         statements_copied_on: '2026-10-27',
       }),
     },
-    '/committees/90001/payments?direction=made': {
+    '/finance/committees/90001/payments?direction=made': {
       status: 200,
       body: page('reported', [
         made('Example Printing Co', '8420.0000', '2026-04-22', 21),
@@ -487,7 +488,7 @@ describe('Committee page', () => {
     expect(container.querySelector('.cmt-reg-status')?.textContent).toBe('Terminated Jul 28, 2026');
   });
 
-  it('shows the official figures, the 6 tabs with counts, and grouped names', async () => {
+  it('shows the official figures, the approved tabs with known counts, and grouped names', async () => {
     await render('/money/committees/90001', loadedAnswers());
     expect(container.querySelector('h1')?.textContent).toBe('Example Candidate Committee');
     expect(text()).toContain('Candidate committee');
@@ -517,7 +518,8 @@ describe('Committee page', () => {
       'Committees and funds1',
       'Party units1',
       'Other kinds0',
-      'Expenditures2',
+      'Expenditures',
+      'Contributions made',
     ]);
     expect(text()).toContain('2 names · 4 payment records');
     // One amount is missing, so neither the name's sum nor the table's total is shown.
@@ -1154,4 +1156,112 @@ describe('Committee page, return link', () => {
     expect(back?.textContent).toBe('Back to Money by race');
     expect(back?.getAttribute('href')).toBe('/money/races/house-1a');
   });
+});
+
+describe('Contributions made and report availability', () => {
+  const outgoing = [
+    made('Example Printing Co', '200.0000', '2026-04-22', 21),
+    {
+      ...made('State Party-like name', '100.0000', '2026-03-03', 22),
+      expenditure_type: 'Contribution',
+      affected_committee_name: 'Example Recipient',
+      affected_committee_registration_number: '30004',
+      recipient_type: 'political_committee_or_fund',
+      recipient_type_source: {
+        snapshot_id: 'source',
+        copied_at: '2026-10-27T17:00:00Z',
+        source_url: 'https://cfb.mn.gov/register',
+        retained: true,
+      },
+    },
+    {
+      ...made('Candidate-looking name', '50.0000', '2026-02-03', 23),
+      expenditure_type: 'Contribution',
+    },
+  ];
+  const answers = () =>
+    loadedAnswers({
+      '/finance/committees/90001/payments?direction=made': {
+        status: 200,
+        body: page('reported', outgoing),
+      },
+    });
+  it('lists outgoing contributions once in their own tab with source-backed recipient types', async () => {
+    await render('/money/committees/90001?tab=made', answers());
+    const table = container.querySelector('[role="table"]')!;
+    expect(table.getAttribute('aria-label')).toBe('Contributions made');
+    expect(table.textContent).toContain('RECIPIENT TYPE');
+    expect(table.textContent).toContain('Example Recipient');
+    expect(table.textContent).toContain('Political committee or fund');
+    expect(table.textContent).toContain('Type not given');
+    expect(table.textContent).not.toContain('Example Printing Co');
+    expect(text()).toContain('Itemized contributions made $150');
+    expect(text()).not.toContain('Minnesota makes a committee name a recipient only once');
+    const expand = table.querySelector<HTMLButtonElement>('button[aria-expanded]')!;
+    await act(async () => expand.click());
+    await act(async () => button('View source')!.click());
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Recipient type');
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      'Retained registration copied Oct 27, 2026',
+    );
+  });
+  it('excludes outgoing contributions from expenditures and never reuses the aggregate tab count', async () => {
+    await render('/money/committees/90001?tab=expenditures', answers());
+    const table = container.querySelector('[role="table"]')!;
+    expect(table.textContent).toContain('Example Printing Co');
+    expect(table.textContent).not.toContain('Example Recipient');
+    expect(table.textContent).not.toContain('Candidate-looking name');
+    expect(text()).toContain('Total itemized expenditures $200');
+    const tabs = [...container.querySelectorAll('[role="tab"]')].map((node) => node.textContent);
+    expect(tabs).toContain('Expenditures1');
+    expect(tabs).toContain('Contributions made2');
+  });
+  it('keeps an unavailable selected report distinct from another report’s held figures', async () => {
+    await render(
+      '/money/committees/90001?report=8',
+      loadedAnswers({
+        '/finance/committees/90001/report-figures': {
+          status: 200,
+          body: reports([
+            reportRow(),
+            reportRow({
+              record_number: 8,
+              report_name: '2026 Pre-General Report',
+              figures_state: 'unavailable',
+              figures_reason: 'cutoff_mismatch',
+            }),
+          ]),
+        },
+      }),
+    );
+    const official = container.querySelector('.cmt-official')!;
+    expect(official.textContent).toContain('2026 Pre-General Report');
+    expect(official.querySelector('.cmt-figures')).toBeNull();
+    expect(official.textContent).toContain(
+      'The filing’s reported-through date does not match this report’s cutoff date',
+    );
+    expect(official.textContent).not.toContain('$438,900');
+    expect(text()).toContain('Example, Jordan A');
+  });
+});
+
+it('explains each served report-match reason without claiming the committee failed to file', () => {
+  expect(unavailableFiguresReason('missing_filing')).toBe(
+    'No financial figures are held for this committee and year',
+  );
+  expect(unavailableFiguresReason('missing_reported_through')).toBe(
+    'The financial figures do not give a coverage end date',
+  );
+  expect(unavailableFiguresReason('special_election')).toBe(
+    'These financial figures cannot be matched to a special-election report',
+  );
+  expect(unavailableFiguresReason('missing_cutoff')).toBe(
+    'This report does not give a cutoff date',
+  );
+  expect(unavailableFiguresReason('ambiguous_cutoff')).toBe(
+    'More than one report has the same cutoff date',
+  );
+  expect(unavailableFiguresReason(null)).toBe(
+    'No matched financial figures are held for this report',
+  );
 });

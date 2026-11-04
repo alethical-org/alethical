@@ -43,17 +43,18 @@ async function loadAll<T>(
   base: string,
   token: string | null,
   signal: AbortSignal,
-): Promise<YearPayments<T> | null> {
-  const get = (offset: number) =>
+): Promise<YearPayments<T> | null | 'access-denied'> {
+  const get = (offset: number, version?: string) =>
     apiGet<PaymentPage<T>>(
       apiBaseUrl,
-      `${base}&limit=${PAGE}&offset=${offset}`,
+      `${base}&limit=${PAGE}&offset=${offset}${version ? `&version=${encodeURIComponent(version)}` : ''}`,
       token,
       fetch,
       signal,
     );
   const first = await get(0);
-  if (first.state !== 'ok') return null;
+  if (first.state !== 'ok')
+    return first.state === 'failed' && first.accessDenied ? 'access-denied' : null;
   const head = first.data;
   const pages = [head];
   if (head.state === 'reported' && head.page.has_more) {
@@ -62,10 +63,19 @@ async function loadAll<T>(
     const offsets: number[] = [];
     for (let offset = PAGE; offset < total; offset += PAGE) offsets.push(offset);
     for (let start = 0; start < offsets.length; start += AT_ONCE) {
-      const answers = await Promise.all(offsets.slice(start, start + AT_ONCE).map(get));
+      const answers = await Promise.all(
+        offsets.slice(start, start + AT_ONCE).map((offset) => get(offset, head.version)),
+      );
+      if (answers.some((answer) => answer.state === 'failed' && answer.accessDenied))
+        return 'access-denied';
       for (const answer of answers) {
         // A page from another release would mix 2 copies of the file.
-        if (answer.state !== 'ok' || answer.data.release_id !== head.release_id) return null;
+        if (
+          answer.state !== 'ok' ||
+          answer.data.release_id !== head.release_id ||
+          (head.version !== undefined && answer.data.version !== head.version)
+        )
+          return null;
         pages.push(answer.data);
       }
     }
@@ -88,8 +98,8 @@ async function loadAll<T>(
 
 /** `path` is the payments address without paging, or null to read nothing. */
 export function useYearPayments<T>(path: string | null): YearPaymentsRead<T> {
-  const { apiBaseUrl, accessToken } = useFinanceSession();
-  const key = path ? `${accessToken}|${path}` : null;
+  const { apiBaseUrl, accessToken, retry: retrySession } = useFinanceSession();
+  const key = path ? `${apiBaseUrl}|${accessToken}|${path}` : null;
   const [answer, setAnswer] = useState<{
     key: string;
     value: YearPayments<T> | null;
@@ -113,7 +123,11 @@ export function useYearPayments<T>(path: string | null): YearPaymentsRead<T> {
     void loadAll<T>(apiBaseUrl, path, accessToken, controller.signal).then((value) => {
       if (request !== latest.current) return;
       setPending(false);
-      if (value) {
+      if (value === 'access-denied') {
+        cache.clear();
+        setAnswer({ key, value: null, failed: true });
+        retrySession?.();
+      } else if (value) {
         cache.set(key, { at: Date.now(), value });
         setAnswer({ key, value, failed: false });
       } else {
@@ -127,7 +141,7 @@ export function useYearPayments<T>(path: string | null): YearPaymentsRead<T> {
       latest.current += 1;
       controller.abort();
     };
-  }, [apiBaseUrl, accessToken, key, path, attempt]);
+  }, [apiBaseUrl, accessToken, key, path, attempt, retrySession]);
 
   useEffect(() => setAttempt(0), [key]);
 

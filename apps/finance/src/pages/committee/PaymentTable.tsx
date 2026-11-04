@@ -85,7 +85,9 @@ export function PaymentTable({
   statementLevel,
   year,
   sort,
+  recipientTypes = false,
 }: {
+  recipientTypes?: boolean;
   year: number;
   sort: SortKey;
   label: string;
@@ -108,7 +110,7 @@ export function PaymentTable({
           <span role="columnheader" className="cmt-right">
             AMOUNT
           </span>
-          <span role="columnheader">TYPE</span>
+          <span role="columnheader">{recipientTypes ? 'RECIPIENT TYPE' : 'TYPE'}</span>
           <span />
         </div>
       )}
