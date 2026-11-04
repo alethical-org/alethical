@@ -549,8 +549,8 @@ signed-in requests need `https://finance.alethical.com` in `ALETHICAL_CORS_ORIGI
 below).
 Then confirm
 `https://finance.alethical.com/` shows the landing page with its counts, `/sign-in` shows
-"Sign in to Alethical Finance", a built page such as `/money` sends a signed-out visitor to
-sign-in, an unbuilt one such as `/media-buys` says the page cannot be found once signed in,
+"Sign in to Alethical Finance", built pages such as `/money` and `/media-buys` send a
+signed-out visitor to sign-in and load their held records for an allowed signed-in account,
 and every answer carries `X-Robots-Tag: noindex, nofollow`. Roll back with `vercel rollback --scope
 alethical` or by deploying the previous `main` commit the same way.
 
