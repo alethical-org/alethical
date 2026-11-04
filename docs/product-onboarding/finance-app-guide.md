@@ -477,11 +477,13 @@ figure is ever added across committees or members.
   current one first; with 1 session held it shows 1 option.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill
   text), Actions (each with its date and chamber), Votes, Bill Text and Versions, chief
-  author and co-authors, companion bill, the committee (printed by name: the bill records
-  carry no committee id, so it opens its members' campaign accounts only when an action
-  names one), official page, and each author's
+  author and co-authors, companion bill, the committee, official page, and each author's
   confirmed campaign accounts, with "No confirmed campaign account" where none is
-  confirmed. Opened with no earlier page, it returns to Legislation. The summary names the
+  confirmed. Each printed action committee opens its members' campaign accounts only when
+  that exact action carries a committee ID; names alone stay plain text. The side card uses
+  the newest action that names a committee. Both links preserve the bill's current tab and earlier
+  page in their return address. Opened with no earlier page, the bill returns to Legislation.
+  The summary names the
   saved version it was written from ("Alethical summary of the 3rd engrossment version"),
   each passage carries that version's name, and "Read the bill text" opens that version at
   the quoted section, even when a newer version is current or another version shares its

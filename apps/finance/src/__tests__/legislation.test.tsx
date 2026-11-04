@@ -881,6 +881,91 @@ describe('Bill', () => {
     );
   });
 
+  it('links each action’s printed committee to its own held id and preserves the Actions return', async () => {
+    const firstId = 'c0a8e1d2-1111-4222-8333-444455556666';
+    const secondId = 'd0a8e1d2-1111-4222-8333-444455556666';
+    const detail = {
+      ...DETAIL,
+      actions: [
+        {
+          action_number: 1,
+          action_text: 'Referred to',
+          committee_name: 'State and Local Government',
+          committee_id: firstId,
+          action_at: '2025-01-21T00:00:00Z',
+        },
+        {
+          action_number: 2,
+          action_text: 'Re-referred to State and Local Government',
+          committee_name: 'State and Local Government',
+          committee_id: secondId,
+          action_description: 'As amended',
+          roll_call_text: '12-0',
+          action_at: '2025-01-22T00:00:00Z',
+        },
+      ],
+    };
+    const here = '/bills/94-2025-SF334?from=%2Fbills%3Fq%3DSF334&tab=actions';
+    await renderBill(here, billAnswer({ detail: () => json(detail) }));
+    const rows = [...container.querySelectorAll('.bl-action-text')];
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'Re-referred to State and Local Government · As amended · 12-0',
+      'Referred to State and Local Government',
+    ]);
+    const links = rows.map((row) => row.querySelector<HTMLAnchorElement>('a'));
+    expect(links.map((link) => link?.textContent)).toEqual([
+      'State and Local Government',
+      'State and Local Government',
+    ]);
+    expect(links.map((link) => link?.getAttribute('href'))).toEqual(
+      [secondId, firstId].map(
+        (id) => `/legislature/committees/${id}/members?from=${encodeURIComponent(here)}`,
+      ),
+    );
+    expect(links[0]?.getAttribute('aria-label')).toBe(
+      'Members’ campaign accounts, State and Local Government',
+    );
+  });
+
+  it('does not turn a committee name or an unnamed id into an action destination', async () => {
+    const detail = {
+      ...DETAIL,
+      actions: [
+        {
+          action_number: 1,
+          action_text: 'Referred to',
+          committee_name: 'Education',
+          committee_id: null,
+        },
+        {
+          action_number: 2,
+          action_text: 'Referred to',
+          committee_name: '  ',
+          committee_id: 'c0a8e1d2-1111-4222-8333-444455556666',
+        },
+        {
+          action_number: 3,
+          action_text: 'Referred to',
+          committee_name: 'Education',
+          committee_id: ' ',
+        },
+        {
+          action_number: 4,
+          action_text: 'First reading',
+          committee_name: 'Education',
+          committee_id: 'c0a8e1d2-1111-4222-8333-444455556666',
+        },
+      ],
+    };
+    await renderBill(
+      '/bills/94-2025-SF334?tab=actions',
+      billAnswer({ detail: () => json(detail) }),
+    );
+    expect(container.querySelectorAll('.bl-actions a')).toHaveLength(0);
+    expect(container.querySelector('.bl-actions')?.textContent).toContain('Referred to Education');
+    expect(container.querySelector('.bl-actions')?.textContent).toContain('First reading');
+  });
+
   it('prints the committee as text when the record carries no committee id', async () => {
     const detail = {
       ...DETAIL,

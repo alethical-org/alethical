@@ -280,6 +280,7 @@ export interface ActionRow {
   text: string;
   tally: string | null;
   at: string | null;
+  committee: { name: string; id: string; offset: number } | null;
 }
 
 /** 1 action as a line: the source's label, completed where it stops on a
@@ -291,11 +292,20 @@ export function actionRow(action: ServedAction): ActionRow | null {
   const detail = (action.action_description ?? '').trim();
   const tally = (action.roll_call_text ?? '').trim() || null;
   const parts = [completeDanglingTitle(label, committee), detail, tally].filter(Boolean);
+  const text = parts.join(' · ');
+  const committeeId = action.committee_id?.trim();
+  // The id belongs to this exact action. Locate only its printed name, never
+  // resolve a destination from a name or borrow the newest action's committee.
+  const committeeOffset = committee ? text.indexOf(committee) : -1;
   return {
     key: String(action.action_number) + '|' + (action.action_at ?? '') + '|' + label,
     date: dayLabel(action.action_at),
     chamber: chamberName(action.chamber),
-    text: parts.join(' · '),
+    text,
+    committee:
+      committeeId && committeeOffset >= 0
+        ? { name: committee, id: committeeId, offset: committeeOffset }
+        : null,
     tally,
     at: action.action_at ?? null,
   };
