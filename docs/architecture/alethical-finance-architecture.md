@@ -527,9 +527,12 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   build's revision, so pages from 2 builds are never joined. The 2 sources answer
   alike, page for page (`alethical/tests/test_finance_name_summary.py`). Files loaded
   before migration 0087 are caught up by `scripts/build_finance_name_summary.py`,
-  whose dry run counts the names it would write and whose `--remove` undoes it. To
-  undo the summary, run `--remove` or empty both tables, revert the code, then
-  downgrade migration 0087.
+  whose dry run counts the names it would write and whose `--remove` undoes it by
+  deleting the markers before the rows in 1 transaction. `--remove` is not an off
+  switch: the next publish writes totals for every file it loads or reuses without
+  them. To undo the summary, run `--remove`, revert the code, then downgrade
+  migration 0087; never empty the totals before their markers, which would list
+  nothing in between.
   `GET /identities` finds saved active
   identities by `q` and optional `kind`, with the same paging bounds; it returns
   only id, reference, kind and name, without a suggested match or any account details.

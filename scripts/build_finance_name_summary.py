@@ -163,6 +163,11 @@ def main(argv: list[str] | None = None) -> int:
                 if args.remove:
                     rows = name_summary.remove(db, snapshot_id)
                     verb = "removed"
+                elif not args.rebuild and name_summary.held(db, dataset, [snapshot_id]):
+                    # A publish built it while this script waited for the lock.
+                    db.rollback()
+                    print(f"{dataset.value}: complete build held, skipped")
+                    continue
                 else:
                     rows = name_summary.rebuild(db, dataset, snapshot_id)
                     verb = "built"

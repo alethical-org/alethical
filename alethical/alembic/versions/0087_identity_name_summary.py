@@ -1,14 +1,17 @@
 """Add up the Confirm identities queue's per-name totals once per saved payment file.
 
 Grouping every live payment row by printed name on each queue request took 2.0 to
-8.3 seconds on production (4 Nov 2026). ``cf_identity_name_summary`` holds 1 row
+8.3 seconds on production (3 Nov 2026). ``cf_identity_name_summary`` holds 1 row
 per exact printed name, kind and saved file, written inside the publish
 transaction; ``cf_identity_name_summary_build`` marks each (file, kind) build
 complete in the same transaction, so a complete build with no names differs from
-an absent one. Both tables are new and empty, so their indexes build at once and
-no existing table is locked. No source row changes. To undo: empty both tables
-(every read then groups the raw rows), revert the code, then downgrade; the code
-that reads the tables fails if they are dropped first.
+an absent one. Both tables are new and empty, so their indexes build at once;
+creating their 2 foreign keys briefly locks ``cf_snapshot`` against writes, so the
+migration waits behind a publish in progress. No source row changes. To undo: run
+``scripts/build_finance_name_summary.py --remove``, which deletes the markers
+before the rows in 1 transaction (every read then groups the raw rows), revert the
+code, then downgrade; the code that reads the tables fails if they are dropped
+first. Emptying the totals before the markers would list nothing in between.
 
 Revision ID: 0087_identity_name_summary
 Revises: 0086_fcc_observation_file_reads

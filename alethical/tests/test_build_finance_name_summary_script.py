@@ -127,3 +127,25 @@ def test_nothing_is_written_when_the_live_release_moves_before_the_lock(runner):
     assert runner.run() == 0
     assert runner.written == []
     assert runner.events == ["rollback"] + ["lock", "recheck", "rollback"] * 3
+
+
+def test_a_file_a_publish_built_while_waiting_for_the_lock_is_skipped(
+    runner, monkeypatch, capsys
+):
+    every = {
+        (sid, kind)
+        for dataset, sid in runner.snapshots.items()
+        for kind in subject.name_summary.kinds_for(dataset)
+    }
+    reads = []
+
+    def complete(db, pairs):
+        # Unbuilt when planned, built by a publish before the lock was taken.
+        reads.append(db.locked)
+        return every if db.locked else set()
+
+    monkeypatch.setattr(subject.name_summary, "complete", complete)
+    assert runner.run() == 0
+    assert runner.written == []
+    assert runner.events == ["rollback"] + ["lock", "recheck", "rollback"] * 3
+    assert capsys.readouterr().out.count("complete build held, skipped") == 3

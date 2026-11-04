@@ -3271,7 +3271,7 @@ class CampaignFinanceIdentityNameSummary(Base):
     The queue (``alethical/api/services/finance_identity_directory.py``) lists each
     exact spelling of a donor, employer or payee name with its records, signed
     amount, missing amounts, undated records and period. Grouping the live files'
-    rows on every request took 2.0 to 8.3 seconds on production (measured 4 Nov
+    rows on every request took 2.0 to 8.3 seconds on production (measured 3 Nov
     2026). These rows hold the same totals, built inside the publish transaction
     (``alethical/pipeline/campaign_finance_name_summary.py``). They are read only
     for a (file, kind) whose ``cf_identity_name_summary_build`` marker exists.
