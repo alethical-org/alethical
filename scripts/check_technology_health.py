@@ -518,7 +518,7 @@ def javascript_audit_problems(
             and advisory_id == MINIMATCH_ADVISORY
             and advisory.get("module_name") == "minimatch"
             and advisory.get("severity") == "moderate"
-            and advisory.get("vulnerable_versions") == "<11.0.1"
+            and advisory.get("vulnerable_versions") == ">=7.0.0 <11.0.1"
             and advisory.get("patched_versions") == ">=11.0.1"
             and findings == [{"version": "10.2.5", "paths": [MINIMATCH_BUILD_PATH]}]
         ):
