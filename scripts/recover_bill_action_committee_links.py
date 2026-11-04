@@ -41,9 +41,10 @@ def fetch(url):
     return bytes(body).decode("utf-8")
 
 
-def capture(db, bill_key, path, fetcher=fetch):
+def capture(db, bill_key, path, fetcher=fetch, *, deadline=None):
     urls = list(
-        db.scalars(
+        recovery.execute(
+            db,
             select(SourceArtifact.source_url)
             .join(BillAction, BillAction.source_artifact_id == SourceArtifact.id)
             .join(Bill, Bill.id == BillAction.bill_id)
@@ -52,17 +53,23 @@ def capture(db, bill_key, path, fetcher=fetch):
                 SourceArtifact.artifact_type == ArtifactType.xml,
             )
             .distinct()
-            .limit(2)
-        )
+            .limit(2),
+            deadline=deadline,
+        ).scalars()
     )
     if len(urls) != 1:
         raise ValueError("bill must have one held XML source address")
     url = recovery.official(urls[0])
-    captured_generation = recovery.generation(db, bill_key)
+    captured_generation = recovery.generation(db, bill_key, deadline=deadline)
     body = fetcher(url)
     # Parse and verify bill identity before saving newly fetched bytes.
     probe = recovery.plan(
-        db, bill_key, body, url, source_generation=captured_generation
+        db,
+        bill_key,
+        body,
+        url,
+        source_generation=captured_generation,
+        deadline=deadline,
     )
     if probe["counts"].get("source_bill_mismatch"):
         raise ValueError("source names a different bill")

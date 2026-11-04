@@ -48,6 +48,13 @@ def check_deadline(deadline):
 
 def execute(db, statement, params=None, *, deadline=None):
     check_deadline(deadline)
+    if deadline is not None:
+        # Cap each statement to the remaining caller budget, including lock waits.
+        remaining_ms = max(1, min(15000, int((deadline - time.monotonic()) * 1000)))
+        db.execute(
+            text("SELECT set_config('statement_timeout', :timeout, true)"),
+            {"timeout": str(remaining_ms)},
+        )
     result = db.execute(statement, params or {})
     check_deadline(deadline)
     return result
@@ -156,7 +163,9 @@ def generation(db, bill_key, *, deadline=None):
     }
 
 
-def plan_bill(db, bill, xml_text, chambers, *, source_url=None, deadline=None):
+def plan_bill(
+    db, bill, xml_text, chambers, *, source_url=None, deadline=None, outcomes=None
+):
     """Return exact proposed fills and skipped/conflicting row counts; write nothing."""
     if len(xml_text.encode("utf-8")) > MAX_XML_BYTES:
         raise ValueError("XML exceeds bounded source size")
@@ -295,10 +304,21 @@ def plan_bill(db, bill, xml_text, chambers, *, source_url=None, deadline=None):
                         }
                     )
         counts[state] += 1
+        if outcomes is not None:
+            outcomes[str(row.id)] = state
     return fills, counts
 
 
-def plan(db, bill_key, xml_text, source_url, *, source_generation, deadline=None):
+def plan(
+    db,
+    bill_key,
+    xml_text,
+    source_url,
+    *,
+    source_generation,
+    deadline=None,
+    include_outcomes=False,
+):
     official(source_url)
     if generation(db, bill_key, deadline=deadline) != source_generation:
         raise ValueError("source generation changed; capture fresh official XML")
@@ -307,6 +327,7 @@ def plan(db, bill_key, xml_text, source_url, *, source_generation, deadline=None
     ).scalar()
     if bill is None:
         raise ValueError("bill is not held")
+    outcomes = {} if include_outcomes else None
     fills, counts = plan_bill(
         db,
         bill,
@@ -317,6 +338,7 @@ def plan(db, bill_key, xml_text, source_url, *, source_generation, deadline=None
         },
         source_url=source_url,
         deadline=deadline,
+        outcomes=outcomes,
     )
     return {
         "format": 1,
@@ -330,11 +352,15 @@ def plan(db, bill_key, xml_text, source_url, *, source_generation, deadline=None
         ).scalar(),
         "counts": dict(counts),
         "fills": fills,
+        **({"action_outcomes": outcomes} if include_outcomes else {}),
     }
 
 
-def lock(db):
-    deadline = time.monotonic() + LOCK_DEADLINE_SECONDS
+def lock(db, *, deadline=None):
+    deadline = min(
+        time.monotonic() + LOCK_DEADLINE_SECONDS,
+        deadline if deadline is not None else float("inf"),
+    )
     # One bill only. Block competing inserts as well as edits while validating;
     # never wait indefinitely behind ingestion. All locks end with this transaction.
     execute(db, text("SET LOCAL lock_timeout = '3s'"), deadline=deadline)
@@ -358,8 +384,8 @@ def lock(db):
     return deadline
 
 
-def apply(db, saved_plan, xml_text, receipt):
-    deadline = lock(db)
+def apply(db, saved_plan, xml_text, receipt, *, deadline=None):
+    deadline = lock(db, deadline=deadline)
     current = plan(
         db,
         saved_plan["bill"]["bill_key"],
@@ -367,6 +393,7 @@ def apply(db, saved_plan, xml_text, receipt):
         saved_plan["source_url"],
         source_generation=saved_plan["source_generation"],
         deadline=deadline,
+        include_outcomes="action_outcomes" in saved_plan,
     )
     if current != saved_plan:
         raise ValueError(
@@ -408,6 +435,16 @@ def apply(db, saved_plan, xml_text, receipt):
         "written": written,
     }
     check_deadline(deadline)
+    # Receipt fsync may stall without another SQL statement. The server must
+    # release this transaction's locks within the remaining idle budget too.
+    execute(
+        db,
+        text(
+            "SELECT set_config('idle_in_transaction_session_timeout', :timeout, true)"
+        ),
+        {"timeout": str(max(1, min(15000, int((deadline - time.monotonic()) * 1000))))},
+        deadline=deadline,
+    )
     write_evidence(receipt, evidence)
     check_deadline(deadline)
     return {"filled": len(written)}

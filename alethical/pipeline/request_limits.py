@@ -63,11 +63,14 @@ class DatabaseRequestLimiter:
                 return domain
         return hostname
 
-    def wait(self, url: str) -> None:
+    def wait(self, url: str, *, deadline: float | None = None) -> None:
         # Re-check cooldown at the reserved instant. Another worker can receive
         # Retry-After while this worker is waiting for its previously reserved slot.
         while True:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError("source request deadline reached")
             with self.engine.begin() as connection:
+                self._deadline_timeout(connection, deadline)
                 seconds = connection.execute(
                     text("""
                     INSERT INTO source_request_limits(host, next_request_at, blocked_until)
@@ -81,9 +84,18 @@ class DatabaseRequestLimiter:
                 """),
                     {"host": self.key(url), "interval": self.interval_seconds},
                 ).scalar_one()
+                if (
+                    deadline is not None
+                    and time.monotonic() + float(seconds) >= deadline
+                ):
+                    # Raising inside the transaction also rolls back this reservation.
+                    raise TimeoutError("source cooldown exceeds request deadline")
             if seconds > 0:
                 time.sleep(float(seconds))
-            with self.engine.connect() as connection:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError("source request deadline reached")
+            with self.engine.begin() as connection:
+                self._deadline_timeout(connection, deadline)
                 blocked = connection.execute(
                     text("""
                     SELECT blocked_until > clock_timestamp()
@@ -94,8 +106,20 @@ class DatabaseRequestLimiter:
             if not blocked:
                 return
 
-    def defer(self, url: str, seconds: float) -> None:
+    @staticmethod
+    def _deadline_timeout(connection: Any, deadline: float | None) -> None:
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("source request deadline reached")
+            connection.execute(
+                text("SELECT set_config('statement_timeout', :timeout, true)"),
+                {"timeout": str(max(1, min(15000, int(remaining * 1000))))},
+            )
+
+    def defer(self, url: str, seconds: float, *, deadline: float | None = None) -> None:
         with self.engine.begin() as connection:
+            self._deadline_timeout(connection, deadline)
             connection.execute(
                 text("""
                 INSERT INTO source_request_limits(host, next_request_at, blocked_until)
