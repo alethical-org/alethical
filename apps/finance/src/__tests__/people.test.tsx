@@ -115,6 +115,78 @@ const button = (label: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent === label)!;
 
 describe('People', () => {
+  it.each([
+    [
+      'candidates',
+      'party=DFL&office=County%20Sheriff',
+      ['Party (as filed): DFL', 'Office: County Sheriff'],
+    ],
+    [
+      'legislators',
+      'party=DFL&chamber=house',
+      ['Chamber: House', 'Party (Legislature record): DFL'],
+    ],
+  ])(
+    'uses held source filters for %s and clears them when changing type',
+    async (type, filters, labels) => {
+      await render(`/people?type=${type}&${filters}&page=2`, async (url) => {
+        const response = await loaded(url).json();
+        return json({
+          ...response.data,
+          parties: ['DFL', 'Republican'],
+          offices: ['County Sheriff'],
+          chambers: ['house', 'senate'],
+        });
+      });
+      const request = new URL(requests.find((url) => url.includes('/finance/people?'))!);
+      expect(request.searchParams.get('party')).toBe('DFL');
+      expect(request.searchParams.get(type === 'candidates' ? 'office' : 'chamber')).toBe(
+        type === 'candidates' ? 'County Sheriff' : 'house',
+      );
+      for (const label of labels) expect(text()).toContain(label);
+      await act(async () => button(labels[0]).click());
+      await act(async () => button(type === 'candidates' ? 'Republican' : 'Senate').click());
+      await settle();
+      const latest = new URL(requests.filter((url) => url.includes('/finance/people?')).at(-1)!);
+      expect(latest.searchParams.get('offset')).toBe('0');
+      expect(latest.searchParams.has('version')).toBe(false);
+      await act(async () => button('All records').click());
+      await settle();
+      expect(window.location.search).toBe('');
+      expect(text()).not.toContain('Party (');
+    },
+  );
+
+  it('shows the service term that matched a past district without calling it current service', async () => {
+    const current = legislator(1);
+    const matching = {
+      ...current.periods[0],
+      chamber: 'house',
+      district: '32A',
+      party: 'DFL',
+      start_date: '2019-01-08',
+      end_date: '2021-01-04',
+      session: '2019-2020',
+    };
+    await render('/people?type=legislators&q=32A', async (url) => {
+      const response = await loaded(url).json();
+      return json({
+        ...response.data,
+        total: 1,
+        rows: [{ ...current, matching_periods: [matching] }],
+      });
+    });
+    const row = container.querySelector('.pp-row')!;
+    expect(row.textContent).toContain('House District 32A');
+    expect(row.textContent).toContain('Jan 8, 2019');
+    expect(row.textContent).toContain('Jan 4, 2021');
+    expect(row.textContent).not.toContain('Senate District 1A');
+    expect(row.textContent).not.toContain('Serving');
+    expect(container.querySelector('label[for="people-name"]')?.textContent).toBe(
+      'Search by name or district',
+    );
+  });
+
   it('lists service records 10 a page, each with its mark, kind and return context', async () => {
     await render('/people?type=legislators&service=current', loaded);
     expect(

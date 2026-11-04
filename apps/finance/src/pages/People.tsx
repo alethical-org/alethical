@@ -12,6 +12,7 @@ import { Chips, ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from
 import { RecordMark } from '../ui/marks';
 import { Arrow, Chevron, SourcesAndUpdates } from '../ui/parts';
 import { candidateSeat } from './seat';
+import { dayLabel } from './legislationRecords';
 import './people.css';
 export { candidateSeat };
 export const PAGE_SIZE = 10;
@@ -28,6 +29,7 @@ export interface PersonDirectoryRow {
   party?: string | null;
   source?: { authority?: string; checkedDate?: string };
   service_status?: 'current' | 'former' | 'unknown';
+  matching_periods?: PersonDirectoryRow['periods'];
   periods?: Array<{
     chamber: string;
     district: string | null;
@@ -53,6 +55,9 @@ export interface PeoplePage {
   scope?: string;
   year?: number | null;
   service?: string | null;
+  parties?: string[];
+  offices?: string[];
+  chambers?: string[];
   sort?: string;
 }
 const TYPES = [
@@ -82,10 +87,26 @@ export function rowNote(row: PersonDirectoryRow) {
       .join(' · ');
   }
   if (row.kind === 'person') return '';
-  const period = row.periods?.[0];
+  const matched = row.matching_periods?.[0];
+  const period = matched ?? row.periods?.[0];
   const seat = period
     ? legislatorDistrictLine(currentChamber(period.chamber), period.district)
     : '';
+  if (matched) {
+    const start = dayLabel(matched.start_date),
+      end = dayLabel(matched.end_date);
+    const dates =
+      start && end
+        ? `${start} – ${end}`
+        : start
+          ? `Started ${start}`
+          : end
+            ? `Ended ${end}`
+            : matched.session
+              ? `Session ${matched.session}`
+              : 'Service dates unavailable';
+    return ['Matched service', seat, period?.party, dates].filter(Boolean).join(' · ');
+  }
   const status =
     row.service_status === 'current'
       ? 'Serving'
@@ -116,6 +137,9 @@ export function People(_props: { match: RouteMatch }) {
     q: '',
     type: 'all',
     service: '',
+    party: '',
+    office: '',
+    chamber: '',
     scope: 'all',
     year: '',
     sort: 'name',
@@ -135,10 +159,21 @@ export function People(_props: { match: RouteMatch }) {
     /^\d{4}$/.test(state.year) && Number(state.year) >= 1900 && Number(state.year) <= 2200
       ? state.year
       : '';
+  const party =
+    type !== 'all' && state.party.length <= 100 && !state.party.includes('\0') ? state.party : '';
+  const office =
+    type === 'candidates' && state.office.length <= 200 && !state.office.includes('\0')
+      ? state.office
+      : '';
+  const chamber =
+    type === 'legislators' && ['house', 'senate'].includes(state.chamber) ? state.chamber : '';
   const read = useVersionedRead<PeoplePage>(
     apiPath(['finance', 'people'], {
       q: query,
       type,
+      party,
+      office,
+      chamber,
       service: type === 'legislators' ? service : '',
       scope: type === 'candidates' ? scope : 'all',
       year: type === 'candidates' ? year : '',
@@ -164,6 +199,9 @@ export function People(_props: { match: RouteMatch }) {
   const filtered =
     type !== 'all' ||
     service !== '' ||
+    party !== '' ||
+    office !== '' ||
+    chamber !== '' ||
     state.scope !== 'all' ||
     state.year !== '' ||
     sort !== 'name';
@@ -174,6 +212,7 @@ export function People(_props: { match: RouteMatch }) {
       : data
         ? countLine(data.total, data.q ?? query, data.type ?? type)
         : '';
+  const filterOptions = data?.type === type ? data : undefined;
   const electionYear = state.scope === 'past' ? 'past' : state.year;
   const served = useRead<ServedCounts>('finance/landing/counts');
   const legislatureDate = served.data ? copyDate(served.data, 'current_legislature_bills') : null;
@@ -189,7 +228,7 @@ export function People(_props: { match: RouteMatch }) {
         </p>
         <form role="search" className="pp-search" onSubmit={submit}>
           <label className="pp-search-label" htmlFor="people-name">
-            Search by name
+            Search by name or district
           </label>
           <input
             id="people-name"
@@ -198,7 +237,7 @@ export function People(_props: { match: RouteMatch }) {
             value={typed}
             maxLength={200}
             onChange={(e) => setTyped(e.target.value)}
-            placeholder={band === 'phone' ? 'Name' : 'Search by name'}
+            placeholder={band === 'phone' ? 'Name or district' : 'Search by name or district'}
             autoComplete="off"
           />
           <button className="f-btn pp-submit">Search</button>
@@ -209,10 +248,56 @@ export function People(_props: { match: RouteMatch }) {
             value={type}
             options={TYPES}
             onChange={(type) =>
-              setState({ type, service: '', scope: 'all', year: '', sort: 'name', page: '1' })
+              setState({
+                type,
+                service: '',
+                party: '',
+                office: '',
+                chamber: '',
+                scope: 'all',
+                year: '',
+                sort: 'name',
+                page: '1',
+              })
             }
           />
           <div className="pp-control-row">
+            {type === 'legislators' && (
+              <Dropdown
+                name="Chamber"
+                value={chamber}
+                options={[
+                  { value: '', label: 'All chambers' },
+                  ...(filterOptions?.chambers ?? []).map((value) => ({
+                    value,
+                    label: value === 'house' ? 'House' : value === 'senate' ? 'Senate' : value,
+                  })),
+                ]}
+                onChange={(chamber) => setState({ chamber, page: '1' })}
+              />
+            )}
+            {type !== 'all' && (
+              <Dropdown
+                name={type === 'candidates' ? 'Party (as filed)' : 'Party (Legislature record)'}
+                value={party}
+                options={[
+                  { value: '', label: 'All parties' },
+                  ...(filterOptions?.parties ?? []).map((value) => ({ value, label: value })),
+                ]}
+                onChange={(party) => setState({ party, page: '1' })}
+              />
+            )}
+            {type === 'candidates' && (
+              <Dropdown
+                name="Office"
+                value={office}
+                options={[
+                  { value: '', label: 'All offices' },
+                  ...(filterOptions?.offices ?? []).map((value) => ({ value, label: value })),
+                ]}
+                onChange={(office) => setState({ office, page: '1' })}
+              />
+            )}
             {type === 'candidates' && (
               <Dropdown
                 name="Election year"
@@ -256,6 +341,9 @@ export function People(_props: { match: RouteMatch }) {
                   setState({
                     type: 'all',
                     service: '',
+                    party: '',
+                    office: '',
+                    chamber: '',
                     scope: 'all',
                     year: '',
                     sort: 'name',
@@ -284,7 +372,10 @@ export function People(_props: { match: RouteMatch }) {
               {!rows.length && !read.updating ? (
                 // "Try another name" only answers a typed name; a filter alone gets the
                 // drawn first line.
-                <Empty title="No matching records" next={query ? 'Try another name' : undefined} />
+                <Empty
+                  title="No matching records"
+                  next={query ? 'Try another name or district' : undefined}
+                />
               ) : (
                 <ul className="pp-list">
                   {rows.map((row) => {
