@@ -1116,7 +1116,7 @@ def minimatch_advisory() -> dict:
         "github_advisory_id": check_technology_health.MINIMATCH_ADVISORY,
         "module_name": "minimatch",
         "severity": "moderate",
-        "vulnerable_versions": "<11.0.1",
+        "vulnerable_versions": ">=7.0.0 <11.0.1",
         "patched_versions": ">=11.0.1",
         "findings": [
             {
@@ -1125,6 +1125,14 @@ def minimatch_advisory() -> dict:
             }
         ],
     }
+
+
+def test_minimatch_repair_rejects_superseded_advisory_range() -> None:
+    advisory = minimatch_advisory()
+    advisory["vulnerable_versions"] = "<11.0.1"
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"mm": advisory}), minimatch_repaired=True
+    ) == ["GHSA-g3hv-75wg-m249 (moderate)"]
 
 
 def test_glob_and_minimatch_findings_require_their_own_installed_repairs() -> None:
