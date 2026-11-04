@@ -413,7 +413,9 @@ figure is ever added across committees or members.
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
   address opens the surviving record; a split record's address asks which person was meant.
-  Each election names its office and district once. Media buys follows Campaign finance,
+  Each election names its office, district and result status once. A status used as the
+  event heading is not repeated beneath it; a distinct running or final-outcome heading
+  keeps the result status in its detail. Media buys follows Campaign finance,
   before political giving. Opened with no earlier page, it returns to People.
 - **Vendors and payees (`/money/recipients`)**: the server-paged directory of payees, searched
   by name, with All recipients, Confirmed vendors and Printed names, year, payment type and
