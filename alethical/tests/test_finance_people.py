@@ -472,15 +472,18 @@ def test_people_link_cue_read_cost_is_bounded_to_the_selected_page(
 
 
 def test_people_note_service_status_follows_the_profile_after_a_term_ends(
-    finance_api, finance_db
+    finance_api, finance_db, monkeypatch
 ):
     """A held "current" record whose term has ended reads "unknown" in the note
     exactly as on the person profile, never "current"."""
     from datetime import UTC, datetime
     from uuid import UUID
 
-    from alethical.api.services import person_records
+    from alethical.api.services import finance_people, person_records
 
+    monkeypatch.setattr(
+        finance_people, "read_time", lambda: datetime(2026, 10, 29, 18, tzinfo=UTC)
+    )
     import_reviewed_records(finance_db, today=date(2026, 10, 29))
     person = next(
         r for r in get(finance_api, q="Kim Ellison")["rows"] if r["kind"] == "person"
