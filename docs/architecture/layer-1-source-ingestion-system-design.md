@@ -1013,6 +1013,28 @@ at the driver commit boundary rather than inherited from an earlier query. The e
 one-bill command keeps its 20-second default when no narrower budget is supplied.
 Continuation releases the lane and waits at least 1 minute before another turn.
 The fixed one-minute gap is a canary setting, not an approved full-backlog rate.
+Before another bill is captured, a turn yields if its remaining apply budget is
+smaller than the largest completed apply in that turn. This is conservative
+admission, not a claim that different bills have equal cost. If a partial apply
+allowance still expires, it keeps a `budget_yield` outcome without spending a
+source-failure attempt. A prepared receipt must first be reconciled, even then;
+only a fully aborted partial-budget attempt gets that retry classification.
+Already reconciled prior commits do not consume the new turn's lock budget.
+
+Each attempt also saves `timings.json`: source-budget wait, network fetch,
+lease check, capture, plan, apply through commit, and read-back, including stages
+that failed. Capture includes source wait/fetch, so those numbers must not be
+added twice. Total stops before saving the timing file and excludes turn cleanup;
+it is not whole-command duration. Missing stages were not reached. The saved apply
+allowance and exhaustion flag distinguish partial-lock yield from overall turn
+expiry. Timings do not approve a faster rate.
+
+Inside a batch turn, its engine listener alone sets each statement's timeout,
+using the smaller of the helper and turn deadlines. Standalone one-bill calls
+still set their own timeout. The listener refreshes the commit timeout and the
+helper retains the receipt idle bound. No duplicate timeout setter is sent for
+the helper's statements; all source checks and locked re-planning remain.
+
 These conservative bounds do not substitute for the owner's measured lock cost
 and effect on normal collection. Network/filesystem failure is not promised an
 exact wall-clock completion time. The CLI supervises only its own worker, requests
