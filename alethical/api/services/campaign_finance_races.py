@@ -45,7 +45,7 @@ from decimal import Decimal
 from typing import Optional, Sequence
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import extract, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import (
@@ -58,6 +58,7 @@ from alethical.api.services.committee_finance import NOT_REPORTED
 from alethical.db.schema import load_schema
 from alethical.pipeline import campaign_finance_filings as filings
 from alethical.pipeline import campaign_finance_reader as reader
+from alethical.pipeline.candidate_catalogue import legislative_seat, seat_district
 from alethical.pipeline.campaign_finance_filing_calendars import (
     printed_period_start_for_end,
 )
@@ -117,6 +118,14 @@ class RaceCommittee:
 
 
 @dataclass(frozen=True)
+class ContestElection:
+    """The 1 held election whose ballot lists a contest's seat in the year asked for."""
+
+    stage: str
+    election_date: date
+
+
+@dataclass(frozen=True)
 class Contest:
     """One office-and-district grouping of candidate committees.
 
@@ -131,6 +140,9 @@ class Contest:
     anchor: str
     committees: tuple[RaceCommittee, ...]
     periods_differ: bool
+    #: Named only when exactly 1 held election's ballot lists this seat by its exact
+    #: official title in the year asked for; never inferred from the year.
+    election: Optional[ContestElection] = None
 
     @property
     def committee_count(self) -> int:
@@ -193,6 +205,52 @@ def contest_anchor(office: str, district: Optional[str]) -> str:
     raw = office if district is None else f"{office} {district}"
     slug = re.sub(r"[^a-z0-9]+", "-", raw.lower()).strip("-")
     return slug
+
+
+#: The register's legislative offices, by the chamber an exact ballot title names.
+_REGISTER_CHAMBER = {"House": "house", "Senate": "senate"}
+
+
+def _held_elections(
+    db: Session, year: int
+) -> dict[tuple[str, str], set[tuple[str, str, date]]]:
+    """Each legislative seat on a held ballot this year, with the elections listing it.
+
+    A ballot record counts only when its exact official title maps to a seat
+    (``candidate_catalogue.legislative_seat``) and its election is held.
+    """
+    record = schema.CandidateRecord
+    election = schema.CandidateElection
+    seats: dict[tuple[str, str], set[tuple[str, str, date]]] = {}
+    for title, election_id, stage, held_on in db.execute(
+        select(
+            record.public_payload["office"].astext,
+            election.id,
+            election.stage,
+            election.election_date,
+        )
+        .join(election, election.id == record.election_id)
+        .where(extract("year", election.election_date) == year)
+        .distinct()
+    ):
+        seat = legislative_seat(title) if isinstance(title, str) else None
+        if seat is not None:
+            seats.setdefault(seat, set()).add((election_id, stage, held_on))
+    return seats
+
+
+def _contest_election(
+    seats: dict[tuple[str, str], set[tuple[str, str, date]]],
+    office: str,
+    district: Optional[str],
+) -> Optional[ContestElection]:
+    chamber = _REGISTER_CHAMBER.get(office)
+    code = seat_district(chamber, district) if chamber and district else None
+    held = seats.get((chamber, code), set()) if code else set()
+    if len(held) != 1:
+        return None
+    [(_, stage, held_on)] = held
+    return ContestElection(stage=stage, election_date=held_on)
 
 
 def _named_donations(
@@ -365,6 +423,7 @@ def races(
             )
         )
 
+    seats = _held_elections(db, year)
     contests: list[Contest] = []
     for (row_office, district), committees in sorted(
         grouped.items(),
@@ -383,6 +442,7 @@ def races(
                 anchor=contest_anchor(row_office, district),
                 committees=ordered,
                 periods_differ=len(periods) > 1,
+                election=_contest_election(seats, row_office, district),
             )
         )
 

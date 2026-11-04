@@ -1989,6 +1989,16 @@ different periods, so the page says so above the rows rather than setting one pe
 against another. A contest with 1 dated figure and 1 missing figure has 1 period and reads
 `false`.
 
+`election` on a contest is `{stage, date}` from `candidate_election` only when exactly 1 held
+election in the year asked for has a ballot record (`candidate_record`) whose exact official
+title names this House or Senate seat ("State Representative District 12A", "State Senator
+District 41"; `candidate_catalogue.legislative_seat`). Otherwise it is `null`: no held ballot for
+the seat or year, more than 1 election, a title in any other form, or an office with no seat
+mapping. The register holds no election type or date, and a date is never inferred from the
+year. Coverage is partial: on 3 Nov 2026 the held 2026 general ballot listed 22 of the
+register's 134 House seats and 20 Senate seats, and only the 2026 and 2024 general elections
+were held.
+
 `fetched_at` is when the download release behind `named` was copied from the Board: the one labelled freshness date the page prints (rule 12). `offices` lists every office on the register with its committee count, unfiltered whatever
 `office` is asked for, so the chips label themselves from it and a count never looks like the
 filter found fewer than exist. `committee_count` is the register's whole candidate count;

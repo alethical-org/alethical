@@ -150,7 +150,7 @@ class CandidateCatalogue:
         """Exact district match. Unsupported offices cannot be address-matched here."""
         _require(office_kind in SUPPORTED_KINDS, "unsupported lookup office")
         if office_kind in ("house", "senate"):
-            district = _district(office_kind, district_code or "")
+            district = seat_district(office_kind, district_code or "")
             _require(district is not None, "invalid district code")
             group = f"{office_kind}:{district}"
         else:
@@ -167,7 +167,8 @@ class CandidateCatalogue:
         )
 
 
-def _district(kind: str, value: str) -> str | None:
+def seat_district(kind: str, value: str) -> str | None:
+    """A House or Senate district code in its canonical form, or None."""
     pattern = r"([0-9]{1,2})([AB])" if kind == "house" else r"([0-9]{1,2})"
     match = re.fullmatch(pattern, value.upper())
     if not match or not 1 <= int(match[1]) <= 67:
@@ -175,20 +176,33 @@ def _district(kind: str, value: str) -> str | None:
     return f"{int(match[1])}{match[2] if kind == 'house' else ''}"
 
 
+def legislative_seat(title: str) -> tuple[str, str] | None:
+    """("house", "12A") or ("senate", "41") for an exact official ballot title.
+
+    Only the exact observed official title syntax maps: "State Representative
+    District 12A" and "State Senator District 41". A padded, lower-case or otherwise
+    different title maps to nothing.
+    """
+    for prefix, kind in (
+        ("State Representative District ", "house"),
+        ("State Senator District ", "senate"),
+    ):
+        if title.startswith(prefix):
+            district = seat_district(kind, title.removeprefix(prefix))
+            if district and title == f"{prefix}{district}":
+                return kind, district
+    return None
+
+
 def _office(
     title: str, county: str, office_id: str
 ) -> tuple[str, str | None, str | None]:
     # 88 means statewide OR multi-county, not proof of any particular office.
     if county == "88":
-        for prefix, kind in (
-            ("State Representative District ", "house"),
-            ("State Senator District ", "senate"),
-        ):
-            if title.startswith(prefix):
-                district = _district(kind, title.removeprefix(prefix))
-                # Only exact observed official title syntax supports this mapping.
-                if district and title == f"{prefix}{district}":
-                    return f"{kind}:{district}", kind, district
+        seat = legislative_seat(title)
+        if seat:
+            kind, district = seat
+            return f"{kind}:{district}", kind, district
         if title in STATEWIDE_TITLES:
             kind = STATEWIDE_TITLES[title]
             return kind, kind, None
@@ -366,7 +380,8 @@ def _parse_rows(
         if item.group not in groups:
             kind, _, district = item.group.partition(":")
             valid = (
-                kind in ("house", "senate") and _district(kind, district) == district
+                kind in ("house", "senate")
+                and seat_district(kind, district) == district
             ) or item.group in STATEWIDE_TITLES.values()
             _require(
                 bool(valid) and not local, "coverage names an unknown office group"
