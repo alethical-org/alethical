@@ -71,6 +71,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  vi.useRealTimers();
 });
 
 it.each([
@@ -157,6 +158,8 @@ it.each([false, true])(
 );
 
 it('has no outcome or results area before an election when no result is supplied', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-20T12:00:00Z'));
   await render(<CandidateProfileContent record={profile} onBack={() => {}} />);
   expect(status()).toBeNull();
   expect(host.textContent).toContain('Running for');
