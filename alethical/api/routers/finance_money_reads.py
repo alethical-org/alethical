@@ -81,6 +81,7 @@ def committee_groups(
     offset: int = Query(0, ge=0, le=2147483647),
     release_id: UUID | None = None,
     record_number: int | None = Query(None, ge=1, le=2147483647),
+    version: str | None = Query(None, pattern=r"^[0-9a-f]{16}$"),
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
@@ -96,6 +97,7 @@ def committee_groups(
             offset=offset,
             release_id=release_id,
             record_number=record_number,
+            version=version,
         )
     )
 
@@ -176,6 +178,7 @@ def committee_payments(
     sort: Literal["date", "amount"] = "date",
     limit: int = Query(50, ge=1, le=250),
     offset: int = Query(0, ge=0, le=2147483647),
+    version: str | None = Query(None, pattern=r"^[0-9a-f]{16}$"),
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
@@ -188,5 +191,6 @@ def committee_payments(
             limit=limit,
             offset=offset,
             request=request,
+            version=version,
         )
     )

@@ -47,6 +47,7 @@ def _digest(table: str, order: str) -> str:
 
 
 MARKS = {
+    "filing_register": "(SELECT snapshot_id::text FROM cf_filing_current WHERE id)",
     "money": "(SELECT release_id::text FROM cf_current_release WHERE id)",
     "identity": _digest("identity_event", "r.id"),
     "accounts": "jsonb_build_array("

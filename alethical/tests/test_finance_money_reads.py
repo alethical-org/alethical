@@ -824,6 +824,7 @@ def test_made_tab_is_disjoint_and_recipient_kind_needs_exact_registration(
             for row in raw["payments"]
         ],
     }
+    stripped.pop("version")
     assert stripped == public
     received = get(
         finance_api, "/committees/18135/payments", year=2026, direction="received"
@@ -832,6 +833,7 @@ def test_made_tab_is_disjoint_and_recipient_kind_needs_exact_registration(
         "/api/v1/committees/18135/payments",
         params={"year": 2026, "direction": "received"},
     ).json()["data"]
+    received.pop("version")
     assert received == public_received
 
 
@@ -878,3 +880,52 @@ def test_report_reasons_describe_missing_held_evidence_not_failure_to_file(
     finance_db.commit()
     assert first()["figures_reason"] == "missing_cutoff"
     assert first()["total_receipts"] is None
+
+
+def test_finance_raw_payment_wrapper_keeps_access_boundary(
+    finance_api, finance_db, board
+):
+    from alethical.api.services import finance_access
+    from alethical.tests.finance_fixtures import FINANCE_EMAIL
+
+    path = BASE + "/committees/18135/payments?direction=made&year=2026"
+    finance_access.revoke(finance_db, FINANCE_EMAIL)
+    finance_db.commit()
+    refused = finance_api.get(path)
+    assert refused.status_code == 403
+    assert refused.headers["cache-control"] == "private, no-store"
+    finance_api.headers.pop("Authorization")
+    assert finance_api.get(path).status_code == 401
+
+
+def test_finance_raw_payments_reject_new_register_with_unchanged_payment_release(
+    finance_api, finance_db, board
+):
+    from alethical.tests.test_campaign_finance_landing_reads import _filings_snapshot
+
+    _filings_snapshot(finance_db)
+    path = "/committees/18135/payments"
+    before = get(finance_api, path, year=2026, direction="made", limit=1)
+    version = before["version"]
+    groups = get(
+        finance_api,
+        "/committees/18135/payment-groups",
+        year=2026,
+        direction="made",
+        limit=1,
+    )
+    _filings_snapshot(finance_db)
+    stale = finance_api.get(
+        BASE + path,
+        params={"year": 2026, "direction": "made", "offset": 1, "version": version},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["type"].endswith("records-changed")
+    stale_groups = finance_api.get(
+        BASE + "/committees/18135/payment-groups",
+        params={"year": 2026, "direction": "made", "version": groups["version"]},
+    )
+    assert stale_groups.status_code == 409
+    after = get(finance_api, path, year=2026, direction="made")
+    assert before["release_id"] == after["release_id"]
+    assert before["version"] != after["version"]

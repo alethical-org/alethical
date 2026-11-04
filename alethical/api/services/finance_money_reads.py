@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from alethical.api.services import (
     campaign_finance_payments as payments,
     committee_finance,
+    finance_versions,
     identity_confirmations as identities,
 )
 from alethical.db import models as m
@@ -513,13 +514,14 @@ def _recipient_fields(kinds, number):
 
 
 def committee_payments(
-    db, *, registration, direction, year, sort, limit, offset, request
+    db, *, registration, direction, year, sort, limit, offset, request, version=None
 ):
     # Reuse the complete existing read/formatter, including statement attachments,
     # missing-release states and source paging. Only Finance gets these extra fields.
     from fastapi import Response
     from alethical.api.routers.public import committee_payments as read_payments
 
+    token = finance_versions.check(db, version, "money", "filing_register")
     data = read_payments(
         registration_number=registration,
         direction=direction,
@@ -531,6 +533,7 @@ def committee_payments(
         offset=offset,
         db=db,
     ).data
+    data["version"] = token
     if direction == "made":
         kinds = _recipient_types(
             db,
@@ -569,8 +572,11 @@ def committee_groups(
     offset: int,
     release_id: UUID | None = None,
     record_number: int | None = None,
+    version: str | None = None,
 ):
+    token = finance_versions.check(db, version, "money", "filing_register")
     scope = {
+        "version": token,
         "registration_number": registration,
         "year": year,
         "direction": direction,

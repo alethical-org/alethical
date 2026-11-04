@@ -168,7 +168,10 @@ held produce an unavailable state, never a zero. A requested release that change
   `recipient_type_source` carries its register snapshot, own copied date, source URL
   and retained flag. This is current or retained register metadata, not a claim about
   the recipient's kind in the payment year. Missing evidence gives null fields.
-  The public payment response remains unchanged.
+  Both the raw Finance read and grouped payment list return a `version` covering
+  the money release and held filing-register snapshot, read in one pinned view.
+  Later pages send it back; a register change alone returns `409 records-changed`
+  even when the payment release is unchanged. The public payment response remains unchanged.
 - `/committees/{number}/payment-groups` pages exact named groups for one filing year and
   direction, with whole-filter group/payment counts and itemized amount before paging.
   The same missing-amount and complete-period rules apply to that whole-filter total.
