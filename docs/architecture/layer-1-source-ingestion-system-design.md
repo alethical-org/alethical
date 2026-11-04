@@ -885,6 +885,8 @@ named bill at a time. It does not start ingestion, alter identity records, repla
 source publications, or change any field except `bill_action.committee_id`.
 Historical source bytes may be unavailable even when artifact metadata survives.
 `capture` therefore fetches the single **held** official Revisor XML address,
+on `www.revisor.mn.gov/bills/status_result.php` or the held
+`api.revisor.mn.gov/bills/v1/<session>/<year>/<special>/<HF|SF>/<number>/` path,
 without redirects, retaining the body, address, fetch time and SHA-256 in a new
 private JSON file. More than one held address, an unheld bill, another host, an
 oversized response, or XML naming another bill fails closed. No paid extraction
@@ -895,7 +897,9 @@ The default `plan` mode uses a read-only database transaction. It reads at most
 action number, exact action text/date/printed committee name, and resolves the
 literal source committee code only within that bill's session and action chamber.
 It reports missing/ambiguous codes, missing or changed source rows, existing links,
-and conflicting values. Names never establish a link. Fresh XML may differ from
+and conflicting values. Duplicate chamber blocks fail before the general XML
+parser can discard them; nonempty unparseable dates never equal an unknown stored
+date. Names never establish a link. Fresh XML may differ from
 the old whole-bill artifact hash; each selected action must still agree exactly
 on the stored fields above. The saved plan binds its exact new XML digest and
 keeps every selected row's before values plus bill, artifact and committee versions.
@@ -922,7 +926,17 @@ Apply re-creates the whole plan while holding write-excluding locks on the relev
 tables, including committee inserts, so ingestion cannot change an identity between
 checking and writing. These table locks affect concurrent ingestion across bills;
 use a quiet window, not parallel apply workers. Lock acquisition times out after
-3 seconds; each statement times out after 15 seconds. A changed row/version, source,
+3 seconds; each statement times out after 15 seconds. All action versions,
+artifacts and committee matches are read in batches, and apply/rollback each use
+one bounded update. A 20-second monotonic deadline covers the locked operation;
+it is checked before and after each database statement, during row comparison,
+and after syncing evidence immediately before returning to the CLI commit. A
+statement already running when the deadline passes can consume its remaining
+15-second statement allowance. An idle transaction is terminated by PostgreSQL
+after 15 seconds, covering a process or evidence-write stall. These are abort
+bounds, not a claim that network or filesystem failure finishes exactly on time.
+The release owner must measure one small apply/rollback in a quiet window before
+any wider batch. A changed row/version, source,
 committee mapping or plan aborts the transaction. Raw SQL updates only committee_id,
 including preservation of updated_at. The exclusively created receipt records all
 before values and the resulting PostgreSQL row versions; its bytes and parent

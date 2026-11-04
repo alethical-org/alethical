@@ -12,21 +12,45 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 from urllib.parse import urlsplit
 from uuid import UUID
+from xml.etree import ElementTree
 
-from sqlalchemy import literal_column, select, text
+from sqlalchemy import literal_column, select, text, tuple_
 
-from alethical.db.models import ArtifactType, Bill, BillAction, Chamber, SourceArtifact
-from alethical.pipeline.bill_action_committees import resolve
+from alethical.db.models import (
+    ArtifactType,
+    Bill,
+    BillAction,
+    Chamber,
+    Committee,
+    SourceArtifact,
+)
 from alethical.pipeline.minnesota import parse_bill_xml, parse_datetime
 
 MAX_XML_BYTES = 2_000_000
 MAX_ACTIONS = 2000
+LOCK_DEADLINE_SECONDS = 20
+
+
+def check_deadline(deadline):
+    if deadline is not None and time.monotonic() >= deadline:
+        raise TimeoutError(
+            "recovery lock deadline exceeded; transaction must roll back"
+        )
+
+
+def execute(db, statement, params=None, *, deadline=None):
+    check_deadline(deadline)
+    result = db.execute(statement, params or {})
+    check_deadline(deadline)
+    return result
 
 
 def encode(value):
@@ -46,23 +70,28 @@ def before(row):
     }
 
 
-def version(db, table, key):
+def version(db, table, key, *, deadline=None):
     # Table names are internal constants, never command-line input.
     if table not in {"bill", "bill_action", "source_artifact", "committee"}:
         raise ValueError("unsupported table")
-    return db.scalar(
-        text(f"SELECT xmin::text FROM {table} WHERE id = :id"), {"id": key}
-    )
+    return execute(
+        db,
+        text(f"SELECT xmin::text FROM {table} WHERE id = :id"),
+        {"id": key},
+        deadline=deadline,
+    ).scalar()
 
 
 def official(url):
     parsed = urlsplit(url)
-    if (
-        parsed.scheme != "https"
-        or parsed.netloc != "www.revisor.mn.gov"
-        or parsed.path != "/bills/status_result.php"
-        or parsed.fragment
-    ):
+    legacy = (
+        parsed.netloc == "www.revisor.mn.gov"
+        and parsed.path == "/bills/status_result.php"
+    )
+    api = parsed.netloc == "api.revisor.mn.gov" and re.fullmatch(
+        r"/bills/v1/[0-9]+/[0-9]{4}/[0-9]+/(?:HF|SF)/[0-9]+/", parsed.path
+    )
+    if parsed.scheme != "https" or parsed.fragment or not (legacy or api):
         raise ValueError("expected held official Revisor bill-status XML address")
     return url
 
@@ -83,19 +112,26 @@ def write_evidence(path, value):
         os.close(descriptor)
 
 
-def plan_bill(db, bill, xml_text, chambers, *, source_url=None):
+def plan_bill(db, bill, xml_text, chambers, *, source_url=None, deadline=None):
     """Return exact proposed fills and skipped/conflicting row counts; write nothing."""
     if len(xml_text.encode("utf-8")) > MAX_XML_BYTES:
         raise ValueError("XML exceeds bounded source size")
+    check_deadline(deadline)
+    root = ElementTree.fromstring(xml_text)
+    chamber_blocks = [node.tag.lower() for node in root.findall("./ACTIONS/*")]
+    if len(set(chamber_blocks)) != len(chamber_blocks):
+        raise ValueError("duplicate source chamber blocks")
     parsed = parse_bill_xml(xml_text)
     if parsed["bill_key"] != bill.bill_key:
         return [], Counter(source_bill_mismatch=1)
     selected = list(
-        db.execute(
+        execute(
+            db,
             select(BillAction, literal_column("bill_action.xmin::text"))
             .where(BillAction.bill_id == bill.id)
             .order_by(BillAction.id)
-            .limit(MAX_ACTIONS + 1)
+            .limit(MAX_ACTIONS + 1),
+            deadline=deadline,
         )
     )
     rows = [row for row, _ in selected]
@@ -112,25 +148,38 @@ def plan_bill(db, bill, xml_text, chambers, *, source_url=None):
     counts = Counter()
     stored = Counter((row.chamber_id, row.action_number) for row in rows)
     fills = []
-    artifacts = {}
-    committee_matches = {}
-    versions = {}
-
-    def held_version(table, key):
-        if (table, key) not in versions:
-            versions[(table, key)] = version(db, table, key)
-        return versions[(table, key)]
-
+    artifact_ids = {row.source_artifact_id for row in rows if row.source_artifact_id}
+    artifacts = {
+        artifact.id: (artifact, stamp)
+        for artifact, stamp in execute(
+            db,
+            select(SourceArtifact, literal_column("source_artifact.xmin::text")).where(
+                SourceArtifact.id.in_(artifact_ids)
+            ),
+            deadline=deadline,
+        )
+    }
+    identities = {
+        (row.chamber_id, item.get("committee_id"))
+        for row in rows
+        for item in source[(chambers.get(row.chamber_id), row.action_number)]
+        if row.chamber_id and item.get("committee_id")
+    }
+    committees = defaultdict(list)
+    for committee, stamp in execute(
+        db,
+        select(Committee, literal_column("committee.xmin::text")).where(
+            Committee.session_id == bill.session_id,
+            tuple_(Committee.chamber_id, Committee.code).in_(identities),
+        ),
+        deadline=deadline,
+    ):
+        committees[(committee.chamber_id, committee.code)].append((committee.id, stamp))
     for row in rows:
         slug = chambers.get(row.chamber_id)
         matches = source[(slug, row.action_number)]
-        if row.source_artifact_id not in artifacts:
-            artifacts[row.source_artifact_id] = (
-                db.get(SourceArtifact, row.source_artifact_id)
-                if row.source_artifact_id
-                else None
-            )
-        artifact = artifacts[row.source_artifact_id]
+        check_deadline(deadline)
+        artifact, artifact_version = artifacts.get(row.source_artifact_id, (None, None))
         state = None
         if not slug:
             state = "missing_chamber"
@@ -145,29 +194,28 @@ def plan_bill(db, bill, xml_text, chambers, *, source_url=None):
         else:
             official(artifact.source_url)
             action = matches[0]
+            source_date = action.get("action_date")
+            parsed_date = parse_datetime(source_date)
             if (
-                action.get("action_text", "") != row.action_text
-                or parse_datetime(action.get("action_date")) != row.action_at
+                (bool(source_date) and parsed_date is None)
+                or action.get("action_text", "") != row.action_text
+                or parsed_date != row.action_at
                 or (action.get("committee_name") or None) != row.committee_name
             ):
                 state = "source_row_changed"
             else:
                 code = action.get("committee_id") or None
-                identity = (row.chamber_id, code)
-                if identity not in committee_matches:
-                    committee_matches[identity] = resolve(
-                        db,
-                        session_id=bill.session_id,
-                        chamber_id=row.chamber_id,
-                        source_id=code,
-                    )
-                found = committee_matches[identity]
-                if found.state != "matched":
-                    state = found.state
+                matches = committees[(row.chamber_id, code)]
+                if not code:
+                    state = "missing_source_id"
+                elif not matches:
+                    state = "unheld_code"
+                elif len(matches) != 1:
+                    state = "ambiguous_code"
                 elif row.committee_id:
                     state = (
                         "already_set"
-                        if row.committee_id == found.committee_id
+                        if row.committee_id == matches[0][0]
                         else "conflicting_value_kept"
                     )
                 else:
@@ -177,60 +225,81 @@ def plan_bill(db, bill, xml_text, chambers, *, source_url=None):
                             "before": before(row),
                             "row_version": row_versions[row.id],
                             "source_code": code,
-                            "committee_id": str(found.committee_id),
-                            "committee_version": held_version(
-                                "committee", found.committee_id
-                            ),
+                            "committee_id": str(matches[0][0]),
+                            "committee_version": matches[0][1],
                             "artifact": before(artifact),
-                            "artifact_version": held_version(
-                                "source_artifact", artifact.id
-                            ),
+                            "artifact_version": artifact_version,
                         }
                     )
         counts[state] += 1
     return fills, counts
 
 
-def plan(db, bill_key, xml_text, source_url):
+def plan(db, bill_key, xml_text, source_url, *, deadline=None):
     official(source_url)
-    bill = db.scalar(select(Bill).where(Bill.bill_key == bill_key))
+    bill = execute(
+        db, select(Bill).where(Bill.bill_key == bill_key), deadline=deadline
+    ).scalar()
     if bill is None:
         raise ValueError("bill is not held")
     fills, counts = plan_bill(
         db,
         bill,
         xml_text,
-        {row.id: row.slug for row in db.scalars(select(Chamber))},
+        {
+            row.id: row.slug
+            for row in execute(db, select(Chamber), deadline=deadline).scalars()
+        },
         source_url=source_url,
+        deadline=deadline,
     )
     return {
         "format": 1,
         "bill": before(bill),
-        "bill_version": version(db, "bill", bill.id),
+        "bill_version": version(db, "bill", bill.id, deadline=deadline),
         "source_url": source_url,
         "xml_sha256": hashlib.sha256(xml_text.encode("utf-8")).hexdigest(),
-        "database": db.scalar(text("SELECT current_database()")),
+        "database": execute(
+            db, text("SELECT current_database()"), deadline=deadline
+        ).scalar(),
         "counts": dict(counts),
         "fills": fills,
     }
 
 
 def lock(db):
+    deadline = time.monotonic() + LOCK_DEADLINE_SECONDS
     # One bill only. Block competing inserts as well as edits while validating;
     # never wait indefinitely behind ingestion. All locks end with this transaction.
-    db.execute(text("SET LOCAL lock_timeout = '3s'"))
-    db.execute(text("SET LOCAL statement_timeout = '15s'"))
-    db.execute(
-        text("LOCK TABLE bill, chamber, committee, source_artifact IN SHARE MODE")
+    execute(db, text("SET LOCAL lock_timeout = '3s'"), deadline=deadline)
+    execute(db, text("SET LOCAL statement_timeout = '15s'"), deadline=deadline)
+    execute(
+        db,
+        text("SET LOCAL idle_in_transaction_session_timeout = '15s'"),
+        deadline=deadline,
     )
-    db.execute(text("LOCK TABLE bill_action IN SHARE ROW EXCLUSIVE MODE"))
+    execute(
+        db,
+        text("LOCK TABLE bill, chamber, committee, source_artifact IN SHARE MODE"),
+        deadline=deadline,
+    )
+    execute(
+        db,
+        text("LOCK TABLE bill_action IN SHARE ROW EXCLUSIVE MODE"),
+        deadline=deadline,
+    )
     db.expire_all()
+    return deadline
 
 
 def apply(db, saved_plan, xml_text, receipt):
-    lock(db)
+    deadline = lock(db)
     current = plan(
-        db, saved_plan["bill"]["bill_key"], xml_text, saved_plan["source_url"]
+        db,
+        saved_plan["bill"]["bill_key"],
+        xml_text,
+        saved_plan["source_url"],
+        deadline=deadline,
     )
     if current != saved_plan:
         raise ValueError(
@@ -247,12 +316,14 @@ def apply(db, saved_plan, xml_text, receipt):
     # One bounded update, not one network round trip per action. Raw SQL keeps
     # ORM onupdate from touching updated_at.
     updated = dict(
-        db.execute(
+        execute(
+            db,
             text("""UPDATE bill_action AS action SET committee_id = proposed.committee_id
         FROM jsonb_to_recordset(CAST(:rows AS jsonb)) AS proposed(id uuid, committee_id uuid, version text)
         WHERE action.id = proposed.id AND action.committee_id IS NULL AND action.xmin::text = proposed.version
         RETURNING action.id, action.xmin::text"""),
             {"rows": json.dumps(payload)},
+            deadline=deadline,
         ).all()
     )
     if len(updated) != len(payload):
@@ -269,13 +340,18 @@ def apply(db, saved_plan, xml_text, receipt):
         "plan": saved_plan,
         "written": written,
     }
+    check_deadline(deadline)
     write_evidence(receipt, evidence)
+    check_deadline(deadline)
     return {"filled": len(written)}
 
 
 def rollback(db, receipt, rollback_receipt):
-    lock(db)
-    if receipt["database"] != db.scalar(text("SELECT current_database()")):
+    deadline = lock(db)
+    if (
+        receipt["database"]
+        != execute(db, text("SELECT current_database()"), deadline=deadline).scalar()
+    ):
         raise ValueError("receipt names another database")
     if len(receipt["written"]) > MAX_ACTIONS:
         raise ValueError("receipt exceeds action count bound")
@@ -284,15 +360,18 @@ def rollback(db, receipt, rollback_receipt):
         raise ValueError("receipt repeats an action")
     held = {
         row.id: (row, stamp)
-        for row, stamp in db.execute(
+        for row, stamp in execute(
+            db,
             select(BillAction, literal_column("bill_action.xmin::text")).where(
                 BillAction.id.in_(keys)
-            )
+            ),
+            deadline=deadline,
         )
     }
     counts = Counter()
     payload = []
     for entry in receipt["written"]:
+        check_deadline(deadline)
         prior = entry["before"]
         row, stamp = held.get(UUID(prior["id"]), (None, None))
         expected = {**prior, "committee_id": entry["committee_id"]}
@@ -308,12 +387,14 @@ def rollback(db, receipt, rollback_receipt):
                 "version": entry["after_version"],
             }
         )
-    updated = db.execute(
+    updated = execute(
+        db,
         text("""UPDATE bill_action AS action SET committee_id = NULL
         FROM jsonb_to_recordset(CAST(:rows AS jsonb)) AS proposed(id uuid, committee_id uuid, version text)
         WHERE action.id = proposed.id AND action.committee_id = proposed.committee_id AND action.xmin::text = proposed.version
         RETURNING action.id, action.xmin::text"""),
         {"rows": json.dumps(payload)},
+        deadline=deadline,
     ).all()
     if len(updated) != len(payload):
         raise ValueError("action changed during rollback")
@@ -322,6 +403,7 @@ def rollback(db, receipt, rollback_receipt):
     restored = [
         {"action_id": str(key), "restored_version": stamp} for key, stamp in updated
     ]
+    check_deadline(deadline)
     write_evidence(
         rollback_receipt,
         {
@@ -331,4 +413,5 @@ def rollback(db, receipt, rollback_receipt):
             "restored": restored,
         },
     )
+    check_deadline(deadline)
     return dict(counts)

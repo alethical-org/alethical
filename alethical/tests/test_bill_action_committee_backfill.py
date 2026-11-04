@@ -292,3 +292,243 @@ def test_duplicate_source_action_is_not_arbitrarily_chosen(finance_db, held):
     assert recovery.plan(finance_db, held[0].bill_key, body, URL)["counts"] == {
         "source_action_missing_or_ambiguous": 1
     }
+
+
+def test_held_api_url_is_accepted_but_lookalikes_are_rejected(
+    finance_db, held, tmp_path
+):
+    from scripts import recover_bill_action_committee_links as command
+
+    api_url = "https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/6666/"
+    artifact = finance_db.get(m.SourceArtifact, held[3].source_artifact_id)
+    artifact.source_url = api_url
+    finance_db.commit()
+    command.capture(
+        finance_db,
+        held[0].bill_key,
+        tmp_path / "api.json",
+        lambda url: (
+            COMMITTEE_BILL_XML if url == api_url else pytest.fail("wrong address")
+        ),
+    )
+    assert (
+        command.source(tmp_path / "api.json", held[0].bill_key)["source_url"] == api_url
+    )
+    for address in [
+        api_url.replace("api.revisor.mn.gov", "api.revisor.mn.gov.evil.test"),
+        api_url.replace("/v1/", "/v2/"),
+        api_url + "../",
+        api_url.replace("https:", "http:"),
+        "https://user@api.revisor.mn.gov/bills/v1/94/2025/0/HF/6666/",
+    ]:
+        with pytest.raises(ValueError, match="official"):
+            recovery.official(address)
+
+
+def test_duplicate_chamber_blocks_cannot_hide_conflicting_source_id(finance_db, held):
+    duplicate = COMMITTEE_BILL_XML.split("<house>", 1)[1].split("</house>", 1)[0]
+    body = COMMITTEE_BILL_XML.replace(
+        "</ACTIONS>",
+        "<HOUSE>" + duplicate.replace("94012", "other-code") + "</HOUSE></ACTIONS>",
+    )
+    with pytest.raises(ValueError, match="duplicate.*chamber"):
+        recovery.plan(finance_db, held[0].bill_key, body, URL)
+
+
+def test_unparseable_date_is_not_equal_to_unknown_stored_date(finance_db, held):
+    held[3].action_at = None
+    finance_db.commit()
+    body = COMMITTEE_BILL_XML.replace("2025-01-10 00:00:00", "not a date")
+    result = recovery.plan(finance_db, held[0].bill_key, body, URL)
+    assert result["counts"] == {"source_row_changed": 1}
+    assert not result["fills"]
+
+
+def test_limits_reject_2001_actions_and_oversized_xml(finance_db, held):
+    from sqlalchemy import insert
+
+    db = finance_db
+    with pytest.raises(ValueError, match="source size"):
+        recovery.plan(db, held[0].bill_key, "x" * (recovery.MAX_XML_BYTES + 1), URL)
+    db.execute(
+        insert(m.BillAction),
+        [
+            {
+                "bill_id": held[0].id,
+                "chamber_id": held[1].id,
+                "action_number": i,
+                "action_text": "Held action",
+            }
+            for i in range(2, 2002)
+        ],
+    )
+    db.commit()
+    with pytest.raises(ValueError, match="action count"):
+        prepared(db, held)
+
+
+def test_capture_rejects_two_actual_held_source_addresses(finance_db, held, tmp_path):
+    from scripts import recover_bill_action_committee_links as command
+
+    db = finance_db
+    original = db.get(m.SourceArtifact, held[3].source_artifact_id)
+    artifact = m.SourceArtifact(
+        run_id=original.run_id,
+        adapter=original.adapter,
+        artifact_type=m.ArtifactType.xml,
+        source_url=URL + "&new=1",
+        storage_path="held-metadata",
+        content_hash="a" * 64,
+    )
+    db.add(artifact)
+    db.flush()
+    db.add(
+        m.BillAction(
+            bill_id=held[0].id,
+            chamber_id=held[1].id,
+            source_artifact_id=artifact.id,
+            action_number=2,
+            action_text="Other action",
+        )
+    )
+    db.commit()
+    with pytest.raises(ValueError, match="one held"):
+        command.capture(
+            db,
+            held[0].bill_key,
+            tmp_path / "two.json",
+            lambda _: pytest.fail("must not fetch ambiguous address"),
+        )
+
+
+def test_deadline_after_receipt_rolls_back_and_prepared_receipt_cannot_undo(
+    finance_db, held, tmp_path, monkeypatch
+):
+    import json
+
+    db = finance_db
+    saved = prepared(db, held)
+    clock = [0.0]
+    monkeypatch.setattr(recovery.time, "monotonic", lambda: clock[0])
+    write = recovery.write_evidence
+
+    def slow_receipt(path, value):
+        write(path, value)
+        clock[0] = recovery.LOCK_DEADLINE_SECONDS + 1
+
+    monkeypatch.setattr(recovery, "write_evidence", slow_receipt)
+    receipt = tmp_path / "prepared.json"
+    with pytest.raises(TimeoutError, match="deadline"):
+        with db.begin_nested():
+            recovery.apply(db, saved, COMMITTEE_BILL_XML, receipt)
+    assert receipt.exists()
+    db.expire_all()
+    assert held[3].committee_id is None
+    monkeypatch.setattr(recovery, "write_evidence", write)
+    assert recovery.rollback(
+        db, json.loads(receipt.read_text()), tmp_path / "undo.json"
+    ) == {"changed_since_kept": 1}
+
+
+def test_plan_read_count_does_not_grow_with_distinct_artifacts_and_committees(
+    finance_db, held
+):
+    from sqlalchemy import event
+
+    db = finance_db
+    bill, chamber, _, action = held
+    bill_key, bill_id, session_id, chamber_id = (
+        bill.bill_key,
+        bill.id,
+        bill.session_id,
+        chamber.id,
+    )
+    original = db.get(m.SourceArtifact, action.source_artifact_id)
+    run_id, adapter = original.run_id, original.adapter
+
+    def reads(body):
+        db.expire_all()
+        statements = []
+        connection = db.connection()
+
+        def record(conn, cursor, statement, parameters, context, many):
+            if statement.lstrip().startswith("SELECT"):
+                statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", record)
+        try:
+            result = recovery.plan(db, bill_key, body, URL)
+        finally:
+            event.remove(connection, "before_cursor_execute", record)
+        return len(statements), result
+
+    single, _ = reads(COMMITTEE_BILL_XML)
+    source_action = COMMITTEE_BILL_XML.split("<ACTION>", 1)[1].split("</ACTION>", 1)[0]
+    actions = ["<ACTION>" + source_action + "</ACTION>"]
+    for i in range(2, 22):
+        code = "bounded-" + str(i)
+        db.add(
+            m.Committee(
+                session_id=session_id,
+                chamber_id=chamber_id,
+                code=code,
+                name="Held " + str(i),
+            )
+        )
+        artifact = m.SourceArtifact(
+            run_id=run_id,
+            adapter=adapter,
+            artifact_type=m.ArtifactType.xml,
+            source_url=URL,
+            storage_path="held-metadata",
+            content_hash=f"{i:064x}",
+        )
+        db.add(artifact)
+        db.flush()
+        db.add(
+            m.BillAction(
+                bill_id=bill_id,
+                chamber_id=chamber_id,
+                action_number=i,
+                action_text=action.action_text,
+                action_at=action.action_at,
+                committee_name=action.committee_name,
+                source_artifact_id=artifact.id,
+            )
+        )
+        actions.append(
+            "<ACTION>"
+            + source_action.replace("<ACTION_NUMBER>1", f"<ACTION_NUMBER>{i}").replace(
+                "94012", code
+            )
+            + "</ACTION>"
+        )
+    db.commit()
+    body = (
+        COMMITTEE_BILL_XML.split("<ACTIONS>", 1)[0]
+        + "<ACTIONS><house>"
+        + "".join(actions)
+        + "</house></ACTIONS></BILL>"
+    )
+    multiple, result = reads(body)
+    assert result["counts"] == {"would_fill": 21}
+    assert multiple == single <= 8
+
+
+def test_capture_refuses_redirects(monkeypatch):
+    import httpx
+    from contextlib import contextmanager
+    from scripts import recover_bill_action_committee_links as command
+
+    @contextmanager
+    def stream(method, url, **kwargs):
+        assert kwargs["follow_redirects"] is False
+        yield httpx.Response(
+            302,
+            request=httpx.Request(method, url),
+            headers={"location": "https://example.test/"},
+        )
+
+    monkeypatch.setattr(command.httpx, "stream", stream)
+    with pytest.raises(httpx.HTTPStatusError):
+        command.fetch(URL)
