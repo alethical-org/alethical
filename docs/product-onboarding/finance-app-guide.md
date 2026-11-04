@@ -248,8 +248,10 @@ figure is ever added across committees or members.
   People. Campaign finance and the header figures read only accounts confirmed for
   this candidacy’s held seat and election, excluding the person’s other races; a candidacy
   with none shows
-  "No campaign committee is confirmed for this candidacy". Media buys sits between
-  Campaign finance and Election.
+  "No campaign committee is confirmed for this candidacy". An outside-spending contest
+  heading opens Money by race only when the candidacy's register contest matches that
+  contest's year, office and district. Media buys sits between Campaign finance and
+  Election.
 - **Matching station invoice**: a Committee expenditure links only to a checked invoice
   for that exact saved payment row. It opens the held file version and cited page, never
   a file guessed from its payee or amount. Missing, withdrawn or ambiguous evidence leaves
@@ -302,8 +304,8 @@ figure is ever added across committees or members.
   file. It is absent from other tabs and is removed on a year or committee change; the
   frontend never infers a notice from the registration number or year.
   Money received that is not a contribution is not shown yet; it waits for its own drawing.
-  The Open race and Matching station invoice links are not shown: the server serves no
-  contest or invoice link for them.
+  A payment row has no Open race link: the server serves no checked race for a single
+  payment. Matching station invoice appears only as described above.
 - **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
   member of a sitting legislative committee appears once, with every served role and the
   district for that committee’s session where available. Each has their own confirmed accounts and, for
