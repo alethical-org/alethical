@@ -727,12 +727,17 @@ def agency_checked_at(db, version, name):
     address check or the latest of several: several shown checks for 1 name that
     disagree on the time give no date.
     """
-    times = {
+    times = agency_check_times(db, version, name)
+    return times.pop() if len(times) == 1 else None
+
+
+def agency_check_times(db, version, name):
+    """Every time a shown ``agency_name`` check for this name was made on this version."""
+    return {
         f.checked_at
         for f in _facts(db, version.id)
         if f.field == "agency_name" and f.value == name and _shown(db, f)
     }
-    return times.pop() if len(times) == 1 else None
 
 
 def _names_by_version(db, copy):
