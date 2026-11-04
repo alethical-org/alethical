@@ -2061,10 +2061,15 @@ def _current_version_sections(
 
 def _citation_section_topics(
     db: Session,
-    bill_row,
+    version,
     section_orders: dict[tuple[str, str], int] | None = None,
 ) -> dict[str | tuple[str, str], str]:
-    """Citation key -> short chip topic, for the current version's sections.
+    """Citation key -> short chip topic, for the summary's linked version's sections.
+
+    The version is the one the summary was written from
+    (`linked_summary_version`), never assumed to be the current one: section ids
+    repeat across versions under other headings. With no linked version there is
+    no topic.
 
     Fills in the "· Topic" half of the Summary tab's citation chips at request time,
     so every already-enriched bill gets one rather than only the bills a future
@@ -2095,8 +2100,7 @@ def _citation_section_topics(
     caption is the worst failure, and being right by luck on the duplicates that happen
     to agree is not being right).
     """
-    current = next((v for v in (bill_row.versions or []) if v.is_current), None)
-    if current is None:
+    if version is None:
         return {}
     rows = db.execute(
         select(
@@ -2104,7 +2108,7 @@ def _citation_section_topics(
             BillVersionSection.source_order,
             BillVersionSection.section_heading,
             BillVersionSection.cite_heading,
-        ).where(BillVersionSection.bill_version_id == current.id)
+        ).where(BillVersionSection.bill_version_id == version.id)
     ).all()
     topics: dict[str | tuple[str, str], str] = {}
     topics_by_order: dict[int, str] = {}
@@ -2132,9 +2136,13 @@ def _citation_section_topics(
 
 
 def _citation_section_orders(
-    db: Session, bill_row, enrichment
+    db: Session, version, enrichment
 ) -> dict[tuple[str, str], int]:
     """(section_id, quote) -> the POSITION of the section that citation cites.
+
+    Positions are read from the version the summary was written from
+    (`linked_summary_version`): the same id sits at other positions in other
+    versions. With no linked version no citation is placed.
 
     A citation stores the cited section's `section_id_text`, and that does not
     identify a section: `laws.0.1.0` is the id the Revisor hands every section
@@ -2165,8 +2173,7 @@ def _citation_section_orders(
     affected citations find their quote in no candidate at all. The fallback stays
     because 23,885 sections have no RAG document.
     """
-    current = next((v for v in (bill_row.versions or []) if v.is_current), None)
-    if current is None:
+    if version is None:
         return {}
     stored = ((enrichment.content_json or {}) if enrichment else {}).get(
         "key_point_citations"
@@ -2178,7 +2185,7 @@ def _citation_section_orders(
     positions: dict[str, list[int]] = defaultdict(list)
     for section_id_text, source_order in db.execute(
         select(BillVersionSection.section_id_text, BillVersionSection.source_order)
-        .where(BillVersionSection.bill_version_id == current.id)
+        .where(BillVersionSection.bill_version_id == version.id)
         .order_by(BillVersionSection.source_order.asc())
     ).all():
         if section_id_text:
@@ -2209,7 +2216,7 @@ def _citation_section_orders(
                     RagSectionDocument.bill_version_section_id == BillVersionSection.id,
                 )
                 .where(
-                    BillVersionSection.bill_version_id == current.id,
+                    BillVersionSection.bill_version_id == version.id,
                     BillVersionSection.section_id_text.in_(ambiguous),
                 )
             ).all()
@@ -2637,13 +2644,18 @@ def bill_actions_payload(db: Session, actions, cross_references=None):
     ]
 
 
-def summary_source_version(bill, enrichment):
-    """Name only the saved version explicitly linked to this summary."""
+def linked_summary_version(bill, enrichment):
+    """The bill's own saved version this summary is explicitly linked to, or None."""
     if enrichment is None or enrichment.bill_version_id is None:
         return None
-    version = next(
+    return next(
         (item for item in bill.versions if item.id == enrichment.bill_version_id), None
     )
+
+
+def summary_source_version(bill, enrichment):
+    """Name only the saved version explicitly linked to this summary."""
+    version = linked_summary_version(bill, enrichment)
     if version is None:
         return None
     return {
@@ -2700,8 +2712,15 @@ def bill_detail(
     # Both effective-date fields come from ONE resolve so the rail's value and the
     # timeline's rows can never disagree, and the sections load only once.
     schedule = effective_schedule_payload(db, row)
-    citation_section_orders = _citation_section_orders(db, row, ai_enrichment)
-    citation_section_topics = _citation_section_topics(db, row, citation_section_orders)
+    # Citations are placed and captioned in the version the summary was written
+    # from; the effective-date schedule above stays on the current text.
+    summary_version = linked_summary_version(row, ai_enrichment)
+    citation_section_orders = _citation_section_orders(
+        db, summary_version, ai_enrichment
+    )
+    citation_section_topics = _citation_section_topics(
+        db, summary_version, citation_section_orders
+    )
     # Resolved once for the whole response, not per sponsor: the sponsor payloads
     # fall back to a same-Legislature session when the bill's own session has no
     # service period, which is every special-session bill (#1104).
