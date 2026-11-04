@@ -1,5 +1,7 @@
 # Layer 1 — Source Ingestion System Design
 
+<!-- describes: alethical/pipeline/bill_action_committee_backfill.py, alethical/pipeline/committee_recovery_batch.py, scripts/recover_bill_action_committee_links.py, scripts/run_committee_link_recovery.py -->
+
 Status: discussion draft
 
 *Layer 1 of two ingestion layers: official Minnesota sources → canonical records. Layer 2, `docs/architecture/layer-2-rag-ingestion-system-design.md`, turns those canonical records into retrieval chunks for chat. This layer feeds that one.*
@@ -959,3 +961,85 @@ private and retained with the exact database and bill until verification finishe
 this is short-lived operational recovery, not a promise that PostgreSQL row-version
 identifiers stay unique forever. Re-run the dry plan after any source or database
 change, and keep the existing source/name-summary release holds intact.
+
+
+#### Bounded backlog turns
+
+`scripts/run_committee_link_recovery.py` wraps the same one-bill recovery helpers
+for a frozen inventory. It is not registered with recurring dispatch and does not
+loop until completion. The release owner first completes the measured one-bill
+pilot and rollback above, then reviews a small canary before any wider run.
+No new ingestion, paid processing, source publication or identity changes occur.
+
+The inventory captures existing named actions whose committee ID is missing,
+with bill IDs, keys and action IDs, database/target, implementation digest and an
+inventory digest. It never grows during a pass. A proposed fill outside those
+frozen action IDs is withheld for review. The inventory is limited to 20,000
+bills; the existing 2,000-action and 2 MB source bounds still apply per bill.
+Keep the evidence directory private and outside every working folder.
+
+```bash
+# Local examples only. Production execution belongs to the release owner.
+uv run python scripts/run_committee_link_recovery.py --target local --evidence /private/tmp/committee-recovery --inventory
+uv run python scripts/run_committee_link_recovery.py --target local --evidence /private/tmp/committee-recovery --max-bills 1
+uv run python scripts/run_committee_link_recovery.py --target local --evidence /private/tmp/committee-recovery --apply --max-bills 1
+```
+
+Every command owns an exclusive local evidence-directory lock. Each turn claims
+the existing legislative lane through `record_refresh`, using a dedicated
+`committee-links-recovery` job. It never clears another lease, modifies a normal
+collector schedule or starts the normal ingestion runner. Due held legislative
+schedules take priority, including when the local command lacks the server's
+family settings. The owner must separately establish whether legacy/manual
+writers are active: a free lane does not establish that all other work is idle.
+
+Requests use the existing shared Revisor budget, including its API/website key
+and 429/503 cooldowns. Every explicit attempt reserves a slot. No hidden transport
+retries or redirects are enabled. A source cooldown beyond the remaining request
+budget defers the turn without sleeping through it. Coordination tables change
+during capture/plan turns; product rows do not. Capture still verifies database
+generation on both sides of the network request and retains the exact source.
+
+Canary defaults are 10 bills and 120 seconds for one turn; callers may lower the limits
+within 1–10 bills and 60–120 seconds, never raise them. A 45-second reserve is
+required before apply, and both lease rows are checked and locked through its
+commit with enough lease life remaining. The same global product-table locks and
+per-statement abort bounds remain. An applied bill is committed and read back
+before a 1-second unlocked gap. Apply receives the remaining part of a 5-second
+cumulative lock budget. Each statement is capped to that remaining time, and a
+deadline check after receipt sync aborts an overrun before commit. The existing
+one-bill command keeps its 20-second default when no narrower budget is supplied.
+Continuation releases the lane and waits at least 1 minute before another turn.
+The fixed one-minute gap is a canary setting, not an approved full-backlog rate.
+These conservative bounds do not substitute for the owner's measured lock cost
+and effect on normal collection. Network/filesystem failure is not promised an
+exact wall-clock completion time. The CLI supervises only its own worker, requests
+termination after the turn budget plus 10 seconds, then escalates to killing that
+worker if needed. Evidence stays for commit reconciliation. Inside the worker,
+all SQL, including inventory validation, claim, planning and cooldown persistence,
+uses the remaining deadline. Cleanup has a separate 5-second SQL budget; refused
+or failed cleanup is reported as a failure, never as a released lease.
+
+Plans with no fills never take the global product-table locks. Each bill/attempt
+retains source, plan, prepared receipt and outcome in separate, exclusively
+created files. Plan and apply have separate durable cursors; writes to the cursor
+index use a synced atomic replacement. Apply takes a fresh generation-bound
+capture, rather than silently using an old plan after a long plan-only pass.
+Before advancing past an interrupted attempt, the runner compares every receipt
+row's full before/after values and row versions. All-after proves a committed
+attempt; all-before permits a new attempt. Mixed evidence or a later writer stops
+the turn for review, without overwriting or undoing anything. A prepared receipt
+alone never counts as success. Per-bill rollback continues to use the original
+receipt-based tool and its exact later-writer guard.
+
+Each frozen action retains its own outcome, distinguishing a missing source ID,
+an unheld or ambiguous code, changed source, missing artifact, existing matching
+link and conflicting value. Every unresolved target requires review, including
+bills where other targets were filled successfully. Source ambiguity is retained
+as a review outcome while independent bills can continue. Transport failure or cooldown defers the turn at its current cursor.
+After 3 deferred, aborted or interrupted attempts, that bill is classified for
+review and the finite pass may advance. The runner does not reset those attempts
+or add retry passes on its own. `pass_finished` describes the chosen plan/apply
+pass, not a declaration that every historical source gap was repairable. Review
+outcomes remain explicit. Final acceptance requires the owner's remaining-gap
+recount and review of every unresolved outcome, not just cursor exhaustion.
