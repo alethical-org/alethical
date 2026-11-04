@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 import pytest
@@ -619,6 +620,25 @@ def test_station_year_counts_use_source_years_and_keep_unknown_failures(
                 details={"file_id": key, "folder_path": path}
                 if kind == "file"
                 else {"path": path},
+            )
+        )
+    # A folder that failed once and listed later counts by its newest status.
+    later = m.FCCScan(status="complete", stations=["28010"], counts={})
+    listed.add(later)
+    listed.flush()
+    for each, status, when in [
+        (scan, "failed", datetime(2026, 10, 1, tzinfo=timezone.utc)),
+        (later, "stored", datetime(2026, 10, 2, tzinfo=timezone.utc)),
+    ]:
+        listed.add(
+            m.FCCObservation(
+                scan_id=each.id,
+                url="https://example.invalid/recovered-folder",
+                facility_id="28010",
+                kind="folder",
+                status=status,
+                observed_at=when,
+                details={"path": "political-files/2025/State/Recovered"},
             )
         )
     extraction = listed.get(m.FCCExtraction, (document.content_hash, EXTRACTOR_VERSION))
