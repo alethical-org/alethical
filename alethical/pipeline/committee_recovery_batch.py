@@ -20,6 +20,7 @@ from uuid import UUID
 from typing import Any
 
 import httpx
+import psycopg
 from sqlalchemy import event, func, literal_column, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -79,21 +80,66 @@ def sql_deadline(engine, deadline, *, independent=False):
     previous_engine = recovery.SQL_TIMEOUT_ENGINE.get()
     engine_token = recovery.SQL_TIMEOUT_ENGINE.set(engine)
 
-    def before_sql(connection, cursor, statement, parameters, context, many):
+    def statement_bound(context):
         bound = SQL_DEADLINE.get()
         helper_bound = context.execution_options.get("committee_recovery_deadline")
         if helper_bound is not None:
             bound = min(bound, helper_bound) if bound is not None else helper_bound
         if bound is not None:
             check_time(bound)
-            milliseconds = max(1, min(15000, int((bound - time.monotonic()) * 1000)))
-            if statement.upper().startswith("SET TRANSACTION"):
-                return
-            cursor.execute(
-                "SELECT set_config('statement_timeout', %s, true)", (str(milliseconds),)
+        return bound
+
+    def can_pair(cursor, context):
+        return (
+            not context.executemany
+            and context.root_connection.engine is engine
+            and recovery.SQL_TIMEOUT_ENGINE.get() is engine
+            and isinstance(cursor.connection, psycopg.Connection)
+            and psycopg.Pipeline.is_supported()
+        )
+
+    def before_sql(connection, cursor, statement, parameters, context, many):
+        if connection.engine is not engine:
+            return
+        bound = statement_bound(context)
+        if bound is None or statement.upper().startswith("SET TRANSACTION"):
+            return
+        if can_pair(cursor, context):
+            return  # The complete pair is owned and drained by do_execute below.
+        milliseconds = max(1, min(15000, int((bound - time.monotonic()) * 1000)))
+        cursor.execute(
+            "SELECT set_config('statement_timeout', %s, true)", (str(milliseconds),)
+        )
+
+    def execute_pair(cursor, statement, parameters, context):
+        if context.root_connection.engine is not engine:
+            return None
+        bound = statement_bound(context)
+        if (
+            bound is None
+            or statement.upper().startswith("SET TRANSACTION")
+            or not can_pair(cursor, context)
+        ):
+            return None
+        milliseconds = max(1, min(15000, int((bound - time.monotonic()) * 1000)))
+        driver = cursor.connection
+        # Sync this pair before SQLAlchemy reads result metadata. Never queue
+        # another application statement or COMMIT across the receipt boundary.
+        with driver.cursor() as control, driver.pipeline():
+            control.execute(
+                "SELECT set_config('statement_timeout', %s, true)",
+                (str(milliseconds),),
             )
+            cursor.execute(statement, parameters)
+        check_time(bound)
+        return True
+
+    def execute_pair_no_params(cursor, statement, context):
+        return execute_pair(cursor, statement, None, context)
 
     def before_commit(connection):
+        if connection.engine is not engine:
+            return
         # Driver COMMIT bypasses before_cursor_execute. Refresh after receipt
         # fsync rather than inheriting an earlier, larger statement allowance.
         bound = SQL_DEADLINE.get()
@@ -110,12 +156,16 @@ def sql_deadline(engine, deadline, *, independent=False):
     if previous_engine is not engine:
         event.listen(engine, "before_cursor_execute", before_sql)
         event.listen(engine, "commit", before_commit)
+        event.listen(engine, "do_execute", execute_pair)
+        event.listen(engine, "do_execute_no_params", execute_pair_no_params)
     try:
         yield
     finally:
         if previous_engine is not engine:
             event.remove(engine, "before_cursor_execute", before_sql)
             event.remove(engine, "commit", before_commit)
+            event.remove(engine, "do_execute", execute_pair)
+            event.remove(engine, "do_execute_no_params", execute_pair_no_params)
         recovery.SQL_TIMEOUT_ENGINE.reset(engine_token)
         SQL_DEADLINE.reset(token)
 
