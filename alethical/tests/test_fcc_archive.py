@@ -5,7 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import timedelta
 from threading import Barrier
 from uuid import uuid4
@@ -1202,3 +1202,226 @@ def test_operational_retry_recovers_native_partial_page_missing_ocr(
     else:
         assert row.status == "partial" and row.attempts == []
     assert archive.status(db)["reading_operational_failures"] == 0
+
+
+def test_incremental_listing_is_due_when_its_newest_baseline_names_another_body(db):
+    """A recent, unchanged listing is still due when its newest baseline's body
+    differs from the retained document's."""
+    store = MemoryStore()
+    collect(db, store, factory())
+    other = archive.archive_body(db, store, PDF + b" seen elsewhere")
+    scan = m.FCCScan(status="complete", stations=[])
+    db.add(scan)
+    db.flush()
+    archive.observe(
+        db,
+        scan.id,
+        FILE.url + "#fcc-file=" + FILE.file_id,
+        STATION.facility_id,
+        "file",
+        "unchanged",
+        content_hash=other,
+        details=asdict(FILE),
+    )
+    db.commit()
+    downloaded = []
+    result = collect(db, store, factory(downloaded=downloaded), incremental=True)
+    assert downloaded == [FILE.file_id]
+    assert result["files_stored"] == 1
+
+
+def _seed_file_history(db):
+    """Observations that tell apart every rule the collector's per-file reads keep.
+
+    Scan "early" starts first but observes its files last, so a file's first
+    listing is the earliest scan start, not its earliest observation.
+    """
+    start = archive.now().replace(microsecond=0) - timedelta(days=30)
+    scans = {}
+    for name, offset in (("s1", 0), ("s2", 60), ("s3", 120), ("early", -60)):
+        scan = m.FCCScan(
+            status="complete",
+            stations=[],
+            started_at=start + timedelta(minutes=offset),
+        )
+        db.add(scan)
+        scans[name] = scan
+    for tag in ("h1", "h2", "h3"):
+        db.add(
+            m.FCCSourceBody(
+                content_hash=digest(tag.encode()),
+                object_key=tag,
+                byte_size=1,
+                compressed_hash=digest(tag.encode()),
+                compressed_byte_size=1,
+            )
+        )
+    db.flush()
+    rows = (
+        # A: an unchanged listing and a deferral never count as attempts.
+        (
+            "28010",
+            "a",
+            "s1",
+            "stored",
+            10,
+            "h1",
+            {"size_bytes": 100, "size_label": "1 KB"},
+        ),
+        (
+            "28010",
+            "a",
+            "s2",
+            "unchanged",
+            70,
+            "h1",
+            {"size_bytes": 100, "size_label": "1 KB"},
+        ),
+        ("28010", "a", "s3", "deferred", 130, None, {}),
+        # B: a reused body is an attempt and a baseline.
+        (
+            "28010",
+            "b",
+            "s1",
+            "stored",
+            10,
+            "h1",
+            {"size_bytes": 5, "size_label": "5 B"},
+        ),
+        (
+            "28010",
+            "b",
+            "s2",
+            "reused",
+            71,
+            "h2",
+            {"size_bytes": None, "size_label": "2 KB"},
+        ),
+        # C: 2 baselines observed at the same moment; the later scan id wins.
+        ("28010", "c", "s2", "stored", 90, "h1", {"size_label": "c1"}),
+        ("28010", "c", "s3", "unchanged", 90, "h3", {"size_label": "c3"}),
+        # D: first listed by the scan that started earliest.
+        ("23079", "d", "s1", "stored", 5, "h1", {}),
+        ("23079", "d", "early", "unchanged", 300, "h1", {"size_bytes": 7}),
+        # E: only deferred, so no attempt and no baseline, but listed.
+        ("23079", "e", "s1", "deferred", 20, None, {}),
+        ("23079", "e", "s2", "deferred", 80, None, {}),
+        # F: failures and source gaps are attempts but never baselines.
+        ("68883", "f", "s1", "stored", 10, "h2", {"size_bytes": 9}),
+        ("68883", "f", "s2", "failed", 80, None, {}),
+        ("68883", "f", "s3", "unavailable", 140, None, {}),
+        # G: the same file id at another station is another file.
+        ("68883", "a", "s3", "unchanged", 125, "h3", {"size_label": "other"}),
+    )
+    for facility, file_id, scan, status, minute, body, extra in rows:
+        db.add(
+            m.FCCObservation(
+                scan_id=scans[scan].id,
+                url=f"https://example.test/{facility}/{file_id}#fcc-file={file_id}",
+                facility_id=facility,
+                kind="file",
+                status=status,
+                observed_at=start + timedelta(minutes=minute),
+                content_hash=digest(body.encode()) if body else None,
+                details={"file_id": file_id, **extra},
+            )
+        )
+    # A folder that happens to carry a file id is never a file observation.
+    db.add(
+        m.FCCObservation(
+            scan_id=scans["s3"].id,
+            url="https://example.test/folder",
+            facility_id="28010",
+            kind="folder",
+            status="stored",
+            observed_at=start + timedelta(minutes=500),
+            details={"file_id": "a"},
+        )
+    )
+    db.commit()
+    return start, scans
+
+
+def test_per_file_history_reads_match_grouping_every_observation(db):
+    """The listed-file lookups return what grouping every observation returned."""
+    start, scans = _seed_file_history(db)
+    observation = m.FCCObservation
+    file_id = observation.details["file_id"].astext
+    identities = [
+        ("28010", "a"),
+        ("28010", "b"),
+        ("28010", "c"),
+        ("23079", "d"),
+        ("23079", "e"),
+        ("68883", "f"),
+        ("68883", "a"),
+        ("28010", "never-observed"),
+    ]
+
+    def found(read):
+        return {
+            (row[0], row[1]): tuple(row[2:])
+            for row in archive.for_listed_files(db, identities, read)
+        }
+
+    attempts = {
+        (facility, key): (saved_at,)
+        for facility, key, saved_at in db.execute(
+            select(observation.facility_id, file_id, func.max(observation.observed_at))
+            .where(
+                observation.kind == "file",
+                observation.status.not_in(("unchanged", "deferred")),
+            )
+            .group_by(observation.facility_id, file_id)
+        )
+    }
+    baselines = {
+        (row.facility_id, row.details.get("file_id")): (
+            row.content_hash,
+            row.details.get("size_bytes"),
+            row.details.get("size_label"),
+        )
+        for row in db.scalars(
+            select(observation)
+            .where(
+                observation.kind == "file",
+                observation.status.in_(("stored", "reused", "unchanged")),
+            )
+            .distinct(observation.facility_id, file_id)
+            .order_by(
+                observation.facility_id,
+                file_id,
+                observation.observed_at.desc(),
+                observation.scan_id.desc(),
+            )
+        )
+    }
+    first_listed = {
+        (facility, key): (listed_at,)
+        for facility, key, listed_at in db.execute(
+            select(observation.facility_id, file_id, func.min(m.FCCScan.started_at))
+            .join(m.FCCScan, m.FCCScan.id == observation.scan_id)
+            .where(observation.kind == "file")
+            .group_by(observation.facility_id, file_id)
+        )
+    }
+    assert found(archive.LATEST_ATTEMPT) == attempts
+    assert found(archive.LATEST_BASELINE) == baselines
+    assert found(archive.FIRST_LISTED) == first_listed
+    # The rules each row above exists to hold, stated directly.
+    assert attempts[("28010", "a")] == (start + timedelta(minutes=10),)
+    assert attempts[("28010", "b")] == (start + timedelta(minutes=71),)
+    assert attempts[("68883", "f")] == (start + timedelta(minutes=140),)
+    assert ("23079", "e") not in attempts and ("68883", "a") not in attempts
+    assert baselines[("28010", "b")] == (digest(b"h2"), None, "2 KB")
+    assert baselines[("68883", "f")] == (digest(b"h2"), 9, None)
+    assert baselines[("68883", "a")] == (digest(b"h3"), None, "other")
+    assert ("23079", "e") not in baselines
+    later = max(scans["s2"].id, scans["s3"].id)
+    assert baselines[("28010", "c")][0] == digest(
+        b"h3" if later == scans["s3"].id else b"h1"
+    )
+    assert first_listed[("23079", "d")] == (scans["early"].started_at,)
+    assert first_listed[("23079", "e")] == (scans["s1"].started_at,)
+    assert ("28010", "never-observed") not in found(archive.FIRST_LISTED)
+    assert archive.for_listed_files(db, [], archive.LATEST_ATTEMPT) == []
