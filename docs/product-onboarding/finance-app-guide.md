@@ -232,8 +232,11 @@ figure is ever added across committees or members.
   with its own seat, party and dates or session, not an unrelated latest seat. Former
   service requires a held service end; missing current membership never establishes it.
   A Person row shows its count of validated candidacy, service and lobbying records,
-  including 0, never a count of payment records. Candidate and Legislator rows say "Linked
-  to person profile" only when a validated link is served; otherwise they name their source.
+  including 0, never a count of payment records. Its note uses only the served newest
+  candidacy year, first service and lobbyist link. Former, elected and unconfirmed service
+  keep their profile status; no note is inferred from the count. Candidate and Legislator
+  rows say "Linked to person profile" only when a validated link is served; otherwise they
+  name their source.
   Each row still opens its own record, without choosing between multiple linked people.
   Record-type definitions sit under "About these records" below the results.
 - **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
@@ -555,12 +558,14 @@ one names its exact saved version and page.
   never summed across years. Sources and updates shows the latest check date. Counts are
   files, never ads or money.
 - **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
-  each marked Checked or Machine-read · Not checked, addresses checked for it with their
-  quoted text, date and View evidence at the exact version and page, and separate campaign and outside-spending
-  payment searches under the name, which do not prove a file was paid. Similar agency names
+  each marked Checked on its own agency-name check date in Minnesota time, Checked when
+  no unique date is held, or Machine-read · Not checked. Addresses checked for it have their
+  quoted text, date and View evidence at the exact version and page. Separate campaign
+  and outside-spending payment searches under the name do not prove a file was paid. Similar agency names
   lists other exact held spellings, 3 at a time with Show more, with file and station counts.
-  A row says Checked only when every represented file has a standing check; otherwise it
-  says Not checked. Similar spelling establishes no shared identity or address. During a
+  A row says Checked on a date only when every represented file has a standing check
+  on that same Minnesota day. Mixed or missing dates keep Checked; an unchecked file makes
+  the row Not checked. Similar spelling establishes no shared identity or address. During a
   changed selection or failed read, kept names stay labelled with their original agency.
 - **TV station file (`/media-buys/files/:key`)**: 1 saved version's original page images
   (version, page and zoom in the document bar; version and page in the address), checked

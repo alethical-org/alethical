@@ -584,3 +584,70 @@ describe('People wording', () => {
     ).toBe('House District 45B · Serving');
   });
 });
+
+describe('People person record notes', () => {
+  const person = { kind: 'person' as const, id: 'person', name: 'Held person' };
+  const notes = {
+    candidacy_years: [2026, 2024],
+    services: [
+      { office: 'State Representative', voting_area: 'House District 45B', status: 'current' },
+    ],
+    lobbyist: true,
+  };
+  it('prints the newest candidacy, first held service and lobbyist cue without inventing a count', () => {
+    expect(rowNote({ ...person, record_notes: notes })).toBe(
+      'Candidate 2026 · Legislator, District 45B · Lobbyist',
+    );
+    expect(
+      rowNote({ ...person, record_notes: { candidacy_years: [], services: [], lobbyist: false } }),
+    ).toBe('');
+    expect(rowNote({ ...person, confirmed_record_count: 7 })).toBe('');
+  });
+  it.each([
+    ['former', undefined, undefined, 'Formerly served as State Representative, District 45B'],
+    ['elected', undefined, undefined, 'Elected to State Representative, District 45B'],
+    ['unknown', false, true, 'State Representative, District 45B · Current service not confirmed'],
+    [
+      'current',
+      false,
+      undefined,
+      'State Representative, District 45B · Current service not confirmed',
+    ],
+    [
+      'elected',
+      false,
+      true,
+      'Elected to State Representative, District 45B · Current service not confirmed',
+    ],
+  ])(
+    'keeps %s service evidence qualified',
+    (status, current_service_confirmed, expected_start_passed, expected) => {
+      expect(
+        rowNote({
+          ...person,
+          record_notes: {
+            ...notes,
+            candidacy_years: [],
+            lobbyist: false,
+            services: [
+              { ...notes.services[0], status, current_service_confirmed, expected_start_passed },
+            ],
+          },
+        }),
+      ).toBe(expected);
+    },
+  );
+  it('keeps nonlegislative offices literal and never calls their holder a legislator', () => {
+    expect(
+      rowNote({
+        ...person,
+        record_notes: {
+          ...notes,
+          candidacy_years: [],
+          lobbyist: false,
+          services: [{ office: 'Mayor', voting_area: 'Saint Paul', status: 'current' }],
+        },
+      }),
+    ).toBe('Serving as Mayor, Saint Paul');
+  });
+});

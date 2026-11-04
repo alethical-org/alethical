@@ -524,6 +524,44 @@ describe('TV station folder, station and printed agency name', () => {
     expect(container.querySelector('a[href^="/media-buys/stations/KSTP-TV?from="]')).toBeTruthy();
   });
 
+  it('prints each agency name check on its own Minnesota day, never a file or address date', async () => {
+    serve(() =>
+      json({
+        name: 'Exact Agency',
+        key: 'agency',
+        unchecked: false,
+        addresses: [],
+        groups: [
+          {
+            station: 'KARE',
+            year: 2026,
+            files: [
+              {
+                ...FILE,
+                key: 'checked',
+                agency_unchecked: false,
+                agency_checked_at: '2026-11-04T02:00:00Z',
+              },
+              { ...FILE, key: 'mixed', agency_unchecked: false, agency_checked_at: null },
+              {
+                ...FILE,
+                key: 'unchecked',
+                agency_unchecked: true,
+                agency_checked_at: '2026-11-04T02:00:00Z',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    await render('/media-buys/agencies/agency', () => (
+      <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
+    ));
+    expect(container.textContent).toContain('Checked on Nov 3, 2026');
+    expect(container.textContent?.match(/Checked on/g)).toHaveLength(1);
+    expect(container.textContent).toContain('Machine-read · Not checked');
+  });
+
   it('opens agency address evidence at its quoted page and version, with both payment searches', async () => {
     vi.spyOn(routes, 'isBuilt').mockImplementation((name) => name === 'payments-under-name');
     serve(() =>

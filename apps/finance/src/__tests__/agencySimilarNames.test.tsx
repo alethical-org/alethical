@@ -233,3 +233,44 @@ it('does not carry a pending Show more focus target into another agency', async 
   expect(card().querySelectorAll('li')).toHaveLength(4);
   expect(document.activeElement).toBe(document.body);
 });
+
+it('prints a common served check day only for a fully checked spelling', async () => {
+  await render((url) =>
+    json(
+      similar(url, {
+        rows: [
+          {
+            key: 'one',
+            label: 'Common day',
+            file_count: 2,
+            stations: ['KARE'],
+            unchecked: false,
+            checked_on: '2026-11-03',
+          },
+          {
+            key: 'two',
+            label: 'Different days',
+            file_count: 2,
+            stations: ['KARE'],
+            unchecked: false,
+            checked_on: null,
+          },
+          {
+            key: 'three',
+            label: 'Unchecked',
+            file_count: 1,
+            stations: ['KARE'],
+            unchecked: true,
+            checked_on: '2026-11-03',
+          },
+        ],
+      }),
+    ),
+  );
+  const rows = [...card().querySelectorAll('li')];
+  expect(rows[0].textContent).toContain('Checked on Nov 3, 2026');
+  expect(rows[1].textContent).toContain('Checked');
+  expect(rows[1].textContent).not.toContain('Checked on');
+  expect(rows[2].textContent).toContain('Not checked');
+  expect(rows[2].textContent).not.toContain('Checked on');
+});
