@@ -422,7 +422,8 @@ nickname rule or source rewrite occurs. Punctuation-only input has no matching p
 Short/common strings use the same bounded probe and page counts. Names outside this
 matching rule are not asserted to be different identities.
 
-A query has a 3-second statement timeout scoped to its read transaction. Timeout, read
+After the shared version read, source and candidate statements have a 3-second
+timeout scoped to the read transaction. This is not a full-request time guarantee. Timeout, read
 failure, absent source or a partially pruned payment file returns 503, never an empty
 success. Full source row counts are checked before suggestions or year counts are served.
 Donor and campaign-payee matching reuse their existing trigram indexes. Migration 0084
@@ -432,6 +433,32 @@ exception from migration 0040 does not fit the 3-probe similarity query: the hel
 45,741-row outside-spending file took 548 ms warm by itself, and a combined candidate
 read reached 2,687 ms near its 3,000 ms timeout. Rollback drops only the added indexes and reverts the reader/client changes;
 no confirmations or source records are changed by these reads or their rollback.
+
+### Similar printed agency names
+
+`GET /api/v1/finance/media-buys/agencies/{key}/similar-names` uses the existing
+source-derived agency key, `limit` (1 to 50, default 25), `offset`, and optional
+16-character `version`. The Finance allowlist still applies. The response's `data`
+contains key, exact name, version, limit, offset, has_more and rows with the same
+shape as the agency browse list: key, label, file_count, stations and unchecked.
+
+Candidates are exact labels held in the same originals and checks as the agency
+browse list, including machine-read labels and checked older versions. Each label's
+count covers its own distinct station/file pairs. `unchecked` is true if any file
+represented under that name lacks a standing name check; a checked name on one file
+never checks another file or similar spelling. Similarity never links an address or
+identity, and suggestions contain neither addresses nor identity claims.
+
+The spelling policy is the same 3-probe, 0.35 trigram rule as Payments under this
+name. It searches all held labels before exact-name A–Z paging; the input's exact
+label alone is excluded. Labels and source-derived keys are never normalized.
+The existing station version marks cover file, extraction and check changes, returning
+409 `records-changed` when paging is stale. Unknown keys return 404. After the shared version read, subsequent database statements
+have a transaction-local 3-second timeout; more than 20,000 held labels,
+a starting label outside the spelling reader's 500-character bound, or a failed read
+returns 503 `service-unavailable`, never a truncated candidate set or empty success.
+The bounded held-label catalogue is compared in PostgreSQL without a new source-table
+similarity scan. This read changes no source, check, identity, publication or address.
 
 ## 5. What alethical.com prints from work done in Finance
 
