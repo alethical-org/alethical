@@ -106,7 +106,7 @@ def test_anything_but_exactly_1_exact_match_names_no_election(client, ballots):
     assert held["house-2b"] is None
     # Only an inexact title lists Senate 41 this year; the 2024 ballot is not used.
     assert held["senate-41"] is None
-    # A statewide office has no exact seat mapping.
+    # Only House and Senate seats name an election (the brief's legislative scope).
     assert all(
         election is None
         for anchor, election in held.items()

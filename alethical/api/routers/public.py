@@ -4835,9 +4835,10 @@ def campaign_finance_races(
 
     ``office`` narrows to one of the register's own office values; ``offices`` lists
     every one with its count, unfiltered, so the chips label themselves from it.
-    ``election`` on a contest names its stage and date only when exactly 1 held
-    election's ballot lists the seat by its exact official title that year; otherwise
-    ``null``, never a date inferred from the year.
+    ``election`` on a contest names its stage and date only when exactly 1 election we
+    hold records for lists the House or Senate seat by its exact official ballot title
+    that year; otherwise ``null``, never a date inferred from the year. It describes
+    the seat's ballot, not each committee in the contest.
     """
     pin_campaign_finance_to_one_view(db)
     try:

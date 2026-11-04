@@ -45,7 +45,7 @@ from decimal import Decimal
 from typing import Optional, Sequence
 from uuid import UUID
 
-from sqlalchemy import extract, select, text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import (
@@ -119,7 +119,10 @@ class RaceCommittee:
 
 @dataclass(frozen=True)
 class ContestElection:
-    """The 1 held election whose ballot lists a contest's seat in the year asked for."""
+    """The 1 election we hold records for whose ballot lists a contest's seat that year.
+
+    It describes the seat's ballot, not each committee in the contest.
+    """
 
     stage: str
     election_date: date
@@ -230,7 +233,10 @@ def _held_elections(
             election.election_date,
         )
         .join(election, election.id == record.election_id)
-        .where(extract("year", election.election_date) == year)
+        .where(
+            election.election_date >= date(year, 1, 1),
+            election.election_date <= date(year, 12, 31),
+        )
         .distinct()
     ):
         seat = legislative_seat(title) if isinstance(title, str) else None
@@ -423,7 +429,12 @@ def races(
             )
         )
 
-    seats = _held_elections(db, year)
+    # Only a House or Senate seat can name an election, so other offices skip the read.
+    seats = (
+        _held_elections(db, year)
+        if any(row_office in _REGISTER_CHAMBER for row_office, _ in grouped)
+        else {}
+    )
     contests: list[Contest] = []
     for (row_office, district), committees in sorted(
         grouped.items(),
