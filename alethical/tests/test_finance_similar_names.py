@@ -290,3 +290,142 @@ def test_partial_pruning_never_makes_a_smaller_count(finance_api, finance_db, bo
     finance_db.execute(text("DELETE FROM cf_contribution_row WHERE row_number=31"))
     finance_db.commit()
     read(finance_api, name="Exmaple, Jordan A", role="donor", status=503)
+
+
+def test_payee_filer_and_dataset_scope_discovery_counts_and_identities(
+    finance_api, finance_db, board
+):
+    held = prints(finance_api, "payee_name", VENDOR)
+    person = create(
+        finance_api, "organization", "Campaign-only identity", payee(board, [held[52]])
+    )
+    finance_db.add(
+        m.CampaignFinanceIndependentExpenditureRow(
+            snapshot_id=board.independent_expenditures_snapshot_id,
+            row_number=8,
+            spender_reg_num="99999",
+            vendor_name="Example Media Association",
+            year=2024,
+        )
+    )
+    finance_db.commit()
+    sync_counts(finance_db, board)
+    campaign = read(
+        finance_api,
+        name="Exmaple Media LLC",
+        role="payee",
+        filer="18135",
+        dataset="expenditures",
+        year=2026,
+    )
+    assert campaign["filer"] == "18135" and campaign["dataset"] == "expenditures"
+    assert [(r["name"], r["records"]) for r in campaign["rows"]] == [(VENDOR, 1)]
+    assert campaign["rows"][0]["identities"][0]["id"] == person["id"]
+    outside = read(
+        finance_api,
+        name="Exmaple Media LLC",
+        role="payee",
+        filer="40100",
+        dataset="independent",
+        year=2026,
+    )
+    assert outside["rows"] == [{"name": VENDOR, "records": 1, "identities": []}]
+    assert [s["dataset"] for s in outside["sources"]] == ["independent_expenditures"]
+    assert (
+        read(
+            finance_api,
+            name="Exmaple Media LLC",
+            role="payee",
+            filer="18135",
+            dataset="independent",
+        )["rows"]
+        == []
+    )
+    # Dataset only excludes the campaign claim; filer only excludes the other filer's spelling.
+    assert all(
+        not r["identities"]
+        for r in read(
+            finance_api, name="Exmaple Media LLC", role="payee", dataset="independent"
+        )["rows"]
+    )
+    assert [
+        r["name"]
+        for r in read(
+            finance_api, name="Exmaple Media LLC", role="payee", filer="40100"
+        )["rows"]
+    ] == [VENDOR]
+
+
+@pytest.mark.parametrize(
+    "role,name,column",
+    [
+        ("donor", "Exmaple, Jordan A", "contributor"),
+        ("employer", "Example Health Assn", "contrib_employer_name"),
+    ],
+)
+def test_contribution_scope_uses_recipient_and_keeps_year_zero_candidates(
+    finance_api, finance_db, board, role, name, column
+):
+    from alethical.tests.test_identity_confirmations import employer
+
+    source_name = DONOR if role == "donor" else EMPLOYER
+    record_kind = "donor_name" if role == "donor" else "employer_name"
+    held = prints(finance_api, record_kind, source_name)
+    claim = donor(board, [held[31]]) if role == "donor" else employer(board, [held[31]])
+    create(
+        finance_api,
+        "person" if role == "donor" else "organization",
+        "Other filer's identity",
+        claim,
+    )
+    finance_db.add(
+        gift(board.contributions_snapshot_id, 40, recipient_reg_num="55555", year=2024)
+    )
+    finance_db.add(
+        gift(
+            board.contributions_snapshot_id,
+            41,
+            recipient_reg_num="99999",
+            **{column: source_name + " Other"},
+        )
+    )
+    finance_db.commit()
+    sync_counts(finance_db, board)
+    data = read(
+        finance_api,
+        name=name,
+        role=role,
+        filer="55555",
+        dataset="contributions",
+        year=2026,
+    )
+    assert data["rows"] == [{"name": source_name, "records": 0, "identities": []}]
+    assert read(
+        finance_api,
+        name=name,
+        role=role,
+        filer="55555",
+        dataset="contributions",
+        year=2024,
+    )["rows"] == [{"name": source_name, "records": 1, "identities": []}]
+
+
+@pytest.mark.parametrize(
+    "role,dataset",
+    [
+        ("donor", "expenditures"),
+        ("employer", "independent"),
+        ("payee", "contributions"),
+    ],
+)
+def test_inapplicable_dataset_is_empty_not_broadened(finance_api, board, role, dataset):
+    data = read(finance_api, name="Example", role=role, dataset=dataset)
+    assert data["rows"] == [] and data["sources"] == [] and not data["has_more"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [{"filer": ""}, {"filer": "a" * 21}, {"filer": "x\x00"}, {"dataset": "unknown"}],
+)
+def test_scope_parameters_use_validated_payment_contract(finance_api, board, params):
+    read(finance_api, name="Example", status=422, **params)

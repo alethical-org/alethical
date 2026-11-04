@@ -433,7 +433,9 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
 
 `GET /api/v1/finance/similar-names` supplies the Payments under this name suggestions.
 It takes the exact `name` (1 to 500 characters, not blank), `role` (`donor`, `payee`,
-`employer`), optional `year` (1900 to 2100), `limit` (1 to 50, default 25), `offset`
+`employer`), optional `year` (1900 to 2100), exact `filer` registration string
+(1 to 20 characters, no NUL), `dataset` (`contributions`, `expenditures`, `independent`),
+`limit` (1 to 50, default 25), `offset`
 and optional `version`. Access is the same Finance allowlist as every private read.
 The reply echoes these choices and returns `rows`, `has_more`, payment `release_id`,
 per-file `sources` (dataset, snapshot id, source URL and copy date), and `version`.
@@ -447,7 +449,13 @@ repeated source rows count separately, withdrawals do not count, and merges foll
 standing identity. No amount, matching score, inferred identity or combined total is
 sent. The client labels each established identity's kind beside its name.
 
-Candidates come from all years of the role's published files. The selected year limits
+Candidates come from all years of the role's published files within the requested
+filer and dataset. These filters narrow candidate discovery, record counts and identity
+counts. Omitting dataset keeps all role-compatible files; an inapplicable recognized
+dataset returns no rows or sources, never a broader list. `independent` names the
+independent-expenditures file. Filer uses each source file's filing registration column,
+never the printed donor or payee's registration. The response echoes filer and dataset.
+The selected year limits
 only row and confirmation counts, so a similar spelling with no records that year stays
 in the list with 0 records. Payees include both campaign and independent expenditure
 rows; their confirmation kinds remain separate before grouping established identities.

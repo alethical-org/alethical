@@ -1,7 +1,7 @@
 """Similar printed spellings, never inferred identities or combined money.
 
-Candidate matching spans the role's held files, not the selected year. Only the
-counts use that year. Three indexed search probes cover the printed name and
+Candidate matching spans the role's held files within its filer/dataset scope,
+not the selected year. Only the counts use that year. Three indexed search probes cover the printed name and
 expanded/short organization words; returned keys always stay exactly as held.
 """
 
@@ -18,9 +18,16 @@ from alethical.api.services import committee_finance, finance_versions
 from alethical.api.services import identity_confirmations as identities
 from alethical.api.services.finance_payments_under_name import _claims
 from alethical.db import models as m
+from alethical.pipeline.campaign_finance import SPEC_BY_DATASET
 from alethical.pipeline.campaign_finance_reader import ReleaseNoLongerHeld
 
 Role = Literal["donor", "payee", "employer"]
+DatasetFilter = Literal["contributions", "expenditures", "independent"]
+DATASETS = {
+    "contributions": "contributions",
+    "expenditures": "expenditures",
+    "independent": "independent_expenditures",
+}
 KINDS = {
     "donor": ("donor_name",),
     "payee": ("payee_name", "independent_payee_name"),
@@ -62,6 +69,8 @@ def read(
     limit: int,
     offset: int,
     version: str | None,
+    filer: str | None = None,
+    dataset: DatasetFilter | None = None,
 ) -> dict:
     searches = probes(name)
     version = finance_versions.check(db, version, "money", "identity")
@@ -74,9 +83,27 @@ def read(
     release = committee_finance.current_release(db)
     if release is None:
         raise ReleaseNoLongerHeld("No payment files are published")
+    kinds = tuple(
+        kind
+        for kind in KINDS[role]
+        if dataset is None
+        or identities._PRINTED[kind].dataset.value == DATASETS[dataset]
+    )
     candidates = []
     sources = []
-    for kind in KINDS[role]:
+    result = {
+        "name": name,
+        "role": role,
+        "year": year,
+        "filer": filer,
+        "dataset": dataset,
+        "version": version,
+        "release_id": str(release.id),
+        "sources": sources,
+        "limit": limit,
+        "offset": offset,
+    }
+    for kind in kinds:
         printed = identities._PRINTED[kind]
         source = release.file_for(printed.dataset)
         model = printed.model
@@ -88,9 +115,15 @@ def read(
         )
         if held != source.row_count:
             raise ReleaseNoLongerHeld("The published payment file is not fully held")
+        candidate_scope = [model.snapshot_id == source.snapshot_id]
+        if filer is not None:
+            candidate_scope.append(
+                getattr(model, SPEC_BY_DATASET[printed.dataset].filer_attribute)
+                == filer
+            )
         candidates.append(
             select(printed.name.label("name")).where(
-                model.snapshot_id == source.snapshot_id,
+                *candidate_scope,
                 printed.name != name,
                 or_(*(printed.name.op("%")(query) for query in searches))
                 if searches
@@ -105,6 +138,8 @@ def read(
                 "copied_at": release.copied_at(printed.dataset),
             }
         )
+    if not candidates:
+        return {**result, "has_more": False, "rows": []}
     # UNION deduplicates exact spellings, not normalized names. No candidate cap
     # precedes this global alphabetical page; the extra row only proves has_more.
     all_names = (
@@ -124,13 +159,18 @@ def read(
     names = names[:limit]
     counts = defaultdict(int)
     confirmed = defaultdict(lambda: defaultdict(int))
-    for kind in KINDS[role] if names else ():
+    for kind in kinds if names else ():
         printed = identities._PRINTED[kind]
         model = printed.model
         source = release.file_for(printed.dataset)
         scope = [model.snapshot_id == source.snapshot_id, printed.name.in_(names)]
         if year is not None:
             scope.append(model.year == year)
+        if filer is not None:
+            scope.append(
+                getattr(model, SPEC_BY_DATASET[printed.dataset].filer_attribute)
+                == filer
+            )
         for key, count in db.execute(
             select(printed.name, func.count()).where(*scope).group_by(printed.name)
         ):
@@ -185,15 +225,4 @@ def read(
                 ],
             }
         )
-    return {
-        "name": name,
-        "role": role,
-        "year": year,
-        "version": version,
-        "release_id": str(release.id),
-        "sources": sources,
-        "limit": limit,
-        "offset": offset,
-        "has_more": more,
-        "rows": rows,
-    }
+    return {**result, "has_more": more, "rows": rows}
