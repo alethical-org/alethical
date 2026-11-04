@@ -876,3 +876,66 @@ uv run python -m alethical.pipeline.oban --target production enqueue ai-apply \
 
 uv run python -m alethical.pipeline.oban --target production drain ai_apply
 ```
+
+
+### Guarded historical action committee-link recovery
+
+`scripts/recover_bill_action_committee_links.py` prepares or repairs one explicitly
+named bill at a time. It does not start ingestion, alter identity records, replace
+source publications, or change any field except `bill_action.committee_id`.
+Historical source bytes may be unavailable even when artifact metadata survives.
+`capture` therefore fetches the single **held** official Revisor XML address,
+without redirects, retaining the body, address, fetch time and SHA-256 in a new
+private JSON file. More than one held address, an unheld bill, another host, an
+oversized response, or XML naming another bill fails closed. No paid extraction
+or model call is used.
+
+The default `plan` mode uses a read-only database transaction. It reads at most
+2,000 actions for the named bill (larger bills stop), checks bill, action chamber,
+action number, exact action text/date/printed committee name, and resolves the
+literal source committee code only within that bill's session and action chamber.
+It reports missing/ambiguous codes, missing or changed source rows, existing links,
+and conflicting values. Names never establish a link. Fresh XML may differ from
+the old whole-bill artifact hash; each selected action must still agree exactly
+on the stored fields above. The saved plan binds its exact new XML digest and
+keeps every selected row's before values plus bill, artifact and committee versions.
+No old action or source artifact is rewritten during this comparison.
+
+Run each step with unique evidence filenames in a private folder, first on local
+test data. Replace the example bill with the actual held bill under review:
+
+```bash
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode capture --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json --plan /private/tmp/action-plan.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode apply --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json --plan /private/tmp/action-plan.json --receipt /private/tmp/action-applied.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode rollback --bill-key 94-2025-HF6666 --receipt /private/tmp/action-applied.json --rollback-receipt /private/tmp/action-undone.json
+```
+
+Production execution belongs to the release owner under the current task's data
+holds. Preparation does not authorize a run. Before production apply, retain the
+source and plan outside the working folder, inspect all conflict counts and proposed
+links, and prove a local apply/rollback round trip. Start with one small bill and
+read back every changed row before any wider batch. A failed check stops the
+selected bill; do not infer names or silently select an ambiguous source.
+
+Apply re-creates the whole plan while holding write-excluding locks on the relevant
+tables, including committee inserts, so ingestion cannot change an identity between
+checking and writing. These table locks affect concurrent ingestion across bills;
+use a quiet window, not parallel apply workers. Lock acquisition times out after
+3 seconds; each statement times out after 15 seconds. A changed row/version, source,
+committee mapping or plan aborts the transaction. Raw SQL updates only committee_id,
+including preservation of updated_at. The exclusively created receipt records all
+before values and the resulting PostgreSQL row versions; its bytes and parent
+folder are synced to disk before database commit. Evidence files are never overwritten.
+A receipt is prepared evidence, not proof the commit succeeded: a crash or failed
+commit can leave a receipt for no visible changes. Read back the database to resolve
+that state before retrying with a new plan and new filenames.
+
+Rollback changes only rows whose entire content and row version still equal what
+apply wrote. Even a later writer assigning the same committee prevents undo; changed,
+missing, or already restored rows are counted and retained. It never replaces a
+later edit. The rollback receipt is also saved before commit. Receipts must stay
+private and retained with the exact database and bill until verification finishes;
+this is short-lived operational recovery, not a promise that PostgreSQL row-version
+identifiers stay unique forever. Re-run the dry plan after any source or database
+change, and keep the existing source/name-summary release holds intact.
