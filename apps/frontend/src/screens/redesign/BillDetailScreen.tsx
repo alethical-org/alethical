@@ -27,6 +27,7 @@ import { ReturnToast } from '../../components/search/ReturnToast';
 import { shouldAnnounceTrack, trackReturnAction } from '../../lib/trackReturn';
 import { useBill, usePrefetchSuggestedAnswer } from '../../hooks/useAppQueries';
 import { useBillTracking } from '../../hooks/useBillTracking';
+import { useInitialBillSectionJump } from '../../hooks/useInitialBillSectionJump';
 import { isNotFoundError } from '../../data/api';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
@@ -463,7 +464,6 @@ function BillDetailMobileScreen() {
   const [active, setActive] = useState<SectionId>('summary');
   // Section a cited-section chip asked to jump to; consumed by FullTextTab.
   const [ftAnchor, setFtAnchor] = useState<string | null>(null);
-  const didInitialJump = useRef(false);
 
   const onSectionLayout = useCallback((id: SectionId, y: number) => {
     offsets.current[id] = y;
@@ -494,24 +494,13 @@ function BillDetailMobileScreen() {
     }
   }, []);
 
-  // Initial ?tab= deep link: jump once the bill has loaded and painted. Deferred
-  // to after paint (layout settles async) rather than fired during onLayout,
-  // which scrolls too early and gets reset when content above finishes laying out.
-  useEffect(() => {
-    if (!bill || !initialTab || didInitialJump.current) return;
-    didInitialJump.current = true;
-    if (isWeb && typeof document !== 'undefined') {
-      const id = window.setTimeout(() => {
-        document
-          .getElementById(`sec-${initialTab}`)
-          ?.scrollIntoView({ behavior: 'auto', block: 'start' });
-        setActive(initialTab);
-      }, 180);
-      return () => window.clearTimeout(id);
-    }
-    scrollRef.current?.scrollTo({ y: Math.max(0, offsets.current[initialTab] - STICKY_OFFSET) });
-    setActive(initialTab);
-  }, [bill, initialTab]);
+  // The loading branch stays up until the separate votes request settles too.
+  // A bill ID alone does not mean the destination sections are on the page.
+  useInitialBillSectionJump(
+    !billQuery.isLoading && !billQuery.isError ? bill?.id : undefined,
+    initialTab,
+    jumpTo,
+  );
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
