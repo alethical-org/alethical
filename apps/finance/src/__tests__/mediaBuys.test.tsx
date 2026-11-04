@@ -9,7 +9,8 @@ import { copiedLines, day, savedAt } from '../pages/media/shared';
 import { markQuote } from '../pages/media/evidence';
 import * as routes from '../routes';
 import { matchRoute } from '../routes';
-import { navigate } from '../router';
+import { navigate, useLocation } from '../router';
+import { withFrom } from '../returnContext';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('../auth/session', () => ({
@@ -170,6 +171,65 @@ afterEach(() => {
 });
 
 describe('Media buys', () => {
+  it('returns a station-filtered list to its safe earlier station with query intact', async () => {
+    const fetcher = serve(() =>
+      json({
+        tab: 'folders',
+        q: '',
+        page: 1,
+        page_size: 12,
+        total: 0,
+        capped: false,
+        years: [2025],
+        categories: [],
+        rows: [],
+      }),
+    );
+    const station = withFrom('/media-buys/stations/kare', '/media-buys?tab=stations');
+    await render(withFrom('/media-buys?station=KARE&year=2025', station), () => <MediaBuys />);
+    const back = container.querySelector<HTMLAnchorElement>('a.f-back');
+    expect(back?.textContent).toBe('Back to TV station');
+    expect(back?.getAttribute('href')).toBe(station);
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) => String(url).includes('station=KARE') && String(url).includes('year=2025'),
+      ),
+    ).toBe(true);
+    await click('Back to TV station');
+    expect(window.location.pathname + window.location.search).toBe(station);
+  });
+
+  it.each([
+    undefined,
+    'https://outside.test/',
+    '//outside.test/media-buys',
+    '/\\outside.test',
+    '/not-a-page',
+    '/sign-in',
+    '%broken',
+  ])('keeps the top-level list without an invented return for %s', async (from) => {
+    serve(() =>
+      json({
+        tab: 'folders',
+        q: '',
+        page: 1,
+        page_size: 12,
+        total: 0,
+        capped: false,
+        years: [],
+        categories: [],
+        rows: [],
+      }),
+    );
+    await render(
+      '/media-buys?station=KARE&year=2025' +
+        (from === undefined ? '' : '&from=' + encodeURIComponent(from)),
+      () => <MediaBuys />,
+    );
+    expect(container.querySelector('a.f-back')).toBeNull();
+    expect(container.querySelector('h1')?.textContent).toBe('Media buys');
+  });
+
   it('reads the private browse route and prints each tab’s rows as the drawing does', async () => {
     const fetcher = serve(() =>
       json({
@@ -388,6 +448,73 @@ describe('Media buys', () => {
 });
 
 describe('TV station folder, station and printed agency name', () => {
+  it('keeps filtered-list context through folder, file and related station returns', async () => {
+    function Flow() {
+      const location = useLocation();
+      const match = matchRoute(location.pathname)!;
+      if (match.route.name === 'station-folder') return <StationFolder match={match} />;
+      if (match.route.name === 'station-file') return <StationFile match={match} />;
+      if (match.route.name === 'station') return <TVStation match={match} />;
+      return <MediaBuys />;
+    }
+    serve((url) => {
+      if (url.pathname.includes('/files/')) return json(DETAIL);
+      if (url.pathname.includes('/folders/'))
+        return json({
+          key: 'kare-folder',
+          label: 'Political File / 2025 / Local / Example Committee',
+          station: 'KARE',
+          year: 2025,
+          category: 'Local',
+          fcc_url: 'https://publicfiles.fcc.gov',
+          relationship: null,
+          files: [FILE],
+        });
+      return json({
+        tab: 'folders',
+        q: '',
+        page: 1,
+        page_size: 12,
+        total: 1,
+        capped: false,
+        years: [2025],
+        categories: [],
+        rows: [
+          {
+            key: 'kare-folder',
+            label: 'Example Committee',
+            station: 'KARE',
+            year: 2025,
+            file_count: 1,
+          },
+        ],
+      });
+    });
+    const station = withFrom('/media-buys/stations/kare', '/media-buys?tab=stations');
+    const filtered = withFrom('/media-buys?station=KARE&year=2025', station);
+    await render(filtered, () => <Flow />);
+    await click('Example Committee');
+    const originalFolder = window.location.pathname + window.location.search;
+    const related = container.querySelector<HTMLAnchorElement>(
+      'a[href^="/media-buys/stations/KARE"]',
+    )!;
+    const relatedFrom = new URL(related.href).searchParams.get('from')!;
+    expect(new URL(relatedFrom, 'https://finance.test').searchParams.get('from')).toContain(
+      'station=KARE&year=2025',
+    );
+    await click('invoice.pdf');
+    expect(new URLSearchParams(window.location.search).get('version')).toBe(VERSION);
+    await click('Back to TV station folder');
+    expect(window.location.pathname).toBe('/media-buys/folders/kare-folder');
+    expect(window.location.search).not.toBe('');
+    await click('Back to Media buys');
+    expect(window.location.pathname).toBe('/media-buys');
+    expect(new URLSearchParams(window.location.search).get('station')).toBe('KARE');
+    expect(new URLSearchParams(window.location.search).get('year')).toBe('2025');
+    expect(container.querySelector('a.f-back')?.textContent).toBe('Back to TV station');
+    expect(originalFolder).toContain('from=');
+  });
+
   it('says a missing folder is no longer available, never a list of zero files', async () => {
     serve(() => json(null, 404));
     await render('/media-buys/folders/missing', () => (
@@ -522,6 +649,44 @@ describe('TV station folder, station and printed agency name', () => {
       container.querySelector('a[href^="/media-buys?station=KARE&year=2026&from="]'),
     ).toBeTruthy();
     expect(container.querySelector('a[href^="/media-buys/stations/KSTP-TV?from="]')).toBeTruthy();
+  });
+
+  it('prints each agency name check on its own Minnesota day, never a file or address date', async () => {
+    serve(() =>
+      json({
+        name: 'Exact Agency',
+        key: 'agency',
+        unchecked: false,
+        addresses: [],
+        groups: [
+          {
+            station: 'KARE',
+            year: 2026,
+            files: [
+              {
+                ...FILE,
+                key: 'checked',
+                agency_unchecked: false,
+                agency_checked_at: '2026-11-04T02:00:00Z',
+              },
+              { ...FILE, key: 'mixed', agency_unchecked: false, agency_checked_at: null },
+              {
+                ...FILE,
+                key: 'unchecked',
+                agency_unchecked: true,
+                agency_checked_at: '2026-11-04T02:00:00Z',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    await render('/media-buys/agencies/agency', () => (
+      <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
+    ));
+    expect(container.textContent).toContain('Checked on Nov 3, 2026');
+    expect(container.textContent?.match(/Checked on/g)).toHaveLength(1);
+    expect(container.textContent).toContain('Machine-read · Not checked');
   });
 
   it('opens agency address evidence at its quoted page and version, with both payment searches', async () => {

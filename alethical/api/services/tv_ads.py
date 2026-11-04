@@ -719,6 +719,27 @@ def _file_versions(db, copy):
     ]
 
 
+def agency_checked_at(db, version, name):
+    """When the shown ``agency_name`` check for this name on this exact version was
+    made, or None.
+
+    Only that version's own shown check counts, never another version's, an
+    address check or the latest of several: several shown checks for 1 name that
+    disagree on the time give no date.
+    """
+    times = agency_check_times(db, version, name)
+    return times.pop() if len(times) == 1 else None
+
+
+def agency_check_times(db, version, name):
+    """Every time a shown ``agency_name`` check for this name was made on this version."""
+    return {
+        f.checked_at
+        for f in _facts(db, version.id)
+        if f.field == "agency_name" and f.value == name and _shown(db, f)
+    }
+
+
 def _names_by_version(db, copy):
     """Each agency name a file prints, with the version a list shows it under and
     whether it is unchecked there: the shown copy's checked and machine-read
@@ -1598,7 +1619,13 @@ def agency_detail(db, key):
         p, pending = candidates[name]
         facts = [f for f in _facts(db, p.id) if _shown(db, f)]
         unchecked |= pending
-        row = {**_row(db, p), "agency_unchecked": pending}
+        row = {
+            **_row(db, p),
+            "agency_unchecked": pending,
+            "agency_checked_at": None
+            if pending
+            else iso(agency_checked_at(db, p, name)),
+        }
         groups[(row["station"], row["year"])].append(row)
         for f in facts:
             if (

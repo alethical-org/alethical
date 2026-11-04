@@ -2,12 +2,12 @@ import { useVersionedRead } from '../api/versionedRead';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
-import { withFrom } from '../returnContext';
+import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { ClearAll, Dropdown, Empty } from '../ui/controls';
 import { ScrollingTabs } from '../ui/scrollingTabs';
-import { Arrow, SourcesAndUpdates, WithArrow } from '../ui/parts';
+import { Arrow, BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   Pager,
   ReadState,
@@ -117,6 +117,7 @@ export function browseRow(tab: Tab, row: Group | FileRow): BrowseRow {
 export function MediaBuys() {
   const location = useLocation();
   const here = location.pathname + location.search;
+  const back = returnTarget(location.search);
   const [state, setState] = useAddressState({
     q: '',
     tab: 'folders',
@@ -157,6 +158,7 @@ export function MediaBuys() {
   return (
     <main id="main" className="f-page mb-page">
       <div className="f-content">
+        {back && <BackLink to={back.to} name={back.name} />}
         <header className="mb-head">
           <div className="mb-head-row">
             <h1 tabIndex={-1} className="f-page-title">

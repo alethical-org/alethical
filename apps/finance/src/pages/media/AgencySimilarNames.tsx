@@ -8,13 +8,14 @@ import { Refused, Updating } from '../../ui/controls';
 import { Arrow } from '../../ui/parts';
 import { useRevealFocus } from '../../ui/revealFocus';
 import { PrintedName } from '../payments/printedName';
-import { mediaPath, plural } from './shared';
+import { day, mediaPath, plural } from './shared';
 interface SimilarAgency {
   key: string;
   label: string;
   file_count: number;
   stations: string[];
   unchecked: boolean;
+  checked_on?: string | null;
 }
 interface Page {
   key: string;
@@ -112,7 +113,11 @@ export function AgencySimilarNames({ agencyKey, here }: { agencyKey: string; her
                       {[
                         plural(row.file_count, 'file', 'files'),
                         row.stations.join(', '),
-                        row.unchecked ? 'Not checked' : 'Checked',
+                        row.unchecked
+                          ? 'Not checked'
+                          : day(row.checked_on) !== 'Unavailable'
+                            ? `Checked on ${day(row.checked_on)}`
+                            : 'Checked',
                       ]
                         .filter(Boolean)
                         .join(' · ')}

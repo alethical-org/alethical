@@ -48,6 +48,8 @@ class FinanceSources(Model):
 
 class FinanceFileRow(Model):
     agency_unchecked: bool = False
+    # When the shown agency-name check on this exact version was made.
+    agency_checked_at: str | None = None
     key: str
     name: str
     label: str

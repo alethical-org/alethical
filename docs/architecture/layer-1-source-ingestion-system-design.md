@@ -876,3 +876,86 @@ uv run python -m alethical.pipeline.oban --target production enqueue ai-apply \
 
 uv run python -m alethical.pipeline.oban --target production drain ai_apply
 ```
+
+
+### Guarded historical action committee-link recovery
+
+`scripts/recover_bill_action_committee_links.py` prepares or repairs one explicitly
+named bill at a time. It does not start ingestion, alter identity records, replace
+source publications, or change any field except `bill_action.committee_id`.
+Historical source bytes may be unavailable even when artifact metadata survives.
+`capture` therefore fetches the single **held** official Revisor XML address,
+on `www.revisor.mn.gov/bills/status_result.php` or the held
+`api.revisor.mn.gov/bills/v1/<session>/<year>/<special>/<HF|SF>/<number>/` path,
+without redirects, retaining the body, address, fetch time and SHA-256 in a new
+private JSON file. A bounded fingerprint of the bill, action IDs and row versions,
+and referenced artifact row versions is read before HTTP and must still match
+after HTTP. It is retained with the body and rechecked at plan and apply. Any
+intervening ingestion or action edit requires a fresh capture, even if an older
+artifact hash is reused and its fetched_at timestamp stays unchanged. The CLI
+uses READ COMMITTED so its post-fetch read sees newly committed changes.
+More than one held address, an unheld bill, another host, an
+oversized response, or XML naming another bill fails closed. No paid extraction
+or model call is used.
+
+The default `plan` mode uses a read-only database transaction. It reads at most
+2,000 actions for the named bill (larger bills stop), checks bill, action chamber,
+action number, exact action text/date/printed committee name, and resolves the
+literal source committee code only within that bill's session and action chamber.
+It reports missing/ambiguous codes, missing or changed source rows, existing links,
+and conflicting values. Duplicate chamber blocks and repeated bill-identity/action scalar fields fail
+before the general XML parser can discard them; nonempty unparseable dates never equal an unknown stored
+date. Names never establish a link. Fresh XML may differ from
+the old whole-bill artifact hash; each selected action must still agree exactly
+on the stored fields above. The saved plan binds its exact new XML digest and
+keeps every selected row's before values plus bill, artifact and committee versions.
+No old action or source artifact is rewritten during this comparison.
+
+Run each step with unique evidence filenames in a private folder, first on local
+test data. Replace the example bill with the actual held bill under review:
+
+```bash
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode capture --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json --plan /private/tmp/action-plan.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode apply --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json --plan /private/tmp/action-plan.json --receipt /private/tmp/action-applied.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode rollback --bill-key 94-2025-HF6666 --receipt /private/tmp/action-applied.json --rollback-receipt /private/tmp/action-undone.json
+```
+
+Production execution belongs to the release owner under the current task's data
+holds. Preparation does not authorize a run. Before production apply, retain the
+source and plan outside the working folder, inspect all conflict counts and proposed
+links, and prove a local apply/rollback round trip. Start with one small bill and
+read back every changed row before any wider batch. A failed check stops the
+selected bill; do not infer names or silently select an ambiguous source.
+
+Apply re-creates the whole plan while holding write-excluding locks on the relevant
+tables, including committee inserts, so ingestion cannot change an identity between
+checking and writing. These table locks affect concurrent ingestion across bills;
+use a quiet window, not parallel apply workers. Lock acquisition times out after
+3 seconds; each statement times out after 15 seconds. All action versions,
+artifacts and committee matches are read in batches, and apply/rollback each use
+one bounded update. A 20-second monotonic deadline covers the locked operation;
+it is checked before and after each database statement, during row comparison,
+and after syncing evidence immediately before returning to the CLI commit. A
+statement already running when the deadline passes can consume its remaining
+15-second statement allowance. An idle transaction is terminated by PostgreSQL
+after 15 seconds, covering a process or evidence-write stall. These are abort
+bounds, not a claim that network or filesystem failure finishes exactly on time.
+The release owner must measure one small apply/rollback in a quiet window before
+any wider batch. A changed row/version, source,
+committee mapping or plan aborts the transaction. Raw SQL updates only committee_id,
+including preservation of updated_at. The exclusively created receipt records all
+before values and the resulting PostgreSQL row versions; its bytes and parent
+folder are synced to disk before database commit. Evidence files are never overwritten.
+A receipt is prepared evidence, not proof the commit succeeded: a crash or failed
+commit can leave a receipt for no visible changes. Read back the database to resolve
+that state before retrying with a new plan and new filenames.
+
+Rollback changes only rows whose entire content and row version still equal what
+apply wrote. Even a later writer assigning the same committee prevents undo; changed,
+missing, or already restored rows are counted and retained. It never replaces a
+later edit. The rollback receipt is also saved before commit. Receipts must stay
+private and retained with the exact database and bill until verification finishes;
+this is short-lived operational recovery, not a promise that PostgreSQL row-version
+identifiers stay unique forever. Re-run the dry plan after any source or database
+change, and keep the existing source/name-summary release holds intact.

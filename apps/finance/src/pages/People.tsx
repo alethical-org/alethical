@@ -11,7 +11,7 @@ import { useBand } from '../ui/band';
 import { Chips, ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
 import { Arrow, Chevron, SourcesAndUpdates } from '../ui/parts';
-import { candidateSeat } from './seat';
+import { candidateSeat, seatParts } from './seat';
 import { dayLabel } from './legislationRecords';
 import './people.css';
 export { candidateSeat };
@@ -29,6 +29,17 @@ export interface PersonDirectoryRow {
   party?: string | null;
   /** Validated candidacy, service and lobbying links, never payment coverage. */
   confirmed_record_count?: number;
+  record_notes?: {
+    candidacy_years: number[];
+    services: Array<{
+      office: string | null;
+      voting_area: string | null;
+      status: string;
+      current_service_confirmed?: boolean;
+      expected_start_passed?: boolean;
+    }>;
+    lobbyist: boolean;
+  };
   /** Presence is a cue; the row still opens its own candidacy or service record. */
   person_links?: Array<{ id: string; name: string }>;
   source?: { authority?: string; checkedDate?: string };
@@ -90,7 +101,39 @@ export function rowNote(row: PersonDirectoryRow) {
       .filter(Boolean)
       .join(' · ');
   }
-  if (row.kind === 'person') return '';
+  if (row.kind === 'person') {
+    const notes = row.record_notes;
+    if (!notes) return '';
+    // The drawing keeps one newest candidacy and first held service, not a
+    // count of roles. Their details never come from confirmed_record_count.
+    const year = notes.candidacy_years[0];
+    const service = notes.services[0];
+    let serviceNote = '';
+    if (service) {
+      const parts = seatParts(service.office ?? undefined, service.voting_area ?? undefined);
+      const seat = parts.join(', ');
+      if (seat) {
+        if (service.status === 'former') serviceNote = `Formerly served as ${seat}`;
+        else if (service.status === 'elected') {
+          serviceNote = `Elected to ${seat}${service.current_service_confirmed === false || service.expected_start_passed ? ' · Current service not confirmed' : ''}`;
+        } else if (service.status === 'current' && service.current_service_confirmed !== false) {
+          serviceNote = [
+            'State Representative',
+            'State Senator',
+            'Representative',
+            'Senator',
+            'House',
+            'Senate',
+          ].includes(parts[0])
+            ? ['Legislator', ...parts.slice(1)].join(', ')
+            : `Serving as ${seat}`;
+        } else serviceNote = `${seat} · Current service not confirmed`;
+      }
+    }
+    return [year ? `Candidate ${year}` : '', serviceNote, notes.lobbyist ? 'Lobbyist' : '']
+      .filter(Boolean)
+      .join(' · ');
+  }
   const matched = row.matching_periods?.[0];
   const period = matched ?? row.periods?.[0];
   const seat = period
