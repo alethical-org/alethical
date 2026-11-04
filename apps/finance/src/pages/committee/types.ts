@@ -15,6 +15,8 @@ export interface CommitteeFinance {
     independent_expenditures: string | null;
   } | null;
   filings_copied_at: string | null;
+  /** Server-reviewed notices scoped to this committee, year and current source file. */
+  source_notices?: Array<{ key: string; dataset: string; text: string }>;
   register: {
     state: string;
     kind: string | null;
@@ -37,6 +39,56 @@ export interface CommitteeFinance {
     reported_total: string | null;
     reported_through: string | null;
   };
+  /** Absent when the comparison is not proved for this committee-year. */
+  stated_by_kind?: StatedByKind;
+  /** Absent without a current agreeing check or a usable ZIP reference. */
+  donor_states?: DonorStates;
+  name_connections?: NameConnections;
+}
+
+/** The 5 filed contribution lines beside matching named cash
+ * (`alethical/api/services/committee_stated_by_kind.py`). */
+export interface StatedByKind {
+  state: 'reported' | 'sources_disagree' | string;
+  reported_through: string | null;
+  lines: Array<{
+    line_key: string;
+    label_as_filed: string | null;
+    stated_total: string | null;
+    itemized_cash_total: string | null;
+    difference: string | null;
+  }>;
+}
+
+export interface DonorStateAmounts {
+  names: number | null;
+  cash_total: string | null;
+}
+
+/** Individual cash by ZIP-derived state for a candidate committee-year
+ * (`alethical/api/services/committee_donor_states.py`). */
+export interface DonorStates {
+  state: 'reported' | string;
+  year: number;
+  rows: Array<DonorStateAmounts & { state: string }>;
+  summary: {
+    minnesota: DonorStateAmounts;
+    other_states: DonorStateAmounts;
+    unknown: DonorStateAmounts;
+  };
+  reference: { source_url?: string; as_of?: string; copied_at?: string };
+}
+
+/** Other candidate registrations under exactly the same printed individual name
+ * (`alethical/api/services/committee_name_connections.py`). */
+export interface NameConnections {
+  state: BlockState | string;
+  year: number;
+  matching?: string;
+  numerator: number | null;
+  denominator: number | null;
+  distribution: Array<{ other_committees: string; names: number }>;
+  top_names: Array<{ name: string; other_committees: number }>;
 }
 
 export interface Filing {
@@ -64,7 +116,23 @@ export interface ReceivedPayment {
   record_number: number;
 }
 
+export interface RecipientTypeSource {
+  snapshot_id: string;
+  copied_at: string;
+  source_url: string;
+  retained: boolean;
+}
+
+export interface MatchingInvoice {
+  key: string;
+  version: string;
+  page: number;
+}
+
 export interface MadePayment {
+  matching_invoice?: MatchingInvoice | null;
+  recipient_type?: 'candidate_committee' | 'party_unit' | 'political_committee_or_fund' | null;
+  recipient_type_source?: RecipientTypeSource | null;
   vendor_name: string | null;
   vendor_city: string | null;
   vendor_state: string | null;
@@ -98,6 +166,7 @@ export interface AttachedStatementRow {
 }
 
 export interface PaymentPage<T> {
+  version?: string;
   state: BlockState;
   payments: T[];
   page: { limit: number; offset: number; has_more: boolean; total_payments: number | null };
@@ -139,6 +208,7 @@ export interface ReportFigureRow {
   total_receipts: string | null;
   ending_cash_balance: string | null;
   figures_state: 'reported' | 'unavailable' | string;
+  figures_reason?: string | null;
 }
 
 export interface ReportFigures {

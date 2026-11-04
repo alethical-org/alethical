@@ -79,7 +79,9 @@ export function matchingMembers(records: VoteRecord[], recorded: string, query: 
   return records.filter(
     (record) =>
       (recorded === 'all' || record.vote_value === recorded) &&
-      (!q || (record.legislator_name ?? '').toLowerCase().includes(q)),
+      (!q ||
+        (record.legislator_name ?? '').toLowerCase().includes(q) ||
+        (record.district ?? '').toLowerCase().includes(q)),
   );
 }
 
@@ -275,6 +277,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
               <div role="table" aria-label="Members" className="rc-table">
                 <div role="row" className="rc-row rc-row-head">
                   <span role="columnheader">MEMBER</span>
+                  <span role="columnheader">DISTRICT</span>
                   <span role="columnheader">PARTY</span>
                   <span role="columnheader">RECORDED</span>
                 </div>
@@ -283,9 +286,9 @@ export function RollCall({ match }: { match: RouteMatch }) {
                 ))}
               </div>
               <p className="f-section-note lg-note">
-                Party is as recorded for this roll call. A member’s record here is a vote on one
-                motion, never a position or an opinion. Names link only where a legislator record is
-                confirmed.
+                District and party come from held service records for the vote date. A member’s
+                record here is a vote on one motion, never a position or an opinion. Names link only
+                where a legislator record is confirmed.
               </p>
             </>
           )}
@@ -311,6 +314,9 @@ function MemberRow({ member, here }: { member: VoteRecord; here: string }) {
         ) : (
           <span className={name ? 'bl-name' : 'bl-muted'}>{name ?? 'Not held in this copy'}</span>
         )}
+      </span>
+      <span role="cell" className={member.district ? 'rc-district' : 'rc-district bl-muted'}>
+        {member.district?.trim() ? `District ${member.district.trim()}` : 'District not recorded'}
       </span>
       <span role="cell" className={member.party ? 'rc-party' : 'rc-party bl-muted'}>
         {member.party?.trim() || 'Party not recorded'}

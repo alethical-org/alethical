@@ -476,8 +476,19 @@ def test_event_contract_rejects_identity_and_large_bodies_before_auth(client):
     assert response.status_code == 413
 
 
-def test_rolling_windows_share_completed_hour_and_incomplete_history_is_unknown(client):
-    now = datetime.now(timezone.utc)
+def test_rolling_windows_share_completed_hour_and_incomplete_history_is_unknown(
+    client, monkeypatch
+):
+    # Seeded buckets and both reads must share one clock, even if the real hour
+    # changes while the database statements run.
+    now = datetime(2026, 11, 4, 1, 59, 59, 999999, tzinfo=timezone.utc)
+
+    class FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now
+
+    monkeypatch.setattr(site_metrics, "datetime", FixedClock)
     end = history_service.completed_hour(now)
     start = end - timedelta(days=7)
     with get_session_factory()() as db:

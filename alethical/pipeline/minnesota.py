@@ -26,6 +26,9 @@ from alethical.pipeline.roster_pdf import (
     name_matches,
     parse_roster_pdf,
 )
+from alethical.pipeline.bill_action_committees import (
+    resolve as resolve_action_committee,
+)
 from alethical.pipeline.sessions import (
     CURRENT_SESSION_SLUG,
     DEFAULT_SESSION_CODE,
@@ -2664,12 +2667,18 @@ class MinnesotaIngestionPipeline:
                 )
                 self.db.add(committee)
                 self.db.flush()
+            # Any row for this seat, with or without a role: the committee
+            # refresh (committee_memberships.py) owns roles and stores an
+            # officer's seat once, under the role. Checking only for a plain row
+            # added a second, role-less row beside every officer's (159 members
+            # in 45 committees until the next committee rebuild).
             membership = self.db.scalar(
-                select(CommitteeMembership).where(
+                select(CommitteeMembership.id)
+                .where(
                     CommitteeMembership.committee_id == committee.id,
                     CommitteeMembership.legislator_id == legislator.id,
-                    CommitteeMembership.role.is_(None),
                 )
+                .limit(1)
             )
             if membership is None:
                 self.db.add(
@@ -3807,6 +3816,7 @@ class MinnesotaIngestionPipeline:
         canonical: dict[str, Any],
         xml_artifact: Any,
     ) -> None:
+        committee_matches = {}
         for chamber_name, actions in canonical.get("actions", {}).items():
             chamber = refs["chambers"].get(chamber_name)
             for action in actions:
@@ -3829,6 +3839,20 @@ class MinnesotaIngestionPipeline:
                 action_row.action_text = action["action_text"]
                 action_row.action_description = action.get("action_description") or None
                 action_row.committee_name = action.get("committee_name") or None
+                committee_key = (
+                    chamber.id if chamber else None,
+                    action.get("committee_id") or None,
+                )
+                if committee_key not in committee_matches:
+                    committee_matches[committee_key] = resolve_action_committee(
+                        self.db,
+                        session_id=bill.session_id,
+                        chamber_id=committee_key[0],
+                        source_id=committee_key[1],
+                    ).committee_id
+                # A later source row lacking or changing its ID must not keep a
+                # stale link. The printed name remains exactly source-backed.
+                action_row.committee_id = committee_matches[committee_key]
                 action_row.action_at = parse_datetime(action.get("action_date"))
                 action_row.journal_page = action.get("journal_page") or None
                 action_row.roll_call_text = action.get("roll_call") or None
@@ -4000,6 +4024,11 @@ class MinnesotaIngestionPipeline:
                 ]
             )
             stats.vote_record_count = 0
+            # Committees, not rows: an officer's seat can be held as 2 rows.
             stats.committee_count = len(
-                [item for item in legislator.committee_memberships if item.is_current]
+                {
+                    item.committee_id
+                    for item in legislator.committee_memberships
+                    if item.is_current
+                }
             )

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from alethical.api.services import (
     campaign_finance_payments as payments,
     committee_finance,
+    finance_versions,
     identity_confirmations as identities,
 )
 from alethical.db import models as m
@@ -339,8 +340,6 @@ def employer_donor_payments(
 
 
 def _committee_rows(release, registration, year, direction):
-    from sqlalchemy import literal
-
     if direction == "received":
         model, download = CONTRIBUTIONS, payments._CONTRIBUTIONS
         name = model.contributor
@@ -374,7 +373,7 @@ def _committee_rows(release, registration, year, direction):
             (transfer, func.nullif(model.affected_committee_reg_num, "0")), else_=None
         )
         kind = model.type
-        tab = literal("expenditures")
+        tab = case((transfer, "made"), else_="expenditures")
         where = [model.committee_reg_num == registration]
     key = cast(
         func.jsonb_build_array(
@@ -480,6 +479,110 @@ def _statement_fields(db, release, registration, year, found):
     }
 
 
+def _recipient_types(db, numbers):
+    """Current held register metadata, never a type inferred for the payment year."""
+    from alethical.pipeline import campaign_finance_filings as filings
+    from alethical.api.services.campaign_finance_register import filer_copied_at
+
+    if not numbers:
+        return {}
+    snapshot = filings.live_filings_snapshot(db)
+    if snapshot is None:
+        return {}
+    rows = db.scalars(
+        select(m.CampaignFinanceFiler).where(
+            m.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            m.CampaignFinanceFiler.registration_number.in_(numbers),
+        )
+    ).all()
+    return {
+        row.registration_number: {
+            "recipient_type": row.kind.value,
+            "recipient_type_source": {
+                "snapshot_id": str(snapshot.id),
+                "copied_at": filer_copied_at(snapshot, row),
+                "source_url": filings.directory_url(),
+                "retained": row.retained_from_snapshot_id is not None,
+            },
+        }
+        for row in rows
+    }
+
+
+def _recipient_fields(kinds, number):
+    return kinds.get(number, {"recipient_type": None, "recipient_type_source": None})
+
+
+def committee_payments(
+    db, *, registration, direction, year, sort, limit, offset, request, version=None
+):
+    # Reuse the complete existing read/formatter, including statement attachments,
+    # missing-release states and source paging. Only Finance gets these extra fields.
+    from fastapi import Response
+    from alethical.api.routers.public import committee_payments as read_payments
+
+    marks = (
+        ("money", "filing_register", "invoice_links")
+        if direction == "made"
+        else ("money", "filing_register")
+    )
+    token = finance_versions.check(db, version, *marks)
+    data = read_payments(
+        registration_number=registration,
+        direction=direction,
+        request=request,
+        response=Response(),
+        year=year,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+        db=db,
+    ).data
+    data["version"] = token
+    if direction == "made":
+        from alethical.api.services.finance_payment_invoices import matching_invoices
+
+        release = committee_finance.current_release(db)
+        invoices = matching_invoices(
+            db,
+            snapshot_id=release.expenditures.snapshot_id
+            if release and str(release.id) == data.get("release_id")
+            else None,
+            row_numbers=[
+                row["record_number"]
+                for row in data["payments"]
+                if row["expenditure_type"] != "Contribution"
+            ],
+        )
+        kinds = _recipient_types(
+            db,
+            {
+                row["affected_committee_registration_number"]
+                for row in data["payments"]
+                if row["expenditure_type"] == "Contribution"
+                and row["affected_committee_registration_number"]
+            },
+        )
+        data["payments"] = [
+            {
+                **row,
+                **(
+                    {"matching_invoice": invoices[row["record_number"]]}
+                    if row["record_number"] in invoices
+                    else {}
+                ),
+                **_recipient_fields(
+                    kinds,
+                    row["affected_committee_registration_number"]
+                    if row["expenditure_type"] == "Contribution"
+                    else None,
+                ),
+            }
+            for row in data["payments"]
+        ]
+    return data
+
+
 def committee_groups(
     db: Session,
     *,
@@ -493,8 +596,11 @@ def committee_groups(
     offset: int,
     release_id: UUID | None = None,
     record_number: int | None = None,
+    version: str | None = None,
 ):
+    token = finance_versions.check(db, version, "money", "filing_register")
     scope = {
+        "version": token,
         "registration_number": registration,
         "year": year,
         "direction": direction,
@@ -635,6 +741,14 @@ def committee_groups(
             release,
             [row.registration_number for row in selected if row.registration_number],
         )
+        recipient_types = _recipient_types(
+            db,
+            {
+                row.registration_number
+                for row in selected
+                if row.tab == "made" and row.registration_number
+            },
+        )
         state = (
             "reported"
             if total
@@ -659,6 +773,10 @@ def committee_groups(
             "rows": [
                 {
                     **dict(row._mapping),
+                    **_recipient_fields(
+                        recipient_types,
+                        row.registration_number if row.tab == "made" else None,
+                    ),
                     "amount": str(row.amount) if row.amount is not None else None,
                     "kinds": sorted(kind for kind in row.kinds if kind is not None),
                     "first_year": year,
@@ -831,6 +949,20 @@ def report_figures(db: Session, *, registration: str, year: int):
     rows = []
     for item in catalogued:
         matched = len(matches) == 1 and matches[0].row_number == item.row_number
+        reason = None
+        if not matched:
+            if filing is None:
+                reason = "missing_filing"
+            elif filing.reported_through is None:
+                reason = "missing_reported_through"
+            elif item.special_election:
+                reason = "special_election"
+            elif item.cut_off_date is None:
+                reason = "missing_cutoff"
+            elif item.cut_off_date != filing.reported_through:
+                reason = "cutoff_mismatch"
+            else:
+                reason = "ambiguous_cutoff"
         start = (
             printed_period_start_for_end(item.cut_off_date)
             if matched and item.cut_off_date is not None
@@ -864,6 +996,7 @@ def report_figures(db: Session, *, registration: str, year: int):
                 if matched and ending_as_of
                 else None,
                 "figures_state": "reported" if matched else "unavailable",
+                "figures_reason": reason,
                 "figures_copied_at": (filing.captured_at or snapshot.fetch_completed_at)
                 if matched and filing is not None
                 else None,
@@ -908,6 +1041,7 @@ def _candidate_accounts(db: Session, candidate_id: str):
         "candidate_id": candidate_id,
         "election_year": election_year,
         "link_state": "unconfirmed",
+        "register_contest": None,
     }
     snapshot = filings.live_filings_snapshot(db)
     if connection is None or election_year is None or snapshot is None:
@@ -939,6 +1073,21 @@ def _candidate_accounts(db: Session, candidate_id: str):
         )
     }
     scope["link_state"] = "confirmed" if numbers else "unconfirmed"
+    seats = {
+        (filer.office, filer.district)
+        for filer in filers
+        if filer.registration_number in numbers
+    }
+    if len(seats) == 1:
+        from alethical.api.services.campaign_finance_races import contest_anchor
+
+        office, district = seats.pop()
+        scope["register_contest"] = {
+            "office": office,
+            "district": district,
+            "year": election_year,
+            "anchor": contest_anchor(office, district),
+        }
     return scope, connection["id"], numbers
 
 

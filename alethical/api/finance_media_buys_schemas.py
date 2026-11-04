@@ -57,6 +57,8 @@ class FinanceFileRow(Model):
     category: str
     kind: str | None
     uploaded_at: str | None
+    first_saved_at: str | None = None
+    page: int | None = None
     version_id: str
     airing_periods: list[str]
     version_count: int
@@ -89,6 +91,8 @@ class FinanceQueueRow(FinanceFileRow):
 
 
 class FinanceQueue(Model):
+    #: Names the sources this page read; send it back to refuse a changed state.
+    version: str | None = None
     rows: list[FinanceQueueRow]
     total: int
     has_more: bool
@@ -127,9 +131,12 @@ class FinanceBrowseGroup(Model):
     station: str | None = None
     year: int | None = None
     category: str | None = None
+    years: list[int] | None = None
 
 
 class FinanceBrowse(Model):
+    #: Names the sources this page read; send it back to refuse a changed state.
+    version: str | None = None
     tab: str
     q: str
     station: str
@@ -142,6 +149,7 @@ class FinanceBrowse(Model):
     rows: list[FinanceFileRow | FinanceBrowseGroup]
     years: list[int]
     categories: list[str]
+    tab_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class FinanceCorrection(Model):
@@ -249,6 +257,7 @@ class FinanceAddressEvidence(Model):
     page: int
     uploaded_at: str | None
     checked_at: str
+    quote: str | None = None
     role: str | None = None
 
 
@@ -281,6 +290,8 @@ class FinanceStationYear(Model):
     year: int | None
     categories: list[FinanceCategory]
     file_count: int
+    counts: dict[str, int] = Field(default_factory=dict)
+    latest_check_at: str | None = None
 
 
 class FinanceStation(FinanceSource):
@@ -288,10 +299,12 @@ class FinanceStation(FinanceSource):
     folder_count: int
     folder_failures: int
     years: list[FinanceStationYear]
+    latest_check_at: str | None = None
 
 
 class FinanceConnectionGroup(Model):
     label: str
+    kind: Literal["committee", "named"] | None = None
     files: list[FinanceFileRow]
 
 

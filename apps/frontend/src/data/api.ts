@@ -71,6 +71,7 @@ import {
   CommitteeMoney,
   CommitteeDonorStates,
   CommitteeNameConnections,
+  CommitteeSourceNotice,
   CommitteeStatedByKind,
   TrackedCommittee,
   CommitteePaymentsPage,
@@ -3113,6 +3114,7 @@ export interface ApiCommitteeMoneyPayload {
   fetched_at?: string | null;
   payment_copied_at?: ApiPaymentCopyDates | null;
   filings_copied_at?: string | null;
+  source_notices?: CommitteeSourceNotice[] | null;
   register?: ApiCommitteeRegisterPayload | null;
   money_in?: {
     state: string;
@@ -3186,6 +3188,8 @@ export function committeeFinanceFromPayload(payload: ApiCommitteeMoneyPayload): 
     fetchedAt: payload.fetched_at ?? null,
     filingsCopiedAt: payload.filings_copied_at ?? null,
     paymentCopiedAt: paymentCopyDatesFromPayload(payload.payment_copied_at),
+    // Absent on an answer from before notices existed, which holds none.
+    sourceNotices: payload.source_notices ?? [],
     register: {
       state: committeeRegisterState(register?.state),
       kind: register?.kind ?? null,

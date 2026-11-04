@@ -533,3 +533,109 @@ def test_unknown_files_and_kinds_are_refused(finance_api, listed):
 
 def test_media_buys_need_finance_access(client):
     assert client.get(f"{BASE}/counts").status_code == 401
+
+
+def test_finance_browse_serves_tab_totals_and_station_years(finance_api, held):
+    data = finance_api.get(BASE + "/browse?tab=stations").json()["data"]
+    assert data["tab_counts"] == {
+        "folders": 1,
+        "agencies": 1,
+        "stations": 3,
+        "years": 1,
+    }
+    station = next(row for row in data["rows"] if row["label"] == "KSTP-TV")
+    assert station["years"] == [held["document"].year]
+
+
+@pytest.mark.parametrize(
+    ("tab", "word", "label"),
+    [
+        ("folders", "sample", "Sample Committee"),
+        ("agencies", "example", "Example Media"),
+        ("stations", "kstp", "KSTP-TV"),
+        ("years", "2026", "2026"),
+    ],
+)
+def test_finance_tab_search_returns_groups_not_file_rows(
+    finance_api, held, tab, word, label
+):
+    data = finance_api.get(
+        BASE + f"/browse?tab={tab}&q={word}&search_scope=tab"
+    ).json()["data"]
+    assert [row["label"] for row in data["rows"]] == [label]
+    assert "version_id" not in data["rows"][0]
+    empty = finance_api.get(
+        BASE + f"/browse?tab={tab}&q=nevermatches&search_scope=tab"
+    ).json()["data"]
+    assert empty["rows"] == []
+    assert empty["total"] == 0
+    assert empty["tab_counts"] == data["tab_counts"]
+
+
+def test_finance_rows_keep_saved_date_address_quote_and_connection_page(
+    finance_api, held
+):
+    folder = finance_api.get(f"{BASE}/folders/{held['folder']}").json()["data"]
+    row = next(row for row in folder["files"] if row["key"] == held["key"])
+    assert row["first_saved_at"] == reader.iso(held["document"].first_seen_at)
+    agency = finance_api.get(
+        f"{BASE}/agencies/{reader.agency_key('Example Media')}"
+    ).json()["data"]
+    evidence = agency["addresses"][0]["evidence"][0]
+    assert evidence["quote"] == "Synthetic organization_address quote."
+    assert evidence["checked_at"]
+    connections = finance_api.get(
+        BASE + "/connections?kind=committee&target=19002"
+    ).json()["data"]
+    assert connections["files"][0]["page"] == 1
+    assert connections["groups"][0]["kind"] == "committee"
+    assert connections["groups"][0]["files"][0]["page"] == 1
+    named = finance_api.get(
+        BASE + "/connections?kind=name&target=Example%20Media"
+    ).json()["data"]
+    assert named["groups"][0]["kind"] == "named"
+    assert named["files"][0]["page"] == 1
+
+
+def test_station_year_counts_use_source_years_and_keep_unknown_failures(
+    finance_api, held, listed
+):
+    document = held["document"]
+    scan = m.FCCScan(status="complete", stations=["28010"], counts={})
+    listed.add(scan)
+    listed.flush()
+    for key, kind, path in [
+        ("missing-file", "file", "political-files/2025/State/Committee"),
+        ("missing-folder", "folder", "political-files/2025/State/Committee"),
+        ("unknown-folder", "folder", "political-files/State/Committee"),
+    ]:
+        listed.add(
+            m.FCCObservation(
+                scan_id=scan.id,
+                url="https://example.invalid/" + key,
+                facility_id="28010",
+                kind=kind,
+                status="failed",
+                details={"file_id": key, "folder_path": path}
+                if kind == "file"
+                else {"path": path},
+            )
+        )
+    extraction = listed.get(m.FCCExtraction, (document.content_hash, EXTRACTOR_VERSION))
+    extraction.status = "partial"
+    listed.flush()
+    data = finance_api.get(BASE + "/stations/kstp-tv").json()["data"]
+    years = {row["year"]: row for row in data["years"]}
+    assert years[2026]["counts"] == {
+        "station_files_held": 2,
+        "unique_file_contents": 2,
+        "text_read_failures": 1,
+        "download_failures": 0,
+        "folder_failures": 0,
+    }
+    assert years[2025]["counts"]["download_failures"] == 1
+    assert years[2025]["counts"]["folder_failures"] == 1
+    assert years[None]["counts"]["folder_failures"] == 1
+    assert years[None]["counts"]["station_files_held"] == 0
+    assert years[2026]["latest_check_at"] == data["latest_check_at"]
+    assert data["latest_check_at"] is not None

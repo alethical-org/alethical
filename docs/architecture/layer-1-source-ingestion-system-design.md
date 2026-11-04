@@ -659,6 +659,37 @@ Committee memberships come from the same member profile pages used by the live M
 - House member profile pages expose committee assignment links under "Committee Assignments."
 - Senate member profile pages expose committee assignment links under "Committee Assignments."
 - A legislator can validly have zero committee assignments; that should remain `committee_count = 0`, not a synthetic membership row.
+- Member pages list each officer once, under the role (for example "Co-Chair Ethics").
+  The roster import (`MinnesotaIngestionPipeline.upsert_committees`) runs before the
+  committee rebuild and writes only a seat that has no row at all, so it never adds a
+  plain row beside an officer's role row; the committee rebuild owns roles. Both stored
+  `committee_count` writers count distinct committees. Readers list each member once
+  per committee, with a role replacing a plain row, so a duplicate left by an
+  interrupted rebuild still reads correctly (159 members in 45 committees on
+  3 Nov 2026, cleared by that day's rebuild).
+
+Bill-action referrals use the literal `COMMITTEE_ID` in Revisor XML to resolve
+one held `committee.code` within the bill's own session and the action's chamber.
+The code is kept from the official committee URL's `comm`/`cmte_id` value.
+A matching name, another session or chamber, or duplicate held codes never creates
+a link. Each future ingestion also clears a prior action link when its current
+source ID is missing or unresolved; the printed committee name remains available.
+This does not backfill older actions or fetch historical sources.
+
+For a bounded read-only sample of older named actions without links, run:
+
+```bash
+uv run python scripts/report_bill_action_committee_links.py --target local --limit 20
+```
+
+`--target production` selects the production database explicitly. The command uses
+a read-only transaction and a 10-second statement timeout, reads at most 100 actions,
+and has no apply mode or network fetch. `--bill-key` narrows the sample. To check
+retained source evidence, supply `--xml-dir` with files named `<content_hash>.xml`;
+the exact digest, bill key, action number and chamber must agree before proposing
+a committee ID. Source-artifact storage markers alone do not prove XML bytes were
+retained: unavailable bodies are reported as such, never counted as verified links.
+The JSON output is a sample, not a total backlog or a backfill authorization.
 
 The reusable implementation lives in `alethical.pipeline.committee_memberships`; for focused debugging use:
 

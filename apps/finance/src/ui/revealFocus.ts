@@ -7,9 +7,13 @@ const FOCUSABLE = 'a[href], button:not([disabled])';
  * focus would otherwise fall to the page body. Call `mark()` as the reveal starts;
  * once new rows render, if focus was lost, it moves to the first newly shown control.
  */
-export function useRevealFocus<E extends HTMLElement>() {
+export function useRevealFocus<E extends HTMLElement>(resetKey?: string) {
   const list = useRef<E | null>(null);
   const before = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    before.current = null;
+  }, [resetKey]);
 
   const mark = useCallback(() => {
     before.current = list.current?.querySelectorAll(FOCUSABLE).length ?? null;

@@ -7,10 +7,13 @@ transaction (``alethical/pipeline/campaign_finance.py``, ``publish``), so this i
 not a scheduled job. Safe to re-run: a file that already has summary rows is left
 alone unless ``--rebuild`` is given. Until a file has its summary, the graph groups
 its raw rows on every request, which is slow but never wrong.
+``--dataset`` selects 1 file; without it all 3 are checked. This can fill newly
+added summary metadata without rebuilding unaffected files.
 
     uv run python scripts/build_finance_graph_summary.py --target local
     uv run python scripts/build_finance_graph_summary.py --target production
     uv run python scripts/build_finance_graph_summary.py --target production --dry-run
+    uv run python scripts/build_finance_graph_summary.py --target local --dataset independent_expenditures --rebuild --dry-run
 
 Each file is built in its own transaction holding the publish lock, so a publish
 or a prune cannot run between reading the live release and writing its summary.
@@ -60,6 +63,11 @@ def main() -> int:
     )
     parser.add_argument("--database-url", default=None)
     parser.add_argument(
+        "--dataset",
+        choices=tuple(dataset.value for dataset in RELEASE_SNAPSHOT_COLUMN),
+        help="Build only this saved file's summary. Default: all 3 files.",
+    )
+    parser.add_argument(
         "--rebuild",
         action="store_true",
         help="Replace summary rows a file already has. Without it, such a file is skipped.",
@@ -83,6 +91,7 @@ def main() -> int:
             snapshots = {
                 dataset: getattr(release, column)
                 for dataset, column in RELEASE_SNAPSHOT_COLUMN.items()
+                if args.dataset is None or dataset.value == args.dataset
             }
             held = graph_summary.held(db, snapshots.values())
             db.rollback()

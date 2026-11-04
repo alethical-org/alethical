@@ -1,6 +1,7 @@
+import { RECORDS_CHANGED, useVersionedRead } from '../../api/versionedRead';
 import { useEffect } from 'react';
 
-import { apiPath, useRead } from '../../api/read';
+import { apiPath } from '../../api/read';
 import { useAddressState } from '../../ui/addressState';
 import { Chips, Refused, Updating } from '../../ui/controls';
 import { LoadingLine } from '../../ui/parts';
@@ -31,24 +32,23 @@ export function Queue({
     queue_page: '1',
   });
   const type =
-    state.record_type === 'donor' || state.record_type === 'payee' ? state.record_type : 'all';
+    state.record_type === 'donor' ||
+    state.record_type === 'payee' ||
+    state.record_type === 'employer'
+      ? state.record_type
+      : 'all';
   const status =
     state.status === 'confirmed' || state.status === 'all' ? state.status : 'unconfirmed';
   const page = Math.max(1, Math.trunc(Number(state.queue_page) || 1));
-  const read = useRead<QueuePage>(
+  const read = useVersionedRead<QueuePage>(
     apiPath(['finance', 'identities', 'queue'], {
       record_type: type,
       status,
       page,
       page_size: PAGE_SIZE,
     }),
-    { keepPrevious: true },
+    { page, onRestart: () => setState({ queue_page: '1' }), refresh: version },
   );
-  useEffect(() => {
-    if (version > 0) read.retry();
-    // Only a saved change asks for a fresh read.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version]);
   useEffect(() => {
     if (read.data) onLoaded(read.data);
   }, [read.data, onLoaded]);
@@ -71,6 +71,7 @@ export function Queue({
             { value: 'all', label: 'All names' },
             { value: 'donor', label: 'Donor names' },
             { value: 'payee', label: 'Payee names' },
+            { value: 'employer', label: 'Employer names' },
           ]}
           onChange={(record_type) => setState({ record_type, queue_page: '1' })}
         />
@@ -98,7 +99,9 @@ export function Queue({
       {read.failed && (
         <div className="ci-pad">
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load the names to review. This is a problem on our side.
+            {read.changed
+              ? RECORDS_CHANGED
+              : `We couldn’t load the names to review. This is a problem on our side.${data ? ' Previous results are shown.' : ''}`}
           </Refused>
         </div>
       )}
@@ -134,6 +137,9 @@ export function Queue({
                       ? ` · ${plural(row.missing_amounts, 'amount', 'amounts')} not given`
                       : ''}
                     {row.confirmed ? ` · Confirmed for ${row.confirmed} of ${row.records}` : ''}
+                    {row.confirmed && (row.identity_count ?? 0) > 1
+                      ? ` · ${row.identity_count} identities`
+                      : ''}
                   </span>
                   {hasDraft(draftPrefix(row.record_kind, row.record_key)) && (
                     <span className="ci-queue-draft">Unsaved draft</span>

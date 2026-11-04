@@ -15,6 +15,15 @@ client against it, and do not treat a "Status: pass" user story below as evidenc
 When you add or change a route, update the entry here in the same PR (`.claude/rules/workflow.md`
 rule 6); when you find drift, fix it rather than adding another hedge.
 
+## Private Finance spelling suggestions
+
+Finance's allowlisted reads include `GET /api/v1/finance/similar-names` for exact
+donor, payee and employer spellings, and
+`GET /api/v1/finance/media-buys/agencies/{key}/similar-names` for held agency labels.
+Both return separately named records, never an inferred identity or combined money.
+The [Finance architecture](alethical-finance-architecture.md#similar-printed-names)
+owns their matching, counts, paging versions, source evidence and failure contracts.
+
 ## Goal
 
 Design a REST API for Alethical v1 that:
@@ -729,12 +738,16 @@ per-member fields as the bill's vote collection, plus `bill_id` (the canonical b
 key). An unknown event returns 404; an invalid UUID returns 422. It does not need a
 bill query parameter and never substitutes another event from that bill.
 
-Both vote reads resolve each member's `party` from held service periods in the
-vote's chamber and Legislature, including same-Legislature special sessions. A held
-personal start/end date bounds that party; no current flag or later Legislature is
-substituted. Missing vote dates, missing parties or conflicting eligible periods
-leave the party null. Neither route invents unrecorded votes. Responses remain
-publicly cacheable and names, slugs, chambers and periods are read in batches.
+Both vote reads resolve each member's `party` and `district` (the district code)
+from held service periods in the vote's chamber and Legislature, including
+same-Legislature special sessions. A held personal start/end date bounds the
+period; no current flag or later seat or Legislature is substituted. Missing vote
+dates leave both fields null. Party and district certainty are independent:
+conflicting parties leave party null without hiding an unambiguous district, and
+conflicting districts leave district null without hiding an unambiguous party.
+Missing districts and placeholder district codes ending in `-unknown` remain null.
+Neither route invents unrecorded votes. Responses remain publicly cacheable and
+names, slugs, chambers and periods with their districts are read in batches.
 
 ### Legislators
 
@@ -782,17 +795,25 @@ Optional includes:
 
 Purpose:
 
-- sponsored bills for legislator profile
+- distinct sponsored bills for legislator profile, with a current summary
 
 Filters:
 
-- `session`
-- `role=chief|all`
+- `session` — defaults to the current legislative session
+- `role=chief_author|co_author|sponsor` — omit for all sponsorship roles
 - `limit`
 - `offset` — real, and undocumented here until the Aug 3 2026 audit.
 - `sort` — **NOT BUILT**
 - `order` — **NOT BUILT**
 - `cursor` — **NOT BUILT** (the route paginates by `offset`)
+
+`page.total` counts the exact filtered bill list before pagination, including on
+an empty page or a `limit=0` request. A bill appears once even when the member is
+named in both chambers' source lists. Profile bill lists use this total for their
+count and pagination. The profile's `stats.chief_bill_count` and
+`stats.total_bill_count` remain separate counts of all held chief/co-authorship,
+across sessions and including bills without a current summary; they are not the
+denominator for this list. A zero list total does not mean no authorship is held.
 
 #### `GET /api/v1/legislators/{legislator_id}/votes`
 
@@ -1585,6 +1606,17 @@ figure.
 honest inside one subject and only there. `page` is 1-based over `page.size` = 50 rows;
 `page.total_rows` counts every matching row with the same filter, and is `null` on any page that
 is not `reported`.
+
+`group_by=spender`, with both `about` and `year`, returns every `groups` entry for that
+committee-year instead of `rows` and `page`: 1 per spender and filed direction, keyed on the
+spender's registration number, or on the exact filed name where the row carries none
+(`grouping_basis`). Each group carries `amount`, the net of its signed payments (a refund counts
+against it), and `amount_state` under the shared total rule: `incomplete` when any payment amount
+is missing (it takes precedence), `incomplete_period` when neither every payment date nor every
+filed year is held, otherwise `reported`; `amount` is `null` unless `reported`. Each group also
+carries its own rows' `first_paid_on`, `last_paid_on`, `undated_count`, `first_year` and
+`last_year`, so a page labels it with its own period. Withheld amounts sort after every shown
+one. The direction figures gain `*_spender_count`.
 
 - **200 with `state: "reported"`** — rows and figures are real.
 - **200 with `state: "not_reported"`** — the file holds no row for this subject and year.

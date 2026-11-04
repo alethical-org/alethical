@@ -699,6 +699,12 @@ a.pp-row:active,
   text-align: right;
 }
 
+.cf-group-period {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--secondary);
+}
+
 /* ---------- Bands ---------- */
 @media (max-width: 1099px) {
   .lg2-layout {

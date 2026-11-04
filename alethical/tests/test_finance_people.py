@@ -178,3 +178,283 @@ def test_same_year_sibling_session_with_unended_service_is_not_former(
         row for row in response.json()["data"]["rows"] if row["id"] == str(member.id)
     )
     assert person["service_status"] == "unknown", person
+
+
+def test_candidate_directory_searches_held_voting_area_and_serves_party(
+    finance_api, finance_db
+):
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    data = get(
+        finance_api,
+        type="candidates",
+        q="SSD #1",
+        party="NONPARTISAN",
+        office="School Board Member At Large (SSD #1)",
+    )
+    assert data["total"] >= 2
+    assert all(row["party"] == "NONPARTISAN" for row in data["rows"])
+    assert all("SSD #1" in row["voting_area"] for row in data["rows"])
+    assert (
+        get(finance_api, type="candidates", q="SSD #1", party="not-held")["total"] == 0
+    )
+    assert (
+        get(finance_api, type="candidates", q="SSD #1", office="not-held")["total"] == 0
+    )
+    assert get(finance_api, type="candidates", q="SSD #%")["total"] == 0
+    assert data["party"] == "NONPARTISAN"
+    assert data["office"] == "School Board Member At Large (SSD #1)"
+
+
+def test_legislative_district_and_party_filters_match_the_same_held_period(
+    finance_api, finance_db
+):
+    member = service_member(finance_db, "district-filter-review")
+    first = member.service_periods[0]
+    first.party = "Review party"
+    other = finance_db.scalar(
+        select(m.District).where(m.District.id != first.district_id)
+    )
+    # Another held term must not lend its party to the district in the first term.
+    member.service_periods.append(
+        m.LegislatorServicePeriod(
+            legislator_id=member.id,
+            session_id=first.session_id,
+            chamber_id=first.chamber_id,
+            district_id=other.id,
+            period_sequence=2,
+            party="Other party",
+            is_current=False,
+        )
+    )
+    finance_db.flush()
+    district = finance_db.get(m.District, first.district_id).code
+    chamber = finance_db.get(m.Chamber, first.chamber_id).chamber_type.value
+    data = get(
+        finance_api,
+        type="legislators",
+        q=district,
+        party="Review party",
+        chamber=chamber,
+    )
+    assert str(member.id) in {row["id"] for row in data["rows"]}
+    matched = next(row for row in data["rows"] if row["id"] == str(member.id))
+    assert [p["party"] for p in matched["matching_periods"]] == ["Review party"]
+    assert len(matched["periods"]) == 2
+    assert (
+        get(finance_api, type="legislators", q=member.full_name, party="missing")[
+            "total"
+        ]
+        == 0
+    )
+    assert (
+        get(finance_api, type="legislators", q=district, party="Other party")["total"]
+        == 0
+    )
+    assert (
+        get(
+            finance_api,
+            type="legislators",
+            q=member.full_name,
+            chamber="senate" if chamber == "house" else "house",
+        )["total"]
+        == 0
+    )
+    assert data["chamber"] == chamber
+    assert data["party"] == "Review party"
+
+
+def test_people_filter_options_come_from_held_fields(finance_api, finance_db):
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    data = get(finance_api, type="candidates", q="no match")
+    assert "NONPARTISAN" in data["parties"]
+    assert "School Board Member At Large (SSD #1)" in data["offices"]
+    assert data["chambers"] == []
+
+
+def test_people_filter_values_reject_control_characters_and_unknown_chamber(
+    finance_api,
+):
+    for params in [{"party": "x\x00y"}, {"office": "x\x00y"}, {"chamber": "invented"}]:
+        assert finance_api.get(BASE, params=params).status_code == 422
+
+
+def test_people_party_and_filter_options_change_version(finance_api, finance_db):
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    finance_db.commit()
+    before = get(finance_api, type="candidates", q="Kim Ellison")
+    candidate = finance_db.get(m.CandidateRecord, before["rows"][0]["id"])
+    candidate.public_payload = {
+        **candidate.public_payload,
+        "candidate": {
+            **candidate.public_payload["candidate"],
+            "party": "Changed source party",
+        },
+    }
+    finance_db.commit()
+    changed = finance_api.get(
+        BASE, params={"type": "candidates", "version": before["version"]}
+    )
+    assert changed.status_code == 409
+    after = get(finance_api, type="candidates", q="Kim Ellison")
+    assert after["rows"][0]["party"] == "Changed source party"
+    assert "Changed source party" in after["parties"]
+
+
+def test_people_record_cues_follow_validated_profile_records(finance_api, finance_db):
+    from copy import deepcopy
+    from uuid import UUID
+
+    from alethical.api.services import person_records
+
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    data = get(finance_api, q="Kim Ellison")
+    person = next(r for r in data["rows"] if r["kind"] == "person")
+    candidate = next(r for r in data["rows"] if r["kind"] == "candidate")
+    profile = person_records.load_person(finance_db, person["id"])
+    assert person["confirmed_record_count"] == len(profile["elections"]) + len(
+        profile["service"]
+    )
+    assert candidate["person_links"] == [{"id": person["id"], "name": "Kim Ellison"}]
+    old_version = data["version"]
+    link = finance_db.get(m.PersonCandidacy, (UUID(person["id"]), candidate["id"]))
+    changed = deepcopy(link.identity)
+    changed["name"] = "Not this candidate"
+    link.identity = changed
+    finance_db.flush()
+    assert finance_api.get(BASE, params={"version": old_version}).status_code == 409
+    updated = get(finance_api, q="Kim Ellison")
+    assert (
+        next(r for r in updated["rows"] if r["kind"] == "candidate")["person_links"]
+        == []
+    )
+    assert next(r for r in updated["rows"] if r["kind"] == "person")[
+        "confirmed_record_count"
+    ] == len(profile["service"])
+
+
+def test_people_count_includes_only_active_identity_lobbyist_links(
+    finance_api, finance_db
+):
+    from datetime import UTC, datetime
+
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    person = next(
+        r for r in get(finance_api, q="Kim Ellison")["rows"] if r["kind"] == "person"
+    )
+    base_count = person["confirmed_record_count"]
+    identity = m.IdentityEntity(
+        kind="person",
+        name="Kim Ellison",
+        reference="PER-9911",
+        made_by_alethical_team=False,
+    )
+    finance_db.add(identity)
+    finance_db.flush()
+
+    def confirmation(kind, key):
+        row = m.IdentityConfirmation(
+            entity_id=identity.id,
+            record_kind=kind,
+            record_key=key,
+            relation="Confirmed record",
+            evidence_source="official_page",
+            evidence_url="https://example.test/record",
+            evidence_quote="Exact record",
+            basis="Reviewed exact record",
+            made_by_alethical_team=False,
+        )
+        finance_db.add(row)
+        return row
+
+    public = confirmation("public_person", person["id"])
+    lobbyist = confirmation("lobbyist", "9911")
+    finance_db.flush()
+    current = get(finance_api, q="Kim Ellison", type="persons")
+    assert current["rows"][0]["confirmed_record_count"] == base_count + 1
+    # The public-person anchor and lobbyist confirmation remain on the merged
+    # identity; the directory must follow the same standing identity as the profile.
+    target = m.IdentityEntity(
+        kind="person",
+        name="Kim Ellison",
+        reference="PER-9912",
+        made_by_alethical_team=False,
+    )
+    finance_db.add(target)
+    finance_db.flush()
+    identity.status = "merged"
+    identity.merged_into_id = target.id
+    finance_db.flush()
+    assert (
+        finance_api.get(BASE, params={"version": current["version"]}).status_code == 409
+    )
+    current = get(finance_api, q="Kim Ellison", type="persons")
+    assert current["rows"][0]["confirmed_record_count"] == base_count + 1
+    token = current["version"]
+    lobbyist.active = False
+    lobbyist.withdrawn_at = datetime.now(UTC)
+    lobbyist.withdrawal_reason = "Wrong record"
+    finance_db.flush()
+    assert finance_api.get(BASE, params={"version": token}).status_code == 409
+    assert (
+        get(finance_api, q="Kim Ellison", type="persons")["rows"][0][
+            "confirmed_record_count"
+        ]
+        == base_count
+    )
+    # A fresh lobbyist confirmation cannot count once the person-to-identity link is withdrawn.
+    confirmation("lobbyist", "9912")
+    public.active = False
+    public.withdrawn_at = datetime.now(UTC)
+    public.withdrawal_reason = "Wrong person"
+    finance_db.flush()
+    assert (
+        get(finance_api, q="Kim Ellison", type="persons")["rows"][0][
+            "confirmed_record_count"
+        ]
+        == base_count
+    )
+    empty = m.PublicPerson(
+        name="No linked records", identity_evidence={"review": "test"}
+    )
+    finance_db.add(empty)
+    finance_db.flush()
+    assert (
+        get(finance_api, type="persons", q=empty.name)["rows"][0][
+            "confirmed_record_count"
+        ]
+        == 0
+    )
+
+
+def test_people_link_cue_read_cost_is_bounded_to_the_selected_page(
+    finance_api, finance_db
+):
+    from time import perf_counter
+    from sqlalchemy import event
+
+    import_reviewed_records(finance_db, today=date(2026, 10, 29))
+    # The retained register and seed contain 17 records. Add three independent
+    # held service records to exercise a full 20-row request without fake links.
+    for index in range(3):
+        service_member(finance_db, f"read-cost-service-{index}")
+    finance_db.flush()
+    statements = []
+    connection = finance_db.connection()
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", capture)
+    started = perf_counter()
+    try:
+        result = get(finance_api, limit=20)
+    finally:
+        elapsed = perf_counter() - started
+        event.remove(connection, "before_cursor_execute", capture)
+    print(
+        f"People read cost: {len(result['rows'])} rows; {len(statements)} statements; {elapsed:.4f}s"
+    )
+    assert len(result["rows"]) == 20
+    # This fixture includes the actual retained civic-person register plus the
+    # seeded legislature. Linked records are batched, not one profile read per row.
+    assert len(statements) <= 20

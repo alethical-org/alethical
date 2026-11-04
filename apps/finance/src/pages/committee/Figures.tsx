@@ -9,7 +9,8 @@ import { formatDay, formatMoney } from '../../ui/money';
 import type { Read } from '../../api/read';
 import { Dropdown, Refused } from '../../ui/controls';
 import { LoadingLine } from '../../ui/parts';
-import type { ReportFigureRow, ReportFigures } from './types';
+import { KindBreakdown } from './Breakdowns';
+import type { ReportFigureRow, ReportFigures, StatedByKind } from './types';
 
 interface Figure {
   label: string;
@@ -66,10 +67,32 @@ export function reportFigures(row: ReportFigureRow): { figures: Figure[]; notes:
   return { figures, notes: spending ? [] : [MONEY_OUT_OFFICIAL_MISSING] };
 }
 
+/** Why the catalogue report cannot be paired with the held financial figures.
+ * A missing financial record never says that the committee did not file. */
+export function unavailableFiguresReason(reason: string | null | undefined): string {
+  switch (reason) {
+    case 'missing_filing':
+      return 'No financial figures are held for this committee and year';
+    case 'missing_reported_through':
+      return 'The financial figures do not give a coverage end date';
+    case 'special_election':
+      return 'These financial figures cannot be matched to a special-election report';
+    case 'missing_cutoff':
+      return 'This report does not give a cutoff date';
+    case 'cutoff_mismatch':
+      return 'The filing’s reported-through date does not match this report’s cutoff date';
+    case 'ambiguous_cutoff':
+      return 'More than one report has the same cutoff date';
+    default:
+      return 'No matched financial figures are held for this report';
+  }
+}
+
 /**
  * Official report figures (Committee drawing): the filer's own totals as filed in
  * the selected report, read from the report-figures route. The menu offers the
- * year's reports whose figures we hold; the chosen one rides in the address as
+ * year's held report names; unmatched financial figures keep their reason. The
+ * chosen report rides in the address as
  * `report` (Round 37).
  */
 export function Figures({
@@ -77,20 +100,27 @@ export function Figures({
   year,
   report,
   onReport,
+  byKind,
 }: {
   read: Read<ReportFigures>;
   year: number;
   report: string;
   onReport: (value: string) => void;
+  /** The committee-year's filed contribution lines, for the report they match. */
+  byKind?: StatedByKind;
 }) {
   const data = read.data && read.data.year === year ? read.data : null;
-  const held = data ? data.reports.filter((row) => row.figures_state === 'reported') : [];
+  const held = data?.reports ?? [];
   const options = held.map((row) => ({
     value: String(row.record_number),
     label: reportFigureLabel(row) ?? '',
   }));
-  const chosen = held.find((row) => String(row.record_number) === report) ?? held[0] ?? null;
-  const shown = chosen ? reportFigures(chosen) : null;
+  const chosen =
+    held.find((row) => String(row.record_number) === report) ??
+    held.find((row) => row.figures_state === 'reported') ??
+    held[0] ??
+    null;
+  const shown = chosen?.figures_state === 'reported' ? reportFigures(chosen) : null;
   const period = chosen ? periodLine(chosen.cut_off_date, chosen.period_start) : null;
   const menu = options.every((option) => option.label) ? options : [];
   return (
@@ -140,13 +170,20 @@ export function Figures({
               {note}
             </p>
           ))}
+          <KindBreakdown block={byKind} cutOff={chosen?.cut_off_date ?? null} />
           <p className="cmt-note">
             {period ? `${period}. ` : ''}Figures are as filed in the selected report. Itemized rows
             below follow the year, not the report.
           </p>
         </>
       )}
-      {((data && !shown) || (!data && read.notFound)) && (
+      {data && chosen && !shown && (
+        <p className="cmt-none">
+          {unavailableFiguresReason(chosen.figures_reason)}. Itemized rows below come from the
+          state’s payment files and are shown by year.
+        </p>
+      )}
+      {((data && !chosen) || (!data && read.notFound)) && (
         <p className="cmt-none">
           No official report figures are held for {year}. Itemized rows below come from the state’s
           payment files and are shown by year.

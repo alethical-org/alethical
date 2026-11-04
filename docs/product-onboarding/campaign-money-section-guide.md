@@ -868,6 +868,17 @@ Campaign money, top to bottom:
    The source link inside the committee's period explanation uses dark green
    (`#0f7a45`) and gains an underline on hover or keyboard focus. The legislator
    profile's source link keeps its standing underline.
+   A committee-year with a known gap in one of the Board's own payment files adds a
+   reviewed note to this panel, in fixed words that name the file and the gap. The note
+   is served with that year's figures (`source_notices` on the committee's year read)
+   only while the file's record-set hash matches the reviewed hash and that
+   committee-year's count and total still match. Byte order and copy identifiers do
+   not identify the records. A changed or missing record-set hash withdraws the note
+   until the source is reviewed again, even if the changed records belong to another
+   committee. 1 committee-year carries one: Coleman,
+   Christopher B Gov Committee (18127) in 2017, whose note says the Board's spending file
+   lists only part of that year's payments
+   ([issue 2831](https://github.com/alethical-org/alethical/issues/2831)).
 5. **Who gave**, above the summary cards. This is the same chart as the legislator tab,
    read for this registration number and selected year. A safe, checked split includes
    Non-itemized contributions as its own grey slice. Without an official total, the chart
@@ -1437,6 +1448,9 @@ spelling; a name alone does not identify a person or business. Names with no sup
 destination remain plain text, including a transfer to a committee whose page is not
 held. The explanation beneath received and made payments states these 2 destinations;
 its existing threshold clause remains absent on ballot-question committee pages.
+On "Where it went", a reviewed note about the spending file prints under that file's
+copy date, in the same words as the committee page's period panel. "Who gave" prints
+only notes about the contributions file.
 
 A failed payment read, including an unavailable response, uses this page's could-not-load
 sentence. It never prints a

@@ -207,6 +207,11 @@ def test_ticket_only_connects_individually_reviewed_members(public_db):
     assert result["isJointTicket"] is True
     assert result["candidate"]["name"] == "Alex Same and Pat Same"
     assert {x["id"] for x in result["people"]} == {str(x) for x in ids[:2]}
+    counts, candidates, _ = records.directory_record_cues(
+        db, person_ids=ids, candidate_ids=[cid], legislator_ids=[], today=NOW.date()
+    )
+    assert {item["id"] for item in candidates[cid]} == {str(x) for x in ids[:2]}
+    assert counts == {str(ids[0]): 1, str(ids[1]): 1, str(ids[2]): 0}
     lookup = records.enrich_lookup_results(
         db,
         {
@@ -440,9 +445,41 @@ def test_legislator_person_link_requires_existing_full_review_checks(
     assert (
         records.person_for_legislator(db, period.legislator.slug, now=NOW)["id"] == pid
     )
+
+    def cues():
+        return records.directory_record_cues(
+            db,
+            person_ids=[UUID(pid)],
+            candidate_ids=[profile["candidate"]["id"]],
+            legislator_ids=[period.legislator_id],
+            today=NOW.date(),
+        )
+
+    from alethical.api.services import candidate_legislators
+
+    original_lookup = candidate_legislators.confirmed_legislator
+    calls = []
+
+    def measured_lookup(*args, **kwargs):
+        calls.append(1)
+        return original_lookup(*args, **kwargs)
+
+    monkeypatch.setattr(candidate_legislators, "confirmed_legislator", measured_lookup)
+    counts, candidates, legislators = cues()
+    assert len(calls) == 1, (
+        "One validated candidate must not load legislative evidence twice"
+    )
+    expected_link = {"id": pid, "name": result["name"]}
+    assert counts[pid] == len(result["elections"]) + len(result["service"])
+    assert candidates[profile["candidate"]["id"]] == [expected_link]
+    assert legislators[str(period.legislator_id)] == [expected_link]
     period.profile_url = "https://www.senate.mn/members/member_bio.html?leg_id=123"
     assert records.load_person(db, pid, now=NOW)["elections"] == []
     assert records.person_for_legislator(db, period.legislator.slug, now=NOW) is None
+    counts, candidates, legislators = cues()
+    assert counts[pid] == 0
+    assert candidates[profile["candidate"]["id"]] == []
+    assert legislators[str(period.legislator_id)] == []
 
 
 def test_election_ended_uses_minnesota_midnight_not_browser_or_utc(public_db):

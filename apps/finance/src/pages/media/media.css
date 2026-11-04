@@ -608,6 +608,16 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+.mb-address-quote {
+  margin: 0 0 6px;
+}
+.mb-address-quote blockquote {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
 .mb-address-foot {
   display: flex;
   flex-wrap: wrap;
@@ -1356,4 +1366,16 @@
 }
 .mb-note-list li + li {
   margin-top: 4px;
+}
+
+/* Exact agency spellings retain the card's approved name and metadata hierarchy. */
+.mb-agency-similar-list .mb-link-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.mb-agency-similar-meta {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--secondary);
 }

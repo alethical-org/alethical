@@ -37,3 +37,17 @@
     padding: 16px;
   }
 }
+
+/* A year or office change keeps the last contest on screen, dimmed, while the
+ * next answer loads (settled wording row 35). */
+.mr-results {
+  transition: opacity 0.16s ease;
+}
+.mr-results[data-stale] {
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mr-results {
+    transition: none;
+  }
+}

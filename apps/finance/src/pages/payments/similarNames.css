@@ -1,0 +1,112 @@
+/* Design49 Payments Under Name: the separate source-spelling list. */
+.pn-similar {
+  margin-top: 0;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.pn-similar h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  scroll-margin-top: 80px;
+}
+.pn-similar > p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.pn-similar > .pn-similar-note {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pn-similar > .pn-similar-scope {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pn-similar-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.pn-similar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 0;
+  color: var(--link);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+.pn-similar-link > span {
+  min-width: 0;
+}
+.pn-similar-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.pn-similar-meta {
+  display: inline-block;
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+.pn-similar-link svg {
+  flex: none;
+}
+.pn-similar-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.pn-similar-more {
+  margin-top: 8px;
+}
+@media (hover: hover) {
+  .pn-similar-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.pn-similar-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: 24px;
+  align-items: start;
+  margin-top: 14px;
+}
+.pn-name-controls,
+.pn-payment-results,
+.pn-similar-aside {
+  min-width: 0;
+}
+.pn-name-controls .pn-form {
+  margin-top: 0;
+}
+.pn-similar-aside {
+  margin-top: 32px;
+}
+@media (min-width: 1100px) {
+  .pn-similar-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+  .pn-similar-aside {
+    grid-column: 2;
+    grid-row: 1;
+    margin-top: 0;
+  }
+  .pn-payment-results {
+    grid-column: 1 / -1;
+  }
+}

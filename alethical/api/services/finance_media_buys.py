@@ -27,6 +27,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from alethical.api.services import finance_station_checks as checks
+from alethical.api.services import finance_station_metadata
 from alethical.api.services import tv_ads as reader
 from alethical.db import models as m
 
@@ -152,9 +153,43 @@ def agency(db: Session, key: str) -> dict:
     return reader.agency_detail(db, key, originals=True)
 
 
+@reader.projection(scope="station")
+def _station(db: Session, key: str) -> dict:
+    detail = reader.station_detail(db, key)
+    coverage = finance_station_metadata.station_years(db, detail["facility_id"])
+    years = {row["year"]: row for row in detail["years"]}
+    for year, values in coverage.items():
+        years.setdefault(
+            year, {"year": year, "categories": [], "file_count": 0}
+        ).update(values)
+    detail["years"] = [
+        years[year] for year in sorted(years, key=lambda y: y or 0, reverse=True)
+    ]
+    dates = [
+        row["latest_check_at"] for row in coverage.values() if row["latest_check_at"]
+    ]
+    detail["latest_check_at"] = max(dates) if dates else None
+    return detail
+
+
 def station(db: Session, key: str) -> dict:
-    return reader.station_detail(db, key, originals=True)
+    return _station(db, key, originals=True)
 
 
 def connected(db: Session, kind: str, record: str) -> dict:
+    if kind in {"person", "legislator", "organization"}:
+        from alethical.api.services.finance_media_profiles import groups
+
+        profile_groups = groups(db, kind, record)
+        if not profile_groups:
+            return {
+                "agency_key": None,
+                "exact_name_count": 0,
+                "files": [],
+                "total": 0,
+                "groups": [],
+            }
+        return reader.connected(
+            db, kind, record, originals=True, profile_groups=profile_groups
+        )
     return reader.connected(db, kind, record, originals=True)

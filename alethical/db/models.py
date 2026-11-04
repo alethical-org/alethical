@@ -1265,8 +1265,9 @@ class BillAction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     action_description: Mapped[Optional[str]] = mapped_column(Text)
     # Committee named by the source on a referral/re-refer action (the raw
     # <COMMITTEE_NAME>, e.g. "Ways and Means"). Distinct from committee_id, which
-    # is our FK to the committee table; the source's COMMITTEE_ID is an opaque
-    # string, so we keep only the display name here (#599).
+    # is our FK to the committee table. Future ingestion links COMMITTEE_ID only
+    # to one exact held code in this bill's session and action chamber. Missing
+    # or ambiguous source IDs retain the display name without a guessed link.
     committee_name: Mapped[Optional[str]] = mapped_column(Text)
     action_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     journal_page: Mapped[Optional[str]] = mapped_column(String(50))
@@ -3046,6 +3047,12 @@ class CampaignFinanceContributionRow(Base):
             postgresql_using="gin",
             postgresql_ops={"contributor": "gin_trgm_ops"},
         ),
+        Index(
+            "ix_cf_contribution_row_employer_trgm",
+            "contrib_employer_name",
+            postgresql_using="gin",
+            postgresql_ops={"contrib_employer_name": "gin_trgm_ops"},
+        ),
         # The donor's own registration number, for a lobbyist's campaign donations
         # (migration 0055). Partial, because 497,451 of the live file's 583,222 rows
         # are individuals with no number and no lookup by number can match them.
@@ -3168,6 +3175,12 @@ class CampaignFinanceIndependentExpenditureRow(Base):
     __table_args__ = (
         Index("ix_cf_independent_expenditure_row_spender", "spender_reg_num", "year"),
         Index(
+            "ix_cf_independent_expenditure_row_vendor_trgm",
+            "vendor_name",
+            postgresql_using="gin",
+            postgresql_ops={"vendor_name": "gin_trgm_ops"},
+        ),
+        Index(
             "ix_cf_independent_expenditure_row_affected",
             "affected_committee_reg_num",
             "year",
@@ -3226,6 +3239,9 @@ class CampaignFinanceGraphMoneySummary(Base):
     payment_type: Mapped[Optional[str]] = mapped_column(Text)
     transfer_number: Mapped[Optional[str]] = mapped_column(Text)
     transfer_name: Mapped[Optional[str]] = mapped_column(Text)
+    # Independent spending's exact For /Against text. Null also covers summaries
+    # built before this field existed; it never proves no position was filed.
+    position: Mapped[Optional[str]] = mapped_column(Text)
     year: Mapped[Optional[int]] = mapped_column(Integer)
 
     record_count: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -5182,18 +5198,22 @@ def legislator_sponsored_bills_stmt(
     When ``role`` is given, restrict to sponsorships of that role (e.g.
     ``SponsorshipRole.chief_author`` for the chief-authored profile section).
     """
-    conditions = [
+    sponsorship_conditions = [
         Sponsorship.legislator_id == legislator_id,
-        Bill.session_id == session_id,
-        # Precomputed gate (#505) — identical to the semi-join it replaces.
-        Bill.has_current_summary.is_(True),
+        Sponsorship.bill_id == Bill.id,
     ]
     if role is not None:
-        conditions.append(Sponsorship.role == role)
+        sponsorship_conditions.append(Sponsorship.role == role)
     return (
         select(Bill)
-        .join(Sponsorship, Sponsorship.bill_id == Bill.id)
-        .where(*conditions)
+        .where(
+            Bill.session_id == session_id,
+            # Precomputed gate (#505) — identical to the semi-join it replaces.
+            Bill.has_current_summary.is_(True),
+            # One bill can name this member in both chambers' source lists or
+            # in multiple roles. It still occupies one result and one page slot.
+            select(Sponsorship.id).where(*sponsorship_conditions).exists(),
+        )
         .options(
             selectinload(Bill.stats),
             selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),

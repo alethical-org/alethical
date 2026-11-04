@@ -797,6 +797,7 @@ function PeriodStamp({
         detail={detail}
         notes={[
           ...(formerNote ? [formerNote] : []),
+          ...(money.sourceNotices ?? []).map((notice) => notice.text),
           ...(emptyPaymentsAction ? [EMPTY_COMMITTEE_PAYMENTS] : []),
           ...(isHoldingStale ? [staleHoldNote(null)] : []),
         ]}

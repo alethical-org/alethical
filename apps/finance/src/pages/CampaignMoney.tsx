@@ -12,14 +12,14 @@ import { paymentCopyLines } from '@alethical/shared/paymentCopyDates';
 
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
-import { returnTarget, withFrom } from '../returnContext';
+import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
 import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
 import { ScrollingTabs } from '../ui/scrollingTabs';
-import { Arrow, BackLink, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
+import { Arrow, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 import './campaignMoney.css';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
@@ -55,16 +55,26 @@ export interface CommitteeRow {
   district: string | null;
   is_closed: boolean | null;
   termination_date: string | null;
+  registration_date?: string | null;
+  registration_status?: 'open' | 'terminated' | 'not_listed' | 'unknown';
+  party?: string | null;
+  retained?: boolean;
+  captured_at?: string | null;
 }
 
 export interface CommitteeRegister {
   state: 'reported' | 'unavailable' | string;
   /** The register kind these rows were read for, echoed by the server. */
   kind?: string | null;
+  q?: string | null;
+  status?: string | null;
+  party?: string | null;
+  candidate_parties?: string[] | null;
   committees: CommitteeRow[];
   page: { limit: number; offset: number; has_more: boolean; total: number | null };
   register_total: number | null;
   by_kind: Partial<Record<string, number>> | null;
+  held_by_kind?: Partial<Record<string, number>> | null;
   as_of: string | null;
   reason: string | null;
 }
@@ -86,6 +96,8 @@ export function registerPath(
   query: string,
   page: number,
   sort = 'name',
+  status = 'all',
+  party = '',
 ): string {
   const kind = TABS.find((item) => item.value === tab)?.kind ?? 'candidate_committee';
   const params = new URLSearchParams({
@@ -95,6 +107,8 @@ export function registerPath(
   });
   if (query) params.set('q', query);
   if (sort === 'registration') params.set('sort', sort);
+  params.set('status', status === 'open' || status === 'terminated' ? status : 'all');
+  if (tab === 'candidates' && party) params.set('party', party);
   return `campaign-finance/committees?${params.toString()}`;
 }
 
@@ -177,22 +191,38 @@ const ABOUT = [
   'Some donations are reported together without donor names as non-itemized contributions. This is allowed when a donor gives $200 or less to the same committee, party unit or fund in a calendar year. For ballot-question committees and funds, the limit is $500.',
 ];
 
-/**
- * The registration's own status (Rounds 30 to 32): the register lists this
- * filer, so a termination date reads "Terminated {date}" and no termination
- * date reads open. The register serves no registration date yet, so an open
- * registration reads "Open registration" rather than "Registered {date}".
- */
-export function registrationStatus(row: Pick<CommitteeRow, 'is_closed' | 'termination_date'>): {
+/** Status belongs to this exact held registration; retention never proves termination. */
+export function registrationStatus(
+  row: Pick<CommitteeRow, 'is_closed' | 'termination_date'> & Partial<CommitteeRow>,
+): {
   text: string;
-  state: 'open' | 'terminated' | 'unknown';
+  state: 'open' | 'terminated' | 'retained' | 'unknown';
 } {
-  if (row.is_closed === true) {
+  if (row.retained || row.registration_status === 'not_listed') {
+    return { text: 'No longer listed in the current register', state: 'retained' };
+  }
+  const status =
+    row.registration_status ??
+    (row.is_closed === true ? 'terminated' : row.is_closed === false ? 'open' : 'unknown');
+  if (status === 'terminated') {
     const day = formatDay(row.termination_date);
     return { text: day ? `Terminated ${day}` : 'Terminated', state: 'terminated' };
   }
-  if (row.is_closed === false) return { text: 'Open registration', state: 'open' };
+  if (status === 'open') {
+    const day = formatDay(row.registration_date ?? null);
+    return { text: day ? `Registered ${day}` : 'Open registration', state: 'open' };
+  }
   return { text: 'Registration status not held', state: 'unknown' };
+}
+
+const REGISTRATIONS = [
+  { value: 'all', label: 'All registrations' },
+  { value: 'open', label: 'Open registrations' },
+  { value: 'terminated', label: 'Terminated registrations' },
+];
+
+function registrationFilter(value: string | null | undefined) {
+  return value === 'open' || value === 'terminated' ? value : 'all';
 }
 
 /** The lines of 1 Sources and updates group, punctuated as 1 group (eug-31):
@@ -211,16 +241,22 @@ export function punctuateGroup(items: string[]): string[] {
 export function CampaignMoney(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
   const [address, setAddress] = useAddressState({
     tab: 'candidates',
     q: '',
     page: '1',
     sort: 'name',
+    reg: 'all',
+    party: '',
   });
   const tab = tabFromParam(address.tab);
   const submitted = address.q.trim().slice(0, MAX_QUERY);
   const page = pageFromParam(address.page);
+  const reg = registrationFilter(address.reg);
+  const party =
+    tab === 'candidates' && address.party.length <= 200 && !address.party.includes('\0')
+      ? address.party
+      : '';
 
   const [typed, setTyped] = useState(submitted);
   // Back, Forward or a new link changes the address: the field follows it.
@@ -228,10 +264,13 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
 
   // An unavailable register is a failed read, so the last list stays on screen
   // with Try again rather than being replaced by the outage.
-  const read = useRead<CommitteeRegister>(registerPath(tab, submitted, page, address.sort), {
-    keepPrevious: true,
-    acceptData: (data) => data.state === 'reported',
-  });
+  const read = useRead<CommitteeRegister>(
+    registerPath(tab, submitted, page, address.sort, reg, party),
+    {
+      keepPrevious: true,
+      acceptData: (data) => data.state === 'reported',
+    },
+  );
   const summary = useRead<MoneySummary>('campaign-finance/summary');
   const phone = useBand() === 'phone';
   const register = read.data;
@@ -264,7 +303,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
     setAddress({ q: typed.trim().slice(0, MAX_QUERY), page: '1' });
   }
 
-  const byKind = register?.by_kind ?? null;
+  const byKind = register?.held_by_kind ?? null;
   const tabs = TABS.map((item) => {
     const count = byKind?.[item.kind];
     return {
@@ -282,17 +321,23 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   // earlier list is never relabelled as the new one.
   const shownTab = TABS.find((item) => item.kind === register?.kind)?.value ?? tab;
   const count = countLine(shownTab, total);
+  const previousScope = [
+    TABS.find((item) => item.value === shownTab)?.label,
+    REGISTRATIONS.find((item) => item.value === registrationFilter(register?.status))?.label,
+    register?.party,
+    register?.q ? `Matching “${register.q}”` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const partyOptions = [
+    ...new Set([...(register?.candidate_parties ?? []), ...(party ? [party] : [])]),
+  ];
   const groups = sourceGroups(unavailable ? null : register, summary.data);
   const cards = SIDE_CARDS.filter((card) => isBuilt(card.route));
 
   return (
     <main id="main" className="f-page">
       <div className="f-content">
-        {back && (
-          <div className="cm-back">
-            <BackLink to={back.to} name={back.name} />
-          </div>
-        )}
         <header className="cm-header">
           <div className="cm-intro">
             <h1 tabIndex={-1} className="f-page-title">
@@ -318,7 +363,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
           {/* The drawn label shows on phone, above the field; elsewhere the field's
               hint says it (settled wording row 3). */}
           <label htmlFor="money-name" className={phone ? 'cm-search-label' : 'f-visually-hidden'}>
-            Search by name
+            Search by name or registration number
           </label>
           <input
             id="money-name"
@@ -327,7 +372,9 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             value={typed}
             maxLength={MAX_QUERY}
             autoComplete="off"
-            placeholder={phone ? 'Name' : 'Search by name'}
+            placeholder={
+              phone ? 'Name or registration number' : 'Search by name or registration number'
+            }
             onChange={(event) => setTyped(event.target.value)}
           />
           <button type="submit" className="f-btn cm-submit">
@@ -340,7 +387,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             {isBuilt('payments-under-name') ? (
               <>
                 <p>
-                  Registered names matching “{submitted}” are listed below. Payments recorded under
+                  Registrations matching “{submitted}” are listed below. Payments recorded under
                   that spelling are a separate search:
                 </p>
                 <Link
@@ -358,7 +405,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                 </Link>
               </>
             ) : (
-              <p>Registered names matching “{submitted}” are listed below.</p>
+              <p>Registrations matching “{submitted}” are listed below.</p>
             )}
           </section>
         )}
@@ -370,11 +417,28 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                 label="Directory"
                 value={tab}
                 tabs={tabs}
-                onChange={(next) => setAddress({ tab: next, page: '1' })}
+                onChange={(next) => setAddress({ tab: next, party: '', page: '1' })}
               />
             </div>
 
             <div className="cm-filters">
+              {tab === 'candidates' && partyOptions.length > 0 && (
+                <Dropdown
+                  name="Party"
+                  value={party}
+                  options={[
+                    { value: '', label: 'All parties' },
+                    ...partyOptions.map((value) => ({ value, label: value })),
+                  ]}
+                  onChange={(party) => setAddress({ party, page: '1' })}
+                />
+              )}
+              <Dropdown
+                name="Registration"
+                value={reg}
+                options={REGISTRATIONS}
+                onChange={(reg) => setAddress({ reg, page: '1' })}
+              />
               <Dropdown
                 name="Sort by"
                 value={address.sort === 'registration' ? 'registration' : 'name'}
@@ -384,8 +448,10 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                 ]}
                 onChange={(sort) => setAddress({ sort, page: '1' })}
               />
-              {address.sort === 'registration' && (
-                <ClearAll onClick={() => setAddress({ sort: 'name', page: '1' })} />
+              {(address.sort === 'registration' || reg !== 'all' || party) && (
+                <ClearAll
+                  onClick={() => setAddress({ sort: 'name', reg: 'all', party: '', page: '1' })}
+                />
               )}
             </div>
             <div ref={list} tabIndex={-1} className="cm-list">
@@ -409,6 +475,11 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                         We couldn’t update these results. Previous results are shown.
                       </Refused>
                     </div>
+                  )}
+                  {(read.updating || retainedFailure) && (
+                    <p className="cm-notice" role="status">
+                      Previous results: {previousScope}
+                    </p>
                   )}
                   <div aria-live="polite" className="f-count-line cm-count">
                     {count}
@@ -447,7 +518,12 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                                 )}
                               </span>
                               <span role="cell" className="cm-kind">
-                                {committeeEyebrow(row.kind, row.sub_type) ?? ''}
+                                {[
+                                  committeeEyebrow(row.kind, row.sub_type),
+                                  shownTab === 'candidates' ? row.party : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
                               </span>
                               <span role="cell" className="cm-reg f-num">
                                 <span className="cm-reg-word">Registration </span>
@@ -459,6 +535,13 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                                 data-status={status.state}
                               >
                                 {status.text}
+                                {(row.retained || row.registration_status === 'not_listed') &&
+                                  row.captured_at && (
+                                    <span className="cm-status-copy">
+                                      Last listed in the register copied{' '}
+                                      {centralDateLabel(row.captured_at)}
+                                    </span>
+                                  )}
                               </span>
                             </div>
                           );
