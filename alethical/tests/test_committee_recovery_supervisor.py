@@ -105,6 +105,72 @@ def test_saved_run_conflict_disposes_engine(setup):
     engine.dispose.assert_called_once()
 
 
+def test_eligibility_timeout_waits_for_fresh_success_before_child(setup):
+    args, engine, clock, sleep, gate = setup
+    reads, starts = [], []
+
+    def snapshot(*a):
+        reads.append(clock[0])
+        if len(reads) <= 2:
+            raise s.batch.Deferred("turn deadline reached")
+        return gate()
+
+    def child(*a):
+        starts.append(clock[0])
+        (args.evidence / "STOP").touch()
+        return 76, '{"status":"deferred"}'
+
+    result = s.supervise(args, snapshot=snapshot, child=child, sleep=sleep)
+    assert reads == [1000, 1060, 1180]
+    assert starts == [1180]
+    assert result["consecutive_eligibility_timeouts"] == 0
+    assert len(result["eligibility_timeouts"]) == 2
+    assert engine.dispose.call_count == 3  # Two stale pools, then final cleanup.
+
+
+def test_three_consecutive_eligibility_timeouts_stop_without_child(setup):
+    args, _, clock, sleep, _ = setup
+    reads = []
+    child = Mock()
+
+    def snapshot(*a):
+        reads.append(clock[0])
+        raise s.batch.Deferred("turn deadline reached")
+
+    result = s.supervise(args, snapshot=snapshot, child=child, sleep=sleep)
+    assert reads == [1000, 1060, 1180]
+    child.assert_not_called()
+    assert result["status"] == "stopped_for_review"
+    assert result["consecutive_eligibility_timeouts"] == 3
+    assert result["eligibility"] is None
+
+
+@pytest.mark.parametrize("reason", ["schema changed", "lease lost"])
+def test_other_eligibility_failures_are_not_retried(setup, reason):
+    args, _, _, sleep, _ = setup
+    snapshot = Mock(side_effect=s.batch.Deferred(reason))
+    child = Mock()
+    result = s.supervise(args, snapshot=snapshot, child=child, sleep=sleep)
+    snapshot.assert_called_once()
+    child.assert_not_called()
+    assert result["status"] == "stopped_for_review"
+
+
+def test_stop_during_eligibility_retry_wait_starts_no_child(setup):
+    args, _, _, sleep, _ = setup
+    snapshot = Mock(side_effect=s.batch.Deferred("turn deadline reached"))
+    child = Mock()
+
+    def stop_while_waiting(seconds):
+        (args.evidence / "STOP").touch()
+        sleep(seconds)
+
+    result = s.supervise(args, snapshot=snapshot, child=child, sleep=stop_while_waiting)
+    snapshot.assert_called_once()
+    child.assert_not_called()
+    assert result["status"] == "stopped_at_window_or_request"
+
+
 def test_keyboard_interrupt_is_saved_and_disposes(setup):
     args, engine, _, sleep, gate = setup
 
