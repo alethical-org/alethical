@@ -645,14 +645,19 @@ no confirmations or source records are changed by these reads or their rollback.
 source-derived agency key, `limit` (1 to 50, default 25), `offset`, and optional
 16-character `version`. The Finance allowlist still applies. The response's `data`
 contains key, exact name, version, limit, offset, has_more and rows with the same
-shape as the agency browse list: key, label, file_count, stations and unchecked.
+shape as the agency browse list: key, label, file_count, stations and unchecked, plus
+`checked_on`.
 
 Candidates are exact labels held in the same originals and checks as the agency
 browse list, including machine-read labels and checked older versions. Each label's
 count covers its own distinct station/file pairs. `unchecked` is true if any file
 represented under that name lacks a standing name check; a checked name on one file
-never checks another file or similar spelling. Similarity never links an address or
-identity, and suggestions contain neither addresses nor identity claims.
+never checks another file or similar spelling. `checked_on` is a Minnesota calendar
+date only when no file under the name is unchecked and every shown name check on every
+file was made that same day, including 2 checks of the name on 1 file; otherwise it is
+null, so 1 file's check date never stands for another file.
+Similarity never links an address or identity, and suggestions contain neither
+addresses nor identity claims.
 
 The spelling policy is the same 3-probe, 0.35 trigram rule as Payments under this
 name. It searches all held labels before exact-name A–Z paging; the input's exact
@@ -729,7 +734,12 @@ file-name, checked-fact and text search available. Neither search establishes an
 File rows carry the displayed version's `first_saved_at`. Connected rows carry a page
 actually cited by their checks, and groups identify `committee` or `named` without the
 client interpreting a display label. Checked address evidence includes its exact quote
-and check date; no account or public-copy metadata is exposed.
+and check date; no account or public-copy metadata is exposed. On `GET /agencies/{key}`,
+each file row's `agency_checked_at` is the time of the shown `agency_name` check for that
+name on that exact listed version, never another version's, an address check or the
+latest of several. It is null when the name is machine-read, or when that version holds
+several shown checks of the name at different times; the row then reads checked with no
+date.
 
 Each station year carries current file count, distinct saved contents across versions,
 current-version text-reading failures, and the latest file/folder download outcomes.
