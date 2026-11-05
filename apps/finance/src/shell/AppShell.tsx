@@ -4,7 +4,6 @@ import { clearReadCache } from '../api/read';
 import { useFinanceSession } from '../auth/session';
 import { clearSavedScroll, Link, navigate, useLocation } from '../router';
 import { hrefFor, isBuilt, type NavSection, type RouteName } from '../routes';
-import { useSuggestionBox } from '../search/SuggestionBox';
 import { useBand } from '../ui/band';
 
 /** The record families, in the approved order (Media buys directly after Money) and
@@ -39,15 +38,6 @@ function Lockup() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="2" />
-      <path d="M16 16 L20.5 20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 async function signOutTo(signOut: () => Promise<void>, destination = '/sign-in') {
   clearReadCache();
   clearSavedScroll();
@@ -55,8 +45,8 @@ async function signOutTo(signOut: () => Promise<void>, destination = '/sign-in')
   navigate(destination, { replace: true });
 }
 
-/** The signed-in frame: lockup, record families, search with suggestions and
- * the Account menu; on phone, a menu holding the families and Sign out. */
+/** The signed-in frame: lockup, record families and the Account menu; on phone,
+ * a menu holding the families and Sign out. */
 export function AppShell({ section, children }: { section?: NavSection; children: ReactNode }) {
   const band = useBand();
   const location = useLocation();
@@ -64,9 +54,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
   const showAccountEmail = signInPath !== '/investor-access';
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const here = location.pathname + location.search;
-  const search = useSuggestionBox('nav-sg', here);
   const accountButton = useRef<HTMLButtonElement>(null);
   const accountWrap = useRef<HTMLDivElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -77,7 +64,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
   useEffect(() => {
     setMenuOpen(false);
     setAccountOpen(false);
-    setSearchOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -103,30 +89,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
   }, [accountOpen, menuOpen]);
 
   const isPhone = band === 'phone';
-  const isComputer = band === 'computer';
-
-  const searchField = (rowStyle: boolean) => (
-    <form
-      role="search"
-      ref={search.rootRef}
-      onSubmit={search.submit}
-      className={rowStyle ? 'f-nav-search-row' : 'f-nav-search'}
-    >
-      <label htmlFor={rowStyle ? 'nav-search-row' : 'nav-search'} className="f-visually-hidden">
-        Search records
-      </label>
-      <input
-        {...search.inputProps}
-        id={rowStyle ? 'nav-search-row' : 'nav-search'}
-        placeholder="Search records"
-        className="f-nav-field"
-      />
-      <button type="submit" className="f-nav-submit">
-        Search
-      </button>
-      {search.panel && <div className="f-sg-anchor">{search.panel}</div>}
-    </form>
-  );
 
   return (
     <div className="f-app">
@@ -151,22 +113,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
             </nav>
           )}
           {isPhone && <div className="f-nav-spacer" />}
-          {isComputer && searchField(false)}
-          {!isComputer && (
-            <button
-              type="button"
-              aria-label="Search records"
-              aria-expanded={searchOpen}
-              className="f-nav-icon"
-              onClick={() => {
-                setSearchOpen((value) => !value);
-                setMenuOpen(false);
-                setAccountOpen(false);
-              }}
-            >
-              <SearchIcon />
-            </button>
-          )}
           {!isPhone && (
             <div className="f-nav-account" ref={accountWrap}>
               <button
@@ -222,7 +168,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
               className="f-nav-icon"
               onClick={() => {
                 setMenuOpen((value) => !value);
-                setSearchOpen(false);
                 setAccountOpen(false);
               }}
             >
@@ -237,7 +182,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
             </button>
           )}
         </div>
-        {searchOpen && !isComputer && searchField(true)}
         {menuOpen && isPhone && (
           <nav aria-label="Record families" className="f-nav-phone-menu">
             {items.map((item) => (

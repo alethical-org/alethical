@@ -127,13 +127,12 @@ for the owning permission and password-management rules.
 - **Listed account:** the dark navigation bar from the "Finance Nav" drawing: the
   ALETHICAL | Finance lockup (a link to Finance Home), the record families in this order:
   Money, Media buys, Lobbying, People, Legislation (the phone Menu lists the same order; a
-  family whose page is not built yet is left out, never linked to a missing page), a search field
-  with suggestions, and the Account menu with Sign out. The current family is underlined. On a
-  tablet the search field opens as a row under the bar from a search button. On a phone the
-  families and Sign out sit in a Menu. Both menus show the signed-in address for ordinary
+  family whose page is not built yet is left out, never linked to a missing page), and the
+  Account menu with Sign out. The current family is underlined. On a phone the families and
+  Sign out sit in a Menu. The lockup returns to the main search on Finance Home. Both menus show the signed-in address for ordinary
   accounts and omit the shared address for investors. Escape or a press outside closes each menu.
   Sign out also forgets every answer and scroll position this browser held for the account.
-- **Search suggestions** (the header field and Home's field): from 2 typed characters, 1
+- **Search suggestions** on Finance Home: from 2 typed characters, 1
   request per pause in typing to `GET /api/v1/finance/suggestions`; an answer for an earlier
   query is dropped by its request id. Up to 3 rows each under People, Organizations,
   Committees, Bills and Payments under a name, each opening its page; a match whose page is

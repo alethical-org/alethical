@@ -176,6 +176,8 @@ describe('the Finance shell', () => {
   it('shows Finance Home in the shell to a listed account', async () => {
     await renderAt('/home', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('header.f-nav')).not.toBeNull();
+    expect(container.querySelector('header [role="search"]')).toBeNull();
+    expect(container.querySelectorAll('main [role="search"]')).toHaveLength(1);
     expect(container.querySelector('h1')?.textContent).toBe('Research public records');
     expect(document.title).toBe('Finance Home · Alethical Finance');
   });

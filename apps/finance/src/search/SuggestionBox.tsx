@@ -31,8 +31,8 @@ const DEBOUNCE_MS = 140;
 let requestCounter = 0;
 
 /**
- * The shared combobox behind the Home field and the header field (Finance Nav
- * and Search Suggestions drawings): suggestions from 2 characters, 1 request
+ * The Finance Home search field (Search Suggestions drawing): suggestions from
+ * 2 characters, 1 request
  * per pause in typing, a reply for an earlier query dropped by its request id,
  * arrow keys through every row and View all results, Enter to open, Escape to
  * close.
