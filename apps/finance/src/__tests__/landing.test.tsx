@@ -139,7 +139,10 @@ describe('the public Finance site', () => {
     for (const link of signIns) expect(link.getAttribute('href')).toBe('/sign-in');
     await act(async () => investor[0].click());
     expect(window.location.pathname).toBe('/investor-access');
-    expect(container.querySelector('h1')?.textContent).toBe('Investor');
+    expect(container.querySelector('h1')).toBeNull();
+    expect(container.querySelector('label')?.textContent).toBe('Investor access code');
+    expect(container.querySelector('a')).toBeNull();
+    expect(document.activeElement).toBe(container.querySelector('main'));
     expect(container.querySelector('input[type="password"]')).not.toBeNull();
     expect(container.querySelector('input[type="email"]')).toBeNull();
     expect(container.textContent).not.toContain('Sign in with email');

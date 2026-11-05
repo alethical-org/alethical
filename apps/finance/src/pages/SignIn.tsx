@@ -4,7 +4,7 @@ import { proveSignInCode, requestSignInCode, signInResearch } from '../api/clien
 import { forgetCodeRequest, readCodeRequest, rememberCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
-import { Link, navigate, useLocation } from '../router';
+import { navigate, useLocation } from '../router';
 import { safeReturnPath } from '../routes';
 
 type Step = 'options' | 'email' | 'code' | 'password';
@@ -199,13 +199,20 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
   const finishing = verified && (status === 'loading' || status === 'checking');
 
   return (
-    <main className="access access--sign-in" id="main">
+    <main
+      className="access access--sign-in"
+      id="main"
+      tabIndex={investor ? -1 : undefined}
+      aria-label={investor ? 'Investor access' : undefined}
+    >
       <p className="lockup">
         Alethical <span>Finance</span>
       </p>
-      <h1 id="sign-in-heading" tabIndex={-1}>
-        {investor ? 'Investor' : 'Sign in'}
-      </h1>
+      {!investor && (
+        <h1 id="sign-in-heading" tabIndex={-1}>
+          Sign in
+        </h1>
+      )}
 
       {step === 'options' && (
         <div className="stack">
@@ -238,8 +245,8 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
       )}
 
       {step === 'password' && (
-        <form className="stack" onSubmit={passwordSignIn} noValidate>
-          <label htmlFor="password">Access code</label>
+        <form className="stack investor-access-form" onSubmit={passwordSignIn} noValidate>
+          <label htmlFor="password">Investor access code</label>
           <input
             id="password"
             type="password"
@@ -264,9 +271,6 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
           <button type="submit" disabled={busy !== null || finishing}>
             {busy === 'password' || finishing ? 'Opening…' : 'Enter'}
           </button>
-          <Link to="/" className="link">
-            Alethical Finance
-          </Link>
         </form>
       )}
 

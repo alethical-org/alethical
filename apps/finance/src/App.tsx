@@ -116,7 +116,7 @@ export function App() {
     }
     const back = cameByHistory() ? savedScroll() : null;
     window.scrollTo(0, back ?? 0);
-    document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+    document.querySelector<HTMLElement>('main h1, main[tabindex="-1"]')?.focus({ preventScroll: true });
   }, [screen]);
 
   // The landing page is for everyone, signed in or not (Design decision D20).

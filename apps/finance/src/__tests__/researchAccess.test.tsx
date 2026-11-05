@@ -134,7 +134,7 @@ async function type(id: string, value: string) {
 async function passwordForm() {
   await render('/investor-access?next=%2Fmedia-buys');
   expect(container.querySelector('#email')).toBeNull();
-  expect(text()).toContain('Access code');
+  expect(text()).toContain('Investor access code');
   await type('#password', 'demo-test-password');
 }
 it('signs in without a mailbox, keeps the requested page, and hides edit controls', async () => {

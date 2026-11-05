@@ -70,11 +70,12 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
 ## Shared research sign-in
 
 Ordinary `/sign-in` has the heading **Sign in** and no investor option. The separate
-`/investor-access` page has the heading **Investor**, one **Access code** field,
-an **Enter** button (**Opening…** while pending), and an **Alethical Finance** return
-link to `/`. Both forms keep the Alethical Finance wordmark and the added top space:
+`/investor-access` page has one **Investor access code** field and an **Enter** button
+(**Opening…** while pending), with no separate heading or homepage link. Both forms
+keep the Alethical Finance wordmark and the added top space:
 12% of viewport height, bounded between 64px and 112px, in normal page flow so short
-screens and keyboards can scroll. The investor page asks for no email.
+screens and keyboards can scroll. The investor field has 24px of space after the
+wordmark. The investor page asks for no email.
 The server chooses the shared account through its private configuration. It accepts an operator-created research
 account and returns to the requested browsing page. An invalid code, too many
 attempts and unavailable service have distinct retry messages; fields stay filled
