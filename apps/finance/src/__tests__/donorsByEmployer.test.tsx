@@ -19,8 +19,13 @@ import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const recheckAccess = vi.hoisted(() => vi.fn());
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+    retry: recheckAccess,
+  }),
 }));
 
 const SPELLING = 'Example Health Association';
@@ -132,6 +137,7 @@ let requests: URL[];
 
 beforeEach(() => {
   clearReadCache();
+  recheckAccess.mockClear();
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -226,7 +232,7 @@ describe('Donors by employer', () => {
     const items = [...container.querySelectorAll('.de-spelling-item')];
     expect(items.map((item) => item.querySelector('.de-spelling-meta')?.textContent)).toEqual([
       '2 donor names',
-      '3 donor names · Confirmed for 2 of 4 records',
+      '3 donor names',
     ]);
     expect(items[1].getAttribute('href')).toBe(
       '/money/employers/Example%20Health%20Association?q=health',
@@ -290,45 +296,110 @@ describe('Donors by employer', () => {
     );
   });
 
+  it('shows strong employer spellings together under each donor with original employer values', async () => {
+    const other = 'Example Health Assn';
+    const rows = group('Example, Wen', [
+      gift(1, '1000.0000', '2026-06-03'),
+      { ...gift(2, '1000.0000', '2026-06-03'), employer: other },
+    ]);
+    await render(
+      PATH,
+      answer({
+        detail: {
+          ...donors([rows]),
+          spellings: [SPELLING, other],
+          donor_name_count: 1,
+        },
+      }),
+    );
+    expect(container.querySelectorAll('.de-donor')).toHaveLength(1);
+    expect(donor('Example, Wen').textContent).toContain(SPELLING);
+    expect(donor('Example, Wen').textContent).toContain(other);
+    expect(donor('Example, Wen').querySelector('.de-count')?.textContent).toBe('2 payment records');
+    expect(container.textContent).toContain('Similar spellings may refer to the same employer');
+    expect(
+      requests
+        .find((url) => url.pathname.endsWith('/employers/donors'))
+        ?.searchParams.get('include_spellings'),
+    ).toBe('true');
+    expect(container.textContent).not.toContain('Confirmed');
+  });
+
+  it.each([401, 403])(
+    'hides employer donors and rechecks access after payment paging denial (%s)',
+    async (status) => {
+      const wen = group('Example, Wen', [gift(1, '1000.0000', '2026-06-03')], 2);
+      await render(PATH, (url) => {
+        if (url.pathname.endsWith('/employers/donor-payments')) return json(null, status);
+        return answer({ detail: donors([wen]) })(url);
+      });
+      await act(async () =>
+        donor('Example, Wen').querySelector<HTMLButtonElement>('.pn-more button')!.click(),
+      );
+      await settle();
+      expect(container.querySelectorAll('.de-donor')).toHaveLength(0);
+      expect(container.textContent).toContain('We couldn’t load these donors');
+      expect(recheckAccess).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('hides employer donors and rechecks access after donor-list paging denial', async () => {
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/employers/donors') && url.searchParams.get('offset'))
+        return json(null, 403);
+      return answer({ detail: donors([GROUPS[0]], { hasMore: true }) })(url);
+    });
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('.de-results > .pn-more button')!.click(),
+    );
+    await settle();
+    expect(container.querySelectorAll('.de-donor')).toHaveLength(0);
+    expect(recheckAccess).toHaveBeenCalledOnce();
+  });
+
   it('gives each identity its own line and its own profile link', async () => {
     await render(
       PATH,
       answer({
         identity: records(
           [
-            { id: 'org-1', kind: 'organization', name: 'Example Health', confirmed: 1 },
-            { id: 'org-2', kind: 'organization', name: 'Example Health Duluth', confirmed: 1 },
+            {
+              id: 'org-1',
+              kind: 'organization',
+              name: 'Example Health',
+              confirmed: 1,
+            },
+            {
+              id: 'org-2',
+              kind: 'organization',
+              name: 'Example Health Duluth',
+              confirmed: 1,
+            },
           ],
           3,
         ),
       }),
     );
     const lines = [...container.querySelectorAll('.de-confirm')];
-    expect(lines.map((line) => line.querySelector('.de-confirm-text')?.textContent)).toEqual([
-      'Confirmed as Example Health for 1 of 3 records',
-      'Confirmed as Example Health Duluth for 1 of 3 records',
+    expect(lines.map((line) => line.querySelector('span')?.textContent)).toEqual([
+      'Example Health',
+      'Example Health Duluth',
     ]);
     expect(lines[1].querySelector('a')?.getAttribute('href')).toMatch(/^\/organizations\/org-2\?/);
   });
 
-  it('says no organization confirms the spelling, and opens Confirm identities for it', async () => {
+  it('keeps missing identity links out of employer browsing', async () => {
     await render(PATH, answer());
-    const line = container.querySelector('.de-confirm')!;
-    expect(line.querySelector('.de-confirm-text')?.textContent).toBe(
-      'No organization record confirms this spelling',
-    );
-    const link = line.querySelector('a');
-    expect(link?.textContent?.replace(/\u00a0/g, ' ')).toBe('Confirm this employer');
-    expect(link?.getAttribute('href')).toMatch(
-      /^\/money\/identities\?name=[^&]+&role=employer&from=/,
+    expect(container.querySelector('.de-confirm')).toBeNull();
+    expect(container.textContent).not.toMatch(
+      /Confirm this employer|No organization record confirms|None confirmed/,
     );
   });
 
-  it('says the check could not be read rather than that nothing confirms', async () => {
+  it('offers retry for unavailable related profiles without an identity claim', async () => {
     await render(PATH, answer({ identity: json(null, 422) }));
-    expect(container.querySelector('.de-confirm .de-confirm-text')?.textContent).toBe(
-      'We couldn’t check whether an organization record confirms this spelling',
-    );
+    expect(container.textContent).toContain('We couldn’t load related profiles');
+    expect(container.textContent).not.toContain('confirms this spelling');
   });
 
   it('says so when no donor printed the spelling, in the list and on the spelling', async () => {
@@ -387,7 +458,12 @@ describe('Donors by employer', () => {
       if (url.pathname.endsWith('/donor-payments')) {
         return json({
           state: 'reported',
-          payments: [{ ...gift(3, '300.0000', '2025-10-01'), contributor: 'Example, Wen' }],
+          payments: [
+            {
+              ...gift(3, '300.0000', '2025-10-01'),
+              contributor: 'Example, Wen',
+            },
+          ],
           page: { limit: 50, offset: 1, has_more: false },
         });
       }
@@ -499,7 +575,9 @@ describe('Donors by employer', () => {
     const spaced = (name: string) => ({ ...LIST.rows[0], name });
     await render(
       '/money/employers?q=target',
-      answer({ list: spellings([spaced(' Target '), spaced('Target'), spaced('Target ')]) }),
+      answer({
+        list: spellings([spaced(' Target '), spaced('Target'), spaced('Target ')]),
+      }),
     );
     expect(
       [...container.querySelectorAll('.de-spelling-name')].map((item) => item.textContent),
@@ -517,7 +595,7 @@ describe('Donors by employer', () => {
     );
   });
 
-  it('offers Try again when the confirmation check could not be read', async () => {
+  it('retries related profiles without adding confirmation controls', async () => {
     let checks = 0;
     await render(PATH, (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) {
@@ -526,16 +604,13 @@ describe('Donors by employer', () => {
       }
       return answer()(url);
     });
-    const line = container.querySelector('.de-confirm')!;
-    expect(line.textContent).toContain(
-      'We couldn’t check whether an organization record confirms this spelling',
-    );
-    await act(async () => line.querySelector<HTMLButtonElement>('button')!.click());
+    const alert = [...container.querySelectorAll('[role="alert"]')].find((item) =>
+      item.textContent?.includes('related profiles'),
+    )!;
+    await act(async () => alert.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
-    // With Confirm identities on, the line also carries its "Confirm this employer" link.
-    expect(container.querySelector('.de-confirm .de-confirm-text')?.textContent).toBe(
-      'No organization record confirms this spelling',
-    );
+    expect(container.textContent).not.toContain('We couldn’t load related profiles');
+    expect(container.querySelector('.de-confirm')).toBeNull();
   });
 
   it('names the kept spellings’ own search when a new search fails', async () => {
@@ -564,7 +639,7 @@ describe('Donors by employer helpers', () => {
   it('words a spelling with its donor names and any confirmed records', () => {
     expect(spellingMeta(LIST.rows[0])).toBe('2 donor names');
     expect(spellingMeta({ ...LIST.rows[0], donor_name_count: 1 })).toBe('1 donor name');
-    expect(spellingMeta(LIST.rows[1])).toBe('3 donor names · Confirmed for 2 of 4 records');
+    expect(spellingMeta(LIST.rows[1])).toBe('3 donor names');
   });
 
   it('links a payment only to a held filer, leaving an unknown year unclaimed', () => {
@@ -578,7 +653,9 @@ describe('Donors by employer helpers', () => {
   it('reads the confirmation states', () => {
     expect(employerConfirmation(null, false)).toEqual({ state: 'loading' });
     expect(employerConfirmation(null, true)).toEqual({ state: 'unknown' });
-    expect(employerConfirmation(records([]), false)).toEqual({ state: 'unconfirmed' });
+    expect(employerConfirmation(records([]), false)).toEqual({
+      state: 'unconfirmed',
+    });
     expect(
       employerConfirmation(
         records([{ id: 'o', kind: 'organization', name: 'O', confirmed: 0 }]),

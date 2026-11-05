@@ -659,3 +659,81 @@ def test_station_year_counts_use_source_years_and_keep_unknown_failures(
     assert years[None]["counts"]["station_files_held"] == 0
     assert years[2026]["latest_check_at"] == data["latest_check_at"]
     assert data["latest_check_at"] is not None
+
+
+def test_finance_agency_discovery_keeps_original_name_key_and_versions(
+    finance_api, held
+):
+    data = finance_api.get(
+        BASE + "/browse",
+        params={"tab": "agencies", "q": "exmaple media", "search_scope": "tab"},
+    ).json()["data"]
+    assert [(row["label"], row["key"]) for row in data["rows"]] == [
+        ("Example Media", reader.agency_key("Example Media"))
+    ]
+    files = finance_api.get(
+        BASE + "/browse", params={"q": "exmaple media", "search_scope": "files"}
+    ).json()["data"]
+    assert files["rows"]
+    assert all(row["version_id"] for row in files["rows"])
+    assert all(
+        row["match_label"] in {"Matched a checked fact", "Matched an agency name"}
+        for row in files["rows"]
+    )
+    # File names, folder labels, years and station names are not typo-expanded.
+    assert (
+        finance_api.get(
+            BASE + "/browse",
+            params={"tab": "folders", "q": "smaple", "search_scope": "tab"},
+        ).json()["data"]["rows"]
+        == []
+    )
+    assert (
+        finance_api.get(
+            BASE + "/browse",
+            params={"tab": "years", "q": "2025", "search_scope": "tab"},
+        ).json()["data"]["rows"]
+        == []
+    )
+    missing_station = finance_api.get(
+        BASE + "/browse",
+        params={"q": "exmaple media", "station": "WCCO-TV", "year": 2026},
+    ).json()["data"]
+    assert missing_station["rows"] == []
+
+
+def test_file_search_orders_direct_agency_before_typo_match(
+    finance_api, finance_db, held
+):
+    from sqlalchemy import select
+
+    direct = held["document"]
+    direct.name = "Z exact agency file"
+    other = finance_db.scalar(
+        select(m.FCCDocument).where(
+            m.FCCDocument.content_hash == held["second_version"]
+        )
+    )
+    other.name = "A variant agency file"
+    finance_db.add(
+        m.FCCExtraction(
+            content_hash=other.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="unknown",
+            status="readable",
+            errors=[],
+            facts=[{"field": "agency_name", "value": "Exmaple Media", "page": 1}],
+        )
+    )
+    finance_db.commit()
+    response = finance_api.get(
+        BASE + "/browse", params={"q": "example media", "search_scope": "files"}
+    )
+    assert response.status_code == 200, response.text
+    rows = response.json()["data"]["rows"]
+    assert [row["key"] for row in rows] == [held["key"], held["second"]]
+    assert [row["version_id"] for row in rows] == [
+        direct.content_hash,
+        held["second_version"],
+    ]
+    assert all("_discovery_rank" not in row for row in rows)

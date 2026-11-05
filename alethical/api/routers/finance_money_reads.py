@@ -28,11 +28,17 @@ def employer_donors(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0, le=2147483647),
     release_id: UUID | None = None,
+    include_spellings: bool = False,
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
         data=money.employer_donors(
-            db, name=name, limit=limit, offset=offset, release_id=release_id
+            db,
+            name=name,
+            limit=limit,
+            offset=offset,
+            release_id=release_id,
+            include_spellings=include_spellings,
         )
     )
 
@@ -45,6 +51,7 @@ def employer_donor_payments(
     limit: int = Query(50, ge=1, le=250),
     offset: int = Query(0, ge=0, le=2147483647),
     release_id: UUID | None = None,
+    include_spellings: bool = False,
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
@@ -56,6 +63,7 @@ def employer_donor_payments(
             limit=limit,
             offset=offset,
             release_id=release_id,
+            include_spellings=include_spellings,
         )
     )
 

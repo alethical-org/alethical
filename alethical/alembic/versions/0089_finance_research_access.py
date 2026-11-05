@@ -4,16 +4,16 @@ Only new tables are created. No existing user, access entry or record changes.
 Undo by reverting application code, then downgrading; dropping these tables ends
 research access and loses its password hashes and sessions, not source records.
 
-Revision ID: 0088_finance_research_access
-Revises: 0087_identity_name_summary
+Revision ID: 0089_finance_research_access
+Revises: 0088_finance_word_spelling
 """
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0088_finance_research_access"
-down_revision = "0087_identity_name_summary"
+revision = "0089_finance_research_access"
+down_revision = "0088_finance_word_spelling"
 branch_labels = None
 depends_on = None
 

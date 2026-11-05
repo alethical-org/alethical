@@ -18,7 +18,10 @@ from alethical.api.services import (
     committee_finance,
     identity_confirmations as identities,
 )
-from alethical.api.services.campaign_finance_search import name_contains
+from alethical.api.services.finance_name_matching import (
+    configure_discovery,
+    indexed_discovery_match,
+)
 from alethical.db import models as m
 from alethical.pipeline import campaign_finance_reader as reader
 
@@ -147,6 +150,8 @@ def directory(
     if min_amount is not None and max_amount is not None and min_amount > max_amount:
         raise ValueError("Minimum is more than maximum")
     committee_finance.pin_to_one_view(db)
+    if query.strip():
+        configure_discovery(db)
     base = {
         "state": "unavailable",
         "rows": [],
@@ -223,7 +228,7 @@ def directory(
     base["payment_types"] = sorted(value for value in types or [] if value is not None)
     where = []
     if query.strip():
-        where.append(name_contains(rows.c.name, query.strip()))
+        where.append(indexed_discovery_match(rows.c.name, query.strip()))
     if year is not None:
         where.append(rows.c.year == year)
     if payment_type is not None:

@@ -355,17 +355,15 @@ figure is ever added across committees or members.
   1 exact printed spelling, as a payee (campaign spending and outside spending listed
   separately, never added together), a donor or an employer, read from Finance's own
   `/finance/payments-under-name`, 200 at a time with the server's count of every record in
-  scope. Each record shows its date, amount, committee, "Confirmed as {identity}" when its own
-  fingerprint is confirmed, and source evidence (the saved source, its copy, the row, the
+  scope. Strong full-name spelling variants load automatically after the exact spelling,
+  each under its own original-spelling heading and count. Each record shows its date, amount,
+  committee and source evidence (the saved source, its copy, the row, the
   employer and ZIP as filed where held, and the whole source row as SOURCE TEXT, 1 "label:
   value" line per column in the file's order, a date as the page prints dates, an amount with
   2 decimals ("1250.50") and a blank cell as "Not given"; the Board's file is linked only when no excerpt is held). A file our copy
   cannot read shows "We could not read this part of our records just now" in its section,
   never the failure line. Each committee link opens the tab
-  holding that record's kind, the record's own filing year and the printed name. A card lists
-  every identity whose confirmations cover records of the spelling, each "Confirmed for {k} of
-  {n} records" over the selected year and filer, with its reference where one is held, or "No
-  confirmed identity for this spelling". An address naming a filer and a file (Organization's
+  holding that record's kind, the record's own filing year and the printed name. Browsing shows no identity-confirmation card or status. An address naming a filer and a file (Organization's
   "View payments") shows only that file and that filer's records, counted on the server, under
   "Showing records filed by {committee}, {file}" with Clear all. Later pages are read from the
   same copy of the Board's file; if the file has changed, the page says "The Board’s file
@@ -374,21 +372,20 @@ figure is ever added across committees or members.
   failure line and Try again. The address keeps the spelling exactly as printed; a spelling
   with spaces around it prints in quotes (“ Target ”), on this page and on Donors by employer
   and Vendors and payees. "Employer as filed" in the source evidence opens that spelling on
-  Donors by employer. Similar donor, payee or employer names lists other exact printed
-  spellings in the same role and filer/file scope, 3 at a time with Show more. These
-  spellings come from all held years in that scope; each row's record and confirmed-identity
-  counts use the selected year, including 0. No amounts or shared identity are inferred.
-  Links preserve the filters and the starting name's return path. A different source copy
+  Donors by employer. Similar donor, payee or employer names lists remaining spellings in the same role and
+  filer/file scope, closest first with alphabetical ties, 1 initially then Show more.
+  Strong spellings already displayed in main results are excluded before paging. Candidates
+  span held years; each count uses the selected year, including 0. No confirmation status,
+  amount or shared identity is inferred. Links preserve the filters and the starting name's return path. A different source copy
   is named beside the card; a matching copy uses the page's source information. A recognized
   file filter incompatible with the role gives an empty scope with Clear all, never an
   unfiltered list. Opened with no earlier page, it returns to Campaign money.
 - **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
   spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
-  with its donor names and any confirmed records, and for the chosen spelling the donors who
-  printed it, each donor's payment records listed apart ("{n} payment records") with "Employer
+  with its donor-name count. The chosen spelling and strong employer variants load together,
+  each donor shown once with payment records listed apart ("{n} payment records") with "Employer
   name as printed" on every row. Spellings kept after a failed new search name their own
-  search ("{n} spellings matching “{words}”"); a confirmation check that could not be read
-  offers Try again.
+  search ("{n} spellings matching “{words}”"); a failed read offers Try again.
   On a computer the list stays beside the chosen spelling; on a tablet or phone the spelling
   opens on its own with "Back to Employer spellings". Later donors and payments come from the
   same copy of the Board's file; if it has changed, "The Board’s file changed. Reload the
@@ -597,12 +594,16 @@ one names its exact saved version and page.
   held. Unplaced collection failures remain under Year unavailable. Unique contents are
   never summed across years. Sources and updates shows the latest check date. Counts are
   files, never ads or money.
-- **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
-  each marked Checked on its own agency-name check date in Minnesota time, Checked when
+- **Printed agency name (`/media-buys/agencies/:name`)**: files under the exact spelling and
+  strong spelling variants, exact first then A–Z, with each group's own count. A file/version
+  appears once under its first matching spelling and lists others as “Also printed as”.
+  Each file is marked Checked on its own agency-name check date in Minnesota time, Checked when
   no unique date is held, or Machine-read · Not checked. Addresses checked for it have their
   quoted text, date and View evidence at the exact version and page. Separate campaign
   and outside-spending payment searches under the name do not prove a file was paid. Similar agency names
-  lists other exact held spellings, 3 at a time with Show more, with file and station counts.
+  lists other exact held spellings, 1 initially with Show more, with file and station counts.
+  Spellings leave this list only when their file groups are displayed; loading or failed
+  groups keep their comparison links.
   A row says Checked on a date only when every represented file has a standing check
   on that same Minnesota day. Mixed or missing dates keep Checked; an unchecked file makes
   the row Not checked. Similar spelling establishes no shared identity or address. During a

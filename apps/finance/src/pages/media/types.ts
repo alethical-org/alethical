@@ -144,11 +144,16 @@ export interface AddressEvidence {
   role?: string | null;
 }
 export interface Agency {
+  version?: string | null;
   key: string;
   name: string;
   unchecked: boolean;
   groups: { station: string; year: number | null; files: FileRow[] }[];
-  addresses: { address: string; role?: string | null; evidence: AddressEvidence[] }[];
+  addresses: {
+    address: string;
+    role?: string | null;
+    evidence: AddressEvidence[];
+  }[];
 }
 export interface Counts {
   station_files_held: number;
@@ -178,7 +183,10 @@ export interface Station extends Source {
 export interface QueueRow extends FileRow {
   saved_at: string;
   suggestion_count: number;
-  reasons: Array<{ kind: 'agency_checked_elsewhere' | 'folder_committee_checked'; label: string }>;
+  reasons: Array<{
+    kind: 'agency_checked_elsewhere' | 'folder_committee_checked';
+    label: string;
+  }>;
 }
 export interface Queue {
   version?: string;
@@ -218,10 +226,18 @@ export interface TargetPreview {
   source_date?: string | null;
 }
 export interface Connected {
-  committee?: { name: string; office: string | null; district: string | null } | null;
+  committee?: {
+    name: string;
+    office: string | null;
+    district: string | null;
+  } | null;
   agency_key: string | null;
   exact_name_count: number;
   files: FileRow[];
   total: number;
-  groups: { label: string; kind?: 'committee' | 'named' | null; files: FileRow[] }[];
+  groups: {
+    label: string;
+    kind?: 'committee' | 'named' | null;
+    files: FileRow[];
+  }[];
 }

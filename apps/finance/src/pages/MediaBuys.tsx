@@ -45,7 +45,7 @@ const NOTES: Record<Tab, string> = {
   folders:
     'A folder checked as relating to a committee does not establish the same link for each file inside it',
   agencies:
-    'Agency names come from checked facts or machine-read text. Machine-read names are marked Not checked and may contain reading errors. Each spelling is kept separate.',
+    'Agency names come from checked facts or machine-read text. Machine-read names are marked Not checked and may contain reading errors.',
   stations: 'Counts are held files and folders, not ads or spend',
   years: 'Counts are held files and folders, not ads or spend',
 };
@@ -208,7 +208,13 @@ export function MediaBuys() {
               count: data?.tab_counts?.[item.value]?.toLocaleString('en-US'),
             }))}
             onChange={(value) =>
-              setState({ tab: value, page: '1', station: '', year: '', category: '' })
+              setState({
+                tab: value,
+                page: '1',
+                station: '',
+                year: '',
+                category: '',
+              })
             }
           />
           {INTRO[tab] && <p className="mb-tab-intro">{INTRO[tab]}</p>}
@@ -231,7 +237,10 @@ export function MediaBuys() {
                 value={state.year}
                 options={[
                   { value: '', label: 'All years' },
-                  ...(data?.years ?? []).map((y) => ({ value: String(y), label: String(y) })),
+                  ...(data?.years ?? []).map((y) => ({
+                    value: String(y),
+                    label: String(y),
+                  })),
                 ]}
                 onChange={(year) => setState({ year, page: '1' })}
               />
@@ -240,7 +249,10 @@ export function MediaBuys() {
                 value={state.category}
                 options={[
                   { value: '', label: 'All categories' },
-                  ...(data?.categories ?? []).map((c) => ({ value: c, label: c })),
+                  ...(data?.categories ?? []).map((c) => ({
+                    value: c,
+                    label: c,
+                  })),
                 ]}
                 onChange={(category) => setState({ category, page: '1' })}
               />

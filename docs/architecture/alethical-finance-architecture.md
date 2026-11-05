@@ -106,15 +106,17 @@ are distinct and several lobbyist records are 1 flag. A link that stops validati
 leaves the note as it leaves the count; nothing is parsed from free text.
 
 `GET /api/v1/finance/people` pages held candidacies, public person records and
-legislative records as separate kinds, even when their names match. Literal name
-search, stable paging and whole-filter counts apply to every kind. Search also
+legislative records as separate kinds, even when their names match. Finance name discovery
+includes likely spellings without combining identities; stable paging and whole-filter
+counts apply to every kind. Search also
 matches a candidacy's held voting-area text and a legislative service period's district;
 no district is inferred for a bare public-person name. A complete query such as
 `District 32A`, `House District 32A` or `Senate District 12` matches the exact held
 code after case/space normalization, not a substring of another district. An explicit
 chamber must match that same service period. A candidacy must hold that chamber in its
 own voting-area label to match an explicit-chamber query; an unqualified label cannot
-borrow it from another record. Other text keeps literal name/voting-area search. Candidate filters use the election
+borrow it from another record. Other text includes likely name spellings while voting-area
+matching stays literal. Candidate filters use the election
 year and date; legislative filters use current or former service evidence.
 Exact `party` filters read the candidacy's party or a legislative period's party;
 `office` selects candidacies by their held office text, and `chamber` selects legislative
@@ -229,8 +231,10 @@ held produce an unavailable state, never a zero. A requested release that change
   availability check. Statement evidence stays attached to the contribution rows.
 - `/employers?q=...` searches exact printed employer spellings with at least 3 characters,
   with donor-name and record counts, plus current organization-confirmed record coverage.
-  `/employers/donors?name=...` pages donors under one exact employer spelling; unnamed
-  records stay individual. `/employers/donor-payments` pages each group's source rows.
+  `/employers/donors?name=...&include_spellings=true` pages donor groups across the chosen
+  employer spelling and strong variants. Each donor name appears once; unnamed records stay
+  individual. The exact-only API default remains available. `spellings` lists the included
+  names; `donor_name_count` excludes unnamed rows. `/employers/donor-payments` pages each group's source rows.
   Loans remain loans, missing amounts remain null, and nothing is summed as employer money.
 - `/payments-under-name?name=&role=` (`alethical/api/services/finance_payments_under_name.py`)
   serves alethical.com's own payments under 1 exact printed name, unchanged: rows, order,
@@ -254,6 +258,25 @@ held produce an unavailable state, never a zero. A requested release that change
   contributor, vendor, independent vendor and employer roles, including past-last pages.
   Their source files and meanings stay separate; the count does not turn a printed name
   into an identity or its rows into a money total.
+
+Finance browsing adds `/name-spellings` to find strong complete-name variants, with a
+release pin and the same role/filer/dataset boundaries. It never writes identities or
+changes `/payments-under-name`'s exact source-row reader. Main pages load each spelling
+separately, retain exact rows during variant loading/failure, and show no combined money
+total or confirmation status. Secondary `/similar-names` accepts repeated `exclude_name`
+values for groups already displayed from the same source copy, before closest-first
+paging; loading or failed groups remain comparison links. Agency comparisons use
+`exclude_key` with the station-state version. Agency `/spellings` uses the station-state
+version pin; its file/version deduplication retains every other source spelling. Existing
+identity confirmation, merge, split, withdrawal and TV-file checking tools remain shared
+and available to listed accounts.
+
+Finance-only discovery routes opt into the bounded word-spelling matcher, installed by
+migration `0088_finance_word_spelling` before the new reader deploys. Public routes
+retain their previous semantics. Search suggestions have direct matches first; explicit
+sorts govern all matches on directory and payment lists. Numeric identifiers and district
+queries stay literal. The full approved behavior and checks are recorded in
+[Finance spelling results](../design/finance-name-spellings-build.md).
 
 Identity record pages also carry source address/copy date and display-only filer name,
 number, link availability and printed transaction types. These fields never change a

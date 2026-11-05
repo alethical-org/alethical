@@ -18,7 +18,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.finance_access import require_finance_access
 from alethical.api.services.finance_access import FinanceAccount
-from alethical.api.routers.public import _payment_page_payload, campaign_finance_search
+from alethical.api.routers.public import _payment_page_payload
+from alethical.api.routers.finance_name_discovery import (
+    router as name_discovery_router,
+    search_data,
+)
 from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
@@ -38,6 +42,7 @@ from alethical.db.session import get_db
 
 router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_access)])
 router.include_router(money_router)
+router.include_router(name_discovery_router)
 
 
 @router.get("/connections", response_model=dict)
@@ -190,14 +195,13 @@ def suggestions(
 ) -> dict:
     """Grouped suggestions for 1 typed query, in 1 request.
 
-    The groups are alethical.com's own answers, not a copy: the money search
-    (``/campaign-finance/search``: legislators, committees, the 3 printed-name
-    groups, lobbyists and principals, exactly as typed and from 3 characters) and
-    the bill search (``/search``). ``request_id`` comes back unchanged, so the app
-    drops a reply that arrives after a newer one.
+    Money groups use Finance's own spelling-tolerant discovery: each official
+    result keeps its identifier and each printed name keeps its source records.
+    Bill search (``/search``) is unchanged. ``request_id`` comes back unchanged,
+    so the app drops a reply that arrives after a newer one.
     """
     typed = q.strip()
-    money = campaign_finance_search(q=typed, limit=limit, db=db).data
+    money = search_data(db, typed, limit)
     # The bill search answers even an empty query with whatever it holds, so
     # Finance asks it only from the money search's own minimum length: a stray
     # space never suggests unrelated bills.
