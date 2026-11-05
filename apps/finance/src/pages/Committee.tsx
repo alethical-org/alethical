@@ -571,23 +571,25 @@ export function Committee({ match }: { match: RouteMatch }) {
                 <h2 id="cmt-money-h" className="f-section-title">
                   Campaign money
                 </h2>
-                <div role="group" aria-label="Year" className="cmt-years">
-                  <span className="cmt-years-label" aria-hidden="true">
+                <div role="group" aria-label="Year" className="f-labeled-chips cmt-years">
+                  <span className="f-labeled-chips-label" aria-hidden="true">
                     Year
                   </span>
-                  {years.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      aria-pressed={value === year}
-                      className="f-chip"
-                      onClick={() =>
-                        value !== year && setAddress({ year: String(value), report: '' })
-                      }
-                    >
-                      {value}
-                    </button>
-                  ))}
+                  <div className="f-chips">
+                    {years.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={value === year}
+                        className="f-chip"
+                        onClick={() =>
+                          value !== year && setAddress({ year: String(value), report: '' })
+                        }
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

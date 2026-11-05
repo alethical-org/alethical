@@ -230,16 +230,8 @@ dd[data-missing] {
   justify-content: space-between;
   gap: 10px 16px;
 }
-.cmt-years {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+.cmt-years .f-chips {
   gap: 6px;
-}
-.cmt-years-label {
-  margin-right: 4px;
-  font-size: 13px;
-  color: var(--secondary);
 }
 .cmt-years .f-chip {
   padding: 0 12px;

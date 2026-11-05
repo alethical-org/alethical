@@ -233,8 +233,8 @@ export function CommitteeMembers({ match }: { match: RouteMatch }) {
             <h2 id="members-h" className="f-section-title">
               Members’ campaign accounts
             </h2>
-            <div className="cmm-years">
-              <span className="cmm-years-label" aria-hidden="true">
+            <div className="f-labeled-chips cmm-years">
+              <span className="f-labeled-chips-label" aria-hidden="true">
                 Year
               </span>
               <Chips

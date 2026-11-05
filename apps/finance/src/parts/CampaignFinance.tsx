@@ -407,19 +407,23 @@ function AccountCard({
           </Link>
         )}
       </div>
-      <div role="group" aria-label={`Year for ${name}`} className="cf-years">
-        <span className="cf-years-label">Year</span>
-        {chips.map((option) => (
-          <button
-            key={option}
-            type="button"
-            aria-pressed={option === year}
-            className="f-chip cf-year"
-            onClick={() => option !== year && onYear(option)}
-          >
-            {option}
-          </button>
-        ))}
+      <div role="group" aria-label={`Year for ${name}`} className="f-labeled-chips cf-years">
+        <span className="f-labeled-chips-label" aria-hidden="true">
+          Year
+        </span>
+        <div className="f-chips">
+          {chips.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={option === year}
+              className="f-chip cf-year"
+              onClick={() => option !== year && onYear(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
       </div>
       {held && read.loading && <LoadingRows />}
       {held && (read.failed || read.notFound) && (

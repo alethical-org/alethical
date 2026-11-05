@@ -518,17 +518,8 @@ a.pp-row:active,
   min-height: 36px;
   font-size: 14px;
 }
-.cf-years {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.cf-years-label {
-  margin-right: 2px;
-  font-size: 13px;
+.cf-years .f-labeled-chips-label {
   font-weight: 600;
-  color: var(--secondary);
 }
 .cf-year {
   font-weight: 700;
