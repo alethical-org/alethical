@@ -54,7 +54,7 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   signed-in Finance page; anything else, another site included, returns to Finance Home at
   `/home` (to `/` while the screens are off).
 - **`/sign-in`.** Google, or a code emailed to the address. Ordinary accounts have no password and no way
-  to create an account. Shared research accounts use the separate Investor login option. Each way is shown only once it works: Google once Supabase accepts
+  to create an account. Shared research accounts use the separate Investor access option. Each way is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
@@ -72,7 +72,7 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
 The sign-in heading is **Sign in**, below the Alethical Finance wordmark. The block
 starts 12% of the viewport height from the top, bounded between 64px and 112px,
 and remains in normal page flow so short screens and keyboards can scroll it.
-When ordinary sign-in choices are available, **Investor login** has 16px of extra
+When ordinary sign-in choices are available, **Investor access** has 16px of extra
 space above it to separate the 2 access paths. It keeps the same secondary button
 treatment as the email choice; no new color or priority is implied. With signed-in
 screens enabled, it opens one **Access code** field using the existing sign-in layout; no email is

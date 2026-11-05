@@ -132,7 +132,7 @@ async function type(id: string, value: string) {
 }
 async function passwordForm() {
   await render('/sign-in?next=%2Fmedia-buys');
-  await act(async () => button('Investor login').click());
+  await act(async () => button('Investor access').click());
   expect(container.querySelector('#email')).toBeNull();
   expect(text()).toContain('Access code');
   await type('#password', 'demo-test-password');

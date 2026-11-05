@@ -243,7 +243,7 @@ export function SignIn() {
                 goTo('password');
               }}
             >
-              Investor login
+              Investor access
             </button>
           )}
           {!googleSignIn && !emailSignIn && !screens && (

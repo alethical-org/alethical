@@ -108,7 +108,7 @@ describe('the Finance shell', () => {
     const text = container.textContent ?? '';
     expect(text).toContain('Continue with Google');
     expect(text).toContain('Sign in with email');
-    expect(text).toContain('Investor login');
+    expect(text).toContain('Investor access');
     expect(text).not.toMatch(/create account/i);
     expect(container.querySelector('input[type="password"]')).toBeNull();
   });
@@ -127,7 +127,7 @@ describe('the Finance shell', () => {
 
   it('keeps shared-password access when ordinary sign-in methods are off', async () => {
     await renderAt('/sign-in', fakeSupabase(null), 200, false, false);
-    expect(container.textContent).toContain('Investor login');
+    expect(container.textContent).toContain('Investor access');
     expect(container.querySelectorAll('button')).toHaveLength(1);
   });
 
