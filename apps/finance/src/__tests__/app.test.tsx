@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App';
+import { rememberCodeRequest } from '../auth/codeRequest';
 import { SessionProvider } from '../auth/session';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -119,10 +120,12 @@ describe('the Finance shell', () => {
     expect(container.textContent).toContain('Sign in with email');
   });
 
-  it('offers no email sign-in until its server route ships', async () => {
+  it('hides email sign-in and its saved challenge when email access is off', async () => {
+    rememberCodeRequest('reader@example.test', 'previous-challenge');
     await renderAt('/sign-in', fakeSupabase(null), 200, true, false);
     expect(container.textContent).toContain('Continue with Google');
     expect(container.textContent).not.toContain('Sign in with email');
+    expect(container.querySelector('#code')).toBeNull();
   });
 
   it('keeps shared-password access when ordinary sign-in methods are off', async () => {

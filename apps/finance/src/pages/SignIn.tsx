@@ -33,7 +33,9 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
   const next = safeReturnPath(location.searchParams.get('next'), screens);
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
   // This tab's newest code request; the code is proved with its challenge.
-  const [request, setRequest] = useState(readCodeRequest);
+  const [request, setRequest] = useState(() =>
+    emailSignIn && !investor ? readCodeRequest() : null,
+  );
   const [step, setStep] = useState<Step>(investor ? 'password' : request ? 'code' : 'options');
   const [email, setEmail] = useState(request?.email ?? '');
   const [code, setCode] = useState('');

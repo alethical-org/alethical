@@ -55,8 +55,10 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   address so sign-in returns there. A return address is kept only when it is a built
   signed-in Finance page; anything else, another site included, returns to Finance Home at
   `/home` (to `/` while the screens are off).
-- **`/sign-in`.** Google, or a code emailed to the address. Ordinary accounts have no password and no way
-  to create an account. Shared research accounts enter through the landing page’s Investor access button. Each way is shown only once it works: Google once Supabase accepts
+- **`/sign-in`.** Google for listed team accounts during the private beta. Ordinary accounts
+  have no Finance password or signup path. Shared research accounts enter through the landing
+  page’s Investor access button. The emailed-code option stays off until the rollout. Each way
+  is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
