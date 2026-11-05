@@ -585,3 +585,74 @@ describe('the return page', () => {
     expect(takeReturnPath(true)).toBe('/home');
   });
 });
+
+describe('the record family order', () => {
+  const labels = (selector: string) =>
+    [...container.querySelectorAll(selector)].map((element) => element.textContent);
+
+  function setWidth(width: number) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches:
+        query === '(max-width: 767px)'
+          ? width < 768
+          : query === '(min-width: 1100px)' && width >= 1100,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+  }
+
+  it('puts Media buys directly after Money in the header and on the Home cards', async () => {
+    await render('/home', fakeSupabase(session('token-1')).client, answering(200));
+    expect(labels('.f-nav-families .f-nav-link')).toEqual([
+      'Money',
+      'Media buys',
+      'Lobbying',
+      'People',
+      'Legislation',
+    ]);
+    expect(labels('.f-home-family-title')).toEqual([
+      'Campaign money',
+      'Media buys',
+      'Lobbying',
+      'People',
+      'Legislation',
+    ]);
+    // The browse links and the sources keep their own order.
+    expect(labels('.f-home-entrance span')).toEqual([
+      'Legislators',
+      'Candidates',
+      'Lobbyists',
+      'Committees and funds',
+      'Party units',
+      'Vendors and payees',
+      'Lobbying organizations',
+    ]);
+    expect(labels('.f-sources-row dt')).toEqual([
+      'Minnesota Campaign Finance and Public Disclosure Board',
+      'Minnesota Secretary of State',
+      'Minnesota Legislature',
+      'KSTP-TV, KARE and KMSP-TV',
+    ]);
+    expect(labels('.f-sources-row dd span')).toEqual([
+      'Campaign money · Payment files',
+      'Lobbying · Lobbyist list',
+      'People · Candidate records',
+      'Legislation · Bills',
+      'Media buys · TV station files',
+    ]);
+  });
+
+  it('lists the same order in the phone menu', async () => {
+    setWidth(375);
+    await render('/home', fakeSupabase(session('token-1')).client, answering(200));
+    const menu = container.querySelector<HTMLButtonElement>('button[aria-label="Menu"]')!;
+    await act(async () => menu.click());
+    expect(labels('.f-nav-phone-menu a.f-nav-phone-link')).toEqual([
+      'Money',
+      'Media buys',
+      'Lobbying',
+      'People',
+      'Legislation',
+    ]);
+  });
+});

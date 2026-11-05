@@ -96,9 +96,9 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   last answer, and a refusal replaces the page at once. Every request gives up after 10
   seconds and offers Try again.
 - **Listed account:** the dark navigation bar from the "Finance Nav" drawing: the
-  ALETHICAL | Finance lockup (a link to Finance Home), the record families (Money, Lobbying,
-  People, Legislation, Media buys; a family whose page is not built yet is left out, never
-  linked to a missing page), a search field with suggestions, and the Account menu with the
+  ALETHICAL | Finance lockup (a link to Finance Home), the record families in this order:
+  Money, Media buys, Lobbying, People, Legislation (the phone Menu lists the same order; a
+  family whose page is not built yet is left out, never linked to a missing page), a search field with suggestions, and the Account menu with the
   signed-in address and Sign out. The current family is underlined. On a tablet the search
   field opens as a row under the bar from a search button; on a phone the families, the
   signed-in address and Sign out sit in a Menu. Escape or a press outside closes each menu.
@@ -113,11 +113,14 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
 - **Finance Home (`/home`)**: "Research public records" with the search field, and the 1
   header-corner action "Explore money connections" (a filled button beside the eyebrow and
-  heading where they share a line, under the heading where they do not); under "Browse records", entrances into each built directory (Legislators,
+  heading where they share a line, under the heading where they do not); under "Browse records", entrances into each built directory in this order (Legislators,
   Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
-  organizations), each shown once its page is built; a card per built record family; and
-  "Sources and updates" naming each family's source with its copy or update date, read from
-  the landing counts, below the first screen. Confirm identities, Check TV station files and
+  organizations), each shown once its page is built; a card per built record family in the
+  header's order (Campaign money, Media buys, Lobbying, People, Legislation); and "Sources
+  and updates" naming each family's source with its copy or update date, read from the
+  landing counts, below the first screen. Its sources keep their own order: the Campaign
+  Finance and Public Disclosure Board (Campaign money, Lobbying), the Secretary of State
+  (People), the Legislature (Legislation), then the TV stations (Media buys). Confirm identities, Check TV station files and
   Donors by employer are not entered from Home.
 - **Not listed:** "This account doesn’t have access to Alethical Finance", the signed-in
   address, Switch account and Contact us (an email to ask@alethical.com). The page never
@@ -134,8 +137,8 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
 - A link to a record carries the earlier page's own address (`?from=`), so the record's
   "Back to {page}" link reopens exactly that page, its tab, year and search included; up to
   3 earlier pages are kept. A link back to Finance Home names it by its heading, "Back to
-  Research public records". The 5 destinations the top bar reaches (Legislation, People,
-  Campaign money, Lobbying, Media buys) carry no return link. In-page choices (tab, year,
+  Research public records". The 5 destinations the top bar reaches (Campaign money,
+  Media buys, Lobbying, People, Legislation) carry no return link. In-page choices (tab, year,
   sort, page, search) are kept in the address, so a copied link or a new tab opens the same
   view.
 

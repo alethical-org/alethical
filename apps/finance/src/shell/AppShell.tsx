@@ -7,14 +7,15 @@ import { hrefFor, isBuilt, type NavSection, type RouteName } from '../routes';
 import { useSuggestionBox } from '../search/SuggestionBox';
 import { useBand } from '../ui/band';
 
-/** The record families, in the drawing's order and words (Finance Nav). A family
- * whose page is not built yet is left out, never linked to a missing page. */
+/** The record families, in the approved order (Media buys directly after Money) and
+ * the drawing's words (Finance Nav). A family whose page is not built yet is left
+ * out, never linked to a missing page. */
 const FAMILIES: ReadonlyArray<{ section: NavSection; label: string; route: RouteName }> = [
   { section: 'money', label: 'Money', route: 'campaign-money' },
+  { section: 'media-buys', label: 'Media buys', route: 'media-buys' },
   { section: 'lobbying', label: 'Lobbying', route: 'lobbying' },
   { section: 'people', label: 'People', route: 'people' },
   { section: 'legislation', label: 'Legislation', route: 'legislation' },
-  { section: 'media-buys', label: 'Media buys', route: 'media-buys' },
 ];
 
 export function navItems() {
