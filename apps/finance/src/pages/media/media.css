@@ -388,6 +388,27 @@
   border-radius: 10px;
   overflow: hidden;
 }
+.mb-spelling-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 16px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(20, 27, 34, 0.12);
+}
+.mb-spelling-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mb-also-printed {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+}
 .mb-table-row {
   display: grid;
   grid-template-columns: var(--cols);

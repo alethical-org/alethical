@@ -86,7 +86,7 @@ export function listPath(
   sort = '',
 ): string {
   const order = sortFromParam(tab, sort);
-  return apiPath(['lobbying', tab], {
+  return apiPath(['finance', 'lobbying', tab], {
     q: query || null,
     sort: tab === 'lobbyists' ? order : order === 'name' ? null : order,
     year: year || null,
@@ -97,7 +97,10 @@ export function listPath(
 
 /** The whole directory's count for a tab, unfiltered. */
 export function countPath(tab: DirectoryTab): string {
-  return apiPath(['lobbying', tab], { sort: tab === 'lobbyists' ? 'name' : null, limit: 1 });
+  return apiPath(['finance', 'lobbying', tab], {
+    sort: tab === 'lobbyists' ? 'name' : null,
+    limit: 1,
+  });
 }
 
 export function pageCount(total: number | null): number {
@@ -389,8 +392,16 @@ export function Lobbying(_props: { match: RouteMatch }) {
                 label="Directory"
                 value={tab}
                 tabs={[
-                  { value: 'lobbyists', label: 'Lobbyists', count: wholeCount('lobbyists') },
-                  { value: 'principals', label: 'Principals', count: wholeCount('principals') },
+                  {
+                    value: 'lobbyists',
+                    label: 'Lobbyists',
+                    count: wholeCount('lobbyists'),
+                  },
+                  {
+                    value: 'principals',
+                    label: 'Principals',
+                    count: wholeCount('principals'),
+                  },
                 ]}
                 onChange={openTab}
               />
@@ -408,7 +419,10 @@ export function Lobbying(_props: { match: RouteMatch }) {
                     label: String(option),
                   }))}
                   onChange={(next) =>
-                    setAddress({ year: next === defaultYear ? '' : next, page: '1' })
+                    setAddress({
+                      year: next === defaultYear ? '' : next,
+                      page: '1',
+                    })
                   }
                 />
               )}
@@ -417,7 +431,10 @@ export function Lobbying(_props: { match: RouteMatch }) {
                 value={sort}
                 options={SORTS[tab]}
                 onChange={(next) =>
-                  setAddress({ sort: next === defaultSort ? '' : next, page: '1' })
+                  setAddress({
+                    sort: next === defaultSort ? '' : next,
+                    page: '1',
+                  })
                 }
               />
               {filtered && (
@@ -539,7 +556,9 @@ export function Lobbying(_props: { match: RouteMatch }) {
                                     hrefFor(
                                       'principal',
                                       { id: String(row.entity_id) },
-                                      { year: rowYear ? String(rowYear) : null },
+                                      {
+                                        year: rowYear ? String(rowYear) : null,
+                                      },
                                     ),
                                     here,
                                   )

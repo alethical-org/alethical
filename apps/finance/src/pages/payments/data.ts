@@ -111,7 +111,12 @@ export interface NamePage<T> {
   filer?: string | null;
   state: NameState;
   payments: T[];
-  page: { limit: number; offset: number; has_more: boolean; total_payments: number | null };
+  page: {
+    limit: number;
+    offset: number;
+    has_more: boolean;
+    total_payments: number | null;
+  };
   linkable_registration_numbers: string[];
   source_url: string | null;
   release_id: string;
@@ -180,7 +185,7 @@ function pagePath(
     ...query,
     limit: NAME_PAGE,
     offset: offset || null,
-    release_id: releaseId,
+    release_id: releaseId ?? query.release_id,
   });
 }
 
@@ -212,15 +217,20 @@ function fromPage<T>(page: NamePage<T>): NamePayments<T> {
 export function useNamePayments<T>(
   query: Record<string, string | number | null> | null,
 ): NamePaymentsRead<T> {
-  const { apiBaseUrl, accessToken } = useFinanceSession();
+  const { apiBaseUrl, accessToken, retry: recheckAccess } = useFinanceSession();
   const first = query ? pagePath(query, 0) : null;
-  const key = first ? `${accessToken}|${first}` : null;
+  const privacyScope = `${apiBaseUrl}|${accessToken}`;
+  const key = first ? `${privacyScope}|${first}` : null;
   const [answer, setAnswer] = useState<{
     key: string;
     value: NamePayments<T> | null;
     failed: boolean;
+    denied?: boolean;
   } | null>(null);
-  const [last, setLast] = useState<NamePayments<T> | null>(null);
+  const [last, setLast] = useState<{
+    scope: string;
+    value: NamePayments<T>;
+  } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -244,9 +254,14 @@ export function useNamePayments<T>(
         if (next.state === 'ok') {
           const value = fromPage(next.data);
           setAnswer({ key, value, failed: false });
-          setLast(value);
+          setLast({ scope: privacyScope, value });
         } else {
-          setAnswer({ key, value: null, failed: true });
+          const denied = next.state === 'failed' && next.accessDenied;
+          if (denied) {
+            setLast(null);
+            recheckAccess?.();
+          }
+          setAnswer({ key, value: null, failed: true, denied });
         }
       },
     );
@@ -286,6 +301,12 @@ export function useNamePayments<T>(
     ).then((next) => {
       if (request !== latest.current) return;
       setLoadingMore(false);
+      if (next.state === 'failed' && next.accessDenied) {
+        setLast(null);
+        setAnswer({ key, value: null, failed: true, denied: true });
+        recheckAccess?.();
+        return;
+      }
       if (status === 409) {
         setChanged(true);
         return;
@@ -305,7 +326,7 @@ export function useNamePayments<T>(
         linkable: new Set([...own.linkable, ...(next.data.linkable_registration_numbers ?? [])]),
       };
       setAnswer({ key, value, failed: false });
-      setLast(value);
+      setLast({ scope: privacyScope, value });
     });
     // `query` is rebuilt each render; `key` carries its meaning.
   }, [apiBaseUrl, accessToken, key, own, loadingMore, changed]);
@@ -314,7 +335,10 @@ export function useNamePayments<T>(
   // A failed view keeps the last results on screen; the page labels them with their
   // own name and year (settled wording row 60), never as the new view.
   const failed = current?.failed === true && !pending;
-  const shown = key === null ? null : (own ?? last);
+  const shown =
+    key === null || current?.denied
+      ? null
+      : (own ?? (last?.scope === privacyScope ? last.value : null));
   return {
     data: shown,
     loading: key !== null && shown === null && !failed,
@@ -327,6 +351,28 @@ export function useNamePayments<T>(
     retry,
     more,
   };
+}
+
+/** Strong spelling candidates are browsing alternatives, never identity claims. */
+export interface NameSpellings {
+  name: string;
+  role: 'donor' | 'payee' | 'employer';
+  year: number | null;
+  filer: string | null;
+  dataset: string | null;
+  names: string[];
+  release_id: string;
+  version: string;
+}
+
+export function useNameSpellings(query: Record<string, string | number | null> | null) {
+  const read = useRead<NameSpellings>(
+    query ? apiPath(['finance', 'name-spellings'], query) : null,
+    {
+      keepPrevious: true,
+    },
+  );
+  return read;
 }
 
 // --- Identity confirmations ---------------------------------------------------------

@@ -6,6 +6,7 @@ import { Link, useLocation } from '../router';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { Chips, Refused, type Option } from '../ui/controls';
+import { nameDiscoveryRank } from '../ui/nameDiscovery';
 import { BackLink, LoadingLine, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   billCode,
@@ -76,13 +77,19 @@ export function recordedFilters(records: VoteRecord[]): Option<string>[] {
 
 export function matchingMembers(records: VoteRecord[], recorded: string, query: string) {
   const q = query.trim().toLowerCase();
-  return records.filter(
-    (record) =>
-      (recorded === 'all' || record.vote_value === recorded) &&
-      (!q ||
-        (record.legislator_name ?? '').toLowerCase().includes(q) ||
-        (record.district ?? '').toLowerCase().includes(q)),
-  );
+  return records
+    .filter((record) => recorded === 'all' || record.vote_value === recorded)
+    .map((record, index) => {
+      const district = record.district?.trim().toLowerCase();
+      const rank =
+        !q || (district && (district.includes(q) || `district ${district}`.includes(q)))
+          ? 1
+          : nameDiscoveryRank(record.legislator_name ?? '', q);
+      return { record, index, rank };
+    })
+    .filter(({ rank }) => rank > 0)
+    .sort((left, right) => left.rank - right.rank || left.index - right.index)
+    .map(({ record }) => record);
 }
 
 /** "www.senate.mn" from the roll call's own record address. */
@@ -113,7 +120,10 @@ export function RollCall({ match }: { match: RouteMatch }) {
   const back =
     returnTarget(location.search) ??
     (billId && isBuilt('bill')
-      ? { to: hrefFor('bill', { id: billId }, { tab: 'votes' }), name: 'Bill votes' }
+      ? {
+          to: hrefFor('bill', { id: billId }, { tab: 'votes' }),
+          name: 'Bill votes',
+        }
       : isBuilt('legislation')
         ? { to: hrefFor('legislation'), name: 'Legislation' }
         : null);

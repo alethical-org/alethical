@@ -28,6 +28,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.services.campaign_finance_search import name_contains
+from alethical.api.services.finance_name_matching import discovery_match
 from alethical.db import models as m
 
 PeopleType = Literal["all", "candidates", "legislators", "persons"]
@@ -167,13 +168,13 @@ def directory(
     elif typed:
         candidates = candidates.where(
             or_(
-                name_contains(
+                discovery_match(
                     candidate.public_payload["candidate"]["name"].astext, typed
                 ),
                 name_contains(candidate.public_payload["votingArea"].astext, typed),
             )
         )
-        people = people.where(name_contains(person.name, typed))
+        people = people.where(discovery_match(person.name, typed))
     if party is not None:
         candidates = candidates.where(candidate_party == party)
     if office is not None:
@@ -201,7 +202,7 @@ def directory(
     elif typed:
         period_filters.append(
             or_(
-                name_contains(member.full_name, typed),
+                discovery_match(member.full_name, typed),
                 name_contains(m.District.code, typed),
             )
         )
@@ -222,7 +223,7 @@ def directory(
         members = members.where(
             matching_period
             if district_query
-            else or_(name_contains(member.full_name, typed), matching_period)
+            else or_(discovery_match(member.full_name, typed), matching_period)
         )
     rows = union_all(candidates, people, members).subquery()
     where = []

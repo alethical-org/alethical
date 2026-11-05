@@ -22,7 +22,10 @@ import { matchRoute } from '../routes';
 const API = 'https://api.example.test';
 
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 
 function register(overrides: Partial<CommitteeRegister> = {}): CommitteeRegister {
@@ -43,8 +46,16 @@ function register(overrides: Partial<CommitteeRegister> = {}): CommitteeRegister
     ],
     page: { limit: 50, offset: 0, has_more: false, total: 1 },
     register_total: 1607,
-    by_kind: { candidate_committee: 762, party_unit: 299, political_committee_or_fund: 546 },
-    held_by_kind: { candidate_committee: 762, party_unit: 299, political_committee_or_fund: 546 },
+    by_kind: {
+      candidate_committee: 762,
+      party_unit: 299,
+      political_committee_or_fund: 546,
+    },
+    held_by_kind: {
+      candidate_committee: 762,
+      party_unit: 299,
+      political_committee_or_fund: 546,
+    },
     as_of: '2026-10-28',
     reason: null,
     ...overrides,
@@ -116,7 +127,7 @@ async function settle() {
 }
 
 function registerRequests() {
-  return requests.filter((url) => url.includes('/campaign-finance/committees'));
+  return requests.filter((url) => url.includes('/finance/committees'));
 }
 
 describe('Campaign money directory', () => {
@@ -126,7 +137,12 @@ describe('Campaign money directory', () => {
       json(
         register({
           committees: [
-            { ...base, party: 'DFL', registration_date: '2020-01-02', registration_status: 'open' },
+            {
+              ...base,
+              party: 'DFL',
+              registration_date: '2020-01-02',
+              registration_status: 'open',
+            },
             {
               ...base,
               registration_number: '9',
@@ -251,7 +267,12 @@ describe('Campaign money directory', () => {
               retained: true,
               captured_at: '2024-06-01T15:00:00Z',
             },
-            { ...base, registration_number: '2', name: 'Unknown', registration_status: 'unknown' },
+            {
+              ...base,
+              registration_number: '2',
+              name: 'Unknown',
+              registration_status: 'unknown',
+            },
             {
               ...base,
               registration_number: '3',
@@ -306,7 +327,7 @@ describe('Campaign money directory', () => {
     const text = container.textContent ?? '';
     expect(container.querySelector('h1')?.textContent).toBe('Campaign money');
     expect(registerRequests()[0]).toBe(
-      `${API}/api/v1/campaign-finance/committees?kind=candidate_committee&limit=50&offset=0&status=all`,
+      `${API}/api/v1/finance/committees?kind=candidate_committee&limit=50&offset=0&status=all`,
     );
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
     expect(tabs).toEqual(['Candidate committees762', 'Committees and funds546', 'Party units299']);
@@ -384,7 +405,12 @@ describe('Campaign money directory', () => {
 
   it('honours ?tab=party and ?tab=committees from Finance Home', async () => {
     await render('/money?tab=party&from=%2Fhome', () =>
-      json(register({ committees: [], page: { limit: 50, offset: 0, has_more: false, total: 0 } })),
+      json(
+        register({
+          committees: [],
+          page: { limit: 50, offset: 0, has_more: false, total: 0 },
+        }),
+      ),
     );
     expect(registerRequests()[0]).toContain('kind=party_unit');
     expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain('Party units');
@@ -406,7 +432,11 @@ describe('Campaign money directory', () => {
 
   it('pages on the server and writes the page to the address', async () => {
     await render('/money', () =>
-      json(register({ page: { limit: 50, offset: 0, has_more: true, total: 120 } })),
+      json(
+        register({
+          page: { limit: 50, offset: 0, has_more: true, total: 120 },
+        }),
+      ),
     );
     expect(container.textContent).toContain('Page 1 of 3');
     const next = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Next')!;
@@ -418,7 +448,12 @@ describe('Campaign money directory', () => {
 
   it('shows No matching records with the shared next step', async () => {
     await render('/money?q=zzzz', () =>
-      json(register({ committees: [], page: { limit: 50, offset: 0, has_more: false, total: 0 } })),
+      json(
+        register({
+          committees: [],
+          page: { limit: 50, offset: 0, has_more: false, total: 0 },
+        }),
+      ),
     );
     const text = container.textContent ?? '';
     expect(text).toContain('No matching records');
@@ -524,7 +559,7 @@ describe('Campaign money helpers', () => {
 
   it('builds the server read for a tab, name and page', () => {
     expect(registerPath('committees', 'Example Fund', 2)).toBe(
-      'campaign-finance/committees?kind=political_committee_or_fund&limit=50&offset=50&q=Example+Fund&status=all',
+      'finance/committees?kind=political_committee_or_fund&limit=50&offset=50&q=Example+Fund&status=all',
     );
   });
 

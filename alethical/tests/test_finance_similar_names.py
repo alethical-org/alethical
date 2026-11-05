@@ -24,6 +24,114 @@ from alethical.tests.test_identity_confirmations import (  # noqa: F401
 PATH = "/api/v1/finance/similar-names"
 
 
+def test_automatic_spellings_are_complete_scoped_and_never_identity_claims(
+    finance_api, finance_db, board
+):
+    variants = ["Dantchick, Arthur", "Dantchik, Arthur", "Dantchik, Arthur Mr"]
+    unrelated = [
+        "Arndt, Arthur",
+        "Arthur, Alan",
+        "Davis, Arthur, Jr",
+        "Li, Arthur",
+        "Danchik, Alan",
+        "Danchik, Arthur Jr",
+    ]
+    add_names(finance_db, board, "donor", ["Danchik, Arthur", *variants, *unrelated])
+    response = finance_api.get(
+        "/api/v1/finance/name-spellings",
+        params={"name": "Danchik, Arthur", "role": "donor", "year": 2024},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["names"] == variants
+    assert data["release_id"] == str(board.id)
+    # The secondary comparison page excludes already included names before paging.
+    secondary = read(
+        finance_api,
+        name="Danchik, Arthur",
+        role="donor",
+        exclude_name=variants,
+        release_id=str(board.id),
+        limit=1,
+    )
+    assert secondary["rows"] and secondary["rows"][0]["name"] not in variants
+    # Pending or failed main groups stay reachable; only successful groups exclude.
+    pending = read(finance_api, name="Danchik, Arthur", role="donor", limit=50)
+    assert set(variants) <= {row["name"] for row in pending["rows"]}
+    partial = read(
+        finance_api,
+        name="Danchik, Arthur",
+        role="donor",
+        exclude_name=variants[:1],
+        release_id=str(board.id),
+        limit=1,
+    )
+    remaining = []
+    while True:
+        remaining.extend(row["name"] for row in partial["rows"])
+        assert partial["excluded_names"] == variants[:1]
+        if not partial["has_more"]:
+            break
+        partial = read(
+            finance_api,
+            name="Danchik, Arthur",
+            role="donor",
+            exclude_name=variants[:1],
+            release_id=str(board.id),
+            limit=1,
+            offset=len(remaining),
+            version=partial["version"],
+        )
+    assert variants[0] not in remaining
+    assert set(variants[1:]) <= set(remaining)
+    assert len(remaining) == len(set(remaining))
+    assert not finance_db.scalar(
+        select(func.count()).select_from(m.IdentityConfirmation)
+    )
+    from uuid import uuid4
+
+    changed = finance_api.get(
+        "/api/v1/finance/name-spellings",
+        params={"name": "Danchik, Arthur", "role": "donor", "release_id": str(uuid4())},
+    )
+    assert changed.status_code == 409
+
+
+def test_employer_variant_rows_group_once_with_original_spelling_and_paging(
+    finance_api, finance_db, board
+):
+    variant = "Example Health Assn"
+    add_names(finance_db, board, "employer", [variant, variant])
+    finance_db.connection()
+    base = "/api/v1/finance/employers"
+    exact = finance_api.get(base + "/donors", params={"name": EMPLOYER}).json()["data"]
+    combined = finance_api.get(
+        base + "/donors", params={"name": EMPLOYER, "include_spellings": True}
+    ).json()["data"]
+    assert combined["spellings"] == [EMPLOYER, variant]
+    assert combined["total_payments"] == exact["total_payments"] + 2
+    assert len({row["key"] for row in combined["rows"]}) == len(combined["rows"])
+    group = next(row for row in combined["rows"] if row["name"] == DONOR)
+    assert {p["employer"] for p in group["payments"]} == {EMPLOYER, variant}
+    numbers = []
+    for offset in range(group["payment_count"]):
+        part = finance_api.get(
+            base + "/donor-payments",
+            params={
+                "name": EMPLOYER,
+                "donor": DONOR,
+                "include_spellings": True,
+                "limit": 1,
+                "offset": offset,
+                "release_id": combined["release_id"],
+            },
+        )
+        assert part.status_code == 200, part.text
+        numbers.extend(p["record_number"] for p in part.json()["data"]["payments"])
+    assert len(numbers) == len(set(numbers)) == group["payment_count"]
+    assert {100, 101}.issubset(numbers)
+
+
 def sync_counts(db, board):
     for model, snapshot in [
         (m.CampaignFinanceContributionRow, board.contributions_snapshot_id),
@@ -101,7 +209,11 @@ def test_approved_typos_short_forms_and_exact_spellings(
     names = [r["name"] for r in data["rows"]]
     assert set(others) <= set(names)
     assert name not in names
-    assert names == sorted(names)
+    # Closest first, with punctuation-equivalent spelling before weaker names.
+    if role == "payee":
+        assert names[0] == "Example Media L.L.C."
+    elif role == "donor":
+        assert names[0] == " Example, Jordan A "
     assert data["name"] == name and data["role"] == role
     assert len(data["version"]) == 16
     assert all("amount" not in r and "score" not in r for r in data["rows"])
@@ -429,3 +541,20 @@ def test_inapplicable_dataset_is_empty_not_broadened(finance_api, board, role, d
 )
 def test_scope_parameters_use_validated_payment_contract(finance_api, board, params):
     read(finance_api, name="Example", status=422, **params)
+
+
+def test_displayed_name_exclusions_require_the_same_release(
+    finance_api, finance_db, board
+):
+    from uuid import uuid4
+
+    variant = "Dantchik, Arthur"
+    add_names(finance_db, board, "donor", ["Danchik, Arthur", variant])
+    params = {"name": "Danchik, Arthur", "role": "donor", "exclude_name": [variant]}
+    unpinned = finance_api.get(PATH, params=params)
+    assert unpinned.status_code == 200
+    assert variant in {row["name"] for row in unpinned.json()["data"]["rows"]}
+    assert unpinned.json()["data"]["excluded_names"] == []
+    changed = finance_api.get(PATH, params={**params, "release_id": str(uuid4())})
+    assert changed.status_code == 409
+    assert changed.json()["type"].endswith("/records-changed")

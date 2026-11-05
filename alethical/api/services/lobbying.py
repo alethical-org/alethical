@@ -15,7 +15,10 @@ from uuid import UUID
 from sqlalchemy import String, and_, case, cast, func, or_, select, text, union_all
 from sqlalchemy.orm import Session
 
-from alethical.api.services.campaign_finance_register import name_contains
+from alethical.api.services.campaign_finance_register import (
+    name_contains,
+    name_words_contain,
+)
 from alethical.api.services.committee_finance import current_release
 from alethical.api.services.lobbying_donations import annual_donations
 from alethical.db import models as schema
@@ -215,13 +218,17 @@ def principals_page(
     query: str = "",
     year: int | None = None,
     sort: str = "name",
+    name_match=None,
+    prefer_direct: bool = False,
 ) -> dict:
     base = {
         **_stamp(pair),
         "limit": limit,
         "offset": offset,
         "q": query,
-        "matched_on": "substring_of_the_filed_name",
+        "matched_on": "name_and_likely_spellings"
+        if name_match
+        else "substring_of_the_filed_name",
         "year": year,
         "sort": sort,
         "years": [],
@@ -272,7 +279,11 @@ def principals_page(
         if sort == "spending_asc"
         else ()
     )
-    where = (name_contains(names.c.name, query.strip()),) if query.strip() else ()
+    where = (
+        ((name_match or name_contains)(names.c.name, query.strip()),)
+        if query.strip()
+        else ()
+    )
     total = db.scalar(select(func.count()).select_from(names).where(*where))
     rows = db.execute(
         select(
@@ -282,7 +293,16 @@ def principals_page(
         )
         .outerjoin(figures, figures.c.entity_id == names.c.entity_id)
         .where(*where)
-        .order_by(*order, names.c.name, names.c.entity_id)
+        .order_by(
+            *(
+                (name_words_contain(names.c.name, query).desc(),)
+                if prefer_direct and query
+                else ()
+            ),
+            *order,
+            names.c.name,
+            names.c.entity_id,
+        )
         .limit(limit)
         .offset(offset)
     ).all()
@@ -342,13 +362,17 @@ def lobbyists_page(
     query: str = "",
     year: int | None = None,
     sort: str = "name",
+    name_match=None,
+    prefer_direct: bool = False,
 ) -> dict:
     base = {
         **_stamp(pair),
         "limit": limit,
         "offset": offset,
         "q": query,
-        "matched_on": "substring_of_the_filed_name",
+        "matched_on": "name_and_likely_spellings"
+        if name_match
+        else "substring_of_the_filed_name",
         "sort": sort,
         "requested_year": year,
     }
@@ -373,7 +397,7 @@ def lobbyists_page(
     association = schema.LobbyistAssociation
     where = [lobbyist.snapshot_id == pair.lobbyist_snapshot_id]
     if query.strip():
-        where.append(name_contains(lobbyist.name, query.strip()))
+        where.append((name_match or name_contains)(lobbyist.name, query.strip()))
     total = db.scalar(select(func.count()).select_from(lobbyist).where(*where))
     counts = (
         select(func.count(func.distinct(association.entity_id)))
@@ -398,7 +422,15 @@ def lobbyists_page(
             counts.label("principal_count"),
         )
         .where(*where)
-        .order_by(lobbyist.name, lobbyist.registration_number)
+        .order_by(
+            *(
+                (name_words_contain(lobbyist.name, query).desc(),)
+                if prefer_direct and query
+                else ()
+            ),
+            lobbyist.name,
+            lobbyist.registration_number,
+        )
     ).all()
     people = []
     for row in rows:

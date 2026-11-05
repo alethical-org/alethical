@@ -245,7 +245,8 @@ def folder(key: str, db: Session = Depends(records)) -> dict:
 
 @router.get("/agencies/{key}", **answer(schema.FinanceAgency))
 def agency(key: str, db: Session = Depends(records)) -> dict:
-    return {"data": media.agency(db, key)}
+    token = finance_versions.check(db, None, "station")
+    return {"data": {"version": token, **media.agency(db, key)}}
 
 
 @router.get("/stations/{key}", **answer(schema.FinanceStation))

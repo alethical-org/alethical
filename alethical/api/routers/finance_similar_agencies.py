@@ -20,12 +20,18 @@ def similar_agencies(
     limit: int = Query(default=25, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
     version: str | None = Query(default=None, pattern=r"^[0-9a-f]{16}$"),
+    exclude_key: list[str] | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> dict:
     try:
         return {
             "data": similar.read(
-                db, key=key, limit=limit, offset=offset, version=version
+                db,
+                key=key,
+                limit=limit,
+                offset=offset,
+                version=version,
+                excluded_keys=exclude_key or (),
             )
         }
     except LookupError:
@@ -36,5 +42,29 @@ def similar_agencies(
             503,
             "Service Unavailable",
             "Similar agency names are temporarily unavailable. Try again.",
+            type_slug="service-unavailable",
+        ) from None
+
+
+@router.get("/agencies/{key}/spellings")
+def agency_spellings(
+    key: str = Path(pattern=r"^[0-9a-f]{64}$"),
+    version: str | None = Query(default=None, pattern=r"^[0-9a-f]{16}$"),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return {
+            "data": similar.read(
+                db, key=key, limit=50, offset=0, version=version, strong_only=True
+            )
+        }
+    except LookupError:
+        raise problem_exception(404, "Not Found", "Not found.") from None
+    except (similar.Unavailable, SQLAlchemyError):
+        db.rollback()
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            "Similar agency spellings are temporarily unavailable. Try again.",
             type_slug="service-unavailable",
         ) from None
