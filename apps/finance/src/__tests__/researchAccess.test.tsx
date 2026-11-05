@@ -188,6 +188,8 @@ it('signs out only the current session and clears it locally', async () => {
   saveResearchSession(research());
   await render('/media-buys');
   await act(async () => button('Account').click());
+  expect(text()).not.toContain('SIGNED IN AS');
+  expect(text()).not.toContain(research().email);
   await act(async () => button('Sign out').click());
   expect(readResearchSession()).toBeNull();
   expect(storageValues().join(' ')).not.toContain(TOKEN);

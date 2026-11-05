@@ -77,7 +77,8 @@ Ordinary `/sign-in` has the heading **Sign in** and no investor option. The sepa
 keep the Alethical Finance wordmark and the added top space:
 12% of viewport height, bounded between 64px and 112px, in normal page flow so short
 screens and keyboards can scroll. The investor field has 24px of space after the
-wordmark. The investor page asks for no email.
+wordmark. It shows the code as typed and disables automatic capitalization, correction and
+spellcheck. The investor page asks for no email.
 The server chooses the shared account through its private configuration. It accepts an operator-created research
 account and returns to the requested browsing page. An invalid code, too many
 attempts and unavailable service have distinct retry messages; fields stay filled
@@ -126,12 +127,12 @@ for the owning permission and password-management rules.
 - **Listed account:** the dark navigation bar from the "Finance Nav" drawing: the
   ALETHICAL | Finance lockup (a link to Finance Home), the record families in this order:
   Money, Media buys, Lobbying, People, Legislation (the phone Menu lists the same order; a
-  family whose page is not built yet is left out, never linked to a missing page), a search field with suggestions, and the Account menu with the
-  signed-in address and Sign out. The current family is underlined. On a tablet the search
-  field opens as a row under the bar from a search button; on a phone the families, the
-  signed-in address and Sign out sit in a Menu. Escape or a press outside closes each menu.
+  family whose page is not built yet is left out, never linked to a missing page), and the
+  Account menu with Sign out. The current family is underlined. On a phone the families and
+  Sign out sit in a Menu. The lockup returns to the main search on Finance Home. Both menus show the signed-in address for ordinary
+  accounts and omit the shared address for investors. Escape or a press outside closes each menu.
   Sign out also forgets every answer and scroll position this browser held for the account.
-- **Search suggestions** (the header field and Home's field): from 2 typed characters, 1
+- **Search suggestions** on Finance Home: from 2 typed characters, 1
   request per pause in typing to `GET /api/v1/finance/suggestions`; an answer for an earlier
   query is dropped by its request id. Up to 3 rows each under People, Organizations,
   Committees, Bills and Payments under a name, each opening its page; a match whose page is

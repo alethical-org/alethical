@@ -143,7 +143,7 @@ describe('the public Finance site', () => {
     expect(container.querySelector('label')?.textContent).toBe('Investor access code');
     expect(container.querySelector('a')).toBeNull();
     expect(document.activeElement).toBe(container.querySelector('main'));
-    expect(container.querySelector('input[type="password"]')).not.toBeNull();
+    expect(container.querySelector('#password')?.getAttribute('type')).toBe('text');
     expect(container.querySelector('input[type="email"]')).toBeNull();
     expect(container.textContent).not.toContain('Sign in with email');
   });
