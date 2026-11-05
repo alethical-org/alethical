@@ -61,6 +61,7 @@ export function AppShell({ section, children }: { section?: NavSection; children
   const band = useBand();
   const location = useLocation();
   const { email, signOut, signInPath } = useFinanceSession();
+  const showAccountEmail = signInPath !== '/investor-access';
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -192,11 +193,15 @@ export function AppShell({ section, children }: { section?: NavSection; children
               </button>
               {accountOpen && (
                 <div id="account-menu" className="f-nav-account-menu">
-                  <div className="f-nav-account-who">
-                    <div className="f-label">SIGNED IN AS</div>
-                    <div className="f-nav-account-email">{email}</div>
-                  </div>
-                  <div className="f-nav-rule" />
+                  {showAccountEmail && (
+                    <>
+                      <div className="f-nav-account-who">
+                        <div className="f-label">SIGNED IN AS</div>
+                        <div className="f-nav-account-email">{email}</div>
+                      </div>
+                      <div className="f-nav-rule" />
+                    </>
+                  )}
                   <button
                     type="button"
                     className="f-nav-menuitem"
@@ -246,10 +251,12 @@ export function AppShell({ section, children }: { section?: NavSection; children
               </Link>
             ))}
             <div className="f-nav-rule f-nav-rule-dark" />
-            <div className="f-nav-phone-who">
-              <div className="f-label">SIGNED IN AS</div>
-              <div className="f-nav-phone-email">{email}</div>
-            </div>
+            {showAccountEmail && (
+              <div className="f-nav-phone-who">
+                <div className="f-label">SIGNED IN AS</div>
+                <div className="f-nav-phone-email">{email}</div>
+              </div>
+            )}
             <button
               type="button"
               className="f-nav-phone-link f-nav-phone-signout"

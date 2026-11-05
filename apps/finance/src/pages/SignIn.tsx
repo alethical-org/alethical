@@ -249,8 +249,11 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
           <label htmlFor="password">Investor access code</label>
           <input
             id="password"
-            type="password"
-            autoComplete="current-password"
+            type="text"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             disabled={busy !== null || finishing}
