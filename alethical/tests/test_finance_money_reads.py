@@ -84,6 +84,69 @@ def test_employer_search_counts_exact_spellings_and_donor_names(
         assert finance_api.get(BASE + "/employers", params={"q": q}).status_code == 422
 
 
+def test_employer_search_matches_saved_names_before_counting_source_donors(
+    finance_api, finance_db, board
+):
+    from sqlalchemy import event, text
+    from alethical.tests.test_finance_similar_names import build_summaries, sync_counts
+
+    finance_db.add(
+        gift(
+            board.contributions_snapshot_id,
+            199,
+            contributor=None,
+            contrib_employer_name=EMPLOYER,
+        )
+    )
+    finance_db.add(
+        gift(
+            board.contributions_snapshot_id,
+            200,
+            contributor="Other donor",
+            contrib_employer_name=EMPLOYER.lower(),
+        )
+    )
+    finance_db.commit()
+    sync_counts(finance_db, board)
+    before = get(finance_api, "/employers", q="Associatoin", limit=1)
+    next_page = get(finance_api, "/employers", q="Associatoin", limit=1, offset=1)
+    assert before["total"] == 2 and before["page"]["has_more"]
+    by_name = {row["name"]: row for row in before["rows"] + next_page["rows"]}
+    assert by_name[EMPLOYER]["unnamed_records"] == 1
+    build_summaries(finance_db, board)
+    statements = []
+    connection = finance_db.connection()
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", capture)
+    try:
+        after = get(finance_api, "/employers", q="Associatoin", limit=1)
+    finally:
+        event.remove(connection, "before_cursor_execute", capture)
+    assert before == after
+    assert (
+        get(finance_api, "/employers", q="Associatoin", limit=1, offset=1) == next_page
+    )
+    assert (
+        get(finance_api, "/employers", q="Associatoin", limit=1, offset=2)["rows"] == []
+    )
+    # Production timed out when the expensive match ran once per payment.
+    # The summary query must restrict names before source donor counts run.
+    assert any("FROM cf_identity_name_summary" in query for query in statements)
+    finance_db.execute(text("DELETE FROM cf_identity_name_summary_build"))
+    finance_db.commit()
+    assert get(finance_api, "/employers", q="Associatoin", limit=1) == before
+    build_summaries(finance_db, board)
+    finance_db.execute(text("DELETE FROM cf_contribution_row WHERE row_number=199"))
+    finance_db.commit()
+    assert (
+        get(finance_api, "/employers", q="Associatoin", limit=1)["state"]
+        == "unavailable"
+    )
+
+
 def test_employer_donors_page_groups_and_keep_unnamed_records_separate(
     finance_api, finance_db, board
 ):
