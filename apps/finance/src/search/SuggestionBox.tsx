@@ -28,6 +28,8 @@ import {
 type Status = 'idle' | 'loading' | 'ready' | 'failed';
 
 const DEBOUNCE_MS = 140;
+const CACHE_MS = 60_000;
+const CACHE_LIMIT = 20;
 let requestCounter = 0;
 
 /**
@@ -38,17 +40,42 @@ let requestCounter = 0;
  * close.
  */
 export function useSuggestionBox(id: string, from: string | null) {
-  const { apiBaseUrl, accessToken } = useFinanceSession();
+  const {
+    apiBaseUrl,
+    accessToken,
+    email,
+    signInPath,
+    status: accessStatus,
+    retry: checkAccess,
+  } = useFinanceSession();
+  const allowed = accessStatus === 'granted';
+  // Refreshing the same account's token must not erase what the reader typed.
+  // Without a known identity, retain the stricter token boundary.
+  const accountScope = `${apiBaseUrl}|${email ?? accessToken}|${signInPath}|${allowed}`;
+  const scope = `${accountScope}|${accessToken}`;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
+  const accessCheck = useRef(checkAccess);
+  accessCheck.current = checkAccess;
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
-  const [groups, setGroups] = useState<SuggestionGroup[]>([]);
+  const [held, setHeld] = useState<{
+    scope: string;
+    groups: SuggestionGroup[];
+  } | null>(null);
+  const groups = held?.scope === scope ? held.groups : [];
   const [active, setActive] = useState(-1);
   const [maxHeight, setMaxHeight] = useState(420);
   const root = useRef<HTMLElement | null>(null);
   const input = useRef<HTMLInputElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latest = useRef('');
+  const controller = useRef<AbortController | null>(null);
+  const pendingQuery = useRef<{ scope: string; typed: string } | null>(null);
+  // Only this mounted field and account can reuse these short-lived answers.
+  const cache = useRef(new Map<string, { at: number; groups: SuggestionGroup[] }>());
+  const cacheScope = useRef(scope);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -68,39 +95,93 @@ export function useSuggestionBox(id: string, from: string | null) {
 
   const run = useCallback(
     (value: string) => {
-      clearTimeout(timer.current);
       const typed = value.trim();
-      if (typed.length < MIN_SUGGEST_LENGTH) {
-        latest.current = '';
+      if (pendingQuery.current?.scope === scope && pendingQuery.current.typed === typed) {
+        setOpen(true);
+        measure();
+        return;
+      }
+      clearTimeout(timer.current);
+      controller.current?.abort();
+      pendingQuery.current = null;
+      const requestId = `sg${++requestCounter}`;
+      // Invalidate now, not after the debounce: an older reply can arrive while
+      // the reader is still typing the next query.
+      latest.current = requestId;
+      if (!allowed || !accessToken || typed.length < MIN_SUGGEST_LENGTH) {
         setStatus('idle');
-        setGroups([]);
+        setHeld(null);
         close();
         return;
       }
       setOpen(true);
-      setStatus('loading');
       setActive(-1);
       measure();
+      if (cacheScope.current !== scope) {
+        cache.current.clear();
+        cacheScope.current = scope;
+      }
+      const cached = cache.current.get(typed);
+      if (cached && Date.now() - cached.at < CACHE_MS) {
+        setHeld({ scope, groups: cached.groups });
+        setStatus('ready');
+        return;
+      }
+      cache.current.delete(typed);
+      setStatus('loading');
+      const abort = new AbortController();
+      controller.current = abort;
+      pendingQuery.current = { scope, typed };
       timer.current = setTimeout(() => {
-        const requestId = `sg${++requestCounter}`;
-        latest.current = requestId;
         const path = `finance/suggestions?q=${encodeURIComponent(typed)}&request_id=${requestId}`;
-        void apiGet<SuggestionsAnswer>(apiBaseUrl, path, accessToken).then((answer) => {
-          if (latest.current !== requestId) return;
-          if (answer.state === 'ok' && answer.data.request_id === requestId) {
-            setGroups(suggestionGroups(answer.data));
-            setStatus('ready');
-          } else {
-            setGroups([]);
-            setStatus('failed');
-          }
-        });
+        void apiGet<SuggestionsAnswer>(apiBaseUrl, path, accessToken, fetch, abort.signal).then(
+          (answer) => {
+            if (
+              latest.current !== requestId ||
+              currentScope.current !== scope ||
+              abort.signal.aborted
+            )
+              return;
+            pendingQuery.current = null;
+            if (answer.state === 'ok' && answer.data.request_id === requestId) {
+              const next = suggestionGroups(answer.data);
+              cache.current.set(typed, { at: Date.now(), groups: next });
+              if (cache.current.size > CACHE_LIMIT)
+                cache.current.delete(cache.current.keys().next().value!);
+              setHeld({ scope, groups: next });
+              setActive(-1);
+              setStatus('ready');
+            } else {
+              if (answer.state === 'failed' && answer.accessDenied) {
+                cache.current.clear();
+                setHeld(null);
+                setActive(-1);
+                accessCheck.current?.();
+              }
+              setStatus('failed');
+            }
+          },
+        );
       }, DEBOUNCE_MS);
     },
-    [accessToken, apiBaseUrl, close, measure],
+    [accessToken, allowed, apiBaseUrl, close, measure, scope],
   );
 
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    cache.current.clear();
+    setHeld(null);
+    setStatus('idle');
+    close();
+    return () => {
+      latest.current = '';
+      pendingQuery.current = null;
+      clearTimeout(timer.current);
+      controller.current?.abort();
+      cache.current.clear();
+    };
+  }, [scope, close]);
+
+  useEffect(() => setQuery(''), [accountScope]);
 
   useEffect(() => {
     if (!open) return;
@@ -363,7 +444,7 @@ function SuggestionPanel(props: {
         data-sg-list="1"
         className="f-sg-list"
       >
-        {props.status === 'ready' && props.children}
+        {props.children}
         <a
           id={props.allId}
           role="option"

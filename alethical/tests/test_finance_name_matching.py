@@ -96,3 +96,43 @@ def test_index_candidates_keep_the_approved_matches(finance_db, query, name):
     assert finance_db.scalar(
         select(indexed_discovery_match(literal(name), query))
     ) is discovery_text(query, name)
+
+
+@pytest.mark.parametrize(
+    "query", ["danch", "smith", "arthur", "health", "aaaaa", "école", "straße"]
+)
+def test_short_word_index_candidates_preserve_every_single_edit(finance_db, query):
+    """Index candidates cannot lose an eligible insertion, deletion, swap or substitution."""
+    from sqlalchemy import Text, column, values
+    from alethical.api.services.finance_name_matching import indexed_discovery_match
+
+    candidates = {query, query.upper(), "unrelated name", "District 10", "Assn", "Corp"}
+    for index in range(len(query)):
+        candidates.add(query[:index] + query[index + 1 :])
+        for char in "abcdefghijklmnopqrstuvwxyzé012":
+            candidates.add(query[:index] + char + query[index + 1 :])
+        if index + 1 < len(query):
+            candidates.add(
+                query[:index] + query[index + 1] + query[index] + query[index + 2 :]
+            )
+    for index in range(len(query) + 1):
+        for char in "abcdefghijklmnopqrstuvwxyzé012":
+            candidates.add(query[:index] + char + query[index:])
+    names = values(column("name", Text), name="names").data(
+        [
+            (name,)
+            for candidate in sorted(candidates)
+            for name in (
+                candidate,
+                f"Example {candidate}, LLC",
+                f"EXAMPLE_{candidate}_LLC",
+            )
+        ]
+    )
+    disagreements = finance_db.execute(
+        select(names.c.name).where(
+            indexed_discovery_match(names.c.name, query)
+            != discovery_match(names.c.name, query)
+        )
+    ).all()
+    assert disagreements == []

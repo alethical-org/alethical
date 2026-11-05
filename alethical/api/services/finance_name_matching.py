@@ -265,6 +265,33 @@ def configure_discovery(db):
 
 
 def _edit_candidate_word(column, word):
+    if len(word) in (5, 6):
+        # These lengths allow only one edit, including an adjacent swap. Keep
+        # every such word as an indexed regex candidate, then let the shared
+        # spelling function decide eligibility. Literal runs let PostgreSQL
+        # narrow more queries than the arbitrary-letter pattern below.
+        letters = [re.escape(char) for char in word]
+        variants = {"".join(letters)}
+        for index in range(len(letters)):
+            variants.add("".join(letters[:index] + letters[index + 1 :]))
+            variants.add(
+                "".join(letters[:index] + ["[[:alnum:]]"] + letters[index + 1 :])
+            )
+            if index + 1 < len(letters):
+                variants.add(
+                    "".join(
+                        letters[:index]
+                        + [letters[index + 1], letters[index]]
+                        + letters[index + 2 :]
+                    )
+                )
+        for index in range(len(letters) + 1):
+            variants.add("".join(letters[:index] + ["[[:alnum:]]"] + letters[index:]))
+        return column.op("~*")(
+            r"(?:^|[^[:alnum:]])(?:"
+            + "|".join(sorted(variants))
+            + r")(?:$|[^[:alnum:]])"
+        )
     # Each character absent from the query requires one edit. Adjacent swaps
     # change no characters. This necessary condition is cheaper than splitting
     # every source row into tokens; the final distance test still decides.

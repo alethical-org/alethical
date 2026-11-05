@@ -29,11 +29,18 @@ of Finance.
 
 Finance's own routes sit under `/api/v1/finance/`. Every route except the public landing
 counts (§9) needs the access check, and its answers are
-private and never cached. Behind the access check (`alethical/api/routers/finance.py`):
-`GET /access`, and `GET /suggestions?q=&request_id=`, which answers 1 typed query with
-alethical.com's own money search (`/campaign-finance/search`) and, from 3 characters, its
-bill search (`/search`) in 1 request, and returns `request_id` unchanged, so the app drops a
-reply that arrives after a newer one. Media buys (§6) answers under `/media-buys/`
+private with `Cache-Control: no-store`. Behind the access check
+(`alethical/api/routers/finance.py`): `GET /access`, and
+`GET /suggestions?q=&request_id=`, which returns only the names, context and links the
+dropdown needs, from 3 characters, in one pinned database view
+(`alethical/api/services/finance_suggestions.py`). It shares Finance name eligibility,
+source completeness and direct-first ordering, without computing directory totals or
+lobbyist donation amounts. Bill suggestions use literal typed-word containment in the
+held title, short title and description; bill numbers remain exact. Spelling correction
+and stemming on the full bill search remain separate. `request_id` returns unchanged;
+new typing invalidates and cancels older work immediately. The mounted field may reuse
+20 recent successful queries for at most 60 seconds within one account/token scope,
+clearing on scope change, unmount or access refusal; no disk or shared HTTP cache is used. Media buys (§6) answers under `/media-buys/`
 (`alethical/api/routers/finance_media_buys.py`): `counts`, `sources`, `recent`, `browse`,
 `connections`, `files/{key}` with its original page images at `files/{key}/pages/{page}`,
 `folders/{key}`, `agencies/{key}` and `stations/{key}`, and records checks on an original

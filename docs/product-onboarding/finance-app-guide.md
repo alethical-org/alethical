@@ -135,13 +135,21 @@ for the owning permission and password-management rules.
   accounts and omit the shared address for investors. Escape or a press outside closes each menu.
   Sign out also forgets every answer and scroll position this browser held for the account.
 - **Search suggestions** on Finance Home: from 2 typed characters, 1
-  request per pause in typing to `GET /api/v1/finance/suggestions`; an answer for an earlier
-  query is dropped by its request id. Up to 3 rows each under People, Organizations,
+  request per pause in typing to `GET /api/v1/finance/suggestions`; new typing cancels the
+  older request immediately and its answer cannot replace the new query. This field reuses
+  up to 20 successful queries for 60 seconds while mounted for the same account; nothing
+  is saved to browser storage. Account changes, sign-out and access refusal clear them.
+  Earlier suggestions stay visible with the searching or failure notice while an update
+  waits or fails. Up to 3 rows each under People, Organizations,
   Committees, Bills and Payments under a name, each opening its page; a match whose page is
   not built yet is left out. "Searching…", "No matching suggestions" with "Try another name or
   bill number", and "Suggestions couldn’t load" are the panel's other states, each announced
   to screen readers. Arrow keys move through the rows and View all results, Enter opens the
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
+  Bill suggestions match the typed letters in the held title, short title or description,
+  without spelling correction: `danc` can find “dance”, but `danch` cannot. Bill-number
+  lookups remain exact. Name suggestions retain direct matches followed by likely
+  spellings. The full results page retains its broader bill search.
 - **Finance Home (`/home`)**: "Research public records" with the search field, and the 1
   header-corner action "Explore money connections" (a filled button beside the eyebrow and
   heading where they share a line, under the heading where they do not); under "Browse records", entrances into each built directory in this order (Legislators,
