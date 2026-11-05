@@ -42,6 +42,7 @@ def db(seed_database):
 
 @pytest.fixture()
 def api(client, db, monkeypatch):
+    monkeypatch.delenv("ALETHICAL_FINANCE_RESEARCH_EMAIL", raising=False)
     client.app.dependency_overrides[get_db] = lambda: db
     # Research sessions work even when the separate Supabase service is absent.
     client.app.dependency_overrides[get_auth_service] = lambda: None
@@ -86,6 +87,60 @@ def test_research_can_read_real_finance_data(api):
     response = api.get("/api/v1/finance/legislative-committees", headers=bearer(token))
     assert response.status_code == 200, response.text
     assert "data" in response.json()
+
+
+def test_access_code_uses_configured_account_without_supabase_or_email(
+    api, monkeypatch, caplog
+):
+    monkeypatch.setenv("ALETHICAL_FINANCE_RESEARCH_EMAIL", f"  {EMAIL.upper()} ")
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("Research access must not use Supabase or send email")
+
+    api.app.dependency_overrides[get_auth_service] = unexpected
+    monkeypatch.setattr(routes.finance_sign_in, "check_request", unexpected)
+    monkeypatch.setattr(routes.finance_sign_in, "schedule_delivery", unexpected)
+    monkeypatch.setattr(routes.finance_sign_in, "prove_code", unexpected)
+    response = api.post(LOGIN, json={"password": PASSWORD})
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["email"] == EMAIL
+    api.app.dependency_overrides[get_auth_service] = lambda: None
+    assert api.get(ACCESS, headers=bearer(data["access_token"])).status_code == 200
+    assert PASSWORD not in caplog.text
+
+
+@pytest.mark.parametrize("configured", [None, "", "bad-address", "a" * 321])
+def test_access_code_without_valid_account_config_is_unavailable(
+    api, db, monkeypatch, caplog, configured
+):
+    if configured is not None:
+        monkeypatch.setenv("ALETHICAL_FINANCE_RESEARCH_EMAIL", configured)
+    response = api.post(LOGIN, json={"password": PASSWORD})
+    assert response.status_code == 503
+    assert response.json()["type"].endswith("service-unavailable")
+    assert PASSWORD not in response.text
+    assert PASSWORD not in caplog.text
+    assert db.scalar(select(func.count()).select_from(FinanceResearchSession)) == 0
+
+
+def test_wrong_access_code_is_refused_without_session(api, db, monkeypatch):
+    monkeypatch.setenv("ALETHICAL_FINANCE_RESEARCH_EMAIL", EMAIL)
+    response = api.post(LOGIN, json={"password": "wrong-test-code"})
+    assert response.status_code == 401
+    assert response.json()["type"].endswith("finance-credentials-not-accepted")
+    assert db.scalar(select(func.count()).select_from(FinanceResearchSession)) == 0
+
+
+def test_explicit_email_remains_compatible_with_a_different_default(api, monkeypatch):
+    monkeypatch.setenv("ALETHICAL_FINANCE_RESEARCH_EMAIL", "another@example.test")
+    token = login(api)
+    assert api.get(ACCESS, headers=bearer(token)).status_code == 200
+
+
+def test_access_code_input_is_bounded_without_email(api, monkeypatch):
+    monkeypatch.setenv("ALETHICAL_FINANCE_RESEARCH_EMAIL", EMAIL)
+    assert api.post(LOGIN, json={"password": "a" * 1025}).status_code == 422
 
 
 def test_every_finance_mutation_refuses_research_before_processing_its_body(api):

@@ -440,7 +440,11 @@ of approval to build the graph frontend.
 
 ### Shared research access
 
-Investors use an operator-created shared email-and-password login. This login can
+Investors choose **Investor login** and enter one reusable **Access code**, without
+an email field. The server resolves the private `ALETHICAL_FINANCE_RESEARCH_EMAIL`
+setting to the operator-created shared account; absent or invalid configuration
+answers unavailable. Older clients may still send an explicit research-account email.
+The code is the account password, with the same hashing and session rules below. This login can
 search, browse, filter and read Finance records and sources. It cannot create,
 confirm, change, merge, split, withdraw or delete records. Editing links and the
 identity/station-checking pages are hidden; a direct visit answers not found. The

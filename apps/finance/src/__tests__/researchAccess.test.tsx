@@ -133,7 +133,8 @@ async function type(id: string, value: string) {
 async function passwordForm() {
   await render('/sign-in?next=%2Fmedia-buys');
   await act(async () => button('Investor login').click());
-  await type('#email', 'demo@example.test');
+  expect(container.querySelector('#email')).toBeNull();
+  expect(text()).toContain('Access code');
   await type('#password', 'demo-test-password');
 }
 it('signs in without a mailbox, keeps the requested page, and hides edit controls', async () => {
@@ -148,6 +149,10 @@ it('signs in without a mailbox, keeps the requested page, and hides edit control
   expect(
     fetcher.mock.calls.filter(([url]) => String(url).endsWith('/sign-in/research')),
   ).toHaveLength(1);
+  const loginRequest = fetcher.mock.calls.find(([url]) =>
+    String(url).endsWith('/sign-in/research'),
+  )!;
+  expect(JSON.parse(String(loginRequest[1]?.body))).toEqual({ password: 'demo-test-password' });
   expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
 });
 it.each([
@@ -165,7 +170,7 @@ it.each([
   ).toBe(false);
 });
 it.each([
-  [401, 'That email or password is not right'],
+  [401, 'That access code is not right'],
   [429, 'Too many sign-in attempts'],
   [503, 'We couldn’t sign you in'],
 ])('keeps entered fields for a retry after %i', async (status, message) => {
@@ -173,7 +178,7 @@ it.each([
   await passwordForm();
   await act(async () => button('Sign in').click());
   expect(text()).toContain(message);
-  expect(container.querySelector<HTMLInputElement>('#email')?.value).toBe('demo@example.test');
+  expect(container.querySelector<HTMLInputElement>('#password')?.value).toBe('demo-test-password');
   expect(button('Sign in').disabled).toBe(false);
   expect(readResearchSession()).toBeNull();
 });

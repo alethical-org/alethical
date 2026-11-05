@@ -9,6 +9,7 @@ and code proofs share bounded capacity without holding worker threads to wait.
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 
 import anyio
@@ -21,6 +22,7 @@ from sqlalchemy.orm import Session
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit, trusted_client_ip
 from alethical.api.services import finance_sign_in
+from alethical.api.services.finance_access import normalize_email
 from alethical.api.services.finance_sign_in import (
     CodeNotAccepted,
     SignInCodeUnavailable,
@@ -138,7 +140,7 @@ async def verify_code(payload: CodeProof, db: Session = Depends(get_db)) -> dict
 
 class ResearchCredentials(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    email: str = Field(max_length=320)
+    email: str | None = Field(default=None, max_length=320)
     password: SecretStr = Field(max_length=1024)
 
 
@@ -148,6 +150,18 @@ async def research_sign_in(
 ) -> dict:
     """A Finance-only session; no signup, emailed code, or account update route."""
     from alethical.api.services import finance_research_access as research
+
+    email = payload.email
+    if email is None:
+        try:
+            email = normalize_email(os.getenv("ALETHICAL_FINANCE_RESEARCH_EMAIL", ""))
+        except ValueError:
+            raise problem_exception(
+                503,
+                "Service Unavailable",
+                "Sign-in is not available right now. Try again.",
+                type_slug="service-unavailable",
+            ) from None
 
     if _proofs.locked():
         raise problem_exception(
@@ -160,9 +174,7 @@ async def research_sign_in(
 
     def prove():
         try:
-            data = research.sign_in(
-                db, payload.email, payload.password.get_secret_value()
-            )
+            data = research.sign_in(db, email, payload.password.get_secret_value())
             db.commit()
             return data
         except Exception:

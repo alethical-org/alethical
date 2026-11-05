@@ -566,6 +566,11 @@ Before anyone can sign in at that address:
    settings already live, then `VITE_EMAIL_SIGN_IN` set to `on` and the app deployed again
    ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 
+Investor sign-in needs `ALETHICAL_FINANCE_RESEARCH_EMAIL` set privately on the API
+and that research account created through `scripts/finance_research_access.py`.
+The browser submits only the reusable access code; do not put the account address
+or code in frontend settings. Ordinary sign-in settings above remain unchanged.
+
 At launch the same steps repeat for alethicalfinance.com.
 
 ## Supabase sign-in callbacks

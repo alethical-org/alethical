@@ -123,7 +123,6 @@ export type ResearchSignInResult =
 
 export async function signInResearch(
   apiBaseUrl: string,
-  email: string,
   password: string,
   fetcher: Fetch = fetch,
 ): Promise<ResearchSignInResult> {
@@ -131,7 +130,7 @@ export async function signInResearch(
     const response = await fetcher(`${apiBaseUrl}/api/v1/finance/sign-in/research`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ password }),
       cache: 'no-store',
       signal: timeout(),
     });

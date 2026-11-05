@@ -75,8 +75,9 @@ and remains in normal page flow so short screens and keyboards can scroll it.
 When ordinary sign-in choices are available, **Investor login** has 16px of extra
 space above it to separate the 2 access paths. It keeps the same secondary button
 treatment as the email choice; no new color or priority is implied. With signed-in
-screens enabled, it opens Email and Password fields using the existing sign-in layout. It accepts an operator-created research
-account and returns to the requested browsing page. Invalid credentials, too many
+screens enabled, it opens one **Access code** field using the existing sign-in layout; no email is
+requested. The server chooses the shared account through its private configuration. It accepts an operator-created research
+account and returns to the requested browsing page. An invalid code, too many
 attempts and unavailable service have distinct retry messages; fields stay filled
 on failure and submission is blocked while sign-in is pending. Passwords are never
 saved by the app. The account has no signup, reset or password-change control.

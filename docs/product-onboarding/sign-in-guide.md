@@ -256,8 +256,9 @@ Sign out ends only the ordinary session on this browser or device.
 ## Alethical Finance sign-in
 
 Ordinary Alethical Finance accounts use the same Supabase accounts, with Google or a code
-emailed to the address. Shared research accounts use a separate operator-managed password
-and cannot change records. Their sign-in, sessions and password changes follow
+emailed to the address. Shared research accounts use one operator-managed access code without entering an
+email, and cannot change records. The code is a password for the server-selected
+shared account. Their sign-in, sessions and password changes follow
 [Shared research access](../architecture/alethical-finance-architecture.md#shared-research-access).
 Neither kind has self-service signup. Whether an address is on Finance's access list names
 a client, so no answer shows it. The email-code flow below applies to ordinary accounts.

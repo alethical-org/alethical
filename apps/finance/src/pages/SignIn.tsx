@@ -64,9 +64,11 @@ export function SignIn() {
     const target =
       step === 'options'
         ? '#sign-in-heading'
-        : step === 'email' || step === 'password'
+        : step === 'email'
           ? '#email'
-          : '#code';
+          : step === 'password'
+            ? '#password'
+            : '#code';
     document.querySelector<HTMLElement>(target)?.focus();
   }, [step]);
 
@@ -173,13 +175,13 @@ export function SignIn() {
 
   async function passwordSignIn(event: FormEvent) {
     event.preventDefault();
-    if (!email.trim() || !password) {
+    if (!password) {
       setError('credentials');
       return;
     }
     setBusy('password');
     setError(null);
-    const result = await signInResearch(apiBaseUrl, email.trim(), password);
+    const result = await signInResearch(apiBaseUrl, password);
     if (result.kind !== 'session') {
       setBusy(null);
       setError(result.kind === 'refused' ? 'password-refused' : result.kind);
@@ -252,18 +254,7 @@ export function SignIn() {
 
       {step === 'password' && (
         <form className="stack" onSubmit={passwordSignIn} noValidate>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={busy !== null || finishing}
-            aria-invalid={error === 'credentials' || error === 'password-refused'}
-            aria-describedby={error ? 'password-error' : undefined}
-          />
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">Access code</label>
           <input
             id="password"
             type="password"
@@ -277,9 +268,9 @@ export function SignIn() {
           {error && (
             <p id="password-error" role="alert" className="error">
               {error === 'credentials'
-                ? 'Enter your email and password'
+                ? 'Enter your access code'
                 : error === 'password-refused'
-                  ? 'That email or password is not right. Try again.'
+                  ? 'That access code is not right. Try again.'
                   : error === 'rate-limited'
                     ? 'Too many sign-in attempts. Wait a minute and try again.'
                     : 'We couldn’t sign you in. Try again.'}
