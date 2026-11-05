@@ -65,6 +65,7 @@ the whole reason #1670 was filed rather than closed inline.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Literal, Optional
@@ -72,6 +73,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     Numeric,
+    and_,
     Select,
     case,
     cast,
@@ -871,6 +873,18 @@ def name_contains(column, typed: str):
     return column.ilike(f"%{escaped}%", escape="\\")
 
 
+def name_words_contain(column, typed: str):
+    """Literal name words in any order, for Finance discovery's direct ranking."""
+    if any(char in typed for char in "%_\\"):
+        return name_contains(column, typed)
+    words = re.findall(r"[^\W_]+", typed.casefold())
+    return (
+        and_(*(name_contains(column, word) for word in words))
+        if words
+        else name_contains(column, typed)
+    )
+
+
 #: The 6 codes that name a **finer kind of committee or fund** than the register's own 3
 #: lists can. These are the codes that make a ballot-question committee knowable at all.
 FINER_KIND_SUB_TYPES = frozenset({"PC", "PF", "IEC", "IEF", "BC", "BF"})
@@ -1027,6 +1041,8 @@ def committees(
     status: RegistrationStatus | None = None,
     search_registration: bool = False,
     party: str | None = None,
+    name_match=None,
+    prefer_direct: bool = False,
 ) -> CommitteesPage:
     """One page of the register, ordered by the filed name, A to Z, unless ``sort`` says
     otherwise.
@@ -1056,8 +1072,10 @@ def committees(
     expenditure committees, ballot-question committees and political funds all arrive on
     a single list carrying no type marker (§9.7). A caller must not offer a finer filter.
 
-    ``query`` is the screen's "find a committee by name" box, matched by
-    ``name_contains`` -- read that function before loosening anything here.
+    ``query`` is the screen's "find a committee by name" box. The public default
+    uses ``name_contains``. Finance may pass its discovery predicate; identifiers,
+    filters and selected sort still apply to each separate registered committee.
+    Only search suggestions set ``prefer_direct``; directory sorts remain absolute.
 
     Refuses rather than reporting an empty register when the snapshot published filers
     and holds none now, the same reasoning as ``register_summary``: those rows survive
@@ -1157,7 +1175,7 @@ def committees(
     if kind == "candidate_committee" and party is not None:
         filters.append(filer.party == party)
     if query:
-        named = name_contains(filer.name, query)
+        named = (name_match or name_contains)(filer.name, query)
         filters.append(
             or_(named, name_contains(filer.registration_number, query))
             if search_registration
@@ -1185,7 +1203,14 @@ def committees(
             func.count().over(),
         )
         .where(*filters)
-        .order_by(*_committee_order(filer, sort))
+        .order_by(
+            *(
+                (name_words_contain(filer.name, query).desc(),)
+                if prefer_direct and query
+                else ()
+            ),
+            *_committee_order(filer, sort),
+        )
         .limit(limit + 1)
         .offset(offset)
     ).all()

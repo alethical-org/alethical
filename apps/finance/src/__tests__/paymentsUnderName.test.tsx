@@ -27,7 +27,10 @@ import { matchRoute } from '../routes';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 
 const FETCHED = '2026-10-29T06:49:45Z';
@@ -261,13 +264,202 @@ describe('Payments under this name', () => {
     );
     // The similar-names section carries this caveat in the drawing (Round 29).
     expect(container.textContent).not.toContain('Different spellings appear separately');
-    // Nothing confirms the spelling, in either file.
-    const identity = container.querySelector('[aria-label="Identity"]')!;
-    expect(identity.textContent).toContain('No confirmed identity for this spelling');
-    // Confirm identities is built, so the card opens it for this spelling and role.
-    expect(identity.querySelector('a')?.getAttribute('href')).toMatch(
-      /^\/money\/identities\?name=[^&]+&role=payee/,
+    expect(container.querySelector('.pn-identity')).toBeNull();
+    expect(container.textContent).not.toMatch(
+      /None confirmed|No confirmed identity|Confirm identity/,
     );
+  });
+
+  it('loads every strong spelling in source groups and preserves separately filed equal rows', async () => {
+    const exact = 'Danchik, Arthur';
+    const variant = 'Dantchik, Arthur';
+    await render(`/money/names/${encodeURIComponent(exact)}?role=donor&year=2026`, (url) => {
+      if (url.pathname.endsWith('/name-spellings'))
+        return json({
+          name: exact,
+          role: 'donor',
+          year: 2026,
+          filer: null,
+          dataset: null,
+          names: [variant, variant, exact],
+          release_id: 'release-1',
+          version: 'v',
+        });
+      if (!url.pathname.endsWith('/payments-under-name'))
+        return json({ rows: [], has_more: false });
+      const name = url.searchParams.get('name')!;
+      return json(
+        page(
+          'contributor',
+          name === exact
+            ? []
+            : [
+                receivedRow({
+                  contributor: variant,
+                  record_number: 31,
+                  fingerprint: 'same-fields',
+                }),
+                receivedRow({
+                  contributor: variant,
+                  record_number: 32,
+                  fingerprint: 'same-fields',
+                }),
+              ],
+          { name, year: 2026 },
+        ),
+      );
+    });
+    await settle();
+    const groups = [...container.querySelectorAll('.pn-spelling-group')];
+    expect(groups.map((item) => item.querySelector('h3')?.textContent)).toEqual([exact, variant]);
+    expect(groups.map((item) => item.querySelector('.pn-count')?.textContent)).toEqual([
+      '0 records',
+      '2 records',
+    ]);
+    expect(container.querySelectorAll('.pn-view')).toHaveLength(2);
+    expect(container.textContent).not.toContain('No campaign payments');
+    expect(container.textContent).toContain('Similar spellings may refer to the same person');
+    expect(container.textContent).toContain('Employer as filed: Example Health Association');
+    const variants = requests.filter(
+      (url) =>
+        url.pathname.endsWith('/payments-under-name') && url.searchParams.get('name') === variant,
+    );
+    expect(variants).toHaveLength(1);
+    expect(variants[0].searchParams.get('release_id')).toBe('release-1');
+    expect(variants[0].searchParams.get('year')).toBe('2026');
+    const comparisons = requests.filter((url) => url.pathname.endsWith('/similar-names')).at(-1)!;
+    expect(comparisons.searchParams.getAll('exclude_name')).toContain(variant);
+    expect(comparisons.searchParams.get('release_id')).toBe('release-1');
+  });
+
+  it('keeps exact payments while variant discovery waits and offers retry when it fails', async () => {
+    let answerVariants!: (response: Response) => void;
+    await render('/money/names/Danchik%2C%20Arthur?role=donor', (url) => {
+      if (url.pathname.endsWith('/name-spellings'))
+        return new Promise((resolve) => {
+          answerVariants = resolve;
+        });
+      if (!url.pathname.endsWith('/payments-under-name'))
+        return json({ rows: [], has_more: false });
+      return json(page('contributor', [receivedRow()], { name: 'Danchik, Arthur' }));
+    });
+    expect(container.querySelectorAll('.pn-view')).toHaveLength(1);
+    expect(container.textContent).toContain('Loading payments for similar spellings…');
+    await act(async () => answerVariants(json(null, 500)));
+    expect(container.querySelectorAll('.pn-view')).toHaveLength(1);
+    expect(container.textContent).toContain('We couldn’t load payments for similar spellings');
+    expect(container.querySelector('.pn-variant-status button')?.textContent).toBe('Try again');
+  });
+
+  it('keeps exact rows when a strong spelling payment read fails', async () => {
+    await render('/money/names/Danchik%2C%20Arthur?role=donor', (url) => {
+      if (url.pathname.endsWith('/name-spellings'))
+        return json({
+          name: 'Danchik, Arthur',
+          role: 'donor',
+          year: null,
+          filer: null,
+          dataset: null,
+          names: ['Dantchik, Arthur'],
+          release_id: 'release-1',
+          version: 'v',
+        });
+      if (!url.pathname.endsWith('/payments-under-name'))
+        return json({ rows: [], has_more: false });
+      if (url.searchParams.get('name') === 'Dantchik, Arthur') return json(null, 500);
+      return json(page('contributor', [receivedRow()], { name: 'Danchik, Arthur' }));
+    });
+    await settle();
+    expect(container.querySelectorAll('.pn-view')).toHaveLength(1);
+    expect(container.textContent).toContain('We couldn’t load payments for similar spellings');
+    expect(container.textContent).not.toContain('No campaign payments');
+    const comparisons = requests.filter((url) => url.pathname.endsWith('/similar-names')).at(-1)!;
+    expect(comparisons.searchParams.getAll('exclude_name')).not.toContain('Dantchik, Arthur');
+    const exactReads = requests.filter(
+      (url) =>
+        url.pathname.endsWith('/payments-under-name') &&
+        url.searchParams.get('name') === 'Danchik, Arthur',
+    ).length;
+    await act(async () =>
+      container.querySelectorAll('.pn-spelling-group')[1].querySelector('button')!.click(),
+    );
+    await settle();
+    expect(
+      requests.filter(
+        (url) =>
+          url.pathname.endsWith('/payments-under-name') &&
+          url.searchParams.get('name') === 'Danchik, Arthur',
+      ).length,
+    ).toBeGreaterThan(exactReads);
+  });
+
+  it('never joins variant payments from a different published copy', async () => {
+    await render('/money/names/Example%20Media%20LLC', (url) => {
+      if (url.pathname.endsWith('/name-spellings'))
+        return json({
+          name: 'Example Media LLC',
+          role: 'payee',
+          year: null,
+          filer: null,
+          dataset: null,
+          names: ['Example Media L.L.C.'],
+          release_id: 'release-1',
+          version: 'v',
+        });
+      if (!url.pathname.endsWith('/payments-under-name'))
+        return json({ rows: [], has_more: false });
+      const name = url.searchParams.get('name')!;
+      return role(url) === 'vendor'
+        ? json(page('vendor', [spent()], { name, release: 'release-1' }))
+        : json(
+            page('independent_vendor', [outsideRow()], {
+              name,
+              release: 'release-2',
+            }),
+          );
+    });
+    await settle();
+    expect(section('Campaign payments').querySelectorAll('.pn-spelling-group')).toHaveLength(2);
+    expect(
+      section('Outside spending payments').querySelectorAll('.pn-spelling-group'),
+    ).toHaveLength(1);
+    expect(section('Outside spending payments').textContent).toContain(
+      'The Board’s file changed. Reload the records.',
+    );
+    expect(section('Outside spending payments').querySelectorAll('.pn-view')).toHaveLength(1);
+  });
+
+  it('drops previous spelling groups once a new exact name arrives in the same release', async () => {
+    const first = 'Danchik, Arthur';
+    const next = 'Other, Alice';
+    const answer: Answer = (url, init) => {
+      const name = url.searchParams.get('name')!;
+      if (url.pathname.endsWith('/name-spellings')) {
+        if (name === next) return hang(url, init);
+        return json({
+          name: first,
+          role: 'donor',
+          year: null,
+          filer: null,
+          dataset: null,
+          names: ['Dantchik, Arthur'],
+          release_id: 'release-1',
+          version: 'v',
+        });
+      }
+      if (!url.pathname.endsWith('/payments-under-name'))
+        return json({ rows: [], has_more: false });
+      return json(page('contributor', [receivedRow({ contributor: name })], { name }));
+    };
+    await render(`/money/names/${encodeURIComponent(first)}?role=donor`, answer);
+    await settle();
+    expect(container.querySelectorAll('.pn-spelling-group')).toHaveLength(2);
+    await render(`/money/names/${encodeURIComponent(next)}?role=donor`, answer);
+    await settle();
+    expect(
+      [...container.querySelectorAll('.pn-spelling-group h3')].map((item) => item.textContent),
+    ).toEqual([next]);
+    expect(container.textContent).toContain('Loading payments for similar spellings…');
   });
 
   it('opens the held locators of the source row', async () => {
@@ -303,7 +495,12 @@ describe('Payments under this name', () => {
   it('reads a donor name as received payments, without outside spending', async () => {
     await render('/money/names/Example%2C%20Wen?role=donor&year=2026', (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) return json(NO_IDENTITY);
-      return json(page('contributor', [receivedRow()], { name: 'Example, Wen', year: 2026 }));
+      return json(
+        page('contributor', [receivedRow()], {
+          name: 'Example, Wen',
+          year: 2026,
+        }),
+      );
     });
     const payments = requests.filter((url) => url.pathname.endsWith('/payments-under-name'));
     expect(payments).toHaveLength(1);
@@ -315,7 +512,7 @@ describe('Payments under this name', () => {
       '/money/committees/19369?year=2026&tab=individuals&name=Example%2C+Wen',
     );
     expect(campaign.textContent).toContain(
-      'The count is of matching records, not a confirmed count of separate donations.',
+      'Record counts may include more than one entry for the same donation.',
     );
     // Identity counts come with the rows, so no separate identity read is made.
     expect(requests.some((url) => url.pathname.endsWith('/finance/identities/records'))).toBe(
@@ -383,7 +580,11 @@ describe('Payments under this name', () => {
       if (role(url) === 'vendor') {
         return json(
           page('vendor', [
-            spent({ amount: null, paid_on: null, committee_registration_number: '9' }),
+            spent({
+              amount: null,
+              paid_on: null,
+              committee_registration_number: '9',
+            }),
           ]),
         );
       }
@@ -577,7 +778,7 @@ describe('Payments under this name', () => {
     expect(section('Campaign payments').querySelectorAll('.pn-row:not(.pn-head)')).toHaveLength(2);
   });
 
-  it('lists every identity holding records of the spelling, each with its own count', async () => {
+  it('keeps confirmation records out of payment browsing copy', async () => {
     await render('/money/names/Example%20Media%20LLC?year=2026', (url) => {
       if (url.pathname.endsWith('/finance/identities/org-uuid-1')) {
         return json({
@@ -596,7 +797,11 @@ describe('Payments under this name', () => {
       }
       if (url.pathname.includes('/finance/identities/')) return json(null, 500);
       const identified = {
-        identity: { id: 'org-uuid-1', kind: 'organization', name: 'Example Media' },
+        identity: {
+          id: 'org-uuid-1',
+          kind: 'organization',
+          name: 'Example Media',
+        },
       };
       if (role(url) === 'vendor') {
         return json(
@@ -627,29 +832,19 @@ describe('Payments under this name', () => {
           linkable: ['40001'],
           total: 1,
           identities: [
-            { id: 'org-uuid-1', kind: 'organization', name: 'Example Media', confirmed_records: 1 },
+            {
+              id: 'org-uuid-1',
+              kind: 'organization',
+              name: 'Example Media',
+              confirmed_records: 1,
+            },
           ],
         }),
       );
     });
-    const box = container.querySelector('[aria-label="Confirmed identity"]')!;
-    expect(box.querySelector('.pn-identity-label')?.textContent).toBe('CONFIRMED IDENTITIES');
-    const items = [...box.querySelectorAll('.pn-identity-item')].map((item) => item.textContent);
-    // Counts cover both payee files in the read's scope; the reference prints where
-    // served, never the id; the checked day only where it was read.
-    expect(items).toEqual([
-      'Example MediaConfirmed for 3 of 5 records in 2026 · ORG-0002 · Checked on Oct 2, 2026',
-      'Example DuluthConfirmed for 1 of 5 records in 2026',
-    ]);
-    expect(box.textContent).not.toContain('org-uuid');
-    expect(box.querySelector('a')?.getAttribute('href')).toMatch(
-      /^\/organizations\/org-uuid-1\?from=/,
-    );
-    expect(box.textContent).not.toContain('Review confirmation');
-    // Each row says the identity its own fingerprint is confirmed to.
-    const rows = section('Campaign payments').querySelectorAll('.pn-row:not(.pn-head)');
-    expect(rows[0].textContent).toContain('· Confirmed as Example Media');
-    expect(rows[1].textContent).not.toContain('Confirmed as');
+    expect(container.querySelector('.pn-identity')).toBeNull();
+    expect(container.textContent).not.toMatch(/Confirmed as|CONFIRMED IDENTITIES|None confirmed/);
+    expect(requests.some((url) => url.pathname.includes('/finance/identities/'))).toBe(false);
   });
 
   it('makes no identity claim while a file’s payments have failed', async () => {
@@ -692,10 +887,7 @@ describe('Payments under this name', () => {
     expect(container.querySelector('.pn-scope')?.textContent).toBe(
       'Showing records filed by Education Minn PAC, campaign payments fileClear all',
     );
-    // Identity counts are over the same filer scope.
-    expect(container.querySelector('.pn-identity-note')?.textContent).toBe(
-      'Confirmed for 1 of 3 records in 2026',
-    );
+    expect(container.querySelector('.pn-identity-note')).toBeNull();
 
     const clear = container.querySelector<HTMLButtonElement>('.pn-scope button')!;
     await act(async () => clear.click());
@@ -812,12 +1004,20 @@ describe('Payments under this name helpers', () => {
   });
 
   it('labels an empty answer with its own name and year', () => {
-    const data = { name: 'A B', role: 'independent_vendor', year: null } as NamePayments<unknown>;
+    const data = {
+      name: 'A B',
+      role: 'independent_vendor',
+      year: null,
+    } as NamePayments<unknown>;
     expect(emptyLine(data)).toBe(
       'No outside spending payments are recorded under “A B”. This does not mean none were made.',
     );
     // Under a filer scope the read cannot know no payments exist at all.
-    const scoped = { name: 'A B', role: 'vendor', year: 2025 } as NamePayments<unknown>;
+    const scoped = {
+      name: 'A B',
+      role: 'vendor',
+      year: 2025,
+    } as NamePayments<unknown>;
     expect(emptyLine(scoped, 'Education Minn PAC')).toBe(
       'No campaign payments under “A B” are recorded for Education Minn PAC in 2025',
     );
@@ -831,11 +1031,25 @@ describe('Payments under this name helpers', () => {
       { id: 'b', kind: 'person', name: 'B', confirmed_records: 0 },
     ]);
     const second = answer(5, [
-      { id: 'a', kind: 'organization', name: 'A', reference: 'ORG-1', confirmed_records: 1 },
+      {
+        id: 'a',
+        kind: 'organization',
+        name: 'A',
+        reference: 'ORG-1',
+        confirmed_records: 1,
+      },
     ]);
     expect(identityCoverage([first, second])).toEqual({
       records: 7,
-      identities: [{ id: 'a', kind: 'organization', name: 'A', reference: null, confirmed: 3 }],
+      identities: [
+        {
+          id: 'a',
+          kind: 'organization',
+          name: 'A',
+          reference: null,
+          confirmed: 3,
+        },
+      ],
     });
     expect(identityCoverage([first, null])).toBeNull();
     // No count served means no claim.
@@ -871,9 +1085,11 @@ describe('Payments under this name helpers', () => {
     );
     expect(excerptText(null)).toBeNull();
     expect(excerptText([])).toBeNull();
-    expect(rowIdentityNote({ identity: { id: 'x', kind: 'organization', name: 'A' } })).toBe(
-      'Confirmed as A',
-    );
+    expect(
+      rowIdentityNote({
+        identity: { id: 'x', kind: 'organization', name: 'A' },
+      }),
+    ).toBe('Confirmed as A');
     expect(rowIdentityNote({ identity: null })).toBeNull();
   });
 

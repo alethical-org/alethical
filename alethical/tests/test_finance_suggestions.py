@@ -1,9 +1,8 @@
-"""Finance's grouped suggestions reuse alethical.com's searches and echo a request id."""
+"""Finance suggestions and search share matching and echo a request id."""
 
 from __future__ import annotations
 
 import warnings
-from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import text
@@ -59,10 +58,10 @@ def test_a_short_query_says_so_rather_than_nothing_found(finance_api):  # noqa: 
     assert {group["reason"] for group in money["groups"]} == {"query_too_short"}
 
 
-def test_the_money_groups_match_alethical_coms_own_search(finance_api):  # noqa: F811
+def test_the_money_groups_match_finances_name_search(finance_api):  # noqa: F811
     finance = finance_api.get(SUGGEST, params={"q": "committee", "request_id": "c"})
     public = finance_api.get(
-        "/api/v1/campaign-finance/search", params={"q": "committee", "limit": 3}
+        "/api/v1/finance/name-search", params={"q": "committee", "limit": 3}
     )
     strip = lambda data: {  # noqa: E731
         key: value for key, value in data.items() if key != "current_claim_validated_at"
@@ -148,12 +147,12 @@ def test_the_money_search_keeps_its_single_instant_read(
 ):
     # The access check reads the list first; the money search must still get
     # its own REPEATABLE READ transaction, as it does on alethical.com.
-    def probe(q, limit, db):
+    def probe(db, q, limit):
         pin_campaign_finance_to_one_view(db)
         level = db.execute(text("SHOW transaction_isolation")).scalar()
-        return SimpleNamespace(data={"isolation": level})
+        return {"isolation": level}
 
-    monkeypatch.setattr(finance_router, "campaign_finance_search", probe)
+    monkeypatch.setattr(finance_router, "search_data", probe)
     with warnings.catch_warnings():
         warnings.simplefilter("error", SAWarning)
         response = committed_listed_account.get(

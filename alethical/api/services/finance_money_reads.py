@@ -18,6 +18,10 @@ from alethical.api.services import (
     finance_versions,
     identity_confirmations as identities,
 )
+from alethical.api.services.finance_name_matching import (
+    configure_discovery,
+    indexed_discovery_match,
+)
 from alethical.db import models as m
 from alethical.pipeline import campaign_finance_reader as reader
 
@@ -92,6 +96,7 @@ def _organization_claim_ids(db):
 def employers(db: Session, *, q: str, limit: int, offset: int) -> dict:
     try:
         release = _release(db)
+        configure_discovery(db)
         if release is None:
             return _unavailable(limit=limit, offset=offset, q=q)
         row = CONTRIBUTIONS
@@ -122,7 +127,7 @@ def employers(db: Session, *, q: str, limit: int, offset: int) -> dict:
             )
             .where(
                 row.snapshot_id == release.contributions.snapshot_id,
-                row.contrib_employer_name.icontains(q, autoescape=True),
+                indexed_discovery_match(row.contrib_employer_name, q),
             )
             .group_by(row.contrib_employer_name)
             .subquery()
@@ -157,11 +162,32 @@ def _donor_key():
     )
 
 
-def _donor_rows(db, release, *, name, donor, record_number, limit, offset):
+def _employer_spellings(db, release, name, include_spellings):
+    if not include_spellings:
+        return [name]
+    from alethical.api.services.finance_similar_names import read
+
+    variants = read(
+        db,
+        name=name,
+        role="employer",
+        year=None,
+        limit=50,
+        offset=0,
+        version=None,
+        strong_only=True,
+        release_id=release.id,
+    )
+    return [name, *variants["names"]]
+
+
+def _donor_rows(
+    db, release, *, name, donor, record_number, limit, offset, spellings=None
+):
     row = CONTRIBUTIONS
     where = [
         row.snapshot_id == release.contributions.snapshot_id,
-        row.contrib_employer_name == name,
+        row.contrib_employer_name.in_(spellings or [name]),
     ]
     where.append(
         row.contributor == donor if donor is not None else row.contributor.is_(None)
@@ -192,7 +218,7 @@ def _donor_rows(db, release, *, name, donor, record_number, limit, offset):
     }
 
 
-def _donor_previews(db, release, *, name, keys):
+def _donor_previews(db, release, *, name, keys, spellings=None):
     """Read the first 50 payments of every selected group in one bounded query."""
     if not keys:
         return {}
@@ -215,7 +241,7 @@ def _donor_previews(db, release, *, name, keys):
         )
         .where(
             row.snapshot_id == release.contributions.snapshot_id,
-            row.contrib_employer_name == name,
+            row.contrib_employer_name.in_(spellings or [name]),
             _donor_key().in_(keys),
         )
         .subquery()
@@ -233,13 +259,20 @@ def _donor_previews(db, release, *, name, keys):
 
 
 def employer_donors(
-    db: Session, *, name: str, limit: int, offset: int, release_id: UUID | None = None
+    db: Session,
+    *,
+    name: str,
+    limit: int,
+    offset: int,
+    release_id: UUID | None = None,
+    include_spellings: bool = False,
 ) -> dict:
     try:
         release = _release(db, release_id)
         if release is None:
             return _unavailable(limit=limit, offset=offset, name=name)
         row = CONTRIBUTIONS
+        spellings = _employer_spellings(db, release, name, include_spellings)
         key = _donor_key()
         groups = (
             select(
@@ -253,7 +286,7 @@ def employer_donors(
             )
             .where(
                 row.snapshot_id == release.contributions.snapshot_id,
-                row.contrib_employer_name == name,
+                row.contrib_employer_name.in_(spellings),
             )
             .group_by(
                 key,
@@ -262,9 +295,11 @@ def employer_donors(
             )
             .subquery()
         )
-        total, total_payments = db.execute(
+        total, total_payments, donor_name_count = db.execute(
             select(
-                func.count(), func.coalesce(func.sum(groups.c.payment_count), 0)
+                func.count(),
+                func.coalesce(func.sum(groups.c.payment_count), 0),
+                func.count(groups.c.name),
             ).select_from(groups)
         ).one()
         selected = db.execute(
@@ -274,11 +309,16 @@ def employer_donors(
             .offset(offset)
         ).all()
         previews = _donor_previews(
-            db, release, name=name, keys=[group.key for group in selected]
+            db,
+            release,
+            name=name,
+            keys=[group.key for group in selected],
+            spellings=spellings,
         )
         return {
             "state": "reported" if total else "not_reported",
             "name": name,
+            "spellings": spellings,
             "rows": [
                 {
                     **dict(group._mapping),
@@ -291,6 +331,7 @@ def employer_donors(
                 for group in selected
             ],
             "total": total,
+            "donor_name_count": donor_name_count,
             "total_payments": int(total_payments),
             "page": _page(limit, offset, total),
             **_source(release),
@@ -308,6 +349,7 @@ def employer_donor_payments(
     limit: int,
     offset: int,
     release_id: UUID | None = None,
+    include_spellings: bool = False,
 ) -> dict:
     if (donor is None) == (record_number is None):
         raise HTTPException(422, "Choose a printed donor name or one unnamed record")
@@ -326,6 +368,7 @@ def employer_donor_payments(
             record_number=record_number,
             limit=limit,
             offset=offset,
+            spellings=_employer_spellings(db, release, name, include_spellings),
         )
         return {
             "state": "reported" if result["payment_count"] else "not_reported",
@@ -664,7 +707,8 @@ def committee_groups(
         if tab:
             where.append(grouped.c.tab == tab)
         if q:
-            where.append(grouped.c.name.icontains(q, autoescape=True))
+            configure_discovery(db)
+            where.append(indexed_discovery_match(grouped.c.name, q))
         if record_number is not None:
             # Locate the whole group, not just the notice-matched row inside it.
             where.append(

@@ -5,8 +5,9 @@ sitting legislator, a registered committee, a name on a received-payment record,
 name on a spending record. Grouped by that, because the results lead to different places
 and only identified records have a page of their own.
 
-**The match is exactly what was typed, and there is no did-you-mean here or anywhere
-downstream of here.** Case-insensitive containment of the reader's string, nothing else:
+**The public default matches exactly what was typed.** Finance passes its own
+name predicate for discovery, keeping each result and identifier separate. The
+remaining description applies to the default public reader. Case-insensitive containment of the reader's string, nothing else:
 no closest spelling, no similarity score, no "did you mean". This is not caution, it is
 the measurement: 178 registered filer names sit a single character apart from another
 registered name, and every one of those pairs is a different organisation -- the Green
@@ -95,6 +96,7 @@ from alethical.api.services.campaign_finance_register import (
     CommitteesPage,
     committees,
     name_contains,
+    name_words_contain,
 )
 from alethical.api.services.committee_finance import NOT_REPORTED
 from alethical.api.services.independent_spending import REPORTED, UNAVAILABLE
@@ -323,7 +325,9 @@ def _too_short(query: str) -> SearchAnswer:
     )
 
 
-def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
+def search(
+    db: Session, release, *, query: str, limit: int, name_match=None
+) -> SearchAnswer:
     """Search one typed name across the 4 kinds of record, grouped by what each one is.
 
     ``release`` is the download release the caller already resolved and pinned, passed in
@@ -337,9 +341,17 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
         return _too_short(query)
     # The same release the name groups read, so a committee's finer kind here and on
     # the committees list are read from one set of downloads rather than two.
-    register = committees(db, limit=limit, offset=0, query=typed, release=release)
+    register = committees(
+        db,
+        limit=limit,
+        offset=0,
+        query=typed,
+        release=release,
+        name_match=name_match,
+        prefer_direct=name_match is not None,
+    )
     groups = [
-        _people_group(db, typed, limit=limit),
+        _people_group(db, typed, limit=limit, name_match=name_match),
         _committees_group(register),
     ]
     for kind, role, dataset, model, column in _NAME_GROUPS:
@@ -354,6 +366,7 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
                 dataset=dataset,
                 model=model,
                 column=column,
+                name_match=name_match,
             )
         )
     pair = lobbying.published_pair(db)
@@ -363,13 +376,28 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
             # Name order, stated rather than inherited: this is the name lookup, and
             # the directory address defaults to the dollar order.
             lobbying.lobbyists_page(
-                db, pair, limit=limit, offset=0, query=typed, sort="name"
+                db,
+                pair,
+                limit=limit,
+                offset=0,
+                query=typed,
+                sort="name",
+                name_match=name_match,
+                prefer_direct=name_match is not None,
             ),
             "lobbyists",
         ),
         (
             PRINCIPALS,
-            lobbying.principals_page(db, pair, limit=limit, offset=0, query=typed),
+            lobbying.principals_page(
+                db,
+                pair,
+                limit=limit,
+                offset=0,
+                query=typed,
+                name_match=name_match,
+                prefer_direct=name_match is not None,
+            ),
             "principals",
         ),
     ):
@@ -403,7 +431,7 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
         # refusing the register and the legislators alongside them.
         state=REPORTED,
         query=typed,
-        matched_on=MATCHED_ON,
+        matched_on="name_and_likely_spellings" if name_match else MATCHED_ON,
         min_query_length=MIN_QUERY_LENGTH,
         counted_up_to=COUNTED_UP_TO,
         groups=tuple(groups),
@@ -440,7 +468,9 @@ def _committees_group(register: CommitteesPage) -> ResultGroup:
     )
 
 
-def _people_group(db: Session, typed: str, *, limit: int) -> ResultGroup:
+def _people_group(
+    db: Session, typed: str, *, limit: int, name_match=None
+) -> ResultGroup:
     """Sitting legislators whose name contains what was typed.
 
     Filtered exactly as the legislator directory filters itself, including its exclusion
@@ -481,7 +511,7 @@ def _people_group(db: Session, typed: str, *, limit: int) -> ResultGroup:
             service.session_id == session_id,
             service.is_current.is_(True),
             district.code.not_like("%-unknown"),
-            name_contains(legislator.full_name, typed),
+            (name_match or name_contains)(legislator.full_name, typed),
         )
         .subquery()
     )
@@ -493,7 +523,15 @@ def _people_group(db: Session, typed: str, *, limit: int) -> ResultGroup:
     # missing figure: we searched and nothing matched.
     stmt = (
         select(matched, func.count().over().label("matched_total"))
-        .order_by(matched.c.sort_name.asc(), matched.c.id.asc())
+        .order_by(
+            *(
+                (name_words_contain(matched.c.full_name, typed).desc(),)
+                if name_match
+                else ()
+            ),
+            matched.c.sort_name.asc(),
+            matched.c.id.asc(),
+        )
         .limit(limit + 1)
     )
     rows = db.execute(stmt).all()
@@ -530,6 +568,7 @@ def _name_group(
     dataset: Dataset,
     model,
     column,
+    name_match=None,
 ) -> ResultGroup:
     """Distinct printed names in one download, with how many payments carry each.
 
@@ -544,7 +583,7 @@ def _name_group(
     matches = (
         column.is_not(None),
         model.snapshot_id == snapshot_id,
-        name_contains(column, typed),
+        (name_match or name_contains)(column, typed),
     )
     # The rows and the count come off one pass, because they are the same pass: the
     # names a page draws are the first few of the names the count walks. Two statements
@@ -560,14 +599,20 @@ def _name_group(
         select(column.label("name"), func.count().label("payments"))
         .where(*matches)
         .group_by(column)
-        .order_by(column.asc())
+        .order_by(
+            *((name_words_contain(column, typed).desc(),) if name_match else ()),
+            column.asc(),
+        )
         .limit(COUNTED_UP_TO + 1)
         .cte("names")
     )
     counted_names = select(func.count()).select_from(names).scalar_subquery()
     served = db.execute(
         select(names.c.name, names.c.payments, counted_names.label("counted"))
-        .order_by(names.c.name.asc())
+        .order_by(
+            *((name_words_contain(names.c.name, typed).desc(),) if name_match else ()),
+            names.c.name.asc(),
+        )
         .limit(limit + 1)
     ).all()
     counted = served[0].counted if served else 0

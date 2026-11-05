@@ -28,11 +28,18 @@ import type { MadePayment, ReceivedPayment } from '../pages/committee/types';
 const API = 'https://api.example.test';
 
 function fakeSupabase() {
-  const session = { access_token: 'token-1', user: { id: 'u1', email: 'r@example.test' } };
+  const session = {
+    access_token: 'token-1',
+    user: { id: 'u1', email: 'r@example.test' },
+  };
   return {
     auth: {
-      getSession: async () => ({ data: { session: session as unknown as Session } }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      getSession: async () => ({
+        data: { session: session as unknown as Session },
+      }),
+      onAuthStateChange: () => ({
+        data: { subscription: { unsubscribe() {} } },
+      }),
       signOut: async () => ({ error: null }),
     },
   } as unknown as SupabaseClient;
@@ -179,7 +186,12 @@ function page<T>(state: string, payments: T[], extra: Record<string, unknown> = 
   return {
     state,
     payments,
-    page: { limit: 250, offset: 0, has_more: false, total_payments: payments.length },
+    page: {
+      limit: 250,
+      offset: 0,
+      has_more: false,
+      total_payments: payments.length,
+    },
     linkable_registration_numbers: ['20003'],
     release_id: 'r1',
     fetched_at: '2026-10-27T17:00:00Z',
@@ -206,7 +218,10 @@ const NOTICES = {
           contribution_date: '2026-06-23',
           received_on: '2026-06-24',
           status: 'matched',
-          matched_payment: { record_number: 15, contributor: 'Example State Central Committee' },
+          matched_payment: {
+            record_number: 15,
+            contributor: 'Example State Central Committee',
+          },
           pdf_url: 'https://cfb.mn.gov/notice.pdf',
         },
       ],
@@ -237,7 +252,10 @@ function loadedAnswers(overrides: Answers = {}): Answers {
   return {
     '/committees/90001/finance': { status: 200, body: FINANCE },
     '/committees/90001/filings': { status: 200, body: FILINGS },
-    '/finance/committees/90001/report-figures': { status: 200, body: reports() },
+    '/finance/committees/90001/report-figures': {
+      status: 200,
+      body: reports(),
+    },
     '/committees/90001/confirmation': {
       status: 200,
       body: {
@@ -297,7 +315,14 @@ function loadedAnswers(overrides: Answers = {}): Answers {
         gift_amount: '5000',
         pdf_url: 'https://cfb.mn.gov/s1.pdf',
         box: 3,
-        sources: [{ name: 'Example Builders Fund', city: 'Saint Paul', state: 'MN', amount: null }],
+        sources: [
+          {
+            name: 'Example Builders Fund',
+            city: 'Saint Paul',
+            state: 'MN',
+            amount: null,
+          },
+        ],
         line_a: '3000',
         line_b: null,
         line_c: null,
@@ -485,7 +510,10 @@ describe('Committee page', () => {
       loadedAnswers({
         '/committees/90001/finance': {
           status: 200,
-          body: { ...FINANCE, register: { ...FINANCE.register, termination_date: '2026-07-28' } },
+          body: {
+            ...FINANCE,
+            register: { ...FINANCE.register, termination_date: '2026-07-28' },
+          },
         },
       }),
     );
@@ -553,6 +581,9 @@ describe('Committee page', () => {
     expect(text()).toContain('Example, Jordan A');
     expect(text()).not.toContain('EXAMPLE, PRIYA');
     expect(container.querySelector<HTMLInputElement>('.cmt-field')?.value).toBe('Jordan');
+    expect(container.querySelector('.cmt-summary')?.textContent).toContain(
+      'Matching itemized contributions $3,500',
+    );
     act(() => root.unmount());
     root = createRoot(container);
     clearReadCache();
@@ -625,7 +656,10 @@ describe('Committee page', () => {
     await render(
       '/money/committees/90001',
       loadedAnswers({
-        '/finance/committees/90001/report-figures': { status: 200, body: reports([]) },
+        '/finance/committees/90001/report-figures': {
+          status: 200,
+          body: reports([]),
+        },
         '/committees/90001/payments?direction=received': {
           status: 200,
           body: page('not_reported', []),
@@ -658,7 +692,9 @@ describe('Committee page', () => {
           status: 200,
           body: page('unavailable', []),
         },
-        '/finance/committees/90001/payment-groups?direction=made': { status: 500 },
+        '/finance/committees/90001/payment-groups?direction=made': {
+          status: 500,
+        },
         '/finance/committees/90001/payments?direction=made': { status: 500 },
       }),
     );
@@ -692,7 +728,9 @@ describe('Committee page', () => {
   it('offers Try again when the report figures cannot be read, keeping the payments', async () => {
     await render(
       '/money/committees/90001',
-      loadedAnswers({ '/finance/committees/90001/report-figures': { status: 500 } }),
+      loadedAnswers({
+        '/finance/committees/90001/report-figures': { status: 500 },
+      }),
     );
     expect(text()).toContain('We couldn’t load the report information');
     expect(text()).toContain('Example, Jordan A');
@@ -738,7 +776,9 @@ describe('Committee page', () => {
   it('shows the payments failure without inventing an empty list', async () => {
     await render(
       '/money/committees/90001',
-      loadedAnswers({ '/committees/90001/payments?direction=received': { status: 500 } }),
+      loadedAnswers({
+        '/committees/90001/payments?direction=received': { status: 500 },
+      }),
     );
     expect(text()).toContain('We couldn’t load these payments right now.');
     expect(text()).not.toContain('contribution records are held');
@@ -779,7 +819,12 @@ describe('Committee page, Media buys card', () => {
             exact_name_count: 0,
             files: [ROW],
             total: 1,
-            groups: [{ label: '', files: [{ ...ROW, role: 'Advertiser, as printed' }] }],
+            groups: [
+              {
+                label: '',
+                files: [{ ...ROW, role: 'Advertiser, as printed' }],
+              },
+            ],
           },
         },
       }),
@@ -806,7 +851,13 @@ describe('Committee page, Media buys card', () => {
       loadedAnswers({
         [CONNECTIONS]: {
           status: 200,
-          body: { agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] },
+          body: {
+            agency_key: null,
+            exact_name_count: 0,
+            files: [],
+            total: 0,
+            groups: [],
+          },
         },
       }),
     );
@@ -1026,7 +1077,10 @@ describe('Committee page, breakdowns', () => {
     await render(
       '/money/committees/90001?report=8',
       loadedAnswers({
-        '/committees/90001/finance': { status: 200, body: { ...FINANCE, stated_by_kind: BY_KIND } },
+        '/committees/90001/finance': {
+          status: 200,
+          body: { ...FINANCE, stated_by_kind: BY_KIND },
+        },
         '/finance/committees/90001/report-figures': {
           status: 200,
           body: reports([
@@ -1058,7 +1112,11 @@ describe('Committee page, breakdowns', () => {
     await render(
       '/money/committees/90001',
       withBlocks({
-        stated_by_kind: { state: 'sources_disagree', reported_through: '2026-07-20', lines: [] },
+        stated_by_kind: {
+          state: 'sources_disagree',
+          reported_through: '2026-07-20',
+          lines: [],
+        },
       }),
     );
     expect(container.querySelector('.cmt-bk-kind')?.textContent).toContain('The sources disagree');
@@ -1091,7 +1149,10 @@ describe('Committee page, breakdowns', () => {
       stateRows(
         {
           ...DONOR_STATES,
-          summary: { ...DONOR_STATES.summary, unknown: { names: 9, cash_total: null } },
+          summary: {
+            ...DONOR_STATES.summary,
+            unknown: { names: 9, cash_total: null },
+          },
         },
         false,
       ),
@@ -1106,7 +1167,10 @@ describe('Committee page, breakdowns', () => {
         {
           ...FINANCE,
           entity_type: 'PCF',
-          register: { ...FINANCE.register, kind: 'political_committee_or_fund' },
+          register: {
+            ...FINANCE.register,
+            kind: 'political_committee_or_fund',
+          },
         },
       ),
     );
@@ -1267,6 +1331,13 @@ describe('Contributions made and report availability', () => {
       'Retained registration copied Oct 27, 2026',
     );
   });
+  it.each([
+    ['made', 'Recipient', 'Matching itemized contributions made $100'],
+    ['expenditures', 'Printing', 'Matching itemized expenditures $200'],
+  ])('labels a filtered %s subtotal as matching records', async (tab, name, expected) => {
+    await render(`/money/committees/90001?tab=${tab}&name=${name}`, answers());
+    expect(container.querySelector('.cmt-summary')?.textContent).toContain(expected);
+  });
   it('excludes outgoing contributions from expenditures and never reuses the aggregate tab count', async () => {
     await render('/money/committees/90001?tab=expenditures', answers());
     const table = container.querySelector('[role="table"]')!;
@@ -1345,7 +1416,10 @@ describe('Committee matching station invoices', () => {
     await render(
       '/money/committees/90001?year=2026&tab=expenditures',
       answers([
-        { ...made('Example Printing Co', '20.0000', '2026-04-22', 21), matching_invoice: invoice },
+        {
+          ...made('Example Printing Co', '20.0000', '2026-04-22', 21),
+          matching_invoice: invoice,
+        },
         made('Example Printing Co', '20.0000', '2026-04-22', 22),
       ]),
     );
@@ -1374,7 +1448,10 @@ describe('Committee matching station invoices', () => {
     await render(
       '/money/committees/90001?tab=expenditures',
       answers([
-        { ...made('Example Printing Co', '20.0000', '2026-04-22', 21), matching_invoice: invoice },
+        {
+          ...made('Example Printing Co', '20.0000', '2026-04-22', 21),
+          matching_invoice: invoice,
+        },
         {
           ...made('Example Printing Co', '30.0000', '2026-04-23', 22),
           matching_invoice: { ...invoice, page: 8 },

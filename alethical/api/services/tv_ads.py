@@ -857,6 +857,8 @@ def browse(
     page=1,
     default_year=False,
     search_scope="files",
+    name_match=None,
+    direct_name=None,
 ):
     # These controls exist only in folder browsing; hidden constraints must not filter other tabs.
     if tab != "folders":
@@ -926,6 +928,7 @@ def browse(
         for p in selected:
             row = _row(db, p)
             match = None
+            discovery_rank = 0
             for label, value, shown in [
                 # The row's own title already shows the matching name.
                 ("Matched the file name", p.safe_title, None),
@@ -986,6 +989,26 @@ def browse(
                             False,
                         )
                         break
+            if match is None and name_match:
+                # Finance discovery can find a held machine-read agency spelling;
+                # it never marks that text checked or rewrites a file's source key.
+                matches = [
+                    (
+                        not direct_name(q, agency) if direct_name else False,
+                        index,
+                        agency,
+                        version,
+                    )
+                    for index, version in enumerate(_file_versions(db, p))
+                    for agency in _agency_names(db, version)
+                    if name_match(q, agency)
+                ]
+                if matches:
+                    discovery_rank, _, agency, version = min(
+                        matches, key=lambda item: item[:3]
+                    )
+                    row = _row(db, version)
+                    match = ("Matched an agency name", f"Agency: {agency}", False)
             if match:
                 rows.append(
                     {
@@ -993,6 +1016,7 @@ def browse(
                         "match_label": match[0],
                         "excerpt": match[1],
                         "text_match": match[2],
+                        "_discovery_rank": discovery_rank,
                     }
                 )
     elif tab == "folders":
@@ -1096,7 +1120,15 @@ def browse(
     else:
         raise ValueError("Unknown browse view")
     if q and tab_search:
-        rows = [row for row in rows if q.casefold() in row["label"].casefold()]
+        rows = [
+            row
+            for row in rows
+            if (
+                name_match(q, row["label"])
+                if name_match and tab == "agencies"
+                else q.casefold() in row["label"].casefold()
+            )
+        ]
     tab_counts = {}
     if _originals(db):
         tab_counts = {
@@ -1107,9 +1139,20 @@ def browse(
             "stations": len(DEFAULT_STATIONS),
             "years": len(years),
         }
-    rows.sort(key=lambda r: (r["label"].casefold(), r["key"]))
+    rows.sort(
+        key=lambda r: (
+            r.get("_discovery_rank", 0),
+            not direct_name(q, r["label"])
+            if direct_name and q and tab_search and tab == "agencies"
+            else False,
+            r["label"].casefold(),
+            r["key"],
+        )
+    )
     total = len(rows)
     rows = rows[:500]
+    for row in rows:
+        row.pop("_discovery_rank", None)
     return {
         "tab": tab,
         "q": q,

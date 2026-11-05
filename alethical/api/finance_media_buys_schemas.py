@@ -276,6 +276,7 @@ class FinanceAgencyGroup(Model):
 
 
 class FinanceAgency(Model):
+    version: str | None = None
     unchecked: bool = False
     key: str
     name: str

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
-import { useRead } from '../api/read';
+import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
 import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
@@ -279,7 +279,10 @@ export function TVStation({ match }: { match: RouteMatch }) {
   const others = (sources.data?.stations ?? []).filter((s) => s.call_sign !== data?.call_sign);
   return (
     <MediaPage
-      fallback={{ to: hrefFor('media-buys', {}, { tab: 'stations' }), name: 'Media buys' }}
+      fallback={{
+        to: hrefFor('media-buys', {}, { tab: 'stations' }),
+        name: 'Media buys',
+      }}
       footer={
         data && (
           <SourcesAndUpdates>
@@ -365,7 +368,10 @@ export function TVStation({ match }: { match: RouteMatch }) {
                               hrefFor(
                                 'media-buys',
                                 {},
-                                { station: data.call_sign, year: String(year.year) },
+                                {
+                                  station: data.call_sign,
+                                  year: String(year.year),
+                                },
                               ),
                               here,
                             )}
@@ -423,14 +429,52 @@ export function TVStation({ match }: { match: RouteMatch }) {
   );
 }
 
-/** Files under 1 exact printed agency spelling, and addresses checked for it. */
+/** Each file/version is shown once, keeping every spelling on that version. */
+export function agencySpellingGroups(agencies: Agency[]) {
+  const seen = new Map<string, { name: string; row: FileRow & { alsoPrintedAs: string[] } }>();
+  return agencies.map((agency) => ({
+    key: agency.key,
+    name: agency.name,
+    files: agency.groups
+      .flatMap((group) => group.files)
+      .flatMap((file) => {
+        const identity = `${file.key}|${file.version_id}`;
+        const prior = seen.get(identity);
+        if (prior) {
+          if (prior.name !== agency.name && !prior.row.alsoPrintedAs.includes(agency.name)) {
+            prior.row.alsoPrintedAs.push(agency.name);
+          }
+          return [];
+        }
+        const row = { ...file, alsoPrintedAs: [] as string[] };
+        seen.set(identity, { name: agency.name, row });
+        return [row];
+      }),
+  }));
+}
+
+/** Files grouped by original spelling, with exact-spelling address evidence. */
 export function PrintedAgency({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const read = useRead<Agency>(mediaPath(['agencies', match.params.name]));
   const data = read.data;
-  const files = data ? data.groups.flatMap((group) => group.files) : [];
-  const stations = [...new Set(files.map((file) => file.station))];
+  const variants = useRead<{
+    key: string;
+    version: string;
+    spellings: Agency[];
+  }>(
+    data?.key === match.params.name && data.version
+      ? apiPath(['finance', 'media-buys', 'agencies', data.key, 'spellings'], {
+          version: data.version,
+        })
+      : null,
+  );
+  const included =
+    data && variants.data?.key === data.key && variants.data.version === data.version
+      ? variants.data.spellings
+      : [];
+  const spellingGroups = agencySpellingGroups(data ? [data, ...included] : []);
   const payments = isBuilt('payments-under-name') && data;
   const cols = {
     '--cols': 'minmax(0, 1.5fr) minmax(0, 1.5fr) 190px 120px',
@@ -438,7 +482,10 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
   } as CSSProperties;
   return (
     <MediaPage
-      fallback={{ to: hrefFor('media-buys', {}, { tab: 'agencies' }), name: 'Media buys' }}
+      fallback={{
+        to: hrefFor('media-buys', {}, { tab: 'agencies' }),
+        name: 'Media buys',
+      }}
     >
       {read.notFound && (
         <NotHeld title="This name is no longer available">
@@ -461,69 +508,94 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
             <h1 tabIndex={-1} className="mb-title mb-title-agency">
               {data.name}
             </h1>
-            <p className="mb-lead">
-              A name printed in a TV station file is kept as its exact spelling; a matching name
-              alone does not establish identity
-            </p>
           </header>
           <div className="mb-two">
             <div className="mb-stack">
               <section aria-labelledby="files-heading">
                 <div className="mb-section-head">
-                  <h2 id="files-heading">Files under this exact spelling</h2>
-                  <span className="mb-section-count">
-                    {plural(files.length, 'file', 'files')}
-                    {stations.length > 0 && ` · ${stations.join(', ')}`}
-                  </span>
+                  <h2 id="files-heading">Files by reported name</h2>
                 </div>
                 <div className="mb-section-body">
-                  <div
-                    role="table"
-                    aria-label="Files under this exact spelling"
-                    className="mb-table"
-                  >
+                  {included.length > 0 && <p>Similar spellings may refer to the same agency</p>}
+                  <div role="table" aria-label="Files by reported name" className="mb-table">
                     <div role="row" className="mb-table-row mb-table-head" style={cols}>
                       <span role="columnheader">FILE</span>
                       <span role="columnheader">STATION · FOLDER</span>
                       <span role="columnheader">NAME SOURCE</span>
                       <span role="columnheader">STATION UPLOAD</span>
                     </div>
-                    {files.map((file) => (
-                      <div role="row" key={file.key} className="mb-table-row" style={cols}>
-                        <span role="cell" className="mb-cell-name">
-                          <Link to={withFrom(fileHref(file.key, file.version_id), here)}>
-                            {file.label || file.name}
-                          </Link>
-                        </span>
-                        <span role="cell" className="mb-cell">
-                          {[file.station, file.year, file.category, lastSegment(file.folder_label)]
-                            .filter((part) => part !== null && part !== '' && part !== undefined)
-                            .join(' · ')}
-                        </span>
-                        <span role="cell" className="mb-cell mb-cell-source">
-                          {file.agency_unchecked ? <NotCheckedIcon /> : <CheckedIcon />}
-                          <span>
-                            {file.agency_unchecked
-                              ? 'Machine-read · Not checked'
-                              : checkedDay(file.agency_checked_at) !== 'Unavailable'
-                                ? `Checked on ${checkedDay(file.agency_checked_at)}`
-                                : 'Checked'}
-                          </span>
-                        </span>
-                        <span
-                          role="cell"
-                          className="mb-cell mb-cell-strong"
-                          data-missing={!file.uploaded_at || undefined}
-                        >
-                          {file.uploaded_at ? day(file.uploaded_at) : 'Upload date unavailable'}
-                        </span>
+                    {spellingGroups.map((group) => (
+                      <div role="rowgroup" key={group.key} aria-label={group.name}>
+                        <div role="row">
+                          <div role="cell" aria-colspan={4} className="mb-spelling-head">
+                            <h3>{group.name}</h3>
+                            <span className="mb-section-count">
+                              {plural(group.files.length, 'file', 'files')}
+                              {group.files.length > 0 &&
+                                ` · ${[...new Set(group.files.map((file) => file.station))].join(', ')}`}
+                            </span>
+                          </div>
+                        </div>
+                        {group.files.map((file) => (
+                          <div
+                            role="row"
+                            key={`${file.key}|${file.version_id}`}
+                            className="mb-table-row"
+                            style={cols}
+                          >
+                            <span role="cell" className="mb-cell-name">
+                              <Link to={withFrom(fileHref(file.key, file.version_id), here)}>
+                                {file.label || file.name}
+                              </Link>
+                              {file.alsoPrintedAs.length > 0 && (
+                                <span className="mb-cell mb-also-printed">
+                                  Also printed as: {file.alsoPrintedAs.join(', ')}
+                                </span>
+                              )}
+                            </span>
+                            <span role="cell" className="mb-cell">
+                              {[
+                                file.station,
+                                file.year,
+                                file.category,
+                                lastSegment(file.folder_label),
+                              ]
+                                .filter(
+                                  (part) => part !== null && part !== '' && part !== undefined,
+                                )
+                                .join(' · ')}
+                            </span>
+                            <span role="cell" className="mb-cell mb-cell-source">
+                              {file.agency_unchecked ? <NotCheckedIcon /> : <CheckedIcon />}
+                              <span>
+                                {file.agency_unchecked
+                                  ? 'Machine-read · Not checked'
+                                  : checkedDay(file.agency_checked_at) !== 'Unavailable'
+                                    ? `Checked on ${checkedDay(file.agency_checked_at)}`
+                                    : 'Checked'}
+                              </span>
+                            </span>
+                            <span
+                              role="cell"
+                              className="mb-cell mb-cell-strong"
+                              data-missing={!file.uploaded_at || undefined}
+                            >
+                              {file.uploaded_at ? day(file.uploaded_at) : 'Upload date unavailable'}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
+                  {variants.loading && <p role="status">Loading files for similar spellings…</p>}
+                  {variants.failed && (
+                    <Refused onRetry={variants.retry} retrying={variants.pending}>
+                      We couldn’t load files for similar spellings
+                    </Refused>
+                  )}
                   <p className="mb-note">
                     Agency names come from checked facts or machine-read text. Machine-read names
-                    are marked Not checked and may contain reading errors. Each spelling is kept
-                    separate.
+                    are marked Not checked and may contain reading errors.
                   </p>
                 </div>
               </section>
@@ -590,28 +662,33 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                 <section className="mb-card">
                   <h2>Payment records</h2>
                   <p className="mb-card-line">
-                    Separate searches of the campaign and outside-spending payment files for this
-                    exact printed spelling
+                    Search campaign and outside-spending payment files under this name and similar
+                    spellings
                   </p>
                   <ul className="mb-link-list">
                     <li>
                       <Link
                         className="mb-link-row"
-                        to={withFrom(hrefFor('payments-under-name', { query: data.name }), here)}
+                        to={withFrom(
+                          hrefFor(
+                            'payments-under-name',
+                            { query: data.name },
+                            { role: 'payee', dataset: 'expenditures' },
+                          ),
+                          here,
+                        )}
                       >
-                        <span className="mb-link-name">
-                          Campaign payments with this exact printed name
-                        </span>
+                        <span className="mb-link-name">Campaign payments under this name</span>
                         <Arrow />
                       </Link>
                     </li>
                     <li>
                       <Link
                         className="mb-link-row"
-                        to={`${withFrom(hrefFor('payments-under-name', { query: data.name }), here)}#outside-payments`}
+                        to={`${withFrom(hrefFor('payments-under-name', { query: data.name }, { role: 'payee', dataset: 'independent' }), here)}#outside-payments`}
                       >
                         <span className="mb-link-name">
-                          Outside spending payments with this exact printed name
+                          Outside spending payments under this name
                         </span>
                         <Arrow />
                       </Link>
@@ -622,7 +699,13 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                   </p>
                 </section>
               )}
-              <AgencySimilarNames agencyKey={data.key} here={here} />
+              <AgencySimilarNames
+                agencyKey={data.key}
+                here={here}
+                sourceVersion={data.version}
+                onRefreshSource={read.retry}
+                excludedKeys={spellingGroups.map((group) => group.key)}
+              />
             </aside>
           </div>
         </>

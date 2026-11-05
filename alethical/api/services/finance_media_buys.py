@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from alethical.api.services import finance_station_checks as checks
 from alethical.api.services import finance_station_metadata
 from alethical.api.services import tv_ads as reader
+from alethical.api.services.finance_name_matching import discovery_text, direct_text
 from alethical.db import models as m
 
 DATES = {"Invoice date", "Scheduled airing", "Start date", "End date"}
@@ -138,7 +139,13 @@ def recent(db: Session) -> dict:
 
 
 def browse(db: Session, **filters) -> dict:
-    return reader.browse(db, originals=True, **filters)
+    return reader.browse(
+        db,
+        originals=True,
+        name_match=discovery_text,
+        direct_name=direct_text,
+        **filters,
+    )
 
 
 def folder(db: Session, key: str) -> dict:

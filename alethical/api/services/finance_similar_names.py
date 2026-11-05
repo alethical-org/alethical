@@ -1,8 +1,9 @@
 """Similar printed spellings, never inferred identities or combined money.
 
 Candidate matching spans the role's held files within its filer/dataset scope,
-not the selected year. Only the counts use that year. Three indexed search probes cover the printed name and
-expanded/short organization words; returned keys always stay exactly as held.
+not the selected year. Only the counts use that year. Weak comparisons use 3
+trigram probes. Strong candidates use necessary whole-word conditions instead of
+a similarity cutoff; returned keys always stay exactly as held.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from typing import Literal
+from uuid import UUID
 
 from sqlalchemy import false, func, or_, select, text, union
 from sqlalchemy.orm import Session
@@ -17,6 +19,12 @@ from sqlalchemy.orm import Session
 from alethical.api.services import committee_finance, finance_versions
 from alethical.api.services import identity_confirmations as identities
 from alethical.api.services.finance_payments_under_name import _claims
+from alethical.api.services.finance_name_matching import (
+    closeness,
+    strong_candidates,
+    strong_spelling,
+)
+from alethical.api.services.finance_payments_under_name import ReleaseChanged
 from alethical.db import models as m
 from alethical.pipeline.campaign_finance import SPEC_BY_DATASET
 from alethical.pipeline.campaign_finance_reader import ReleaseNoLongerHeld
@@ -43,6 +51,7 @@ WORDS = (
 )
 EXPANDED = {word: group[0] for group in WORDS for word in group}
 SHORT = {word: group[1] for group in WORDS for word in group}
+# Weak comparisons only. Strong eligibility never depends on this cutoff.
 SIMILARITY = "0.35"
 QUERY_TIMEOUT_MS = "3000"
 
@@ -71,6 +80,9 @@ def read(
     version: str | None,
     filer: str | None = None,
     dataset: DatasetFilter | None = None,
+    excluded_names: tuple[str, ...] | list[str] = (),
+    strong_only: bool = False,
+    release_id: UUID | None = None,
 ) -> dict:
     searches = probes(name)
     version = finance_versions.check(db, version, "money", "identity")
@@ -83,6 +95,11 @@ def read(
     release = committee_finance.current_release(db)
     if release is None:
         raise ReleaseNoLongerHeld("No payment files are published")
+    if release_id is not None and release.id != release_id:
+        raise ReleaseChanged()
+    # A displayed spelling only excludes a candidate from the same source copy.
+    if release_id is None:
+        excluded_names = ()
     kinds = tuple(
         kind
         for kind in KINDS[role]
@@ -102,6 +119,7 @@ def read(
         "sources": sources,
         "limit": limit,
         "offset": offset,
+        "excluded_names": sorted(set(excluded_names)),
     }
     for kind in kinds:
         printed = identities._PRINTED[kind]
@@ -125,9 +143,12 @@ def read(
             select(printed.name.label("name")).where(
                 *candidate_scope,
                 printed.name != name,
-                or_(*(printed.name.op("%")(query) for query in searches))
-                if searches
-                else false(),
+                or_(
+                    strong_candidates(printed.name, name, person=role == "donor"),
+                    or_(*(printed.name.op("%")(query) for query in searches))
+                    if searches and not strong_only
+                    else false(),
+                ),
             )
         )
         sources.append(
@@ -139,22 +160,29 @@ def read(
             }
         )
     if not candidates:
+        if strong_only:
+            return {**result, "names": []}
         return {**result, "has_more": False, "rows": []}
-    # UNION deduplicates exact spellings, not normalized names. No candidate cap
-    # precedes this global alphabetical page; the extra row only proves has_more.
+    # UNION deduplicates printed keys, never source payment rows. Rank and decide
+    # eligibility over the complete candidate set before paging, so a weak early
+    # alphabetical match cannot hide the nearest name or a strong variant.
     all_names = (
         union(*candidates).subquery()
         if len(candidates) > 1
         else candidates[0].distinct().subquery()
     )
-    names = list(
-        db.scalars(
-            select(all_names.c.name)
-            .order_by(all_names.c.name.collate("C"))
-            .offset(offset)
-            .limit(limit + 1)
-        )
-    )
+    names = list(db.scalars(select(all_names.c.name)))
+    strong = {
+        candidate
+        for candidate in names
+        if strong_spelling(name, candidate, person=role == "donor")
+    }
+    if strong_only:
+        return {**result, "names": sorted(strong)}
+    excluded = set(excluded_names)
+    names = [candidate for candidate in names if candidate not in excluded]
+    names.sort(key=lambda candidate: (-closeness(name, candidate), candidate))
+    names = names[offset : offset + limit + 1]
     more = len(names) > limit
     names = names[:limit]
     counts = defaultdict(int)

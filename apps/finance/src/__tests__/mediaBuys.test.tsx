@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearReadCache } from '../api/read';
 import { MediaBuys, browseRow } from '../pages/MediaBuys';
 import { StationFile } from '../pages/StationFile';
-import { PrintedAgency, StationFolder, TVStation } from '../pages/StationRecords';
+import {
+  PrintedAgency,
+  StationFolder,
+  TVStation,
+  agencySpellingGroups,
+} from '../pages/StationRecords';
 import { copiedLines, day, savedAt } from '../pages/media/shared';
 import { markQuote } from '../pages/media/evidence';
 import * as routes from '../routes';
@@ -14,7 +19,10 @@ import { withFrom } from '../returnContext';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'test-token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'test-token',
+  }),
 }));
 
 let container: HTMLDivElement;
@@ -57,7 +65,10 @@ const FILE = {
 const DETAIL = {
   ...FILE,
   agencies: [],
-  folder: { key: 'kare-folder', label: 'Political File / 2026 / Local / Example Committee' },
+  folder: {
+    key: 'kare-folder',
+    label: 'Political File / 2026 / Local / Example Committee',
+  },
   fcc_url: 'https://publicfiles.fcc.gov',
   fcc_available: true,
   versions: [
@@ -309,7 +320,13 @@ describe('Media buys', () => {
         categories: [],
         tab_counts: { folders: 700, agencies: 610, stations: 3, years: 5 },
         rows: [
-          { key: 'KARE', label: 'KARE', file_count: 80, folder_count: 12, years: [2026, 2024] },
+          {
+            key: 'KARE',
+            label: 'KARE',
+            file_count: 80,
+            folder_count: 12,
+            years: [2026, 2024],
+          },
         ],
       }),
     );
@@ -430,7 +447,12 @@ describe('Media buys', () => {
       href: '/media-buys?year=2024',
     });
     expect(
-      browseRow('stations', { key: 'kare', label: 'KARE', file_count: 1, folder_count: 2 }),
+      browseRow('stations', {
+        key: 'kare',
+        label: 'KARE',
+        file_count: 1,
+        folder_count: 2,
+      }),
     ).toMatchObject({
       mid: '2 folders',
       end: '1 file',
@@ -448,6 +470,88 @@ describe('Media buys', () => {
 });
 
 describe('TV station folder, station and printed agency name', () => {
+  it('deduplicates only the same file/version and keeps the other original spelling', () => {
+    const agency = (key: string, name: string, files: (typeof FILE)[]) => ({
+      key,
+      name,
+      unchecked: false,
+      addresses: [],
+      groups: [{ station: 'KARE', year: 2026, files }],
+    });
+    const groups = agencySpellingGroups([
+      agency('exact', 'Example Media', [FILE]),
+      agency('variant', 'Exmaple Media', [
+        FILE,
+        { ...FILE, version_id: OLD },
+        { ...FILE, key: 'kare-other' },
+      ]),
+    ]);
+    expect(groups.map((group) => group.files.length)).toEqual([1, 2]);
+    expect(groups[0].files[0].alsoPrintedAs).toEqual(['Exmaple Media']);
+    expect(groups[1].files.map((file) => [file.key, file.version_id])).toEqual([
+      [KEY, OLD],
+      ['kare-other', VERSION],
+    ]);
+    expect(FILE).not.toHaveProperty('alsoPrintedAs');
+  });
+
+  it('loads strong agency spellings pinned to exact source state and keeps their checks separate', async () => {
+    const fetcher = serve((url) => {
+      if (url.pathname.endsWith('/spellings')) {
+        expect(url.searchParams.get('version')).toBe('c'.repeat(16));
+        return json({
+          key: 'agency',
+          version: 'c'.repeat(16),
+          spellings: [
+            {
+              key: 'variant',
+              name: 'Exmaple Media',
+              unchecked: true,
+              addresses: [],
+              groups: [
+                {
+                  station: 'KARE',
+                  year: 2026,
+                  files: [{ ...FILE, agency_unchecked: true }],
+                },
+              ],
+            },
+          ],
+        });
+      }
+      if (url.pathname.endsWith('/similar-names'))
+        return json({ rows: [], has_more: false, key: 'agency' });
+      return json({
+        key: 'agency',
+        name: 'Example Media',
+        version: 'c'.repeat(16),
+        unchecked: false,
+        addresses: [],
+        groups: [
+          {
+            station: 'KARE',
+            year: 2026,
+            files: [
+              {
+                ...FILE,
+                agency_unchecked: false,
+                agency_checked_at: '2026-11-01',
+              },
+            ],
+          },
+        ],
+      });
+    });
+    await render('/media-buys/agencies/agency', () => (
+      <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
+    ));
+    expect(fetcher).toHaveBeenCalled();
+    expect(container.textContent).toContain('Similar spellings may refer to the same agency');
+    expect(container.textContent).toContain('Also printed as: Exmaple Media');
+    expect(container.querySelectorAll('a[href*="/media-buys/files/"]')).toHaveLength(1);
+    expect(container.textContent).toContain('Checked on Nov 1, 2026');
+    expect(container.textContent).not.toContain('Each spelling is kept separate');
+  });
   it('keeps filtered-list context through folder, file and related station returns', async () => {
     function Flow() {
       const location = useLocation();
@@ -533,7 +637,10 @@ describe('TV station folder, station and printed agency name', () => {
         year: 2026,
         category: 'Local',
         fcc_url: 'https://publicfiles.fcc.gov',
-        relationship: { ...DETAIL.connections[0], target: { kind: 'committee', id: '90001' } },
+        relationship: {
+          ...DETAIL.connections[0],
+          target: { kind: 'committee', id: '90001' },
+        },
         files: [FILE],
       }),
     );
@@ -669,7 +776,12 @@ describe('TV station folder, station and printed agency name', () => {
                 agency_unchecked: false,
                 agency_checked_at: '2026-11-04T02:00:00Z',
               },
-              { ...FILE, key: 'mixed', agency_unchecked: false, agency_checked_at: null },
+              {
+                ...FILE,
+                key: 'mixed',
+                agency_unchecked: false,
+                agency_checked_at: null,
+              },
               {
                 ...FILE,
                 key: 'unchecked',
@@ -696,7 +808,13 @@ describe('TV station folder, station and printed agency name', () => {
         name: 'Exact Agency',
         key: 'agency',
         unchecked: true,
-        groups: [{ station: 'KARE', year: 2026, files: [{ ...FILE, agency_unchecked: true }] }],
+        groups: [
+          {
+            station: 'KARE',
+            year: 2026,
+            files: [{ ...FILE, agency_unchecked: true }],
+          },
+        ],
         addresses: [
           {
             address: '100 Main',
@@ -729,15 +847,27 @@ describe('TV station folder, station and printed agency name', () => {
       a.textContent?.replace(/\u00a0/g, ' ').includes('View evidence'),
     );
     expect(evidence?.getAttribute('href')).toBe(`/media-buys/files/${KEY}?version=${OLD}&page=4`);
-    expect(container.querySelector('a[href="/money/names/Exact%20Agency"]')).toBeTruthy();
     expect(
-      container.querySelector('a[href="/money/names/Exact%20Agency#outside-payments"]'),
+      container.querySelector(
+        'a[href="/money/names/Exact%20Agency?role=payee&dataset=expenditures"]',
+      ),
+    ).toBeTruthy();
+    expect(
+      container.querySelector(
+        'a[href="/money/names/Exact%20Agency?role=payee&dataset=independent#outside-payments"]',
+      ),
     ).toBeTruthy();
   });
 
   it('says so when no address is checked for a spelling', async () => {
     serve(() =>
-      json({ name: 'Exact Agency', key: 'agency', unchecked: false, groups: [], addresses: [] }),
+      json({
+        name: 'Exact Agency',
+        key: 'agency',
+        unchecked: false,
+        groups: [],
+        addresses: [],
+      }),
     );
     await render('/media-buys/agencies/agency', () => (
       <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
@@ -862,7 +992,11 @@ describe('TV station file', () => {
   });
 
   it('marks a quote only where it appears exactly', () => {
-    expect(markQuote('A GROSS 1', 'GROSS')).toEqual({ before: 'A ', mark: 'GROSS', after: ' 1' });
+    expect(markQuote('A GROSS 1', 'GROSS')).toEqual({
+      before: 'A ',
+      mark: 'GROSS',
+      after: ' 1',
+    });
     expect(markQuote('A GR0SS 1', 'GROSS')).toBeNull();
   });
 });
@@ -873,7 +1007,13 @@ describe('Media buys card', () => {
    * and again in its group with the role line. */
   function connected(groups: { label: string; files: Record<string, unknown>[] }[]) {
     const files = groups.flatMap((group) => group.files.map(({ role: _role, ...row }) => row));
-    return { agency_key: null, exact_name_count: 0, files, total: files.length, groups };
+    return {
+      agency_key: null,
+      exact_name_count: 0,
+      files,
+      total: files.length,
+      groups,
+    };
   }
   const INVOICE = {
     ...FILE,
@@ -891,7 +1031,13 @@ describe('Media buys card', () => {
         exact_name_count: 0,
         files: [INVOICE],
         total: 1,
-        groups: [{ label: 'Unrelated title', kind: 'named', files: [{ ...INVOICE, page: 4 }] }],
+        groups: [
+          {
+            label: 'Unrelated title',
+            kind: 'named',
+            files: [{ ...INVOICE, page: 4 }],
+          },
+        ],
       }),
     );
     await render('/candidates/example', () => (
@@ -968,7 +1114,13 @@ describe('Media buys card', () => {
     serve(() =>
       json({
         files: [INVOICE],
-        groups: [{ kind: 'named', label: 'Files naming this candidate', files: [INVOICE] }],
+        groups: [
+          {
+            kind: 'named',
+            label: 'Files naming this candidate',
+            files: [INVOICE],
+          },
+        ],
         total: 1,
       }),
     );
@@ -1048,7 +1200,12 @@ describe('Media buys card', () => {
   it('lists a candidacy’s committee files first, then the files that name the candidate', async () => {
     const { MediaBuysCard, NAMED_TITLE } = await import('../pages/media/MediaBuysCard');
     vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
-    const ORDER = { ...FILE, key: 'kstp-9', kind: 'Order', uploaded_at: '2026-04-09' };
+    const ORDER = {
+      ...FILE,
+      key: 'kstp-9',
+      kind: 'Order',
+      uploaded_at: '2026-04-09',
+    };
     // Served in the other order, to show the card keeps the committee group first.
     serve(() =>
       json(
@@ -1086,12 +1243,19 @@ describe('Media buys card', () => {
     const fetcher = serve(() =>
       json(
         connected([
-          { label: 'General election', files: [{ ...INVOICE, role: 'General election' }] },
+          {
+            label: 'General election',
+            files: [{ ...INVOICE, role: 'General election' }],
+          },
         ]),
       ),
     );
     const target = raceTarget('House', '99A', 2026);
-    expect(JSON.parse(target)).toEqual({ office: 'House', district: '99A', year: 2026 });
+    expect(JSON.parse(target)).toEqual({
+      office: 'House',
+      district: '99A',
+      year: 2026,
+    });
     await render('/money/races/house-99a?year=2026', () => (
       <MediaBuysCard
         kind="race"

@@ -38,7 +38,10 @@ import { matchRoute } from '../routes';
 const API = 'https://api.example.test';
 
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 
 function json(data: unknown, status = 200, page?: unknown) {
@@ -87,7 +90,9 @@ const LIST_ROW = {
   current_status: 'Chapter number',
   status_key: 'signed_into_law',
   latest_action_at: '2026-05-17T00:00:00Z',
-  ai_analysis: { short_title: 'New Council and Fund to Modernize Human Services IT' },
+  ai_analysis: {
+    short_title: 'New Council and Fund to Modernize Human Services IT',
+  },
 };
 
 const STATUTORY = 'A bill for an act relating to state government; creating a council';
@@ -246,9 +251,15 @@ const AUTHORS = {
         ],
       },
     },
-    { ...DETAIL.all_sponsors![1], campaign_accounts: { link_state: 'unconfirmed', confirmed: [] } },
+    {
+      ...DETAIL.all_sponsors![1],
+      campaign_accounts: { link_state: 'unconfirmed', confirmed: [] },
+    },
     // A companion bill's author, named in the House file: not this bill's author.
-    { ...DETAIL.all_sponsors![0], campaign_accounts: { link_state: 'confirmed', confirmed: [] } },
+    {
+      ...DETAIL.all_sponsors![0],
+      campaign_accounts: { link_state: 'confirmed', confirmed: [] },
+    },
   ],
 };
 
@@ -420,7 +431,13 @@ describe('Legislation', () => {
       json(
         [
           LIST_ROW,
-          { ...LIST_ROW, id: '94-2025-HF9', file_type: 'HF', file_number: 9, ai_analysis: null },
+          {
+            ...LIST_ROW,
+            id: '94-2025-HF9',
+            file_type: 'HF',
+            file_number: 9,
+            ai_analysis: null,
+          },
         ],
         200,
         {
@@ -701,7 +718,10 @@ describe('Bill', () => {
         report('ccr-0', '2026-05-10T00:00:00Z', false),
         report('ccr-1', '2026-05-15T00:00:00Z', true),
       ],
-      summary_source_version: { version_code: 'ccr-0', version_name: '2026.0-CCRSF0334' },
+      summary_source_version: {
+        version_code: 'ccr-0',
+        version_name: '2026.0-CCRSF0334',
+      },
     };
     await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
     expect(text()).toContain('Alethical summary of the conference committee report version');
@@ -849,7 +869,10 @@ describe('Bill', () => {
   it('says no roll call is recorded when the record holds none', async () => {
     const detail = {
       ...DETAIL,
-      actions: DETAIL.actions!.map((action) => ({ ...action, roll_call_text: null })),
+      actions: DETAIL.actions!.map((action) => ({
+        ...action,
+        roll_call_text: null,
+      })),
     };
     await renderBill(
       '/bills/94-2025-SF334?tab=votes',
@@ -969,7 +992,10 @@ describe('Bill', () => {
   it('prints the committee as text when the record carries no committee id', async () => {
     const detail = {
       ...DETAIL,
-      actions: DETAIL.actions!.map((action) => ({ ...action, committee_id: null })),
+      actions: DETAIL.actions!.map((action) => ({
+        ...action,
+        committee_id: null,
+      })),
     };
     await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
     expect(container.querySelector('.bl-facts a[aria-label]')).toBeNull();
@@ -998,6 +1024,133 @@ const renderVote = (path: string, answer: Answer) =>
   render(path, () => <RollCall match={matchRoute(path.split('?')[0])!} />, answer);
 
 describe('Roll call', () => {
+  it('finds likely member spellings within the held recorded filter, with direct names first', () => {
+    const records = [
+      {
+        legislator_id: 'typo',
+        legislator_name: 'Harper Example',
+        vote_value: 'yes',
+        district: '97A',
+      },
+      {
+        legislator_id: 'direct',
+        legislator_name: 'Harpr Exampel',
+        vote_value: 'yes',
+        district: '97B',
+      },
+      {
+        legislator_id: 'absent',
+        legislator_name: 'Dana Example',
+        vote_value: 'absent',
+        district: '96',
+      },
+      {
+        legislator_id: 'no',
+        legislator_name: 'Morgan Example',
+        vote_value: 'no',
+        district: '95',
+      },
+    ];
+    expect(matchingMembers(records, 'all', 'Exampel Harpr')).toEqual([records[1], records[0]]);
+    expect(matchingMembers(records, 'absent', 'Exampel Dana')).toEqual([records[2]]);
+    expect(matchingMembers(records, 'absent', 'Exampel Morgan')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'District 96')).toEqual([records[2]]);
+    expect(matchingMembers(records, 'all', '97C')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'Dnaa')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'Exampel Harper')).toEqual([records[0], records[1]]);
+  });
+
+  it('shows held vote choices only, in their defined order', () => {
+    const records = ['abstain', 'yes', 'present', 'no', 'yes', 'excused', 'absent'].map(
+      (vote_value, index) => ({
+        legislator_id: String(index),
+        vote_value,
+      }),
+    );
+    expect(recordedFilters(records).map((item) => item.label)).toEqual([
+      'All',
+      'Yes',
+      'No',
+      'Absent',
+      'Excused',
+      'Present',
+      'Abstain',
+    ]);
+    expect(recordedFilters([]).map((item) => item.label)).toEqual(['All']);
+  });
+
+  it('renders likely name matches only from the selected recorded value', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}?q=Exampel%20Dana&recorded=absent`,
+      billAnswer({
+        vote: () =>
+          json({
+            ...VOTE,
+            bill_id: DETAIL.id,
+            records: [
+              {
+                legislator_id: 'dana',
+                legislator_name: 'Dana Example',
+                vote_value: 'absent',
+                district: '96',
+                party: 'DFL',
+              },
+              {
+                legislator_id: 'other',
+                legislator_name: 'Dana Exampel',
+                vote_value: 'yes',
+                district: '97A',
+                party: 'R',
+              },
+            ],
+          }),
+      }),
+    );
+    const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toBe('Dana ExampleDistrict 96DFLAbsent');
+    expect(rows[0].querySelector('a')?.getAttribute('href')).toContain('/legislators/dana?');
+    expect(container.querySelector('.f-chip[aria-pressed="true"]')?.textContent).toBe('Absent');
+  });
+
+  it('keeps missing record values explicit and a known unlinked name plain', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}`,
+      billAnswer({
+        vote: () =>
+          json({
+            ...VOTE,
+            bill_id: DETAIL.id,
+            result_text: null,
+            records: [
+              {
+                legislator_id: 'missing',
+                legislator_name: null,
+                vote_value: 'yes',
+                district: null,
+                party: null,
+              },
+              {
+                legislator_id: '',
+                legislator_name: 'Known Member',
+                vote_value: 'no',
+                district: '97A',
+                party: 'R',
+              },
+            ],
+          }),
+      }),
+    );
+    const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
+    expect(text()).toContain('Recorded result · Not held in this copy');
+    expect(rows[0].textContent).toBe(
+      'Not held in this copyDistrict not recordedParty not recordedYes',
+    );
+    expect(rows[0].querySelector('a')).toBeNull();
+    expect(rows[1].textContent).toContain('Known Member');
+    expect(rows[1].querySelector('a')).toBeNull();
+  });
+
   it('shows the held district in its own column and leaves missing district explicit', async () => {
     await renderVote(
       `/votes/${VOTE_ID}`,

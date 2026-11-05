@@ -1,5 +1,5 @@
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { apiPath } from '../../api/read';
 import { RECORDS_CHANGED, useVersionedRead } from '../../api/versionedRead';
 import { useFinanceSession } from '../../auth/session';
@@ -8,7 +8,6 @@ import { safeFrom, withFrom } from '../../returnContext';
 import { hrefFor, matchRoute } from '../../routes';
 import { Refused, Updating } from '../../ui/controls';
 import { Arrow } from '../../ui/parts';
-import { useRevealFocus } from '../../ui/revealFocus';
 import type { Role } from '../PaymentsUnderName';
 import { PrintedName, quotedSpelling } from './printedName';
 import './similarNames.css';
@@ -16,7 +15,13 @@ import './similarNames.css';
 interface SimilarRow {
   name: string;
   records: number;
-  identities: Array<{ id: string; name: string; kind: string; records: number; reference: string }>;
+  identities: Array<{
+    id: string;
+    name: string;
+    kind: string;
+    records: number;
+    reference: string;
+  }>;
 }
 interface SimilarPage {
   name: string;
@@ -27,6 +32,8 @@ interface SimilarPage {
   dataset?: string | null;
   offset: number;
   rows: SimilarRow[];
+  excluded_names?: string[];
+  release_id?: string;
   has_more: boolean;
   sources?: Array<{ dataset: string; copied_at: string | null }>;
 }
@@ -51,6 +58,9 @@ export function SimilarNames({
   filer,
   dataset,
   copyDates,
+  excludedNames = [],
+  sourceReleaseId,
+  onRefreshSource,
 }: {
   name: string;
   role: Role;
@@ -59,11 +69,28 @@ export function SimilarNames({
   filer: string | null;
   dataset: string | null;
   copyDates: Record<string, string | null>;
+  excludedNames?: readonly string[];
+  sourceReleaseId?: string | null;
+  onRefreshSource?: () => void;
 }) {
   const location = useLocation();
   const { apiBaseUrl, accessToken } = useFinanceSession();
   const auth = `${apiBaseUrl}|${accessToken}`;
-  const scope = JSON.stringify([auth, name, role, year, filer, dataset]);
+  const exclusions = sourceReleaseId ? [...new Set(excludedNames)].sort() : [];
+  const exclusionsKey = JSON.stringify(exclusions);
+  const exclusionsQuery = new URLSearchParams(
+    exclusions.map((value) => ['exclude_name', value]),
+  ).toString();
+  const scope = JSON.stringify([
+    auth,
+    name,
+    role,
+    year,
+    filer,
+    dataset,
+    exclusionsKey,
+    sourceReleaseId,
+  ]);
   const [wanted, setWanted] = useState({ scope, page: 1 });
   useEffect(() => {
     if (wanted.scope !== scope) setWanted({ scope, page: 1 });
@@ -78,9 +105,10 @@ export function SimilarNames({
           year,
           filer,
           dataset,
+          release_id: sourceReleaseId,
           limit: SIZE,
           offset,
-        })
+        }) + (exclusionsQuery ? `&${exclusionsQuery}` : '')
       : null,
     {
       page,
@@ -91,17 +119,37 @@ export function SimilarNames({
         ['payee', 'donor', 'employer'].includes(data.role),
     },
   );
-  const [held, setHeld] = useState<{ key: string; auth: string; pages: SimilarPage[] } | null>(
-    null,
-  );
+  const [held, setHeld] = useState<{
+    key: string;
+    auth: string;
+    expanded: boolean;
+    pages: SimilarPage[];
+  } | null>(null);
   const arrived =
-    read.data && !read.pending && !read.failed && read.data.offset === offset ? read.data : null;
+    read.data &&
+    !read.pending &&
+    !read.failed &&
+    read.data.offset === offset &&
+    read.data.name === name &&
+    read.data.role === role &&
+    read.data.year === year &&
+    (read.data.filer ?? null) === filer &&
+    (read.data.dataset ?? null) === dataset &&
+    (!sourceReleaseId || read.data.release_id === sourceReleaseId) &&
+    JSON.stringify([...(read.data.excluded_names ?? [])].sort()) === exclusionsKey
+      ? read.data
+      : null;
   useEffect(() => {
     if (!arrived) return;
     setHeld((previous) => {
       const pages = previous?.key === read.listKey ? previous.pages.slice(0, page - 1) : [];
       return pages.length === page - 1
-        ? { key: read.listKey, auth, pages: [...pages, arrived] }
+        ? {
+            key: read.listKey,
+            auth,
+            expanded: page > 1,
+            pages: [...pages, arrived],
+          }
         : previous;
     });
   }, [arrived, read.listKey, auth, page]);
@@ -110,9 +158,30 @@ export function SimilarNames({
   }, [read.accessDenied]);
   const safe = held?.auth === auth && !read.accessDenied ? held : null;
   const shown = safe?.pages[0];
-  const rows = safe?.pages.flatMap((p) => p.rows) ?? [];
+  const rows = (safe?.pages.flatMap((p) => p.rows) ?? []).filter(
+    (row) => !exclusions.includes(row.name),
+  );
+  const visibleRows = safe?.expanded ? rows : rows.slice(0, 1);
   const more = safe?.key === read.listKey && safe.pages.at(-1)?.has_more;
-  const reveal = useRevealFocus<HTMLUListElement>(scope);
+  const list = useRef<HTMLUListElement>(null);
+  const focusAfterReveal = useRef<{
+    scope: string;
+    count: number;
+    trigger: Element | null;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const pending = focusAfterReveal.current;
+    if (!pending) return;
+    if (pending.scope !== scope) {
+      focusAfterReveal.current = null;
+      return;
+    }
+    const links = list.current?.querySelectorAll<HTMLAnchorElement>('a[href]');
+    if (!links || links.length <= pending.count) return;
+    focusAfterReveal.current = null;
+    if (document.activeElement === pending.trigger || document.activeElement === document.body)
+      links[pending.count]?.focus();
+  });
   const heading = useRef<HTMLHeadingElement>(null);
   const focused = useRef<string | null>(null);
   useEffect(() => {
@@ -172,19 +241,22 @@ export function SimilarNames({
           </p>
         ))}
       {read.failed && (
-        <Refused onRetry={read.retry} retrying={read.pending}>
+        <Refused
+          onRetry={() => {
+            if (read.changed) onRefreshSource?.();
+            read.retry();
+          }}
+          retrying={read.pending}
+        >
           {read.changed
-            ? RECORDS_CHANGED
+            ? shown
+              ? RECORDS_CHANGED
+              : 'These records changed. Reload the list.'
             : `We couldn’t load similar names${year === null ? '' : ` for ${year}`}${shown ? '. Previous results are shown.' : ''}`}
         </Refused>
       )}
       {shown && (
         <>
-          {rows.length > 0 && (
-            <p className="pn-similar-note">
-              Each name keeps its own records and may belong to a different person or organization
-            </p>
-          )}
           {((shown.filer ?? null) !== filer || (shown.dataset ?? null) !== dataset) && (
             <p className="pn-similar-scope">
               {shown.filer ? `Filed by committee ${shown.filer}` : 'All committees'} ·{' '}
@@ -207,13 +279,13 @@ export function SimilarNames({
               {shown.name !== name ? ` · Names similar to ${quotedSpelling(shown.name)}` : ''}
             </p>
           )}
-          {rows.length === 0 && !read.pending && !read.failed && (
+          {rows.length === 0 && !more && !read.pending && !read.failed && (
             <p role="status">
               <span className="f-visually-hidden">{title}: </span>None found
             </p>
           )}
-          <ul key={safe.key} ref={reveal.list} id="similar-list" className="pn-similar-list">
-            {rows.map((row) => (
+          <ul key={safe.key} ref={list} id="similar-list" className="pn-similar-list">
+            {visibleRows.map((row) => (
               <li key={row.name}>
                 <Link to={href(row)} className="pn-similar-link">
                   <span>
@@ -223,7 +295,7 @@ export function SimilarNames({
                     <span className="pn-similar-meta f-num">
                       {row.records === 0
                         ? 'No records'
-                        : `${row.records.toLocaleString('en-US')} ${row.records === 1 ? 'record' : 'records'} · ${row.identities.length ? row.identities.map((identity) => `${identity.records.toLocaleString('en-US')} confirmed as ${identity.name} (${identity.kind})`).join(' · ') : 'None confirmed'}`}
+                        : `${row.records.toLocaleString('en-US')} ${row.records === 1 ? 'record' : 'records'}`}
                     </span>
                   </span>
                   <Arrow />
@@ -236,14 +308,22 @@ export function SimilarNames({
               {line}
             </p>
           ))}
-          {more && (
+          {(more || visibleRows.length < rows.length) && (
             <button
               type="button"
               className="f-btn f-btn-secondary pn-similar-more"
               disabled={read.pending || read.failed}
               onClick={() => {
-                reveal.mark();
-                setWanted({ scope, page: page + 1 });
+                focusAfterReveal.current = {
+                  scope,
+                  count: visibleRows.length,
+                  trigger: document.activeElement,
+                };
+                if (visibleRows.length < rows.length) {
+                  setHeld((previous) => (previous ? { ...previous, expanded: true } : previous));
+                } else {
+                  setWanted({ scope, page: page + 1 });
+                }
               }}
             >
               Show more

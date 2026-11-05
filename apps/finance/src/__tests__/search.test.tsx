@@ -16,7 +16,10 @@ import { matchRoute } from '../routes';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 
 const KINDS = [
@@ -103,7 +106,13 @@ const DAVIS = money({
   got_paid_independent: {
     state: 'reported',
     total: 1,
-    results: [{ kind: 'payment_name', name: 'Davis, Dominique', role: 'independent_vendor' }],
+    results: [
+      {
+        kind: 'payment_name',
+        name: 'Davis, Dominique',
+        role: 'independent_vendor',
+      },
+    ],
   },
 });
 
@@ -114,7 +123,9 @@ const BILLS = {
       file_type: 'HF',
       file_number: 3363,
       title: 'A bill for an act relating to campaign finance; classifying street addresses',
-      ai_analysis: { short_title: 'Campaign Finance Address Privacy And Security Rules' },
+      ai_analysis: {
+        short_title: 'Campaign Finance Address Privacy And Security Rules',
+      },
     },
   ],
 };
@@ -168,8 +179,7 @@ async function render(path: string, answer: Answer) {
   await settle();
 }
 
-const both: Answer = (url) =>
-  url.includes('/campaign-finance/search') ? json(DAVIS) : json(BILLS);
+const both: Answer = (url) => (url.includes('/finance/name-search') ? json(DAVIS) : json(BILLS));
 
 function family(title: string): HTMLElement {
   const heading = [...container.querySelectorAll('h2')].find((item) =>
@@ -182,7 +192,7 @@ describe('Search results', () => {
   it('reads the money search and the bill search separately, uncapped', async () => {
     await render('/search?q=davis', both);
     expect(requests).toContain(
-      'https://api.example.test/api/v1/campaign-finance/search?q=davis&limit=50',
+      'https://api.example.test/api/v1/finance/name-search?q=davis&limit=50',
     );
     expect(requests).toContain(
       'https://api.example.test/api/v1/search?q=davis&types=bills&limit=20',
@@ -232,7 +242,9 @@ describe('Search results', () => {
     // 192 donor spellings counted by the server; the 2 payee spellings are both
     // in 1 file's complete list, so the other file adds no new name.
     expect(printed.querySelector('h2')?.textContent).toBe('Payments under a name194');
-    expect(printed.textContent).toContain('A printed name is not a confirmed person or business');
+    expect(printed.textContent).not.toContain(
+      'A printed name is not a confirmed person or business',
+    );
     // Each spelling opens Payments under this name, never a merged record.
     const spellings = [...printed.querySelectorAll('a')].map((a) => a.getAttribute('href'));
     expect(spellings.length).toBeGreaterThan(0);
@@ -259,7 +271,7 @@ describe('Search results', () => {
   it('fails 1 family on its own and retries it', async () => {
     let calls = 0;
     await render('/search?q=davis', (url) => {
-      if (!url.includes('/campaign-finance/search')) return json(BILLS);
+      if (!url.includes('/finance/name-search')) return json(BILLS);
       calls += 1;
       return json(
         calls === 1
@@ -285,7 +297,7 @@ describe('Search results', () => {
 
   it('fails only the bills family when the bill search fails', async () => {
     await render('/search?q=davis', (url) =>
-      url.includes('/campaign-finance/search') ? json(DAVIS) : new Response(null, { status: 503 }),
+      url.includes('/finance/name-search') ? json(DAVIS) : new Response(null, { status: 503 }),
     );
     expect(family('Bills').querySelector('[role="alert"]')).not.toBeNull();
     expect(family('People').querySelector('[role="alert"]')).toBeNull();
@@ -293,7 +305,7 @@ describe('Search results', () => {
 
   it('says no matching records once when every family searched and found nothing', async () => {
     await render('/search?q=zzzz', (url) =>
-      url.includes('/campaign-finance/search') ? json(money()) : json({ bills: [] }),
+      url.includes('/finance/name-search') ? json(money()) : json({ bills: [] }),
     );
     expect(container.textContent).toContain('No matching recordsTry another name or bill number');
     expect(container.querySelectorAll('section')).toHaveLength(0);
