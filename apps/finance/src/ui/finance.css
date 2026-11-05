@@ -1461,8 +1461,26 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.f-chip {
+.f-labeled-chips {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.f-labeled-chips .f-chips {
+  min-width: 0;
+}
+.f-labeled-chips-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.f-chip,
+.f-labeled-chips-label {
   min-height: 36px;
+}
+.f-chip {
   min-width: 44px;
   padding: 0 14px;
   border-radius: 6px;
@@ -1487,7 +1505,8 @@
   }
 }
 @media (max-width: 767px) {
-  .f-chip {
+  .f-chip,
+  .f-labeled-chips-label {
     min-height: 44px;
   }
 }
