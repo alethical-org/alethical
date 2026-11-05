@@ -562,9 +562,9 @@ Before anyone can sign in at that address:
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
 
-For a later emailed-code rollout, set the API's `SUPABASE_SECRET_KEY` (a Supabase secret
-key, added by a person) and `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` to `1`, with the
-email sender's settings live. Then set `VITE_EMAIL_SIGN_IN` to `on` and redeploy Finance
+For a later emailed-code rollout, confirm the API has its `SUPABASE_SECRET_KEY` (a
+Supabase secret key, added by a person) and working email sender settings. Set
+`ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` to `1`, then set `VITE_EMAIL_SIGN_IN` to `on` and redeploy Finance
 ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 
 Investor sign-in needs `ALETHICAL_FINANCE_RESEARCH_EMAIL` set privately on the API
