@@ -216,6 +216,22 @@ def test_sign_in_is_rate_limited(api):
     assert response.headers["retry-after"]
 
 
+def test_sign_out_revokes_session_after_sign_in_limit_is_exhausted(api):
+    api.app.state.finance_sign_in_limiter.max_requests = 1
+    token = login(api)
+    for path, payload in (
+        (LOGIN, {"email": EMAIL, "password": PASSWORD}),
+        ("/api/v1/finance/sign-in/code", {"email": EMAIL}),
+        ("/api/v1/finance/sign-in/verify", {"email": EMAIL, "code": "123456"}),
+    ):
+        assert api.post(path, json=payload).status_code == 429
+    assert api.get(ACCESS, headers=bearer(token)).status_code == 200
+
+    response = api.post(LOGIN + "/sign-out", headers=bearer(token))
+    assert response.status_code == 200
+    assert api.get(ACCESS, headers=bearer(token)).status_code == 401
+
+
 def test_password_hashes_are_salted_and_constant_parameters():
     one, two = research.hash_password(PASSWORD), research.hash_password(PASSWORD)
     assert one != two

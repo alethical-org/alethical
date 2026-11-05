@@ -27,14 +27,11 @@ from alethical.api.services.finance_sign_in import (
 )
 from alethical.db.session import get_db
 
-router = APIRouter(
-    prefix="/finance/sign-in",
-    dependencies=[
-        Depends(
-            rate_limit("finance_sign_in_limiter", "finance-sign-in", trusted_client_ip)
-        )
-    ],
-)
+router = APIRouter(prefix="/finance/sign-in")
+# Keep session revocation available even when this IP's sign-in budget is spent.
+_sign_in_limits = [
+    Depends(rate_limit("finance_sign_in_limiter", "finance-sign-in", trusted_client_ip))
+]
 
 # Every answer to a proof except a sign-in token or "busy" is sent after at
 # least this long, so no difference in the work behind it shows whether an
@@ -73,7 +70,9 @@ def _not_an_address():
     return problem_exception(422, "Unprocessable Entity", "Enter an email address.")
 
 
-@router.post("/code", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/code", status_code=status.HTTP_202_ACCEPTED, dependencies=_sign_in_limits
+)
 async def request_code(payload: CodeRequest, background: BackgroundTasks) -> dict:
     """202 and a new challenge for every address; a code is emailed only to a listed one."""
     try:
@@ -103,7 +102,7 @@ def _prove(db: Session, payload: CodeProof) -> dict:
         raise SignInCodeUnavailable from None
 
 
-@router.post("/verify")
+@router.post("/verify", dependencies=_sign_in_limits)
 async def verify_code(payload: CodeProof, db: Session = Depends(get_db)) -> dict:
     """A 1-time Supabase sign-in token for a proved code; 1 refusal for all else."""
     if _proofs.locked():
@@ -143,7 +142,7 @@ class ResearchCredentials(BaseModel):
     password: SecretStr = Field(max_length=1024)
 
 
-@router.post("/research")
+@router.post("/research", dependencies=_sign_in_limits)
 async def research_sign_in(
     payload: ResearchCredentials, db: Session = Depends(get_db)
 ) -> dict:
