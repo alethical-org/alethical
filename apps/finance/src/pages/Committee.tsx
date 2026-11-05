@@ -634,6 +634,7 @@ export function Committee({ match }: { match: RouteMatch }) {
 
                   <div className="cmt-tab-row">
                     <ScrollingTabs
+                      scrollButtons
                       label="Contribution kinds and expenditures"
                       value={tab}
                       tabs={tabs}
