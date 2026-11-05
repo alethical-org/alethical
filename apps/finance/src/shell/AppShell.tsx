@@ -48,11 +48,11 @@ function SearchIcon() {
   );
 }
 
-async function signOutTo(signOut: () => Promise<void>) {
+async function signOutTo(signOut: () => Promise<void>, destination = '/sign-in') {
   clearReadCache();
   clearSavedScroll();
   await signOut();
-  navigate('/sign-in', { replace: true });
+  navigate(destination, { replace: true });
 }
 
 /** The signed-in frame: lockup, record families, search with suggestions and
@@ -60,7 +60,7 @@ async function signOutTo(signOut: () => Promise<void>) {
 export function AppShell({ section, children }: { section?: NavSection; children: ReactNode }) {
   const band = useBand();
   const location = useLocation();
-  const { email, signOut } = useFinanceSession();
+  const { email, signOut, signInPath } = useFinanceSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -200,7 +200,7 @@ export function AppShell({ section, children }: { section?: NavSection; children
                   <button
                     type="button"
                     className="f-nav-menuitem"
-                    onClick={() => void signOutTo(signOut)}
+                    onClick={() => void signOutTo(signOut, signInPath)}
                   >
                     Sign out
                   </button>
@@ -253,7 +253,7 @@ export function AppShell({ section, children }: { section?: NavSection; children
             <button
               type="button"
               className="f-nav-phone-link f-nav-phone-signout"
-              onClick={() => void signOutTo(signOut)}
+              onClick={() => void signOutTo(signOut, signInPath)}
             >
               Sign out
             </button>

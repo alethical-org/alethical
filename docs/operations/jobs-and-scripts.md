@@ -115,7 +115,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 131 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 132 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -143,6 +143,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Test reader comments with a disposable database and all outgoing mail disabled | `comments_local_qa.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `record_disclosure_statement_readings.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Add, revoke or read 1 address on Alethical Finance's access list; the address comes only from the command's arguments | `finance_access.py` |
+| Create, rotate or revoke a shared Finance research login without placing passwords in command arguments | `finance_research_access.py` |
 | Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |
 | Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
 | Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |

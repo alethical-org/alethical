@@ -1,6 +1,7 @@
 """Alethical Finance's access list: who may sign in, and nothing else.
 
-Every active entry has the same access. The list lives only in the database,
+Every active ordinary entry has the same access. Research accounts are separate
+(``finance_research_access``). The list lives only in the database,
 because a client's address names the client and the repository is public
 (docs/architecture/alethical-finance-architecture.md §3). Addresses reach it
 through ``scripts/finance_access.py``, never through a committed file.
@@ -38,6 +39,7 @@ class FinanceAccount:
     provider_subject: str
     email: str
     is_alethical_team: bool
+    can_edit: bool = True
 
 
 @dataclass(frozen=True)

@@ -1,3 +1,4 @@
+import { useFinanceSession } from '../auth/session';
 import { useVersionedRead } from '../api/versionedRead';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRead } from '../api/read';
@@ -154,7 +155,7 @@ export function MediaBuys() {
   const filesShown = data?.rows.some(isFile) ?? false;
   const noun = NOUNS[filesShown ? 'files' : shownTab];
   const rows = (data?.rows ?? []).map((row) => browseRow(shownTab, row));
-  const check = isBuilt('check-station-files');
+  const check = useFinanceSession().canEdit !== false && isBuilt('check-station-files');
   return (
     <main id="main" className="f-page mb-page">
       <div className="f-content">

@@ -33,9 +33,11 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   none can be read, the counts block is left out. "Sources and updates" names each source
   with the date its records were copied (bills: updated), in Minnesota time; a date the server
   cannot support is left out and the source stays named.
-- **Request access** (in the hero and again near the end) opens a draft email to
-  angel@alethical.com, copied to ask@alethical.com, with the subject "Alethical Finance access".
-  Nothing is sent until the reader sends it.
+- Finance is a private beta. No **Request access** email action or closing access section
+  appears on the landing page. With signed-in screens enabled, the hero has the only
+  **Investor access** button, opening `/investor-access` directly. The header keeps **Sign in**,
+  with 24px above its button and the wordmark aligned beside it; the slim scrolled bar keeps
+  its compact spacing.
 - **Sign in** opens `/sign-in`. After signing in, an account not on the access list sees the
   not-listed state at `/`; a listed account sees the landing page, because no signed-in screen
   is public yet.
@@ -53,8 +55,8 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   address so sign-in returns there. A return address is kept only when it is a built
   signed-in Finance page; anything else, another site included, returns to Finance Home at
   `/home` (to `/` while the screens are off).
-- **`/sign-in`.** Google, or a code emailed to the address. There is no password and no way
-  to create an account. Each way is shown only once it works: Google once Supabase accepts
+- **`/sign-in`.** Google, or a code emailed to the address. Ordinary accounts have no password and no way
+  to create an account. Shared research accounts enter through the landing page’s Investor access button. Each way is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
@@ -66,6 +68,32 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   sign-in returns to `/sign-in` with "Google didn’t finish. Try again, or use email." Opened
   any other way without a finished sign-in, the page says "That sign-in link didn’t work"
   and links back to sign-in.
+
+## Shared research sign-in
+
+Ordinary `/sign-in` has the heading **Sign in** and no investor option. The separate
+`/investor-access` page has one **Investor access code** field and an **Enter** button
+(**Opening…** while pending), with no separate heading or homepage link. Both forms
+keep the Alethical Finance wordmark and the added top space:
+12% of viewport height, bounded between 64px and 112px, in normal page flow so short
+screens and keyboards can scroll. The investor field has 24px of space after the
+wordmark. The investor page asks for no email.
+The server chooses the shared account through its private configuration. It accepts an operator-created research
+account and returns to the requested browsing page. An invalid code, too many
+attempts and unavailable service have distinct retry messages; fields stay filled
+on failure and submission is blocked while sign-in is pending. Passwords are never
+saved by the app. The account has no signup, reset or password-change control. Investor sign-out returns
+to `/investor-access`; expiry or revocation returns there with the requested research
+page preserved. Ordinary accounts keep `/sign-in` as their return path.
+
+Search, filters, sources, profiles and research tools stay available. Editing links
+and dedicated editing pages are hidden, with direct visits answering not found.
+The server enforces the restriction independently. A research session persists in
+the browser, rechecks on return to the tab, expires after 30 days and clears held
+results on sign-out, expiry or refused access. Signing into an ordinary account
+clears the research session; entering research access leaves the ordinary account.
+See [shared research access](../architecture/alethical-finance-architecture.md#shared-research-access)
+for the owning permission and password-management rules.
 
 ## Sign-in by emailed code
 
@@ -157,7 +185,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/lobbying/principals/:id`, `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
 `/media-buys/agencies/:name`, `/media-buys/stations/:id`, `/media-buys/check`, `/people`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
-Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`,
+Built: `/`, `/home`, `/sign-in`, `/investor-access`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
 `/money/races/:id`, `/money/recipients`, `/money/connections`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
@@ -537,9 +565,9 @@ none.
 - The sign-in session is kept in this browser under its own name, separate from
   alethical.com's. Sign out ends it in this browser only, and removes the saved session even
   when Supabase cannot be reached.
-- Finance accounts are Supabase accounts in alethical.com's sign-in project, so a Finance
-  sign-in, and anyone who presses Google there, appears among alethical.com's accounts and
-  sign-up figures.
+- Ordinary Finance accounts are Supabase accounts in alethical.com's sign-in project,
+  so those sign-ins and Google users appear among alethical.com's accounts and sign-up
+  figures. Shared research accounts remain separate from Supabase.
 - The site runs at https://finance.alethical.com, the `alethical-finance` Vercel project,
   until alethicalfinance.com launches ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).
 

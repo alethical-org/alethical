@@ -4,8 +4,7 @@
 
 **Net:** Alethical Finance is a sign-in-only research product for law firms and their
 political committees. It runs on the same records, database, server and product rules as
-alethical.com; only its screens are separate. Every account Alethical lets in has the same
-access, nothing in Finance links back to alethical.com, and every research tool lives in
+alethical.com; only its screens are separate. Ordinary accounts have the same access; shared research accounts can only read, nothing in Finance links back to alethical.com, and every research tool lives in
 Finance.
 
 Finance's address is alethicalfinance.com, connected at launch. Until then it runs at
@@ -428,15 +427,14 @@ of approval to build the graph frontend.
 
 ## 3. Access
 
-- **1 access level.** Every account on Finance's access list has the same access. Finance
-  has no administrator role, label, tag or state.
+- **Ordinary accounts share 1 access level.** Every account on Finance's ordinary access list has the same access. Shared research accounts are the read-only exception described below. Finance has no administrator role, label, tag or state.
 - **Access by list only.** Alethical adds and removes each email. Nobody can sign up, and
   there are no guest or self-service accounts.
 - **The list lives in the database, never in the repository**, which is public: a client's
   email would name the client.
 - **Each entry records whether the account belongs to Alethical's own team.** Finance never
   shows or uses this; it decides only what alethical.com may print (§5).
-- **Sign-in is Google, or a code emailed to the address.** Finance has no passwords.
+- **Ordinary sign-in is Google, or a code emailed to the address.** Ordinary accounts have no Finance passwords.
   Alethical sends its own 8-digit codes, only to listed addresses, and answers every
   address alike, so sign-in never shows whether an address is a client; the Supabase
   account is created or found only after a code is proved
@@ -463,10 +461,40 @@ of approval to build the graph frontend.
   identical for every refused reason, which is never named. Restoring an ended listing
   keeps the same entry with new dates.
 
+### Shared research access
+
+Investors choose **Investor access** in the landing page hero, opening `/investor-access`,
+and enter one reusable **Access code**, without
+an email field. The server resolves the private `ALETHICAL_FINANCE_RESEARCH_EMAIL`
+setting to the operator-created shared account; absent or invalid configuration
+answers unavailable. Older clients may still send an explicit research-account email.
+The code is the account password, with the same hashing and session rules below. This login can
+search, browse, filter and read Finance records and sources. It cannot create,
+confirm, change, merge, split, withdraw or delete records. Editing links and the
+identity/station-checking pages are hidden; a direct visit answers not found. The
+server independently rejects every non-GET/HEAD Finance request authenticated by
+a research session. Existing ordinary-account access is unchanged.
+
+Research accounts and sessions are separate from Supabase users and the ordinary
+access list. Their opaque tokens work only with Finance's access check, never the
+public site's account API. Passwords are salted scrypt hashes; session tokens are
+stored only as SHA-256 digests. Both database tables deny browser roles access.
+Sign-in has the existing per-IP limit, bounded password input and bounded concurrent
+checks, with the same refusal for a wrong password, missing account or revoked account.
+
+Each browser sign-in creates its own session, valid for 30 days. The server checks
+expiry and revocation on every request. Sign-out ends only that session. The operator
+can change the shared password or revoke access; either ends all existing sessions
+atomically. There is no investor signup, password-change or reset flow and no setup
+or recovery email is sent. Account addresses, passwords and mailbox aliases remain
+private operational settings, never source code or public documentation. The
+[research access command](../../scripts/finance_research_access.py) manages access
+through a hidden password prompt or private standard input.
+
 ## 4. Every tool has 1 home: Finance
 
 - Checking station files (facts and connections) and confirming identities happen in
-  Finance, open to every account.
+  Finance, open to ordinary accounts. Shared research accounts can read the results.
 - alethical.com's administrator station-file pages and review screen
   ([tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md)) retire once
   Finance's media buys ship. alethical.com's administrator area keeps running that site:
@@ -697,7 +725,7 @@ similarity scan. This read changes no source, check, identity, publication or ad
 
 - A check or confirmation made in Finance appears on alethical.com only when an account of
   Alethical's own team made it. alethical.com stands behind every confirmation it prints.
-- Any Finance account can withdraw any confirmation, and merge or split any identity, and
+- Any ordinary Finance account can withdraw any confirmation, and merge or split any identity, and
   every Finance account sees the result. alethical.com changes only on decisions a team
   account made: when it reads identities, it follows only merges and splits a team account
   made, so another account's merge never redirects a team-made confirmation there, and it
@@ -713,7 +741,7 @@ similarity scan. This read changes no source, check, identity, publication or ad
 - alethical.com prints no Finance station-file check: its station-file readers read only
   checks on its own public copies (`tv_ad_fact`, `tv_ad_connection`), and a Finance check
   never changes them.
-- Every Finance account can withdraw any station-file fact, date or connection,
+- Every ordinary Finance account can withdraw any station-file fact, date or connection,
   including a public-copy check or folder connection. The withdrawal needs a reason
   and is recorded once. A public-copy check is withdrawn **only inside Finance**:
   an immutable `finance_tv_copy_withdrawal` row records the decision, while the

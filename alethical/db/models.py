@@ -126,10 +126,51 @@ class SourceRefreshAttempt(Base):
     finding: Mapped[Optional[dict]] = mapped_column(JSONB)
 
 
+class FinanceResearchAccount(Base):
+    """Shared research access, managed only through the operator command."""
+
+    __tablename__ = "finance_research_account"
+    __table_args__ = (
+        CheckConstraint(
+            "email = lower(btrim(email)) AND email LIKE '_%@_%'",
+            name="email_normalized",
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    password_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class FinanceResearchSession(Base):
+    """Only a digest is retained; the browser holds the opaque bearer token."""
+
+    __tablename__ = "finance_research_session"
+    token_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("finance_research_account.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class FinanceAccessEntry(Base):
     """1 address Alethical lets into Alethical Finance; never committed anywhere.
 
-    Every active entry has the same Finance access. ``is_alethical_team`` grants
+    Every active ordinary entry has the same Finance access. Research accounts
+    use separate tables. ``is_alethical_team`` grants
     nothing in Finance; it decides only which checks alethical.com may print
     (docs/architecture/alethical-finance-architecture.md §3 and §5).
     """

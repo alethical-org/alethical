@@ -549,7 +549,7 @@ signed-in requests need `https://finance.alethical.com` in `ALETHICAL_CORS_ORIGI
 below).
 Then confirm
 `https://finance.alethical.com/` shows the landing page with its counts, `/sign-in` shows
-"Sign in to Alethical Finance", built pages such as `/money` and `/media-buys` send a
+"Sign in", built pages such as `/money` and `/media-buys` send a
 signed-out visitor to sign-in and load their held records for an allowed signed-in account,
 and every answer carries `X-Robots-Tag: noindex, nofollow`. Roll back with `vercel rollback --scope
 alethical` or by deploying the previous `main` commit the same way.
@@ -565,6 +565,11 @@ Before anyone can sign in at that address:
    person) and `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` set to `1`, with the email sender's
    settings already live, then `VITE_EMAIL_SIGN_IN` set to `on` and the app deployed again
    ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+
+Investor sign-in needs `ALETHICAL_FINANCE_RESEARCH_EMAIL` set privately on the API
+and that research account created through `scripts/finance_research_access.py`.
+The browser submits only the reusable access code; do not put the account address
+or code in frontend settings. Ordinary sign-in settings above remain unchanged.
 
 At launch the same steps repeat for alethicalfinance.com.
 
