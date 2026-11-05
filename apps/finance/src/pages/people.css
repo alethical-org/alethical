@@ -257,13 +257,16 @@ a.pp-row:active,
   margin-top: 8px;
 }
 .lg2-title {
-  margin-top: 8px;
+  margin-top: var(--record-label-title-gap);
   font-size: 28px;
 }
 .lg2-line {
-  margin: 6px 0 0;
+  margin: var(--record-title-detail-gap) 0 0;
   font-size: 14px;
   color: var(--secondary);
+}
+.cd-record-line {
+  margin-top: 6px;
 }
 .lg2-layout {
   margin-top: 24px;

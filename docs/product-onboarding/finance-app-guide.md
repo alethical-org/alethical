@@ -300,8 +300,9 @@ figure is ever added across committees or members.
   shows neither. With no earlier page in the address, the return link reads "Back to
   Campaign money".
   Contributions made contains the outgoing rows filed as Contribution; Expenditures
-  excludes those rows. Each tab's count and sum cover its own complete year, never a
-  partially loaded list. A recipient's type comes only from its exact registration in the
+  excludes those rows. Each tab shows its count of held payment rows for the selected
+  year, including 0 when a completed read finds none. Unknown counts stay blank.
+  Counts and sums use the complete year, never a partially loaded list. A recipient's type comes only from its exact registration in the
   held register, with that register's copy date and source in the row's evidence; it is
   not a claim about the recipient's type in the payment year. An unknown type says "Type
   not given".

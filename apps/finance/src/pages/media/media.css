@@ -211,7 +211,7 @@
   letter-spacing: 0.06em;
 }
 .mb-title {
-  margin: 8px 0 0;
+  margin: var(--record-label-title-gap) 0 0;
   font-size: 24px;
   font-weight: 600;
   line-height: 1.25;
@@ -228,7 +228,7 @@
   font-size: 22px;
 }
 .mb-meta {
-  margin: 10px 0 0;
+  margin: var(--record-title-detail-gap) 0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px 24px;

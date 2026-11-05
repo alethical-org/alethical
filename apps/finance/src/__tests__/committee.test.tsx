@@ -518,8 +518,8 @@ describe('Committee page', () => {
       'Committees and funds1',
       'Party units1',
       'Other kinds0',
-      'Expenditures',
-      'Contributions made',
+      'Expenditures2',
+      'Contributions made0',
     ]);
     expect(text()).toContain('2 names · 4 payment records');
     // One amount is missing, so neither the name's sum nor the table's total is shown.
@@ -620,11 +620,47 @@ describe('Committee page', () => {
           status: 200,
           body: page('not_reported', []),
         },
+        '/finance/committees/90001/payments?direction=made': {
+          status: 200,
+          body: page('not_reported', []),
+        },
       }),
     );
     expect(text()).toContain('No official report figures are held for 2026.');
     expect(text()).toContain('None held for 2026');
     expect(text()).not.toContain('$0');
+    expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual([
+      'Individuals0',
+      'Lobbyists0',
+      'Committees and funds0',
+      'Party units0',
+      'Other kinds0',
+      'Expenditures0',
+      'Contributions made0',
+    ]);
+  });
+
+  it('keeps unavailable or failed payment counts blank', async () => {
+    await render(
+      '/money/committees/90001?tab=expenditures',
+      loadedAnswers({
+        '/committees/90001/payments?direction=received': {
+          status: 200,
+          body: page('unavailable', []),
+        },
+        '/finance/committees/90001/payments?direction=made': { status: 500 },
+      }),
+    );
+    expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual([
+      'Individuals',
+      'Lobbyists',
+      'Committees and funds',
+      'Party units',
+      'Other kinds',
+      'Expenditures',
+      'Contributions made',
+    ]);
+    expect(button('Try again')).toBeTruthy();
   });
 
   it('offers Try again when the report figures cannot be read, keeping the payments', async () => {

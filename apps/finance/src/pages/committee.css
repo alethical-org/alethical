@@ -176,7 +176,7 @@ dd[data-missing] {
   color: var(--secondary);
 }
 .cmt-title {
-  margin-top: 8px;
+  margin-top: var(--record-label-title-gap);
   font-size: 28px;
   overflow-wrap: anywhere;
 }

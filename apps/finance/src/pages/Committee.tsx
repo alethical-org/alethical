@@ -202,13 +202,7 @@ export function Committee({ match }: { match: RouteMatch }) {
     apiPath(['committees', id, 'payments'], { direction: 'received', year, sort: 'date' }),
   );
   const made = useYearPayments<MadePayment>(
-    isExp
-      ? apiPath(['finance', 'committees', id, 'payments'], {
-          direction: 'made',
-          year,
-          sort: 'date',
-        })
-      : null,
+    apiPath(['finance', 'committees', id, 'payments'], { direction: 'made', year, sort: 'date' }),
   );
   const independent = useRead<PaymentPage<IndependentPayment>>(
     apiPath(['committees', id, 'payments'], {
@@ -410,13 +404,16 @@ export function Committee({ match }: { match: RouteMatch }) {
 
   const status = registrationStatus(record.register);
   const tabs = TABS.map((item) => {
-    let count: number | null = null;
-    if (item.value === 'expenditures' || item.value === 'made') {
-      const rows = item.value === 'made' ? gifts : spent;
-      if (made.data?.state === 'reported' && rows) count = recordCount(rows);
-    } else if (received.data?.state === 'reported' && groups) {
-      count = recordCount(groups[item.value as ContributionTab]);
-    }
+    const outgoing = item.value === 'expenditures' || item.value === 'made';
+    const data = outgoing ? made.data : received.data;
+    const rows =
+      item.value === 'made' ? gifts : item.value === 'expenditures' ? spent : groups?.[item.value];
+    // These badges count held payment rows, never a filed amount. A completed
+    // empty read has zero rows; an unavailable or incomplete read has no count.
+    const count =
+      (data?.state === 'reported' || data?.state === 'not_reported') && rows
+        ? recordCount(rows)
+        : null;
     return {
       value: item.value,
       label: item.label,

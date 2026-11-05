@@ -286,12 +286,12 @@
   color: var(--secondary);
 }
 .lb-title {
-  margin-top: 8px;
+  margin-top: var(--record-label-title-gap);
   font-size: 28px;
   overflow-wrap: anywhere;
 }
 .lb-gloss {
-  margin: 6px 0 0;
+  margin: var(--record-title-detail-gap) 0 0;
   max-width: 760px;
   font-size: 14px;
   line-height: 1.5;
