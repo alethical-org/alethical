@@ -111,7 +111,8 @@ def test_employer_search_matches_saved_names_before_counting_source_donors(
     before = get(finance_api, "/employers", q="Associatoin", limit=1)
     next_page = get(finance_api, "/employers", q="Associatoin", limit=1, offset=1)
     assert before["total"] == 2 and before["page"]["has_more"]
-    assert before["rows"][0]["unnamed_records"] == 1
+    by_name = {row["name"]: row for row in before["rows"] + next_page["rows"]}
+    assert by_name[EMPLOYER]["unnamed_records"] == 1
     build_summaries(finance_db, board)
     statements = []
     connection = finance_db.connection()
