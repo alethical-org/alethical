@@ -21,11 +21,8 @@ from alethical.api.services.finance_access import FinanceAccount
 from alethical.api.routers.public import _payment_page_payload
 from alethical.api.routers.finance_name_discovery import (
     router as name_discovery_router,
-    search_data,
 )
-from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import same_legislature_session_ids
-from alethical.api.routers.public import search as legislature_search
 from alethical.api.routers.finance_money_reads import router as money_router
 from alethical.api.problems import problem_exception, problem_payload
 from alethical.api.serializers import companion_payload, sponsor_payloads
@@ -36,6 +33,7 @@ from alethical.api.services import (
     finance_connections,
     finance_payments_under_name as under_name,
     finance_versions,
+    finance_suggestions,
 )
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
@@ -197,21 +195,13 @@ def suggestions(
 
     Money groups use Finance's own spelling-tolerant discovery: each official
     result keeps its identifier and each printed name keeps its source records.
-    Bill search (``/search``) is unchanged. ``request_id`` comes back unchanged,
+    Bills match literal typed words or an exact number; the complete bill search
+    keeps its spelling expansion. ``request_id`` comes back unchanged,
     so the app drops a reply that arrives after a newer one.
     """
     typed = q.strip()
-    money = search_data(db, typed, limit)
-    # The bill search answers even an empty query with whatever it holds, so
-    # Finance asks it only from the money search's own minimum length: a stray
-    # space never suggests unrelated bills.
-    bills = (
-        legislature_search(
-            q=typed, types="bills", session=None, limit=limit, db=db
-        ).data["bills"]
-        if len(typed) >= MIN_QUERY_LENGTH
-        else []
-    )
+    money = finance_suggestions.money(db, typed, limit)
+    bills = finance_suggestions.bills(db, typed, limit)
     return {"data": {"request_id": request_id, "q": q, "money": money, "bills": bills}}
 
 

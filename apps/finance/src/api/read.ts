@@ -53,13 +53,29 @@ export const BUSY_RETRIES = 2;
 let running = 0;
 const waiting: Array<() => void> = [];
 
-async function slot<T>(work: () => Promise<T>): Promise<T> {
-  // A finished read hands its slot straight to the next waiting one, so a new
-  // read can never slip in between and make 5.
-  if (running >= MAX_CONCURRENT_READS) await new Promise<void>((go) => waiting.push(go));
-  else running += 1;
+async function slot<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T | null> {
+  if (signal?.aborted) return null;
+  // A canceled queued read must leave immediately, without ever taking a slot
+  // or issuing a request after newer work has superseded it.
+  if (running >= MAX_CONCURRENT_READS) {
+    const admitted = await new Promise<boolean>((resolve) => {
+      const go = () => {
+        signal?.removeEventListener('abort', cancel);
+        resolve(true);
+      };
+      const cancel = () => {
+        const index = waiting.indexOf(go);
+        if (index >= 0) waiting.splice(index, 1);
+        signal?.removeEventListener('abort', cancel);
+        resolve(false);
+      };
+      waiting.push(go);
+      signal?.addEventListener('abort', cancel, { once: true });
+    });
+    if (!admitted) return null;
+  } else running += 1;
   try {
-    return await work();
+    return signal?.aborted ? null : await work();
   } finally {
     const next = waiting.shift();
     if (next) next();
@@ -115,7 +131,7 @@ export async function apiGet<T>(
       } catch {
         return null;
       }
-    });
+    }, signal);
     if (response === null) return { state: 'failed' };
     // Only the server's own "busy" answer says when to come back; any other
     // failure is shown at once with Try again.

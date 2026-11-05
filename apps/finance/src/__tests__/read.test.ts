@@ -47,6 +47,38 @@ describe('apiGet', () => {
     expect(fetcher).toHaveBeenCalledTimes(10);
   });
 
+  it('removes an aborted queued read without waiting for or using a slot', async () => {
+    const release: Array<() => void> = [];
+    const fetcher = vi.fn(
+      () => new Promise<Response>((resolve) => release.push(() => resolve(ok()))),
+    );
+    const active = Array.from({ length: MAX_CONCURRENT_READS }, (_, index) =>
+      apiGet('https://api.test', `bills/${index}`, null, fetcher),
+    );
+    const controller = new AbortController();
+    const queued = apiGet(
+      'https://api.test',
+      'finance/suggestions?q=old',
+      'token',
+      fetcher,
+      controller.signal,
+    );
+    let settled = false;
+    void queued.then(() => {
+      settled = true;
+    });
+    controller.abort();
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    const canceledBeforeRelease = settled;
+    for (let i = 0; i < 20; i++) {
+      release.shift()?.();
+      await Promise.resolve();
+    }
+    await Promise.all([...active, queued]);
+    expect(canceledBeforeRelease).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(MAX_CONCURRENT_READS);
+  });
+
   it('retries the server’s busy answer after its wait, and fails any other 503 at once', async () => {
     vi.useFakeTimers();
     const busy = () => new Response(null, { status: 503, headers: { 'Retry-After': '1' } });

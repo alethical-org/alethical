@@ -50,7 +50,9 @@ def test_home_and_search_include_typo_names_once_direct_first_and_public_stays_e
     suggested = get(
         finance_api, "finance/suggestions", q="danchik", request_id="spell", limit=10
     )
-    assert names(suggested["money"], "gave") == rows
+    assert names(suggested["money"], "gave") == [
+        {key: row[key] for key in ("kind", "name", "role")} for row in rows
+    ]
     old = get(finance_api, "campaign-finance/search", q="danchik", limit=10)
     assert [r["name"] for r in names(old, "gave")] == ["Danchik, Arthur"]
     assert all(r["role"] == "contributor" for r in rows)
