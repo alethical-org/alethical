@@ -193,7 +193,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                   account={accounts[0] ?? null}
                 />
               )}
-              <p className="lg2-line">
+              <p className="lg2-line cd-record-line">
                 Official candidate record · {runningPhrase(record)} {seat[0] || record.office}
               </p>
             </header>

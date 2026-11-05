@@ -698,6 +698,7 @@ The Finance typeface is owned by the **Type** rule in §2. Copy punctuation is o
 
 | Element | Approved treatment and review check |
 | --- | --- |
+| Record header spacing | Leave 14px between the record label and title on Principal, Organization, Person, Candidate, Committee, Legislator, Lobbyist, Bill, Vote, TV Station, TV Station Folder, TV Station File and Printed Agency Name at every width. Leave 8px from the title to its supporting line on Principal, Person, Bill, Vote and Legislator, and to the metadata row on TV Station Folder and TV Station File. Keep the spacing of separate role and key-figure blocks. |
 | Chart sections | Open on Chart at every band. Table is one action away and shows the same data, period, filters and missing states. Keep the reader's explicit choice in the address for that section. Includes Committee type/state charts, Money by race outside spending and Principal annual totals. |
 | Money connections | Open on Map even on Phone. The phone map reflows without clipped nodes, labels, hit areas or focus rings. An explicit Table choice stays selected and is kept in the address. |
 | Whole-row links with a name and detail line | Keep the full row clickable; hover underlines only the name. The detail line retains its color and has no underline. Keep one keyboard-focus ring around the link and the existing pressed feedback. |

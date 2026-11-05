@@ -41,8 +41,10 @@
   font-weight: 600;
   letter-spacing: 0.06em;
 }
+.f-page-title.org-title {
+  margin-top: var(--record-label-title-gap);
+}
 .org-title {
-  margin-top: 8px;
   font-size: 28px;
   overflow-wrap: anywhere;
 }

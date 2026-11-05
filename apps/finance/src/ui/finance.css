@@ -30,6 +30,8 @@
   --code-fill: #fbf1e2;
   --code-line: #f0d6a8;
   --refused: #8f2a20;
+  --record-label-title-gap: 14px;
+  --record-title-detail-gap: 8px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   min-height: 100vh;
   background: var(--ground);

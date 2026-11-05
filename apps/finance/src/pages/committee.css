@@ -175,8 +175,10 @@ dd[data-missing] {
   font-variant-numeric: tabular-nums;
   color: var(--secondary);
 }
+.f-page-title.cmt-title {
+  margin-top: var(--record-label-title-gap);
+}
 .cmt-title {
-  margin-top: 8px;
   font-size: 28px;
   overflow-wrap: anywhere;
 }

@@ -271,6 +271,10 @@ function loadedAnswers(overrides: Answers = {}): Answers {
         statements_copied_on: '2026-10-27',
       }),
     },
+    '/finance/committees/90001/payment-groups?direction=made': {
+      status: 200,
+      body: { state: 'reported', tab_counts: { expenditures: 2 } },
+    },
     '/finance/committees/90001/payments?direction=made': {
       status: 200,
       body: page('reported', [
@@ -511,15 +515,21 @@ describe('Committee page', () => {
       'Period Jan 1, 2026 to Jul 20, 2026. Figures are as filed in the selected report.',
     );
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
-    // The Miscellaneous receipt is no contribution and sits in no tab.
+    // The outgoing counts are known before opening either tab, without a full
+    // outgoing payment read. The miscellaneous receipt belongs to no tab.
+    const paths = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+    expect(
+      paths.some((url) => url.includes('/payment-groups?direction=made&year=2026&limit=1')),
+    ).toBe(true);
+    expect(paths.some((url) => url.includes('/payments?direction=made'))).toBe(false);
     expect(tabs).toEqual([
       'Individuals4',
       'Lobbyists0',
       'Committees and funds1',
       'Party units1',
       'Other kinds0',
-      'Expenditures',
-      'Contributions made',
+      'Expenditures2',
+      'Contributions made0',
     ]);
     expect(text()).toContain('2 names · 4 payment records');
     // One amount is missing, so neither the name's sum nor the table's total is shown.
@@ -620,11 +630,63 @@ describe('Committee page', () => {
           status: 200,
           body: page('not_reported', []),
         },
+        '/finance/committees/90001/payment-groups?direction=made': {
+          status: 200,
+          body: { state: 'not_reported', tab_counts: {} },
+        },
       }),
     );
     expect(text()).toContain('No official report figures are held for 2026.');
     expect(text()).toContain('None held for 2026');
     expect(text()).not.toContain('$0');
+    expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual([
+      'Individuals0',
+      'Lobbyists0',
+      'Committees and funds0',
+      'Party units0',
+      'Other kinds0',
+      'Expenditures0',
+      'Contributions made0',
+    ]);
+  });
+
+  it('keeps unavailable or failed payment counts blank', async () => {
+    await render(
+      '/money/committees/90001?tab=expenditures',
+      loadedAnswers({
+        '/committees/90001/payments?direction=received': {
+          status: 200,
+          body: page('unavailable', []),
+        },
+        '/finance/committees/90001/payment-groups?direction=made': { status: 500 },
+        '/finance/committees/90001/payments?direction=made': { status: 500 },
+      }),
+    );
+    expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual([
+      'Individuals',
+      'Lobbyists',
+      'Committees and funds',
+      'Party units',
+      'Other kinds',
+      'Expenditures',
+      'Contributions made',
+    ]);
+    expect(button('Try again')).toBeTruthy();
+  });
+
+  it('does not show a malformed outgoing count as zero', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({
+        '/finance/committees/90001/payment-groups?direction=made': {
+          status: 200,
+          body: { state: 'reported', tab_counts: { expenditures: null } },
+        },
+      }),
+    );
+    const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
+    expect(tabs).toContain('Expenditures');
+    expect(tabs).toContain('Contributions made0');
   });
 
   it('offers Try again when the report figures cannot be read, keeping the payments', async () => {
