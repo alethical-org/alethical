@@ -11,6 +11,7 @@ export type RouteName =
   | 'landing'
   | 'home'
   | 'sign-in'
+  | 'investor-access'
   | 'auth-return'
   | 'search'
   | 'organization'
@@ -63,6 +64,7 @@ export const ROUTES: readonly RouteDefinition[] = [
     title: 'Finance Home',
     returnName: 'Research public records',
   },
+  { name: 'investor-access', pattern: '/investor-access', title: 'Investor access', signedOut: true },
   { name: 'sign-in', pattern: '/sign-in', title: 'Sign in', signedOut: true },
   { name: 'auth-return', pattern: '/auth/return', title: 'Signing in', signedOut: true },
   { name: 'search', pattern: '/search', title: 'Search results' },
@@ -168,6 +170,7 @@ export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'landing',
   'home',
   'sign-in',
+  'investor-access',
   'auth-return',
   'search',
   'people',

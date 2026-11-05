@@ -33,9 +33,9 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   none can be read, the counts block is left out. "Sources and updates" names each source
   with the date its records were copied (bills: updated), in Minnesota time; a date the server
   cannot support is left out and the source stays named.
-- **Request access** (in the hero and again near the end) opens a draft email to
-  angel@alethical.com, copied to ask@alethical.com, with the subject "Alethical Finance access".
-  Nothing is sent until the reader sends it.
+- Finance is a private beta. No **Request access** email action or closing access section
+  appears on the landing page. With signed-in screens enabled, the hero has the only
+  **Investor access** button, opening `/investor-access` directly. The header keeps **Sign in**.
 - **Sign in** opens `/sign-in`. After signing in, an account not on the access list sees the
   not-listed state at `/`; a listed account sees the landing page, because no signed-in screen
   is public yet.
@@ -54,7 +54,7 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   signed-in Finance page; anything else, another site included, returns to Finance Home at
   `/home` (to `/` while the screens are off).
 - **`/sign-in`.** Google, or a code emailed to the address. Ordinary accounts have no password and no way
-  to create an account. Shared research accounts use the separate Investor access option. Each way is shown only once it works: Google once Supabase accepts
+  to create an account. Shared research accounts enter through the landing page’s Investor access button. Each way is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
@@ -69,18 +69,19 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
 
 ## Shared research sign-in
 
-The sign-in heading is **Sign in**, below the Alethical Finance wordmark. The block
-starts 12% of the viewport height from the top, bounded between 64px and 112px,
-and remains in normal page flow so short screens and keyboards can scroll it.
-When ordinary sign-in choices are available, **Investor access** has 16px of extra
-space above it to separate the 2 access paths. It keeps the same secondary button
-treatment as the email choice; no new color or priority is implied. With signed-in
-screens enabled, it opens one **Access code** field using the existing sign-in layout; no email is
-requested. The server chooses the shared account through its private configuration. It accepts an operator-created research
+Ordinary `/sign-in` has the heading **Sign in** and no investor option. The separate
+`/investor-access` page has the heading **Investor**, one **Access code** field,
+an **Enter** button (**Opening…** while pending), and an **Alethical Finance** return
+link to `/`. Both forms keep the Alethical Finance wordmark and the added top space:
+12% of viewport height, bounded between 64px and 112px, in normal page flow so short
+screens and keyboards can scroll. The investor page asks for no email.
+The server chooses the shared account through its private configuration. It accepts an operator-created research
 account and returns to the requested browsing page. An invalid code, too many
 attempts and unavailable service have distinct retry messages; fields stay filled
 on failure and submission is blocked while sign-in is pending. Passwords are never
-saved by the app. The account has no signup, reset or password-change control.
+saved by the app. The account has no signup, reset or password-change control. Investor sign-out returns
+to `/investor-access`; expiry or revocation returns there with the requested research
+page preserved. Ordinary accounts keep `/sign-in` as their return path.
 
 Search, filters, sources, profiles and research tools stay available. Editing links
 and dedicated editing pages are hidden, with direct visits answering not found.
@@ -181,7 +182,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/lobbying/principals/:id`, `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
 `/media-buys/agencies/:name`, `/media-buys/stations/:id`, `/media-buys/check`, `/people`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
-Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`,
+Built: `/`, `/home`, `/sign-in`, `/investor-access`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
 `/money/races/:id`, `/money/recipients`, `/money/connections`, `/money/identities`, `/money/employers`, `/money/employers/:name`,

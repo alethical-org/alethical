@@ -7,7 +7,6 @@ import { SessionProvider } from '../auth/session';
 import { screensApproved } from '../config';
 import { CONNECTIONS, linePaths, type Measured } from '../landing/connections';
 import { copyDate, fetchCounts, figuresFrom, type ServedCounts } from '../landing/counts';
-import { ACCESS_MAIL } from '../landing/Landing';
 import { FinanceSite, PublicSite } from '../landing/PublicSite';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -50,7 +49,9 @@ function fakeSupabase(session: { access_token: string; user: { email: string } }
   return {
     auth: {
       getSession: vi.fn(async () => ({ data: { session } })),
-      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe() {} } } })),
+      onAuthStateChange: vi.fn(() => ({
+        data: { subscription: { unsubscribe() {} } },
+      })),
       signOut: vi.fn(async () => ({ error: null })),
     },
   } as unknown as SupabaseClient;
@@ -90,7 +91,7 @@ async function renderAt(
   vi.stubGlobal('fetch', fetcher);
   await act(async () => {
     root.render(
-      <SessionProvider supabase={fakeSupabase(session)} apiBaseUrl={API}>
+      <SessionProvider supabase={fakeSupabase(session)} apiBaseUrl={API} screens={screens}>
         {screens ? <FinanceSite screens /> : <PublicSite />}
       </SessionProvider>,
     );
@@ -123,20 +124,25 @@ describe('the public Finance site', () => {
     expect(document.title).toBe('Alethical Finance');
   });
 
-  it('opens an access request draft and links Sign in to the sign-in page', async () => {
-    await renderAt('/');
-    const demos = [...container.querySelectorAll('a')].filter(
-      (a) => a.textContent === 'Request access',
+  it('opens investor access only from the hero and keeps ordinary sign-in separate', async () => {
+    await renderAt('/', { data: SERVED }, 200, { screens: true });
+    const investor = [...container.querySelectorAll('a')].filter(
+      (a) => a.textContent === 'Investor access',
     );
-    expect(demos).toHaveLength(2);
-    for (const demo of demos) expect(demo.getAttribute('href')).toBe(ACCESS_MAIL);
-    const mail = new URL(ACCESS_MAIL);
-    expect(mail.pathname).toBe('angel@alethical.com');
-    expect(mail.searchParams.get('cc')).toBe('ask@alethical.com');
-    expect(mail.searchParams.get('subject')).toBe('Alethical Finance access');
+    expect(investor).toHaveLength(1);
+    expect(investor[0].getAttribute('href')).toBe('/investor-access');
+    expect(investor[0].closest('.lp-hero-copy')).not.toBeNull();
+    expect(container.textContent).not.toContain('Request access');
+    expect(container.querySelector('.lp-close')).toBeNull();
     const signIns = [...container.querySelectorAll('a')].filter((a) => a.textContent === 'Sign in');
     expect(signIns.length).toBeGreaterThan(0);
     for (const link of signIns) expect(link.getAttribute('href')).toBe('/sign-in');
+    await act(async () => investor[0].click());
+    expect(window.location.pathname).toBe('/investor-access');
+    expect(container.querySelector('h1')?.textContent).toBe('Investor');
+    expect(container.querySelector('input[type="password"]')).not.toBeNull();
+    expect(container.querySelector('input[type="email"]')).toBeNull();
+    expect(container.textContent).not.toContain('Sign in with email');
   });
 
   it('reads the counts live and hides one the server could not read', async () => {
@@ -229,8 +235,14 @@ describe('landing counts', () => {
   it('never draws a 0, a negative or a missing count', () => {
     const figures = figuresFrom({
       campaign_money_records: { ...SERVED.campaign_money_records!, count: 0 },
-      lobbying_spending_reports: { ...SERVED.lobbying_spending_reports!, count: -1 },
-      current_legislature_bills: { ...SERVED.current_legislature_bills!, count: null },
+      lobbying_spending_reports: {
+        ...SERVED.lobbying_spending_reports!,
+        count: -1,
+      },
+      current_legislature_bills: {
+        ...SERVED.current_legislature_bills!,
+        count: null,
+      },
       tv_station_files: {
         state: 'reported',
         count: 5070,

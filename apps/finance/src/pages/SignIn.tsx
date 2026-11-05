@@ -4,7 +4,7 @@ import { proveSignInCode, requestSignInCode, signInResearch } from '../api/clien
 import { forgetCodeRequest, readCodeRequest, rememberCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
-import { navigate, useLocation } from '../router';
+import { Link, navigate, useLocation } from '../router';
 import { safeReturnPath } from '../routes';
 
 type Step = 'options' | 'email' | 'code' | 'password';
@@ -18,7 +18,7 @@ export const RESEND_WAIT_SECONDS = 60;
  * every address alike, so this screen never says whether one is listed. A
  * reload within a code's lifetime returns to the code step for the same request.
  */
-export function SignIn() {
+export function SignIn({ investor = false }: { investor?: boolean }) {
   const {
     supabase,
     apiBaseUrl,
@@ -34,7 +34,7 @@ export function SignIn() {
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
   // This tab's newest code request; the code is proved with its challenge.
   const [request, setRequest] = useState(readCodeRequest);
-  const [step, setStep] = useState<Step>(request ? 'code' : 'options');
+  const [step, setStep] = useState<Step>(investor ? 'password' : request ? 'code' : 'options');
   const [email, setEmail] = useState(request?.email ?? '');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -204,7 +204,7 @@ export function SignIn() {
         Alethical <span>Finance</span>
       </p>
       <h1 id="sign-in-heading" tabIndex={-1}>
-        Sign in
+        {investor ? 'Investor' : 'Sign in'}
       </h1>
 
       {step === 'options' && (
@@ -233,22 +233,7 @@ export function SignIn() {
               Sign in with email
             </button>
           )}
-          {screens && (
-            <button
-              type="button"
-              className={`secondary${googleSignIn || emailSignIn ? ' investor-sign-in' : ''}`}
-              disabled={busy !== null}
-              onClick={() => {
-                setError(null);
-                goTo('password');
-              }}
-            >
-              Investor access
-            </button>
-          )}
-          {!googleSignIn && !emailSignIn && !screens && (
-            <p>Sign-in to Alethical Finance is not open yet.</p>
-          )}
+          {!googleSignIn && !emailSignIn && <p>Sign-in to Alethical Finance is not open yet.</p>}
         </div>
       )}
 
@@ -272,25 +257,16 @@ export function SignIn() {
                 : error === 'password-refused'
                   ? 'That access code is not right. Try again.'
                   : error === 'rate-limited'
-                    ? 'Too many sign-in attempts. Wait a minute and try again.'
-                    : 'We couldn’t sign you in. Try again.'}
+                    ? 'Too many attempts. Wait a minute and try again.'
+                    : 'We couldn’t open investor access. Try again.'}
             </p>
           )}
           <button type="submit" disabled={busy !== null || finishing}>
-            {busy === 'password' || finishing ? 'Signing in…' : 'Sign in'}
+            {busy === 'password' || finishing ? 'Opening…' : 'Enter'}
           </button>
-          <button
-            type="button"
-            className="link"
-            disabled={busy !== null || finishing}
-            onClick={() => {
-              setError(null);
-              setPassword('');
-              goTo('options');
-            }}
-          >
-            Back to sign-in options
-          </button>
+          <Link to="/" className="link">
+            Alethical Finance
+          </Link>
         </form>
       )}
 

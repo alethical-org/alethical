@@ -14,9 +14,6 @@ import './landing.css';
  * counts and source dates are read live (./counts.ts).
  */
 
-export const ACCESS_MAIL =
-  'mailto:angel@alethical.com?cc=ask@alethical.com&subject=Alethical%20Finance%20access';
-
 const CONNECTIONS_WE_MAKE = [
   'People and organizations are linked to their records by registration number or a checked confirmation with its evidence, never by a matching name alone',
   'A TV station’s invoice is linked to the campaign payment it matches, and a station file to the committee or candidate it names',
@@ -66,7 +63,11 @@ function Lockup({ className }: { className: string }) {
 
 function Diagram() {
   const frame = useRef<HTMLDivElement>(null);
-  const [paths, setPaths] = useState<{ w: number; h: number; d: string[] } | null>(null);
+  const [paths, setPaths] = useState<{
+    w: number;
+    h: number;
+    d: string[];
+  } | null>(null);
 
   useLayoutEffect(() => {
     const box = frame.current;
@@ -126,16 +127,8 @@ function Diagram() {
   );
 }
 
-function AccessLink() {
-  return (
-    <a className="lp-demo" href={ACCESS_MAIL}>
-      Request access
-    </a>
-  );
-}
-
 export function Landing() {
-  const { apiBaseUrl } = useFinanceSession();
+  const { apiBaseUrl, screens } = useFinanceSession();
   const hero = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const silk = useRef<Silk | null>(null);
@@ -221,7 +214,11 @@ export function Landing() {
             <div className="lp-hero-copy">
               <h1 tabIndex={-1}>Turn policy priorities into a focused giving strategy</h1>
               <p>Political intelligence for law firms and PACs</p>
-              <AccessLink />
+              {screens && (
+                <Link className="lp-demo" to="/investor-access">
+                  Investor access
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -267,9 +264,6 @@ export function Landing() {
               </div>
             ))}
           </div>
-        </div>
-        <div className="lp-close">
-          <AccessLink />
         </div>
       </main>
       <section className="lp-sources" aria-labelledby="land-src-h">

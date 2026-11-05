@@ -31,6 +31,8 @@ interface Answer {
 export interface FinanceSession {
   status: SessionStatus;
   canEdit: boolean;
+  /** Keeps expired research sessions on their own access-code entry path. */
+  signInPath: '/sign-in' | '/investor-access';
   startResearchSession: (session: ResearchSession) => Promise<void>;
   /** Explicit Google/code sign-in, distinct from automatic auth refresh events. */
   beginOrdinarySignIn: () => void;
@@ -94,6 +96,9 @@ export function SessionProvider({
     initial.hadResearch ? null : undefined,
   );
   const [research, setResearch] = useState<ResearchSession | null>(initial.research);
+  const [signInPath, setSignInPath] = useState<'/sign-in' | '/investor-access'>(
+    initial.hadResearch ? '/investor-access' : '/sign-in',
+  );
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [retrying, setRetrying] = useState(false);
@@ -108,6 +113,7 @@ export function SessionProvider({
     authGeneration.current += 1;
     latest.current += 1;
     researchRef.current = next;
+    setSignInPath('/investor-access');
     ordinaryEventsEnabled.current = false;
     setResearch(next);
     ordinarySessionRef.current = null;
@@ -311,6 +317,7 @@ export function SessionProvider({
     authGeneration.current += 1;
     latest.current += 1;
     ordinaryEventsEnabled.current = true;
+    setSignInPath('/sign-in');
     ordinarySessionRef.current = null;
     setSession(null);
     setAnswer(null);
@@ -363,6 +370,7 @@ export function SessionProvider({
     () => ({
       status,
       canEdit: status === 'granted' && research === null,
+      signInPath,
       startResearchSession,
       beginOrdinarySignIn,
       email: research?.email ?? session?.user.email ?? null,
@@ -390,6 +398,7 @@ export function SessionProvider({
       screens,
       session,
       signOut,
+      signInPath,
       status,
       supabase,
       token,

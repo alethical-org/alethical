@@ -132,9 +132,6 @@ a.lockup:hover {
 .access--sign-in {
   padding-top: clamp(64px, 12vh, 112px);
 }
-.investor-sign-in {
-  margin-top: 16px;
-}
 .stack {
   display: flex;
   flex-direction: column;

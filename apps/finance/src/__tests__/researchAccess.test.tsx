@@ -11,6 +11,7 @@ import {
   saveResearchSession,
 } from '../auth/researchSession';
 import { navigate } from '../router';
+import { rememberCodeRequest } from '../auth/codeRequest';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const TOKEN = `finance_research_${'a'.repeat(43)}`;
@@ -131,15 +132,14 @@ async function type(id: string, value: string) {
   });
 }
 async function passwordForm() {
-  await render('/sign-in?next=%2Fmedia-buys');
-  await act(async () => button('Investor access').click());
+  await render('/investor-access?next=%2Fmedia-buys');
   expect(container.querySelector('#email')).toBeNull();
   expect(text()).toContain('Access code');
   await type('#password', 'demo-test-password');
 }
 it('signs in without a mailbox, keeps the requested page, and hides edit controls', async () => {
   await passwordForm();
-  await act(async () => button('Sign in').click());
+  await act(async () => button('Enter').click());
   expect(window.location.pathname).toBe('/media-buys');
   expect(text()).toContain('Media buys');
   expect(text()).not.toContain('Check TV station files');
@@ -152,7 +152,9 @@ it('signs in without a mailbox, keeps the requested page, and hides edit control
   const loginRequest = fetcher.mock.calls.find(([url]) =>
     String(url).endsWith('/sign-in/research'),
   )!;
-  expect(JSON.parse(String(loginRequest[1]?.body))).toEqual({ password: 'demo-test-password' });
+  expect(JSON.parse(String(loginRequest[1]?.body))).toEqual({
+    password: 'demo-test-password',
+  });
   expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
 });
 it.each([
@@ -171,15 +173,15 @@ it.each([
 });
 it.each([
   [401, 'That access code is not right'],
-  [429, 'Too many sign-in attempts'],
-  [503, 'We couldn’t sign you in'],
+  [429, 'Too many attempts'],
+  [503, 'We couldn’t open investor access'],
 ])('keeps entered fields for a retry after %i', async (status, message) => {
   fetcher.mockImplementation(async () => new Response(null, { status }));
   await passwordForm();
-  await act(async () => button('Sign in').click());
+  await act(async () => button('Enter').click());
   expect(text()).toContain(message);
   expect(container.querySelector<HTMLInputElement>('#password')?.value).toBe('demo-test-password');
-  expect(button('Sign in').disabled).toBe(false);
+  expect(button('Enter').disabled).toBe(false);
   expect(readResearchSession()).toBeNull();
 });
 it('signs out only the current session and clears it locally', async () => {
@@ -189,7 +191,7 @@ it('signs out only the current session and clears it locally', async () => {
   await act(async () => button('Sign out').click());
   expect(readResearchSession()).toBeNull();
   expect(storageValues().join(' ')).not.toContain(TOKEN);
-  expect(window.location.pathname).toBe('/sign-in');
+  expect(window.location.pathname).toBe('/investor-access');
   const call = fetcher.mock.calls.find(([url]) => String(url).endsWith('/research/sign-out'));
   expect(call).toBeTruthy();
   expect(call?.[1]).toMatchObject({
@@ -204,8 +206,9 @@ it('drops a revoked session when the tab returns', async () => {
   await act(async () => window.dispatchEvent(new Event('focus')));
   expect(readResearchSession()).toBeNull();
   expect(storageValues().join(' ')).not.toContain(TOKEN);
-  expect(window.location.pathname).toBe('/sign-in');
+  expect(window.location.pathname).toBe('/investor-access');
   expect(text()).not.toContain('Search records');
+  expect(new URLSearchParams(window.location.search).get('next')).toBe('/media-buys');
 });
 it('expires locally even if the access service is unavailable', async () => {
   vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
@@ -218,7 +221,7 @@ it('expires locally even if the access service is unavailable', async () => {
   await act(async () => vi.advanceTimersByTimeAsync(1001));
   expect(readResearchSession()).toBeNull();
   expect(storageValues().join(' ')).not.toContain(TOKEN);
-  expect(window.location.pathname).toBe('/sign-in');
+  expect(window.location.pathname).toBe('/investor-access');
 });
 it('handles sign-out from another tab and hides previously viewed research', async () => {
   saveResearchSession(research());
@@ -227,7 +230,7 @@ it('handles sign-out from another tab and hides previously viewed research', asy
   await act(async () =>
     window.dispatchEvent(new StorageEvent('storage', { key: RESEARCH_SESSION_KEY })),
   );
-  expect(text()).toContain('Sign in');
+  expect(text()).toContain('Investor');
   await act(async () => navigate('/money/identities'));
   expect(text()).not.toContain('Confirm identities');
 });
@@ -251,7 +254,7 @@ it('never restores a delayed ordinary session after research sign-out', async ()
     }),
   );
   await passwordForm();
-  await act(async () => button('Sign in').click());
+  await act(async () => button('Enter').click());
   expect(currentSession.canEdit).toBe(false);
   await act(async () => resolve({ data: { session: ordinary } }));
   await act(async () => authListener('TOKEN_REFRESHED', ordinary));
@@ -267,9 +270,12 @@ it.each(['returned', 'thrown'])(
   async (failure) => {
     window.localStorage.setItem(STORAGE_KEY, 'old-ordinary-session');
     if (failure === 'thrown') auth.signOut.mockRejectedValueOnce(new Error('offline'));
-    else auth.signOut.mockResolvedValueOnce({ error: new Error('offline') } as never);
+    else
+      auth.signOut.mockResolvedValueOnce({
+        error: new Error('offline'),
+      } as never);
     await passwordForm();
-    await act(async () => button('Sign in').click());
+    await act(async () => button('Enter').click());
     expect(currentSession.status).toBe('granted');
     expect(currentSession.canEdit).toBe(false);
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
@@ -315,7 +321,10 @@ it('ignores a pending access answer after research is removed in another tab', a
 it('removes an already-expired research bearer when opening the site', async () => {
   auth.getSession.mockResolvedValue({ data: { session: ordinary } });
   window.localStorage.setItem(STORAGE_KEY, 'old-ordinary-session');
-  saveResearchSession({ ...research(), expires_at: new Date(Date.now() - 1000).toISOString() });
+  saveResearchSession({
+    ...research(),
+    expires_at: new Date(Date.now() - 1000).toISOString(),
+  });
   await render('/media-buys');
   await act(async () => authListener('INITIAL_SESSION', ordinary));
   await act(async () => authListener('SIGNED_IN', ordinary));
@@ -334,7 +343,15 @@ it.each(['SIGNED_IN', 'INITIAL_SESSION'] as const)(
           resolve = done;
         });
       return Promise.resolve(
-        json({ rows: [], counts: {}, stations: [], sources: [], total: 0, tab: 'files', q: '' }),
+        json({
+          rows: [],
+          counts: {},
+          stations: [],
+          sources: [],
+          total: 0,
+          tab: 'files',
+          q: '',
+        }),
       );
     });
     await render('/media-buys');
@@ -354,4 +371,19 @@ it('accepts cross-tab ordinary sign-in after an initial signed-out auth event', 
   expect(currentSession.status).toBe('granted');
   expect(currentSession.canEdit).toBe(true);
   expect(currentSession.email).toBe('ordinary@example.test');
+});
+
+it('keeps the ordinary emailed-code challenge apart from investor entry', async () => {
+  rememberCodeRequest('ordinary@example.test', 'pending-challenge');
+  await render('/investor-access');
+  expect(text()).toContain('Investor');
+  expect(container.querySelector('#password')).not.toBeNull();
+  expect(container.querySelector('#code')).toBeNull();
+  await act(async () => navigate('/sign-in'));
+  expect(text()).toContain('Enter the newest code');
+  expect(text()).toContain('ordinary@example.test');
+  expect(container.querySelector('#password')).toBeNull();
+  await act(async () => navigate('/investor-access'));
+  expect(container.querySelector('#password')).not.toBeNull();
+  expect(container.querySelector('#code')).toBeNull();
 });

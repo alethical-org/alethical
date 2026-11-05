@@ -164,7 +164,7 @@
   color: #c9d7de;
 }
 
-/* Request access */
+/* Investor access */
 .lp .lp-demo {
   display: inline-flex;
   align-items: center;
@@ -460,14 +460,7 @@
   }
 }
 
-/* Closing call to action and sources */
-.lp-close {
-  background: #0b1f2a;
-  border-top: 1px solid rgba(232, 239, 243, 0.12);
-  padding: 72px 24px 80px;
-  display: flex;
-  justify-content: center;
-}
+/* Sources */
 .lp-sources {
   background: #0b1f2a;
   border-top: 1px solid rgba(232, 239, 243, 0.12);
@@ -614,9 +607,6 @@
   }
   .lp-benefit h3 {
     font-size: 24px;
-  }
-  .lp-close {
-    padding: 48px 16px 56px;
   }
 }
 

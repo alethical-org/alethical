@@ -463,7 +463,8 @@ of approval to build the graph frontend.
 
 ### Shared research access
 
-Investors choose **Investor access** and enter one reusable **Access code**, without
+Investors choose **Investor access** in the landing page hero, opening `/investor-access`,
+and enter one reusable **Access code**, without
 an email field. The server resolves the private `ALETHICAL_FINANCE_RESEARCH_EMAIL`
 setting to the operator-created shared account; absent or invalid configuration
 answers unavailable. Older clients may still send an explicit research-account email.
