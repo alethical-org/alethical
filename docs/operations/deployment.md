@@ -561,15 +561,16 @@ Before anyone can sign in at that address:
    person in Supabase's dashboard, and recorded in
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
-4. An emailed-code rollout needs the API's `SUPABASE_SECRET_KEY` (a Supabase secret key, added by a
-   person) and `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` set to `1`, with the email sender's
-   settings already live, then `VITE_EMAIL_SIGN_IN` set to `on` and the app deployed again
-   ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+
+For a later emailed-code rollout, set the API's `SUPABASE_SECRET_KEY` (a Supabase secret
+key, added by a person) and `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` to `1`, with the
+email sender's settings live. Then set `VITE_EMAIL_SIGN_IN` to `on` and redeploy Finance
+([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 
 Investor sign-in needs `ALETHICAL_FINANCE_RESEARCH_EMAIL` set privately on the API
 and that research account created through `scripts/finance_research_access.py`.
 The browser submits only the reusable access code; do not put the account address
-or code in frontend settings. Ordinary sign-in settings above remain unchanged.
+or code in frontend settings.
 
 At launch the same steps repeat for alethicalfinance.com.
 
