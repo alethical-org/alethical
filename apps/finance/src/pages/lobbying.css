@@ -285,8 +285,10 @@
   font-size: 14px;
   color: var(--secondary);
 }
-.lb-title {
+.f-page-title.lb-title {
   margin-top: var(--record-label-title-gap);
+}
+.lb-title {
   font-size: 28px;
   overflow-wrap: anywhere;
 }

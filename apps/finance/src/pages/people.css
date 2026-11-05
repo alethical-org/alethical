@@ -256,8 +256,10 @@ a.pp-row:active,
 .lg2-header {
   margin-top: 8px;
 }
-.lg2-title {
+.f-page-title.lg2-title {
   margin-top: var(--record-label-title-gap);
+}
+.lg2-title {
   font-size: 28px;
 }
 .lg2-line {
