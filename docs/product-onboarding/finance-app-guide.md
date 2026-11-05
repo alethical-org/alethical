@@ -35,7 +35,9 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   cannot support is left out and the source stays named.
 - Finance is a private beta. No **Request access** email action or closing access section
   appears on the landing page. With signed-in screens enabled, the hero has the only
-  **Investor access** button, opening `/investor-access` directly. The header keeps **Sign in**.
+  **Investor access** button, opening `/investor-access` directly. The header keeps **Sign in**,
+  with 24px above its button and the wordmark aligned beside it; the slim scrolled bar keeps
+  its compact spacing.
 - **Sign in** opens `/sign-in`. After signing in, an account not on the access list sees the
   not-listed state at `/`; a listed account sees the landing page, because no signed-in screen
   is public yet.
