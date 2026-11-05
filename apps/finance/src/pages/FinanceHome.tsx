@@ -51,6 +51,10 @@ function dated(what: string, verb: string, iso: string | null | undefined): stri
   return iso ? `${what} ${verb} ${centralDateLabel(iso)}` : what;
 }
 
+const TV_STATIONS = 'KSTP-TV, KARE and KMSP-TV';
+
+/** The family cards, in the approved order (Media buys directly after Campaign
+ * money, as in the header). */
 const FAMILIES: readonly Family[] = [
   {
     title: 'Campaign money',
@@ -58,6 +62,13 @@ const FAMILIES: readonly Family[] = [
     body: 'Registered committees, funds and party units; their official report figures and itemized payments',
     source: BOARD,
     dated: (d) => dated('Payment files', 'copied', d.campaign_money_records),
+  },
+  {
+    title: 'Media buys',
+    route: 'media-buys',
+    body: 'TV station files for political ad time: folders, agency names, stations and years',
+    source: TV_STATIONS,
+    dated: (d) => dated('TV station files', 'copied', d.tv_station_files),
   },
   {
     title: 'Lobbying',
@@ -82,14 +93,10 @@ const FAMILIES: readonly Family[] = [
     source: 'Minnesota Legislature',
     dated: (d) => dated('Bills', 'updated', d.current_legislature_bills),
   },
-  {
-    title: 'Media buys',
-    route: 'media-buys',
-    body: 'TV station files for political ad time: folders, agency names, stations and years',
-    source: 'KSTP-TV, KARE and KMSP-TV',
-    dated: (d) => dated('TV station files', 'copied', d.tv_station_files),
-  },
 ];
+
+/** Sources and updates keep their own order, independent of the card order. */
+const SOURCE_ORDER = [BOARD, 'Minnesota Secretary of State', 'Minnesota Legislature', TV_STATIONS];
 
 function copyDates(counts: ServedCounts | null): Dates {
   const dates: Dates = {};
@@ -113,13 +120,12 @@ export function FinanceHome() {
   const action = isBuilt(ACTION.route) ? ACTION : null;
   const entrances = ENTRANCES.filter((entrance) => isBuilt(entrance.route));
   const families = FAMILIES.filter((family) => isBuilt(family.route));
-  const groups = families.reduce<SourceGroup[]>((all, family) => {
-    const line = `${family.title} · ${family.dated(dates)}`;
-    const group = all.find((item) => item.source === family.source);
-    if (group) group.items.push(line);
-    else all.push({ source: family.source, items: [line] });
-    return all;
-  }, []);
+  const groups: SourceGroup[] = SOURCE_ORDER.map((source) => ({
+    source,
+    items: families
+      .filter((family) => family.source === source)
+      .map((family) => `${family.title} · ${family.dated(dates)}`),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <main id="main" className="f-page">
