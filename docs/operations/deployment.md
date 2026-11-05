@@ -520,8 +520,8 @@ Vercel gives for the domain. Vercel also answers at `https://alethical-finance.v
 The 6 build settings are public values: `VITE_SUPABASE_URL`,
 `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_API_BASE_URL` (`https://api.alethical.com`),
 `VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`.
-`VITE_EMAIL_SIGN_IN` is `on`, exposing the shipped emailed-code flow; its server settings
-must also be enabled as described in
+For the private beta, `VITE_EMAIL_SIGN_IN` is `off` and the API's emailed-code switch is
+disabled. To open the emailed-code flow for a later rollout, enable both switches as described in
 [sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in).
 `VITE_FINANCE_SCREENS` is `on`, so a listed account reaches the signed-in screens built so far;
 unset, the site serves only
@@ -561,15 +561,16 @@ Before anyone can sign in at that address:
    person in Supabase's dashboard, and recorded in
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
-4. Code sign-in needs the API's `SUPABASE_SECRET_KEY` (a Supabase secret key, added by a
-   person) and `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` set to `1`, with the email sender's
-   settings already live, then `VITE_EMAIL_SIGN_IN` set to `on` and the app deployed again
-   ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+
+For a later emailed-code rollout, confirm the API has its `SUPABASE_SECRET_KEY` (a
+Supabase secret key, added by a person) and working email sender settings. Set
+`ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` to `1`, then set `VITE_EMAIL_SIGN_IN` to `on` and redeploy Finance
+([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 
 Investor sign-in needs `ALETHICAL_FINANCE_RESEARCH_EMAIL` set privately on the API
 and that research account created through `scripts/finance_research_access.py`.
 The browser submits only the reusable access code; do not put the account address
-or code in frontend settings. Ordinary sign-in settings above remain unchanged.
+or code in frontend settings.
 
 At launch the same steps repeat for alethicalfinance.com.
 

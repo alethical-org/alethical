@@ -55,8 +55,10 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   address so sign-in returns there. A return address is kept only when it is a built
   signed-in Finance page; anything else, another site included, returns to Finance Home at
   `/home` (to `/` while the screens are off).
-- **`/sign-in`.** Google, or a code emailed to the address. Ordinary accounts have no password and no way
-  to create an account. Shared research accounts enter through the landing page’s Investor access button. Each way is shown only once it works: Google once Supabase accepts
+- **`/sign-in`.** Google for listed team accounts during the private beta. Ordinary accounts
+  have no Finance password or signup path. Shared research accounts enter through the landing
+  page’s Investor access button. The emailed-code option stays off until the rollout. Each way
+  is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
@@ -73,8 +75,8 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
 
 Ordinary `/sign-in` has the heading **Sign in** and no investor option. The separate
 `/investor-access` page has one **Investor access code** field and an **Enter** button
-(**Opening…** while pending), with no separate heading or homepage link. Both forms
-keep the Alethical Finance wordmark and the added top space:
+(**Opening…** while pending), with no separate heading. Both forms link the Alethical
+Finance wordmark to the public homepage and keep the added top space:
 12% of viewport height, bounded between 64px and 112px, in normal page flow so short
 screens and keyboards can scroll. The investor field has 24px of space after the
 wordmark. It shows the code as typed and disables automatic capitalization, correction and

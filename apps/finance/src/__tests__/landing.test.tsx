@@ -141,11 +141,16 @@ describe('the public Finance site', () => {
     expect(window.location.pathname).toBe('/investor-access');
     expect(container.querySelector('h1')).toBeNull();
     expect(container.querySelector('label')?.textContent).toBe('Investor access code');
-    expect(container.querySelector('a')).toBeNull();
+    const home = container.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Alethical Finance home"]',
+    );
+    expect(home?.getAttribute('href')).toBe('/');
     expect(document.activeElement).toBe(container.querySelector('main'));
     expect(container.querySelector('#password')?.getAttribute('type')).toBe('text');
     expect(container.querySelector('input[type="email"]')).toBeNull();
     expect(container.textContent).not.toContain('Sign in with email');
+    await act(async () => home!.click());
+    expect(window.location.pathname).toBe('/');
   });
 
   it('reads the counts live and hides one the server could not read', async () => {

@@ -4,7 +4,7 @@ import { proveSignInCode, requestSignInCode, signInResearch } from '../api/clien
 import { forgetCodeRequest, readCodeRequest, rememberCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
-import { navigate, useLocation } from '../router';
+import { Link, navigate, useLocation } from '../router';
 import { safeReturnPath } from '../routes';
 
 type Step = 'options' | 'email' | 'code' | 'password';
@@ -33,7 +33,9 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
   const next = safeReturnPath(location.searchParams.get('next'), screens);
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
   // This tab's newest code request; the code is proved with its challenge.
-  const [request, setRequest] = useState(readCodeRequest);
+  const [request, setRequest] = useState(() =>
+    emailSignIn && !investor ? readCodeRequest() : null,
+  );
   const [step, setStep] = useState<Step>(investor ? 'password' : request ? 'code' : 'options');
   const [email, setEmail] = useState(request?.email ?? '');
   const [code, setCode] = useState('');
@@ -205,9 +207,9 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
       tabIndex={investor ? -1 : undefined}
       aria-label={investor ? 'Investor access' : undefined}
     >
-      <p className="lockup">
-        Alethical <span>Finance</span>
-      </p>
+      <Link to="/" className="lockup" aria-label="Alethical Finance home">
+        Alethical&nbsp;<span>Finance</span>
+      </Link>
       {!investor && (
         <h1 id="sign-in-heading" tabIndex={-1}>
           Sign in
