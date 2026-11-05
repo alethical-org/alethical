@@ -38,7 +38,11 @@ from alethical.api.services import (
     identity_confirmations as identities,
 )
 from alethical.api.services import lobbying, tv_ads as station_reader
-from alethical.api.services.campaign_finance_search import name_contains
+from alethical.api.services.finance_name_matching import (
+    configure_discovery,
+    indexed_discovery_match,
+    discovery_text,
+)
 from alethical.api.services.campaign_finance_payments import linkable_committees
 from alethical.db import models as m
 from alethical.pipeline import campaign_finance_graph_summary as summary
@@ -256,8 +260,7 @@ def _edge(
 
 def _matches(edge, query, focus):
     return (
-        not query
-        or any(query.casefold() in n["label"].casefold() for n in edge["_nodes"])
+        not query or any(discovery_text(query, n["label"]) for n in edge["_nodes"])
     ) and (not focus or focus in (edge["from"], edge["to"]))
 
 
@@ -635,8 +638,8 @@ def _money_groups(
     if query:
         where.append(
             or_(
-                name_contains(rows.c.from_label, query),
-                name_contains(rows.c.to_label, query),
+                indexed_discovery_match(rows.c.from_label, query),
+                indexed_discovery_match(rows.c.to_label, query),
             )
         )
     if focus:
@@ -1087,6 +1090,8 @@ def connections(
     offset=0,
 ):
     committee_finance.pin_to_one_view(db)
+    if query:
+        configure_discovery(db)
     entities, identifiers, confirmed_names = _identity_maps(db)
     groups, years, unavailable = [], set(), []
     release = None

@@ -30,9 +30,21 @@ const MAX_QUERY = 200;
  * The register holds exactly these 3 kinds, so no finer tab exists (#1661). */
 export type DirectoryTab = 'candidates' | 'committees' | 'party';
 
-const TABS: ReadonlyArray<{ value: DirectoryTab; label: string; kind: CommitteeKindFilter }> = [
-  { value: 'candidates', label: 'Candidate committees', kind: 'candidate_committee' },
-  { value: 'committees', label: 'Committees and funds', kind: 'political_committee_or_fund' },
+const TABS: ReadonlyArray<{
+  value: DirectoryTab;
+  label: string;
+  kind: CommitteeKindFilter;
+}> = [
+  {
+    value: 'candidates',
+    label: 'Candidate committees',
+    kind: 'candidate_committee',
+  },
+  {
+    value: 'committees',
+    label: 'Committees and funds',
+    kind: 'political_committee_or_fund',
+  },
   { value: 'party', label: 'Party units', kind: 'party_unit' },
 ];
 
@@ -71,7 +83,12 @@ export interface CommitteeRegister {
   party?: string | null;
   candidate_parties?: string[] | null;
   committees: CommitteeRow[];
-  page: { limit: number; offset: number; has_more: boolean; total: number | null };
+  page: {
+    limit: number;
+    offset: number;
+    has_more: boolean;
+    total: number | null;
+  };
   register_total: number | null;
   by_kind: Partial<Record<string, number>> | null;
   held_by_kind?: Partial<Record<string, number>> | null;
@@ -109,7 +126,7 @@ export function registerPath(
   if (sort === 'registration') params.set('sort', sort);
   params.set('status', status === 'open' || status === 'terminated' ? status : 'all');
   if (tab === 'candidates' && party) params.set('party', party);
-  return `campaign-finance/committees?${params.toString()}`;
+  return `finance/committees?${params.toString()}`;
 }
 
 /** "762 candidate committees": the served count for this tab and search. */
@@ -199,18 +216,27 @@ export function registrationStatus(
   state: 'open' | 'terminated' | 'retained' | 'unknown';
 } {
   if (row.retained || row.registration_status === 'not_listed') {
-    return { text: 'No longer listed in the current register', state: 'retained' };
+    return {
+      text: 'No longer listed in the current register',
+      state: 'retained',
+    };
   }
   const status =
     row.registration_status ??
     (row.is_closed === true ? 'terminated' : row.is_closed === false ? 'open' : 'unknown');
   if (status === 'terminated') {
     const day = formatDay(row.termination_date);
-    return { text: day ? `Terminated ${day}` : 'Terminated', state: 'terminated' };
+    return {
+      text: day ? `Terminated ${day}` : 'Terminated',
+      state: 'terminated',
+    };
   }
   if (status === 'open') {
     const day = formatDay(row.registration_date ?? null);
-    return { text: day ? `Registered ${day}` : 'Open registration', state: 'open' };
+    return {
+      text: day ? `Registered ${day}` : 'Open registration',
+      state: 'open',
+    };
   }
   return { text: 'Registration status not held', state: 'unknown' };
 }
@@ -450,7 +476,14 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
               />
               {(address.sort === 'registration' || reg !== 'all' || party) && (
                 <ClearAll
-                  onClick={() => setAddress({ sort: 'name', reg: 'all', party: '', page: '1' })}
+                  onClick={() =>
+                    setAddress({
+                      sort: 'name',
+                      reg: 'all',
+                      party: '',
+                      page: '1',
+                    })
+                  }
                 />
               )}
             </div>
@@ -506,7 +539,9 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                                 {isBuilt('committee') ? (
                                   <Link
                                     to={withFrom(
-                                      hrefFor('committee', { id: row.registration_number }),
+                                      hrefFor('committee', {
+                                        id: row.registration_number,
+                                      }),
                                       here,
                                     )}
                                     className="cm-name-link"

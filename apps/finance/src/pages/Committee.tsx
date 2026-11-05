@@ -75,7 +75,10 @@ import { useYearPayments } from './committee/useYearPayments';
 import './committee.css';
 
 type OutgoingTab = Extract<TabKey, 'expenditures' | 'made'>;
-type OutgoingCounts = { state: BlockState; tab_counts?: Partial<Record<OutgoingTab, number>> };
+type OutgoingCounts = {
+  state: BlockState;
+  tab_counts?: Partial<Record<OutgoingTab, number>>;
+};
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 /** Names shown before "Show the other {n} names". */
@@ -134,7 +137,12 @@ function evidenceFor(
     rows: [
       { label: 'Saved source', value: file },
       ...(copiedAt
-        ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(copiedAt)}` }]
+        ? [
+            {
+              label: 'Source version',
+              value: `Copy of ${centralDateLabel(copiedAt)}`,
+            },
+          ]
         : []),
       { label: 'Record number', value: String(recordNumber) },
     ],
@@ -182,7 +190,10 @@ export function Committee({ match }: { match: RouteMatch }) {
 
   // --- Reads -------------------------------------------------------------------------
   const finance = useRead<CommitteeFinance>(
-    apiPath(['committees', id, 'finance'], { year, include_confirmation: 'false' }),
+    apiPath(['committees', id, 'finance'], {
+      year,
+      include_confirmation: 'false',
+    }),
     { keepPrevious: true },
   );
   const record =
@@ -203,7 +214,11 @@ export function Committee({ match }: { match: RouteMatch }) {
     },
   );
   const received = useYearPayments<ReceivedPayment>(
-    apiPath(['committees', id, 'payments'], { direction: 'received', year, sort: 'date' }),
+    apiPath(['committees', id, 'payments'], {
+      direction: 'received',
+      year,
+      sort: 'date',
+    }),
   );
   const made = useYearPayments<MadePayment>(
     isExp
@@ -223,12 +238,19 @@ export function Committee({ match }: { match: RouteMatch }) {
     }),
   );
   const independentEver = useRead<PaymentPage<IndependentPayment>>(
-    apiPath(['committees', id, 'payments'], { direction: 'independent_by', limit: 1 }),
+    apiPath(['committees', id, 'payments'], {
+      direction: 'independent_by',
+      limit: 1,
+    }),
   );
   // The summary counts every held row without downloading every outgoing payment
   // on a visit to an incoming tab. One group is the smallest allowed page.
   const outgoing = useRead<OutgoingCounts>(
-    apiPath(['finance', 'committees', id, 'payment-groups'], { direction: 'made', year, limit: 1 }),
+    apiPath(['finance', 'committees', id, 'payment-groups'], {
+      direction: 'made',
+      year,
+      limit: 1,
+    }),
   );
 
   // --- In-page state ------------------------------------------------------------------
@@ -297,7 +319,9 @@ export function Committee({ match }: { match: RouteMatch }) {
     if (!focusIndependent || !independentShown) return;
     const element = document.getElementById('committee-ie');
     if (!element) return;
-    window.scrollTo({ top: element.getBoundingClientRect().top + window.scrollY - 80 });
+    window.scrollTo({
+      top: element.getBoundingClientRect().top + window.scrollY - 80,
+    });
     element.focus({ preventScroll: true });
   }, [focusIndependent, independentShown]);
 
@@ -443,7 +467,11 @@ export function Committee({ match }: { match: RouteMatch }) {
     ) {
       count = recordCount(groups[value]);
     }
-    return { value, label, count: count === null ? null : count.toLocaleString('en-US') };
+    return {
+      value,
+      label,
+      count: count === null ? null : count.toLocaleString('en-US'),
+    };
   });
 
   const label = tabLabel(tab);
@@ -681,11 +709,17 @@ export function Committee({ match }: { match: RouteMatch }) {
                           <div className="cmt-summary">
                             <span>{countsLine(matched)}</span>
                             <span>
-                              {isMade
-                                ? 'Itemized contributions made'
-                                : isExp
-                                  ? 'Total itemized expenditures'
-                                  : 'Itemized contributions'}{' '}
+                              {nameFilter.trim()
+                                ? isMade
+                                  ? 'Matching itemized contributions made'
+                                  : isExp
+                                    ? 'Matching itemized expenditures'
+                                    : 'Matching itemized contributions'
+                                : isMade
+                                  ? 'Itemized contributions made'
+                                  : isExp
+                                    ? 'Total itemized expenditures'
+                                    : 'Itemized contributions'}{' '}
                               <strong>{tableTotal(matched)}</strong>
                             </span>
                           </div>

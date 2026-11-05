@@ -19,6 +19,53 @@ from alethical.tests.test_finance_media_buys import (  # noqa: F401
 BASE = "/api/v1/finance/media-buys/agencies/"
 
 
+def test_strong_agency_spellings_keep_exact_versions_and_checks(
+    finance_api, finance_db, held
+):
+    names(finance_db, held, ["Exmaple Media", "Unrelated business"])
+    key = reader.agency_key("Example Media")
+    exact = finance_api.get(BASE + key).json()["data"]
+    response = finance_api.get(
+        BASE + key + "/spellings", params={"version": exact["version"]}
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert [item["name"] for item in data["spellings"]] == ["Exmaple Media"]
+    variant = data["spellings"][0]
+    assert variant["groups"][0]["files"][0]["agency_unchecked"] is True
+    assert variant["addresses"] == []
+    assert [row["label"] for row in read(finance_api)["rows"]] == ["Exmaple Media"]
+    assert (
+        read(finance_api, exclude_key=[reader.agency_key("Exmaple Media")])["rows"]
+        == []
+    )
+
+
+def test_displayed_agency_exclusions_apply_before_every_page(
+    finance_api, finance_db, held
+):
+    variants = ["Exmaple Media", "EXAMPLE MEDIA", "Example Meedia"]
+    names(finance_db, held, variants)
+    excluded = reader.agency_key(variants[0])
+    result = read(finance_api, exclude_key=[excluded], limit=1)
+    found = []
+    while True:
+        assert result["excluded_keys"] == [excluded]
+        found.extend(row["label"] for row in result["rows"])
+        if not result["has_more"]:
+            break
+        result = read(
+            finance_api,
+            exclude_key=[excluded],
+            limit=1,
+            offset=len(found),
+            version=result["version"],
+        )
+    assert variants[0] not in found
+    assert set(variants[1:]) <= set(found)
+    assert len(found) == len(set(found))
+
+
 def names(db, held, values):
     extraction = db.scalar(
         select(m.FCCExtraction).where(
@@ -35,6 +82,11 @@ def names(db, held, values):
 
 def read(api, name="Example Media", status=200, **params):
     api.app.dependency_overrides[get_db]().connection()
+    if params.get("exclude_key") and "version" not in params:
+        initial = api.get(BASE + reader.agency_key(name) + "/similar-names").json()[
+            "data"
+        ]
+        params["version"] = initial["version"]
     response = api.get(BASE + reader.agency_key(name) + "/similar-names", params=params)
     assert response.status_code == status, response.text
     return response.json().get("data")
@@ -51,8 +103,8 @@ def test_agency_typos_are_exact_distinct_names_with_own_evidence(
     data = read(finance_api)
     assert [x["label"] for x in data["rows"]] == [
         " Example Media ",
-        "Example Media LLC",
         "Exmaple Media",
+        "Example Media LLC",
     ]
     for row in data["rows"]:
         assert row == {
@@ -67,10 +119,10 @@ def test_agency_typos_are_exact_distinct_names_with_own_evidence(
     assert not data["has_more"]
 
 
-def test_agency_paging_is_global_az_and_excludes_only_exact_input(
+def test_agency_paging_is_closest_first_and_excludes_exact_input(
     finance_api, finance_db, held
 ):
-    expected = ["EXAMPLE MEDIA", "Example Media LLC", "Exmaple Media"]
+    expected = ["EXAMPLE MEDIA", "Exmaple Media", "Example Media LLC"]
     names(finance_db, held, expected)
     first = read(finance_api, limit=1)
     second = read(finance_api, limit=1, offset=1, version=first["version"])
@@ -163,3 +215,18 @@ def test_similar_agencies_keep_query_limits(finance_api, held):
     read(finance_api, status=422, offset=-1)
     response = finance_api.get(BASE + "not-a-key/similar-names")
     assert response.status_code == 422
+
+
+def test_displayed_agency_exclusions_require_the_same_source_version(
+    finance_api, finance_db, held
+):
+    variant = "Exmaple Media"
+    names(finance_db, held, [variant])
+    path = BASE + reader.agency_key("Example Media") + "/similar-names"
+    params = {"exclude_key": [reader.agency_key(variant)]}
+    unpinned = finance_api.get(path, params=params)
+    assert unpinned.status_code == 200
+    assert variant in {row["label"] for row in unpinned.json()["data"]["rows"]}
+    assert unpinned.json()["data"]["excluded_keys"] == []
+    changed = finance_api.get(path, params={**params, "version": "0000000000000000"})
+    assert changed.status_code == 409

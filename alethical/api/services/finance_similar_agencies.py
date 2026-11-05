@@ -13,6 +13,7 @@ from alethical.api.services import finance_similar_names as spelling
 from alethical.api.services import finance_versions
 from alethical.api.services import tv_ads as reader
 from alethical.api.services.identity_confirmations import IdentityError
+from alethical.api.services.finance_name_matching import closeness, strong_spelling
 
 MAX_NAMES = 20_000
 MINNESOTA = ZoneInfo("America/Chicago")
@@ -23,7 +24,7 @@ class Unavailable(Exception):
 
 
 @reader.projection
-def _read(db, key, limit, offset):
+def _read(db, key, limit, offset, excluded_keys=(), strong_only=False):
     # Reuse the exact same names/version/check rules as the agency browse list.
     # A check for one name, address, file or version never checks another.
     groups = defaultdict(set)
@@ -45,6 +46,13 @@ def _read(db, key, limit, offset):
     name = next((value for value in groups if reader.agency_key(value) == key), None)
     if name is None:
         raise LookupError("Not found")
+    # The complete catalogue is already held and bounded. A weak-similarity
+    # cutoff must never discard a spelling accepted by the stronger rule.
+    strong = {
+        label for label in groups if label != name and strong_spelling(name, label)
+    }
+    if strong_only:
+        return {"key": key, "name": name, "names": sorted(strong)}
     try:
         probes = spelling.probes(name)
     except IdentityError as exc:
@@ -59,22 +67,26 @@ def _read(db, key, limit, offset):
                 text(
                     "SELECT name FROM jsonb_array_elements_text(CAST(:names AS jsonb)) AS n(name) "
                     "WHERE name != :name AND (" + predicate + ") "
-                    'ORDER BY name COLLATE "C" LIMIT :limit OFFSET :offset'
+                    'ORDER BY name COLLATE "C"'
                 ),
                 {
                     "names": json.dumps(list(groups)),
                     "name": name,
-                    "limit": limit + 1,
-                    "offset": offset,
                     **{f"probe{i}": probe for i, probe in enumerate(probes)},
                 },
             )
         )
+    names = list(set(names) | strong)
+    excluded = set(excluded_keys)
+    names = [label for label in names if reader.agency_key(label) not in excluded]
+    names.sort(key=lambda label: (-closeness(name, label), label))
+    names = names[offset : offset + limit + 1]
     return {
         "key": key,
         "name": name,
         "limit": limit,
         "offset": offset,
+        "excluded_keys": sorted(excluded),
         "has_more": len(names) > limit,
         "rows": [
             {
@@ -101,14 +113,37 @@ def _read(db, key, limit, offset):
     }
 
 
+@reader.projection
+def _complete_read(db, key, limit, offset, excluded_keys=(), strong_only=False):
+    result = _read(db, key, limit, offset, excluded_keys, strong_only, originals=True)
+    if strong_only:
+        result["spellings"] = [
+            reader.agency_detail(db, reader.agency_key(name), originals=True)
+            for name in result.pop("names")
+        ]
+    return result
+
+
 def read(
-    db: Session, *, key: str, limit: int, offset: int, version: str | None
+    db: Session,
+    *,
+    key: str,
+    limit: int,
+    offset: int,
+    version: str | None,
+    excluded_keys: tuple[str, ...] | list[str] = (),
+    strong_only: bool = False,
 ) -> dict:
     token = finance_versions.check(db, version, "station")
+    if version is None:
+        excluded_keys = ()
     db.execute(
         text(
             "SELECT set_config('statement_timeout', :timeout, true), set_config('pg_trgm.similarity_threshold', :threshold, true)"
         ),
         {"timeout": spelling.QUERY_TIMEOUT_MS, "threshold": spelling.SIMILARITY},
     )
-    return {"version": token, **_read(db, key, limit, offset, originals=True)}
+    result = _complete_read(
+        db, key, limit, offset, excluded_keys, strong_only, originals=True
+    )
+    return {"version": token, **result}
