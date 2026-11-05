@@ -75,8 +75,8 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
 
 Ordinary `/sign-in` has the heading **Sign in** and no investor option. The separate
 `/investor-access` page has one **Investor access code** field and an **Enter** button
-(**Opening…** while pending), with no separate heading or homepage link. Both forms
-keep the Alethical Finance wordmark and the added top space:
+(**Opening…** while pending), with no separate heading. Both forms link the Alethical
+Finance wordmark to the public homepage and keep the added top space:
 12% of viewport height, bounded between 64px and 112px, in normal page flow so short
 screens and keyboards can scroll. The investor field has 24px of space after the
 wordmark. It shows the code as typed and disables automatic capitalization, correction and

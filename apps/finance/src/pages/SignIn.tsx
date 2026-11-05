@@ -4,7 +4,7 @@ import { proveSignInCode, requestSignInCode, signInResearch } from '../api/clien
 import { forgetCodeRequest, readCodeRequest, rememberCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
-import { navigate, useLocation } from '../router';
+import { Link, navigate, useLocation } from '../router';
 import { safeReturnPath } from '../routes';
 
 type Step = 'options' | 'email' | 'code' | 'password';
@@ -207,9 +207,9 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
       tabIndex={investor ? -1 : undefined}
       aria-label={investor ? 'Investor access' : undefined}
     >
-      <p className="lockup">
-        Alethical <span>Finance</span>
-      </p>
+      <Link to="/" className="lockup" aria-label="Alethical Finance home">
+        Alethical&nbsp;<span>Finance</span>
+      </Link>
       {!investor && (
         <h1 id="sign-in-heading" tabIndex={-1}>
           Sign in

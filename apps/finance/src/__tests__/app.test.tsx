@@ -126,6 +126,9 @@ describe('the Finance shell', () => {
     expect(container.textContent).toContain('Continue with Google');
     expect(container.textContent).not.toContain('Sign in with email');
     expect(container.querySelector('#code')).toBeNull();
+    expect(
+      container.querySelector('a[aria-label="Alethical Finance home"]')?.getAttribute('href'),
+    ).toBe('/');
   });
 
   it('keeps shared-password access when ordinary sign-in methods are off', async () => {
