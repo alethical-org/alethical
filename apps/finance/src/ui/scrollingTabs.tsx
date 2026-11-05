@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { Tabs, type Tab } from './controls';
 
-function RightChevron() {
+const EDGE = 56;
+const GUTTER = 4;
+const TOLERANCE = 1;
+
+type Direction = 'left' | 'right';
+
+function Chevron() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M9 5 L16 12 L9 19"
-        stroke="#4A5661"
+        stroke="currentColor"
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -16,60 +22,142 @@ function RightChevron() {
   );
 }
 
-/** Scrolls the row, never the page, so `tab` is fully in view; 56px on the right
- * clears the fade and chevron (Round 35). */
-export function revealTab(row: HTMLElement, tab: HTMLElement) {
-  const left = tab.offsetLeft - row.offsetLeft;
+function tabStart(row: HTMLElement, tab: HTMLElement) {
+  return tab.offsetLeft - row.offsetLeft;
+}
+
+function scrollLimit(row: HTMLElement) {
+  return Math.max(0, row.scrollWidth - row.clientWidth);
+}
+
+function tabButtons(row: HTMLElement) {
+  return Array.from(row.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+}
+
+/** Bring the chosen tab and its focus ring clear of the edge controls. */
+export function revealTab(row: HTMLElement, tab: HTMLElement, scrollButtons = false) {
+  const left = tabStart(row, tab);
   const right = left + tab.offsetWidth;
-  if (left < row.scrollLeft + 4) row.scrollLeft = Math.max(0, left - 8);
-  else if (right > row.scrollLeft + row.clientWidth - 56) {
-    row.scrollLeft = right - row.clientWidth + 56;
+  if (!scrollButtons) {
+    if (left < row.scrollLeft + GUTTER) row.scrollLeft = Math.max(0, left - 8);
+    else if (right > row.scrollLeft + row.clientWidth - EDGE) {
+      row.scrollLeft = right - row.clientWidth + EDGE;
+    }
+    return;
+  }
+
+  const limit = scrollLimit(row);
+  if (limit <= TOLERANCE) return;
+  const [first, ...rest] = tabButtons(row);
+  if (tab === first) row.scrollLeft = 0;
+  else if (tab === rest.at(-1)) row.scrollLeft = limit;
+  else {
+    const leading = row.scrollLeft > TOLERANCE ? EDGE : GUTTER;
+    const trailing = limit - row.scrollLeft > TOLERANCE ? EDGE : GUTTER;
+    if (left < row.scrollLeft + leading) row.scrollLeft = Math.max(0, left - EDGE);
+    else if (right > row.scrollLeft + row.clientWidth - trailing) {
+      row.scrollLeft = Math.min(limit, right - row.clientWidth + EDGE);
+    }
   }
 }
 
-/**
- * The shared tab row on 1 line at every band, scrolling only when needed, with a
- * right-edge fade and chevron while more tabs lie to the right (Round 35). The
- * selected tab is brought into view on load and on every change, and a
- * keyboard-focused tab is kept fully in view by scrolling the row. 4px of inner
- * space keeps the focus ring whole. The cue never takes a press.
- */
-export function ScrollingTabs<T extends string>(props: {
+function scrollStep(row: HTMLElement, direction: Direction) {
+  const tabs = tabButtons(row);
+  const at = row.scrollLeft;
+  const limit = scrollLimit(row);
+  const left = direction === 'left';
+  const hidden = left
+    ? tabs.reverse().find((tab) => tabStart(row, tab) < at + EDGE - TOLERANCE)
+    : tabs.find(
+        (tab) => tabStart(row, tab) + tab.offsetWidth > at + row.clientWidth - EDGE + TOLERANCE,
+      );
+  let next = left ? 0 : limit;
+  if (hidden) {
+    const start = tabStart(row, hidden);
+    next = left ? start - EDGE : start + hidden.offsetWidth - row.clientWidth + EDGE;
+    // At very narrow widths a tab may be wider than the clear area between the
+    // controls. Keep making progress even when the entire label cannot fit.
+    if (left ? next >= at - TOLERANCE : next <= at + TOLERANCE) {
+      const step = Math.max(1, row.clientWidth - EDGE * 2);
+      next = at + (left ? -step : step);
+    }
+  }
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  row.scrollTo({
+    left: Math.max(0, Math.min(limit, next)),
+    behavior: reducedMotion ? 'instant' : 'smooth',
+  });
+}
+
+/** A one-line tab row. Committee opts in to named buttons at both cut edges. */
+export function ScrollingTabs<T extends string>({
+  scrollButtons = false,
+  ...props
+}: {
   label: string;
   value: T;
   tabs: ReadonlyArray<Tab<T>>;
   onChange: (value: T) => void;
+  scrollButtons?: boolean;
 }) {
   const wrapper = useRef<HTMLDivElement>(null);
-  const [more, setMore] = useState(false);
+  const leftButton = useRef<HTMLButtonElement>(null);
+  const rightButton = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef<Direction | null>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
   const row = () => wrapper.current?.querySelector<HTMLElement>('.f-tabs') ?? null;
   const check = useCallback(() => {
     const element = wrapper.current?.querySelector<HTMLElement>('.f-tabs');
-    setMore(!!element && element.scrollWidth - element.clientWidth - element.scrollLeft > 4);
-  }, []);
-  useEffect(() => {
-    const element = wrapper.current?.querySelector<HTMLElement>('.f-tabs');
-    check();
-    element?.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
-    return () => {
-      element?.removeEventListener('scroll', check);
-      window.removeEventListener('resize', check);
-    };
-  }, [check]);
-  useEffect(check);
-  // Counts can arrive after the first layout and widen earlier tabs. Keep the
-  // selected label clear of the fade when that content changes too.
+    if (!element) return;
+    const left = scrollButtons && element.scrollLeft > TOLERANCE;
+    const right = scrollLimit(element) - element.scrollLeft > (scrollButtons ? TOLERANCE : GUTTER);
+    const active = document.activeElement;
+    if (active?.matches(':focus-visible')) {
+      if (active === leftButton.current && !left) restoreFocus.current = 'right';
+      if (active === rightButton.current && !right) restoreFocus.current = 'left';
+    }
+    setEdges((current) =>
+      left === current.left && right === current.right ? current : { left, right },
+    );
+  }, [scrollButtons]);
+
+  useLayoutEffect(() => {
+    if (!restoreFocus.current) return;
+    const next = restoreFocus.current === 'left' ? leftButton.current : rightButton.current;
+    restoreFocus.current = null;
+    (next ?? row()?.querySelector<HTMLElement>('[aria-selected="true"]'))?.focus({
+      preventScroll: true,
+    });
+  }, [edges]);
+
   const tabContent = JSON.stringify(
     props.tabs.map(({ value, label, count }) => [value, label, count]),
   );
-  // The selected tab comes into view on load and whenever it changes.
+  useEffect(() => {
+    const element = wrapper.current?.querySelector<HTMLElement>('.f-tabs');
+    if (!element) return;
+    check();
+    element.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    // A late font load can change the tabs' widths without resizing the row.
+    const observer =
+      scrollButtons && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+    observer?.observe(element);
+    if (observer) tabButtons(element).forEach((tab) => observer.observe(tab));
+    return () => {
+      observer?.disconnect();
+      element.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
+  }, [check, scrollButtons, tabContent]);
+
   useEffect(() => {
     const element = row();
     const selected = element?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (element && selected) revealTab(element, selected);
+    if (element && selected) revealTab(element, selected, scrollButtons);
     check();
-  }, [props.value, tabContent, check]);
+  }, [props.value, tabContent, check, scrollButtons]);
+
   return (
     <div
       ref={wrapper}
@@ -77,19 +165,48 @@ export function ScrollingTabs<T extends string>(props: {
       onFocus={(event) => {
         const element = row();
         const target = event.target as HTMLElement;
-        // Pointer focus arrives before click. Moving that tab here can move it
-        // out from under the release and lose the click. Selection reveals it afterward.
+        // Moving a tab during pointer focus can move it out from under the click.
         if (element && target.getAttribute('role') === 'tab' && target.matches(':focus-visible')) {
-          revealTab(element, target);
+          revealTab(element, target, scrollButtons);
+          check();
         }
       }}
     >
-      <Tabs {...props} />
-      {more && (
-        <div className="f-scroll-tabs-more" aria-hidden="true">
-          <RightChevron />
-        </div>
+      {scrollButtons && edges.left && (
+        <button
+          ref={leftButton}
+          type="button"
+          aria-label="Scroll tabs left"
+          className="f-scroll-tabs-arrow f-scroll-tabs-arrow-left"
+          onClick={() => {
+            const element = row();
+            if (element) scrollStep(element, 'left');
+          }}
+        >
+          <Chevron />
+        </button>
       )}
+      <Tabs {...props} preventFocusScroll={scrollButtons} />
+      {scrollButtons
+        ? edges.right && (
+            <button
+              ref={rightButton}
+              type="button"
+              aria-label="Scroll tabs right"
+              className="f-scroll-tabs-arrow f-scroll-tabs-arrow-right"
+              onClick={() => {
+                const element = row();
+                if (element) scrollStep(element, 'right');
+              }}
+            >
+              <Chevron />
+            </button>
+          )
+        : edges.right && (
+            <div className="f-scroll-tabs-more" aria-hidden="true">
+              <Chevron />
+            </div>
+          )}
     </div>
   );
 }

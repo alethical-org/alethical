@@ -65,3 +65,49 @@ it('still reveals a newly selected tab after pointer focus', () => {
   expect(target.getAttribute('aria-selected')).toBe('true');
   expect(document.activeElement).toBe(target);
 });
+
+it('reveals earlier tabs with the left button without changing selection', () => {
+  const onChange = vi.fn();
+  act(() =>
+    root.render(
+      <ScrollingTabs
+        label="Files"
+        value="stations"
+        tabs={tabs}
+        onChange={onChange}
+        scrollButtons
+      />,
+    ),
+  );
+  const row = container.querySelector<HTMLElement>('[role="tablist"]')!;
+  const [first, selected] = row.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  Object.defineProperties(row, {
+    clientWidth: { value: 260 },
+    scrollWidth: { value: 380 },
+    scrollTo: {
+      value: ({ left }: ScrollToOptions) => {
+        row.scrollLeft = left ?? 0;
+        row.dispatchEvent(new Event('scroll'));
+      },
+    },
+  });
+  Object.defineProperties(first, { offsetLeft: { value: 4 }, offsetWidth: { value: 170 } });
+  Object.defineProperties(selected, { offsetLeft: { value: 176 }, offsetWidth: { value: 200 } });
+  act(() => {
+    row.scrollLeft = 120;
+    row.dispatchEvent(new Event('scroll'));
+  });
+  const left = container.querySelector<HTMLButtonElement>('[aria-label="Scroll tabs left"]')!;
+  expect(left).toBeTruthy();
+  expect(container.querySelector('[aria-label="Scroll tabs right"]')).toBeNull();
+  vi.spyOn(left, 'matches').mockReturnValue(true);
+  act(() => {
+    left.focus();
+    left.click();
+  });
+  expect(row.scrollLeft).toBe(0);
+  expect(onChange).not.toHaveBeenCalled();
+  expect(selected.getAttribute('aria-selected')).toBe('true');
+  expect(container.querySelector('[aria-label="Scroll tabs left"]')).toBeNull();
+  expect(document.activeElement?.getAttribute('aria-label')).toBe('Scroll tabs right');
+});
