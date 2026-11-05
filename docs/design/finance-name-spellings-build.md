@@ -1,7 +1,8 @@
 # Finance name spelling results
 
-Approved 5 November 2026. Build authorized by Eugene's “build” in the
-Group donor names by identity chat. Current work: `codex/finance-name-spellings`.
+Build requirements for Finance name searches and payment spelling groups.
+Release progress and acceptance evidence live in
+[the Finance spelling-results issue](https://github.com/alethical-org/alethical/issues/2888).
 
 ## Approved behavior
 
@@ -82,4 +83,5 @@ Chrome review covered payment, employer and agency groups at desktop, 768px and
 Review corrections preserve comparison links until groups are displayed, pin
 exclusions to the displayed source copy, refresh main results after a changed copy,
 clear rows on access denial and keep eligible spellings past candidate filtering.
-Release checks and live acceptance remain with the parent. No live release claimed.
+Release checks and live acceptance are recorded in
+[the Finance spelling-results issue](https://github.com/alethical-org/alethical/issues/2888).
