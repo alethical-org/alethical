@@ -327,6 +327,8 @@ figure is ever added across committees or members.
   Contributions made contains the outgoing rows filed as Contribution; Expenditures
   excludes those rows. Each tab shows its count of held payment rows for the selected
   year, including 0 when a completed read finds none. Unknown counts stay blank.
+  Left and right buttons reveal hidden payment tabs without changing the selected tab or its
+  results. Each button appears only when its side has hidden tabs.
   Counts and sums use the complete year, never a partially loaded list. A recipient's type comes only from its exact registration in the
   held register, with that register's copy date and source in the row's evidence; it is
   not a claim about the recipient's type in the payment year. An unknown type says "Type

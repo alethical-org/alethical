@@ -1916,7 +1916,62 @@
   justify-content: flex-end;
   padding-right: 2px;
   background: linear-gradient(to right, rgba(243, 245, 247, 0), var(--ground) 60%);
+  color: var(--secondary);
   pointer-events: none;
+}
+.f-scroll-tabs-arrow {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: var(--ground);
+  color: var(--secondary);
+  cursor: pointer;
+}
+.f-scroll-tabs-arrow-left {
+  left: 0;
+}
+.f-scroll-tabs-arrow-left svg {
+  transform: scaleX(-1);
+}
+.f-scroll-tabs-arrow-right {
+  right: 0;
+}
+.f-scroll-tabs-arrow::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  content: '';
+  pointer-events: none;
+}
+.f-scroll-tabs-arrow-left::after {
+  left: 100%;
+  background: linear-gradient(to right, var(--ground), transparent);
+}
+.f-scroll-tabs-arrow-right::after {
+  right: 100%;
+  background: linear-gradient(to left, var(--ground), transparent);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .f-scroll-tabs-arrow:hover {
+    background: #e3e8ec;
+    color: var(--ink);
+  }
+}
+.f-scroll-tabs-arrow:active {
+  background: #d3dae0;
+  color: var(--ink);
+}
+.f-app .f-scroll-tabs-arrow:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 @media (min-width: 1100px) {
   .f-scroll-tabs .f-tab {
