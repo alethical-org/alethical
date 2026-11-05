@@ -111,3 +111,39 @@ it('reveals earlier tabs and transfers focus when a clicked arrow disappears', (
   expect(container.querySelector('[aria-label="Scroll tabs left"]')).toBeNull();
   expect(document.activeElement?.getAttribute('aria-label')).toBe('Scroll tabs right');
 });
+
+it('keeps the reader’s scroll position when a count arrives after an arrow click', () => {
+  const onChange = vi.fn();
+  const show = (items: typeof tabs) =>
+    act(() =>
+      root.render(
+        <ScrollingTabs
+          label="Files"
+          value="folders"
+          tabs={items}
+          onChange={onChange}
+          scrollButtons
+        />,
+      ),
+    );
+  show(tabs);
+  const row = container.querySelector<HTMLElement>('[role="tablist"]')!;
+  Object.defineProperties(row, {
+    clientWidth: { value: 260 },
+    scrollWidth: { value: 380 },
+    scrollTo: {
+      value: ({ left }: ScrollToOptions) => {
+        row.scrollLeft = left ?? 0;
+        row.dispatchEvent(new Event('scroll'));
+      },
+    },
+  });
+  act(() => row.dispatchEvent(new Event('scroll')));
+  act(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Scroll tabs right"]')!.click(),
+  );
+  expect(row.scrollLeft).toBe(120);
+  show([{ ...tabs[0], count: '8' }, tabs[1]]);
+  expect(row.scrollLeft).toBe(120);
+  expect(onChange).not.toHaveBeenCalled();
+});

@@ -104,6 +104,8 @@ export function ScrollingTabs<T extends string>({
   const leftButton = useRef<HTMLButtonElement>(null);
   const rightButton = useRef<HTMLButtonElement>(null);
   const restoreFocus = useRef<Direction | null>(null);
+  const manuallyScrolled = useRef(false);
+  const lastSelection = useRef<T | null>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
   const row = () => wrapper.current?.querySelector<HTMLElement>('.f-tabs') ?? null;
   const check = useCallback(() => {
@@ -140,6 +142,7 @@ export function ScrollingTabs<T extends string>({
       const focused = document.activeElement;
       if (
         scrollButtons &&
+        !manuallyScrolled.current &&
         focused instanceof HTMLElement &&
         element.contains(focused) &&
         focused.matches('[role="tab"]:focus-visible')
@@ -166,7 +169,15 @@ export function ScrollingTabs<T extends string>({
   useEffect(() => {
     const element = row();
     const selected = element?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (element && selected) revealTab(element, selected, scrollButtons);
+    if (lastSelection.current !== props.value) {
+      lastSelection.current = props.value;
+      manuallyScrolled.current = false;
+    }
+    // Badges can arrive while a reader is using the arrows or swiping. Keep
+    // their scroll position until they choose or focus a tab again.
+    if (element && selected && (!scrollButtons || !manuallyScrolled.current)) {
+      revealTab(element, selected, scrollButtons);
+    }
     check();
   }, [props.value, tabContent, check, scrollButtons]);
 
@@ -174,11 +185,23 @@ export function ScrollingTabs<T extends string>({
     <div
       ref={wrapper}
       className="f-scroll-tabs"
+      onWheel={(event) => {
+        if (scrollButtons && (event.deltaX !== 0 || event.shiftKey)) {
+          manuallyScrolled.current = true;
+        }
+      }}
+      onTouchMove={() => {
+        if (scrollButtons) manuallyScrolled.current = true;
+      }}
+      onPointerDown={(event) => {
+        if (scrollButtons && event.target === row()) manuallyScrolled.current = true;
+      }}
       onFocus={(event) => {
         const element = row();
         const target = event.target as HTMLElement;
         // Moving a tab during pointer focus can move it out from under the click.
         if (element && target.getAttribute('role') === 'tab' && target.matches(':focus-visible')) {
+          manuallyScrolled.current = false;
           revealTab(element, target, scrollButtons);
           check();
         }
@@ -192,7 +215,10 @@ export function ScrollingTabs<T extends string>({
           className="f-scroll-tabs-arrow f-scroll-tabs-arrow-left"
           onClick={() => {
             const element = row();
-            if (element) scrollStep(element, 'left');
+            if (element) {
+              manuallyScrolled.current = true;
+              scrollStep(element, 'left');
+            }
           }}
         >
           <Chevron />
@@ -208,7 +234,10 @@ export function ScrollingTabs<T extends string>({
               className="f-scroll-tabs-arrow f-scroll-tabs-arrow-right"
               onClick={() => {
                 const element = row();
-                if (element) scrollStep(element, 'right');
+                if (element) {
+                  manuallyScrolled.current = true;
+                  scrollStep(element, 'right');
+                }
               }}
             >
               <Chevron />
