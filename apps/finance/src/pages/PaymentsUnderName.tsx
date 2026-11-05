@@ -1,3 +1,4 @@
+import { useFinanceSession } from '../auth/session';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
@@ -861,7 +862,8 @@ function IdentityCard({
   year: number | null;
   here: string;
 }) {
-  const confirm = confirmHref(name, role, year, here);
+  const canEdit = useFinanceSession().canEdit !== false;
+  const confirm = canEdit ? confirmHref(name, role, year, here) : null;
   if (coverage.identities.length === 0) {
     return (
       <section aria-label="Identity" className="pn-identity">

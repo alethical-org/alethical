@@ -74,10 +74,12 @@ const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
 /** The whole Finance site while its signed-in screens are on. */
 export function App() {
   const location = useLocation();
-  const { status, accessToken } = useFinanceSession();
+  const { status, accessToken, canEdit } = useFinanceSession();
   const found = matchRoute(location.pathname);
   // An address whose screen is not built answers exactly as an unknown one.
-  const match = found && isBuilt(found.route.name) ? found : null;
+  const editing = found?.route.name === 'identities' || found?.route.name === 'check-station-files';
+  const match =
+    found && isBuilt(found.route.name) && !(canEdit === false && editing) ? found : null;
   const signedOutRoute = match?.route.signedOut === true;
 
   // A page's own title only once the reader can see that page.

@@ -1,24 +1,34 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
-import { proveSignInCode, requestSignInCode } from '../api/client';
+import { proveSignInCode, requestSignInCode, signInResearch } from '../api/client';
 import { forgetCodeRequest, readCodeRequest, rememberCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
 import { navigate, useLocation } from '../router';
 import { safeReturnPath } from '../routes';
 
-type Step = 'options' | 'email' | 'code';
+type Step = 'options' | 'email' | 'code' | 'password';
 
 export const RESEND_WAIT_SECONDS = 60;
 
 /**
- * Google, or a code emailed to the address. No password and no sign-up: the
+ * Google or an emailed code for ordinary accounts; an operator-managed password
+ * for shared research access. No sign-up: the
  * server sends a code only to an address on Finance's access list, and answers
  * every address alike, so this screen never says whether one is listed. A
  * reload within a code's lifetime returns to the code step for the same request.
  */
 export function SignIn() {
-  const { supabase, apiBaseUrl, googleSignIn, emailSignIn, screens, status } = useFinanceSession();
+  const {
+    supabase,
+    apiBaseUrl,
+    googleSignIn,
+    emailSignIn,
+    screens,
+    status,
+    startResearchSession,
+    beginOrdinarySignIn,
+  } = useFinanceSession();
   const location = useLocation();
   const next = safeReturnPath(location.searchParams.get('next'), screens);
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
@@ -27,7 +37,10 @@ export function SignIn() {
   const [step, setStep] = useState<Step>(request ? 'code' : 'options');
   const [email, setEmail] = useState(request?.email ?? '');
   const [code, setCode] = useState('');
-  const [busy, setBusy] = useState<'google' | 'send' | 'verify' | 'resend' | null>(null);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState<'google' | 'send' | 'verify' | 'resend' | 'password' | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(googleCancelled ? 'google' : null);
   const [resent, setResent] = useState(false);
   const [waitUntil, setWaitUntil] = useState(
@@ -48,7 +61,12 @@ export function SignIn() {
   // Each step change puts keyboard focus where the next action is.
   useEffect(() => {
     if (!moved.current) return;
-    const target = step === 'options' ? '#sign-in-heading' : step === 'email' ? '#email' : '#code';
+    const target =
+      step === 'options'
+        ? '#sign-in-heading'
+        : step === 'email' || step === 'password'
+          ? '#email'
+          : '#code';
     document.querySelector<HTMLElement>(target)?.focus();
   }, [step]);
 
@@ -77,6 +95,7 @@ export function SignIn() {
     setError(null);
     forgetCodeRequest();
     rememberReturnPath(next, screens);
+    beginOrdinarySignIn();
     const { error: failure } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -138,6 +157,7 @@ export function SignIn() {
       setError(proof.kind === 'refused' ? 'code' : 'check');
       return;
     }
+    beginOrdinarySignIn();
     const { error: failure } = await supabase.auth.verifyOtp({
       token_hash: proof.tokenHash,
       type: proof.type,
@@ -151,17 +171,38 @@ export function SignIn() {
     setVerified(true);
   }
 
+  async function passwordSignIn(event: FormEvent) {
+    event.preventDefault();
+    if (!email.trim() || !password) {
+      setError('credentials');
+      return;
+    }
+    setBusy('password');
+    setError(null);
+    const result = await signInResearch(apiBaseUrl, email.trim(), password);
+    if (result.kind !== 'session') {
+      setBusy(null);
+      setError(result.kind === 'refused' ? 'password-refused' : result.kind);
+      return;
+    }
+    forgetCodeRequest();
+    await startResearchSession(result.session);
+    setPassword('');
+    setVerified(true);
+    setBusy(null);
+  }
+
   const waitSeconds = Math.max(0, Math.ceil((waitUntil - now) / 1000));
   // Busy from the code check until the access answer arrives.
   const finishing = verified && (status === 'loading' || status === 'checking');
 
   return (
-    <main className="access" id="main">
+    <main className="access access--sign-in" id="main">
       <p className="lockup">
         Alethical <span>Finance</span>
       </p>
       <h1 id="sign-in-heading" tabIndex={-1}>
-        Sign in to Alethical Finance
+        Sign in
       </h1>
 
       {step === 'options' && (
@@ -190,8 +231,76 @@ export function SignIn() {
               Sign in with email
             </button>
           )}
-          {!googleSignIn && !emailSignIn && <p>Sign-in to Alethical Finance is not open yet.</p>}
+          {screens && (
+            <button
+              type="button"
+              className={`secondary${googleSignIn || emailSignIn ? ' investor-sign-in' : ''}`}
+              disabled={busy !== null}
+              onClick={() => {
+                setError(null);
+                goTo('password');
+              }}
+            >
+              Investor login
+            </button>
+          )}
+          {!googleSignIn && !emailSignIn && !screens && (
+            <p>Sign-in to Alethical Finance is not open yet.</p>
+          )}
         </div>
+      )}
+
+      {step === 'password' && (
+        <form className="stack" onSubmit={passwordSignIn} noValidate>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={busy !== null || finishing}
+            aria-invalid={error === 'credentials' || error === 'password-refused'}
+            aria-describedby={error ? 'password-error' : undefined}
+          />
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={busy !== null || finishing}
+            aria-invalid={error === 'credentials' || error === 'password-refused'}
+            aria-describedby={error ? 'password-error' : undefined}
+          />
+          {error && (
+            <p id="password-error" role="alert" className="error">
+              {error === 'credentials'
+                ? 'Enter your email and password'
+                : error === 'password-refused'
+                  ? 'That email or password is not right. Try again.'
+                  : error === 'rate-limited'
+                    ? 'Too many sign-in attempts. Wait a minute and try again.'
+                    : 'We couldn’t sign you in. Try again.'}
+            </p>
+          )}
+          <button type="submit" disabled={busy !== null || finishing}>
+            {busy === 'password' || finishing ? 'Signing in…' : 'Sign in'}
+          </button>
+          <button
+            type="button"
+            className="link"
+            disabled={busy !== null || finishing}
+            onClick={() => {
+              setError(null);
+              setPassword('');
+              goTo('options');
+            }}
+          >
+            Back to sign-in options
+          </button>
+        </form>
       )}
 
       {step === 'email' && (

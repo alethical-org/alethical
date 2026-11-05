@@ -841,6 +841,7 @@ function ConfirmationLine({
   retry: () => void;
   retrying: boolean;
 }) {
+  const canEdit = useFinanceSession().canEdit !== false;
   if (confirmation.state === 'confirmed') {
     return (
       <>
@@ -872,7 +873,7 @@ function ConfirmationLine({
           <UnconfirmedIcon />
           <span>No organization record confirms this spelling</span>
         </span>
-        {isBuilt('identities') && (
+        {canEdit && isBuilt('identities') && (
           <Link
             to={withFrom(hrefFor('identities', {}, { name: spelling, role: 'employer' }), here)}
             className="f-dest de-confirm-link"

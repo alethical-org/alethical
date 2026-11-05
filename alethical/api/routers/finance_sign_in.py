@@ -1,9 +1,9 @@
-"""Alethical Finance's signed-out sign-in steps: ask for an emailed code, prove it.
+"""Finance's emailed-code and shared research sign-in steps.
 
-The only Finance routes without the access check, because their caller has not
-signed in yet. They sit under ``/api/v1/finance/``, so their answers are private
-and never cached, and neither answer shows whether an address is on the list.
-Both routes are async: neither holds a worker thread while it waits.
+These routes accept credentials before there is a session to check. Answers are
+private and never cached. Code requests never reveal whether an address is on
+the list; research passwords create only a read-only Finance session. Password
+and code proofs share bounded capacity without holding worker threads to wait.
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ import asyncio
 import time
 
 import anyio
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, status
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -135,3 +135,82 @@ async def verify_code(payload: CodeProof, db: Session = Depends(get_db)) -> dict
         # The wait holds no worker thread and no database connection.
         await anyio.sleep(max(0.0, REFUSAL_SECONDS - (time.monotonic() - started)))
     raise failure
+
+
+class ResearchCredentials(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: str = Field(max_length=320)
+    password: SecretStr = Field(max_length=1024)
+
+
+@router.post("/research")
+async def research_sign_in(
+    payload: ResearchCredentials, db: Session = Depends(get_db)
+) -> dict:
+    """A Finance-only session; no signup, emailed code, or account update route."""
+    from alethical.api.services import finance_research_access as research
+
+    if _proofs.locked():
+        raise problem_exception(
+            429,
+            "Too Many Requests",
+            "Too many sign-in attempts. Try again in a moment.",
+            type_slug="rate-limited",
+            headers={"Retry-After": "1"},
+        )
+
+    def prove():
+        try:
+            data = research.sign_in(
+                db, payload.email, payload.password.get_secret_value()
+            )
+            db.commit()
+            return data
+        except Exception:
+            db.rollback()
+            raise
+
+    async with _proofs:
+        started = time.monotonic()
+        try:
+            data = await run_in_threadpool(prove)
+        except research.CredentialsNotAccepted:
+            failure = problem_exception(
+                401,
+                "Unauthorized",
+                "That email or password is not right.",
+                type_slug="finance-credentials-not-accepted",
+            )
+        except SQLAlchemyError:
+            failure = problem_exception(
+                503,
+                "Service Unavailable",
+                "Sign-in is not available right now. Try again.",
+                type_slug="service-unavailable",
+            )
+        else:
+            return {"data": data}
+        await anyio.sleep(max(0.0, REFUSAL_SECONDS - (time.monotonic() - started)))
+    raise failure
+
+
+@router.post("/research/sign-out")
+def research_sign_out(
+    authorization: str | None = Header(default=None), db: Session = Depends(get_db)
+) -> dict:
+    """End only the presented session; already-ended sessions also succeed."""
+    from alethical.api.services import finance_research_access as research
+
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    try:
+        research.sign_out(db, token)
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            "We couldn’t sign out. Try again.",
+            type_slug="service-unavailable",
+        ) from None
+    return {"data": {"signed_out": True}}

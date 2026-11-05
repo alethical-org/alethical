@@ -60,9 +60,14 @@ async function renderAt(
           { status: 200 },
         )
       : url.endsWith('/sign-in/code')
-        ? new Response(JSON.stringify({ data: { status: 'accepted', challenge: 'challenge-1' } }), {
-            status: 202,
-          })
+        ? new Response(
+            JSON.stringify({
+              data: { status: 'accepted', challenge: 'challenge-1' },
+            }),
+            {
+              status: 202,
+            },
+          )
         : new Response(null, { status: accessStatus }),
   );
   vi.stubGlobal('fetch', fetcher);
@@ -95,15 +100,16 @@ describe('the Finance shell', () => {
     expect(new URLSearchParams(window.location.search).get('next')).toBe(
       '/money/committees/12?year=2026',
     );
-    expect(container.textContent).toContain('Sign in to Alethical Finance');
+    expect(container.textContent).toContain('Sign in');
   });
 
-  it('offers Google and email, and never a password or account creation', async () => {
+  it('offers ordinary sign-in and a separate shared-password option without account creation', async () => {
     await renderAt('/sign-in', fakeSupabase(null));
     const text = container.textContent ?? '';
     expect(text).toContain('Continue with Google');
     expect(text).toContain('Sign in with email');
-    expect(text).not.toMatch(/password|create account/i);
+    expect(text).toContain('Investor login');
+    expect(text).not.toMatch(/create account/i);
     expect(container.querySelector('input[type="password"]')).toBeNull();
   });
 
@@ -119,10 +125,10 @@ describe('the Finance shell', () => {
     expect(container.textContent).not.toContain('Sign in with email');
   });
 
-  it('says sign-in is not open when neither way is on', async () => {
+  it('keeps shared-password access when ordinary sign-in methods are off', async () => {
     await renderAt('/sign-in', fakeSupabase(null), 200, false, false);
-    expect(container.textContent).toContain('Sign-in to Alethical Finance is not open yet.');
-    expect(container.querySelectorAll('button')).toHaveLength(0);
+    expect(container.textContent).toContain('Investor login');
+    expect(container.querySelectorAll('button')).toHaveLength(1);
   });
 
   it('asks the server for a code, then proves it to Supabase', async () => {

@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.finance_access import require_finance_access
+from alethical.api.services.finance_access import FinanceAccount
 from alethical.api.routers.public import _payment_page_payload, campaign_finance_search
 from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import same_legislature_session_ids
@@ -170,9 +171,14 @@ def payments_under_name(
 
 
 @router.get("/access")
-def access() -> dict:
+def access(account: FinanceAccount = Depends(require_finance_access)) -> dict:
     """200 for a listed account; the access check answers 401 or 403 otherwise."""
-    return {"data": {"allowed": True}}
+    return {
+        "data": {
+            "allowed": True,
+            **({"can_edit": False} if not account.can_edit else {}),
+        }
+    }
 
 
 @router.get("/suggestions")

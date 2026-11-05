@@ -255,9 +255,12 @@ Sign out ends only the ordinary session on this browser or device.
 
 ## Alethical Finance sign-in
 
-Alethical Finance, the sign-in-only research product, uses the same Supabase accounts. It
-has 2 ways in, Google or a code emailed to the address, and no password or sign-up. Whether
-an address is on Finance's access list names a client, so no answer shows it.
+Ordinary Alethical Finance accounts use the same Supabase accounts, with Google or a code
+emailed to the address. Shared research accounts use a separate operator-managed password
+and cannot change records. Their sign-in, sessions and password changes follow
+[Shared research access](../architecture/alethical-finance-architecture.md#shared-research-access).
+Neither kind has self-service signup. Whether an address is on Finance's access list names
+a client, so no answer shows it. The email-code flow below applies to ordinary accounts.
 
 - **Alethical sends the codes, not Supabase.** `POST /api/v1/finance/sign-in/code` checks
   only that the value is an address and answers 202 at once, for every address, with the
@@ -312,9 +315,10 @@ an address is on Finance's access list names a client, so no answer shows it.
   address until `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED`, `SUPABASE_SECRET_KEY` and the
   email sender's settings are all set. `ALETHICAL_EMAIL_ALLOWLIST`, when set, holds back
   every other address's email. Each internet address may make 10 requests a minute,
-  counted across both routes together (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`); a failed
+  counted across code, verification and research sign-in routes together
+  (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`); a failed
   email is logged and never reported to the caller.
-- Every Finance request checks the list again
+- Every ordinary-account Finance request checks the list again
   ([backend-stack.md § 4. Sign-in](../architecture/backend-stack.md#4-sign-in)).
 
 Live acceptance uses an authorized maintainer or test mailbox already on the access list,
