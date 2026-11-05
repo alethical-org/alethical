@@ -674,6 +674,21 @@ describe('Committee page', () => {
     expect(button('Try again')).toBeTruthy();
   });
 
+  it('does not show a malformed outgoing count as zero', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({
+        '/finance/committees/90001/payment-groups?direction=made': {
+          status: 200,
+          body: { state: 'reported', tab_counts: { expenditures: null } },
+        },
+      }),
+    );
+    const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
+    expect(tabs).toContain('Expenditures');
+    expect(tabs).toContain('Contributions made0');
+  });
+
   it('offers Try again when the report figures cannot be read, keeping the payments', async () => {
     await render(
       '/money/committees/90001',

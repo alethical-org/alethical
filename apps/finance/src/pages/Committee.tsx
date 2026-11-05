@@ -433,8 +433,9 @@ export function Committee({ match }: { match: RouteMatch }) {
         typeof outgoing.data.tab_counts === 'object' &&
         !Array.isArray(outgoing.data.tab_counts)
       ) {
-        const held = outgoing.data.tab_counts[value] ?? 0;
-        if (Number.isSafeInteger(held) && held >= 0) count = held;
+        const held = outgoing.data.tab_counts[value];
+        if (held === undefined) count = 0;
+        else if (typeof held === 'number' && Number.isSafeInteger(held) && held >= 0) count = held;
       }
     } else if (
       (received.data?.state === 'reported' || received.data?.state === 'not_reported') &&
