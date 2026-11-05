@@ -398,14 +398,20 @@ def test_punctuation_only_input_cannot_match_every_blank_spelling(finance_api, b
     assert data["rows"] == [] and not data["has_more"]
 
 
-def test_partial_pruning_never_makes_a_smaller_count(finance_api, finance_db, board):
+@pytest.mark.parametrize("summarized", [False, True])
+def test_partial_pruning_never_makes_a_smaller_count(
+    finance_api, finance_db, board, summarized
+):
+    if summarized:
+        build_summaries(finance_db, board)
     finance_db.execute(text("DELETE FROM cf_contribution_row WHERE row_number=31"))
     finance_db.commit()
     read(finance_api, name="Exmaple, Jordan A", role="donor", status=503)
 
 
+@pytest.mark.parametrize("summarized", [False, True])
 def test_payee_filer_and_dataset_scope_discovery_counts_and_identities(
-    finance_api, finance_db, board
+    finance_api, finance_db, board, summarized
 ):
     held = prints(finance_api, "payee_name", VENDOR)
     person = create(
@@ -422,6 +428,8 @@ def test_payee_filer_and_dataset_scope_discovery_counts_and_identities(
     )
     finance_db.commit()
     sync_counts(finance_db, board)
+    if summarized:
+        build_summaries(finance_db, board)
     campaign = read(
         finance_api,
         name="Exmaple Media LLC",
@@ -475,8 +483,9 @@ def test_payee_filer_and_dataset_scope_discovery_counts_and_identities(
         ("employer", "Example Health Assn", "contrib_employer_name"),
     ],
 )
+@pytest.mark.parametrize("summarized", [False, True])
 def test_contribution_scope_uses_recipient_and_keeps_year_zero_candidates(
-    finance_api, finance_db, board, role, name, column
+    finance_api, finance_db, board, role, name, column, summarized
 ):
     from alethical.tests.test_identity_confirmations import employer
 
@@ -503,6 +512,8 @@ def test_contribution_scope_uses_recipient_and_keeps_year_zero_candidates(
     )
     finance_db.commit()
     sync_counts(finance_db, board)
+    if summarized:
+        build_summaries(finance_db, board)
     data = read(
         finance_api,
         name=name,
@@ -558,3 +569,102 @@ def test_displayed_name_exclusions_require_the_same_release(
     changed = finance_api.get(PATH, params={**params, "release_id": str(uuid4())})
     assert changed.status_code == 409
     assert changed.json()["type"].endswith("/records-changed")
+
+
+@pytest.mark.parametrize(
+    "role,query",
+    [
+        ("donor", "Exmaple, Jordan A"),
+        ("employer", "Example Health Assn"),
+        ("payee", "Exmaple Media LLC"),
+    ],
+)
+@pytest.mark.parametrize("strong_only", [False, True])
+def test_complete_summary_keeps_results_without_matching_repeated_source_rows(
+    finance_api, finance_db, board, role, query, strong_only
+):
+    from sqlalchemy import event
+    from alethical.pipeline import campaign_finance_name_summary as summaries
+
+    path = "/api/v1/finance/name-spellings" if strong_only else PATH
+    params = {"name": query, "role": role, "year": 2024}
+    finance_db.connection()
+    raw = finance_api.get(path, params=params)
+    assert raw.status_code == 200
+    for dataset, snapshot in [
+        (m.CampaignFinanceDataset.contributions, board.contributions_snapshot_id),
+        (m.CampaignFinanceDataset.expenditures, board.expenditures_snapshot_id),
+        (
+            m.CampaignFinanceDataset.independent_expenditures,
+            board.independent_expenditures_snapshot_id,
+        ),
+    ]:
+        summaries.rebuild(finance_db, dataset, snapshot)
+    finance_db.commit()
+    statements = []
+    connection = finance_db.connection()
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", capture)
+    try:
+        result = finance_api.get(path, params=params)
+    finally:
+        event.remove(connection, "before_cursor_execute", capture)
+    assert result.status_code == 200, result.text
+    before, after = raw.json()["data"], result.json()["data"]
+    assert before.pop("version") != after.pop("version")
+    assert before == after
+    candidates = [statement for statement in statements if " ~" in statement]
+    assert candidates
+    assert all("cf_identity_name_summary.name" in statement for statement in candidates)
+    assert not any(
+        "cf_contribution_row.contributor ~" in statement for statement in candidates
+    )
+
+
+def test_summary_rebuild_refuses_old_page_and_absent_marker_uses_raw_names(
+    finance_api, finance_db, board
+):
+    from alethical.pipeline import campaign_finance_name_summary as summaries
+
+    snapshot = board.contributions_snapshot_id
+    summaries.rebuild(finance_db, m.CampaignFinanceDataset.contributions, snapshot)
+    finance_db.commit()
+    first = read(finance_api, name="Exmaple, Jordan A", role="donor")
+    summaries.rebuild(finance_db, m.CampaignFinanceDataset.contributions, snapshot)
+    finance_db.commit()
+    read(
+        finance_api,
+        name="Exmaple, Jordan A",
+        role="donor",
+        version=first["version"],
+        status=409,
+    )
+    finance_db.execute(
+        text(
+            "DELETE FROM cf_identity_name_summary_build WHERE record_kind='donor_name'"
+        )
+    )
+    finance_db.execute(
+        text("DELETE FROM cf_identity_name_summary WHERE record_kind='donor_name'")
+    )
+    finance_db.commit()
+    fallback = read(finance_api, name="Exmaple, Jordan A", role="donor")
+    assert fallback["rows"] == first["rows"]
+
+
+def build_summaries(db, board):
+    from alethical.pipeline import campaign_finance_name_summary as summaries
+
+    for dataset, snapshot in [
+        (m.CampaignFinanceDataset.contributions, board.contributions_snapshot_id),
+        (m.CampaignFinanceDataset.expenditures, board.expenditures_snapshot_id),
+        (
+            m.CampaignFinanceDataset.independent_expenditures,
+            board.independent_expenditures_snapshot_id,
+        ),
+    ]:
+        summaries.rebuild(db, dataset, snapshot)
+    db.commit()

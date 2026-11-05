@@ -23,6 +23,7 @@ from alethical.api.services.finance_name_matching import (
     indexed_discovery_match,
 )
 from alethical.db import models as m
+from alethical.pipeline import campaign_finance_name_summary as name_summary
 from alethical.pipeline import campaign_finance_reader as reader
 
 CONTRIBUTIONS = m.CampaignFinanceContributionRow
@@ -100,6 +101,36 @@ def employers(db: Session, *, q: str, limit: int, offset: int) -> dict:
         if release is None:
             return _unavailable(limit=limit, offset=offset, q=q)
         row = CONTRIBUTIONS
+        snapshot_id = release.contributions.snapshot_id
+        matched_name = indexed_discovery_match(row.contrib_employer_name, q)
+        total = None
+        page_offset = offset
+        if (snapshot_id, "employer_name") in name_summary.complete(
+            db, [(snapshot_id, "employer_name")]
+        ):
+            held = db.scalar(
+                select(func.count())
+                .select_from(row)
+                .where(row.snapshot_id == snapshot_id)
+            )
+            if held != release.contributions.row_count:
+                raise reader.ReleaseNoLongerHeld(
+                    "The published payment file is not fully held"
+                )
+            summary = name_summary.Summary
+            names = select(summary.name).where(
+                summary.snapshot_id == snapshot_id,
+                summary.record_kind == "employer_name",
+                indexed_discovery_match(summary.name, q),
+            )
+            total = db.scalar(select(func.count()).select_from(names.subquery()))
+            # Resolve this page's exact names first. A joined predicate lets the
+            # planner walk the full payment index before satisfying LIMIT.
+            selected_names = list(
+                db.scalars(names.order_by(summary.name).limit(limit).offset(offset))
+            )
+            matched_name = row.contrib_employer_name.in_(selected_names)
+            page_offset = 0
         claimed = (
             select(m.IdentityConfirmedRecord.fingerprint)
             .join(
@@ -126,15 +157,16 @@ def employers(db: Session, *, q: str, limit: int, offset: int) -> dict:
                 func.count().filter(claimed).label("confirmed_records"),
             )
             .where(
-                row.snapshot_id == release.contributions.snapshot_id,
-                indexed_discovery_match(row.contrib_employer_name, q),
+                row.snapshot_id == snapshot_id,
+                matched_name,
             )
             .group_by(row.contrib_employer_name)
             .subquery()
         )
-        total = db.scalar(select(func.count()).select_from(groups))
+        if total is None:
+            total = db.scalar(select(func.count()).select_from(groups))
         rows = db.execute(
-            select(groups).order_by(groups.c.name).limit(limit).offset(offset)
+            select(groups).order_by(groups.c.name).limit(limit).offset(page_offset)
         ).all()
         return {
             "state": "reported" if total else "not_reported",

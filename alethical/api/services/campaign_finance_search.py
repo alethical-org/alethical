@@ -91,6 +91,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from alethical.api.services import lobbying
+from alethical.pipeline import campaign_finance_name_summary as name_summary
 from alethical.api.services.campaign_finance_register import (
     CommitteeRow,
     CommitteesPage,
@@ -606,6 +607,36 @@ def _name_group(
         .limit(COUNTED_UP_TO + 1)
         .cte("names")
     )
+    # Finance discovery evaluates typo eligibility once per exact source
+    # spelling, not once per payment carrying it. Complete summary counts are
+    # for this same immutable file; the public exact reader retains its path.
+    summary_kind = {
+        GAVE: "donor_name",
+        GOT_PAID: "payee_name",
+        GOT_PAID_INDEPENDENT: "independent_payee_name",
+    }[kind]
+    if name_match is not None and name_summary.complete(
+        db, [(snapshot_id, summary_kind)]
+    ):
+        held = db.scalar(
+            select(func.count())
+            .select_from(model)
+            .where(model.snapshot_id == snapshot_id)
+        )
+        if held != release.file_for(dataset).row_count:
+            return _empty_group(kind, state=UNAVAILABLE, reason="incomplete_source")
+        summary = name_summary.Summary
+        names = (
+            select(summary.name, summary.records.label("payments"))
+            .where(
+                summary.snapshot_id == snapshot_id,
+                summary.record_kind == summary_kind,
+                name_match(summary.name, typed),
+            )
+            .order_by(name_words_contain(summary.name, typed).desc(), summary.name)
+            .limit(COUNTED_UP_TO + 1)
+            .cte("names")
+        )
     counted_names = select(func.count()).select_from(names).scalar_subquery()
     served = db.execute(
         select(names.c.name, names.c.payments, counted_names.label("counted"))
