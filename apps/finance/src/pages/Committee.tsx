@@ -61,6 +61,7 @@ import { Figures } from './committee/Figures';
 import { AlertIcon, Notices, type NoticeTarget } from './committee/Notices';
 import { PaymentTable } from './committee/PaymentTable';
 import type {
+  BlockState,
   CommitteeConfirmationAnswer,
   CommitteeFinance,
   IndependentPayment,
@@ -72,6 +73,9 @@ import type {
 import { Unlinked } from './committee/Unlinked';
 import { useYearPayments } from './committee/useYearPayments';
 import './committee.css';
+
+type OutgoingTab = Extract<TabKey, 'expenditures' | 'made'>;
+type OutgoingCounts = { state: BlockState; tab_counts?: Partial<Record<OutgoingTab, number>> };
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 /** Names shown before "Show the other {n} names". */
@@ -202,7 +206,13 @@ export function Committee({ match }: { match: RouteMatch }) {
     apiPath(['committees', id, 'payments'], { direction: 'received', year, sort: 'date' }),
   );
   const made = useYearPayments<MadePayment>(
-    apiPath(['finance', 'committees', id, 'payments'], { direction: 'made', year, sort: 'date' }),
+    isExp
+      ? apiPath(['finance', 'committees', id, 'payments'], {
+          direction: 'made',
+          year,
+          sort: 'date',
+        })
+      : null,
   );
   const independent = useRead<PaymentPage<IndependentPayment>>(
     apiPath(['committees', id, 'payments'], {
@@ -214,6 +224,11 @@ export function Committee({ match }: { match: RouteMatch }) {
   );
   const independentEver = useRead<PaymentPage<IndependentPayment>>(
     apiPath(['committees', id, 'payments'], { direction: 'independent_by', limit: 1 }),
+  );
+  // The summary counts every held row without downloading every outgoing payment
+  // on a visit to an incoming tab. One group is the smallest allowed page.
+  const outgoing = useRead<OutgoingCounts>(
+    apiPath(['finance', 'committees', id, 'payment-groups'], { direction: 'made', year, limit: 1 }),
   );
 
   // --- In-page state ------------------------------------------------------------------
@@ -403,22 +418,31 @@ export function Committee({ match }: { match: RouteMatch }) {
   const ballot = isBallotQuestionFiler(record.entity_sub_type);
 
   const status = registrationStatus(record.register);
-  const tabs = TABS.map((item) => {
-    const outgoing = item.value === 'expenditures' || item.value === 'made';
-    const data = outgoing ? made.data : received.data;
-    const rows =
-      item.value === 'made' ? gifts : item.value === 'expenditures' ? spent : groups?.[item.value];
-    // These badges count held payment rows, never a filed amount. A completed
-    // empty read has zero rows; an unavailable or incomplete read has no count.
-    const count =
-      (data?.state === 'reported' || data?.state === 'not_reported') && rows
-        ? recordCount(rows)
-        : null;
-    return {
-      value: item.value,
-      label: item.label,
-      count: count === null ? null : count.toLocaleString('en-US'),
-    };
+  const tabs = TABS.map(({ value, label }) => {
+    // Badges count held payment rows, never a filed amount. An unavailable or
+    // incomplete read does not establish that a tab is empty.
+    let count: number | null = null;
+    if (value === 'expenditures' || value === 'made') {
+      const rows = value === 'made' ? gifts : spent;
+      if (made.data) {
+        if ((made.data.state === 'reported' || made.data.state === 'not_reported') && rows)
+          count = recordCount(rows);
+      } else if (
+        (outgoing.data?.state === 'reported' || outgoing.data?.state === 'not_reported') &&
+        outgoing.data.tab_counts &&
+        typeof outgoing.data.tab_counts === 'object' &&
+        !Array.isArray(outgoing.data.tab_counts)
+      ) {
+        const held = outgoing.data.tab_counts[value] ?? 0;
+        if (Number.isSafeInteger(held) && held >= 0) count = held;
+      }
+    } else if (
+      (received.data?.state === 'reported' || received.data?.state === 'not_reported') &&
+      groups
+    ) {
+      count = recordCount(groups[value]);
+    }
+    return { value, label, count: count === null ? null : count.toLocaleString('en-US') };
   });
 
   const label = tabLabel(tab);

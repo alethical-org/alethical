@@ -271,6 +271,10 @@ function loadedAnswers(overrides: Answers = {}): Answers {
         statements_copied_on: '2026-10-27',
       }),
     },
+    '/finance/committees/90001/payment-groups?direction=made': {
+      status: 200,
+      body: { state: 'reported', tab_counts: { expenditures: 2 } },
+    },
     '/finance/committees/90001/payments?direction=made': {
       status: 200,
       body: page('reported', [
@@ -511,7 +515,13 @@ describe('Committee page', () => {
       'Period Jan 1, 2026 to Jul 20, 2026. Figures are as filed in the selected report.',
     );
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
-    // The Miscellaneous receipt is no contribution and sits in no tab.
+    // The outgoing counts are known before opening either tab, without a full
+    // outgoing payment read. The miscellaneous receipt belongs to no tab.
+    const paths = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+    expect(
+      paths.some((url) => url.includes('/payment-groups?direction=made&year=2026&limit=1')),
+    ).toBe(true);
+    expect(paths.some((url) => url.includes('/payments?direction=made'))).toBe(false);
     expect(tabs).toEqual([
       'Individuals4',
       'Lobbyists0',
@@ -620,9 +630,9 @@ describe('Committee page', () => {
           status: 200,
           body: page('not_reported', []),
         },
-        '/finance/committees/90001/payments?direction=made': {
+        '/finance/committees/90001/payment-groups?direction=made': {
           status: 200,
-          body: page('not_reported', []),
+          body: { state: 'not_reported', tab_counts: {} },
         },
       }),
     );
@@ -648,6 +658,7 @@ describe('Committee page', () => {
           status: 200,
           body: page('unavailable', []),
         },
+        '/finance/committees/90001/payment-groups?direction=made': { status: 500 },
         '/finance/committees/90001/payments?direction=made': { status: 500 },
       }),
     );
