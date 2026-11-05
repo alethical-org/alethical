@@ -65,6 +65,14 @@ retain shared eligibility. Five- and six-character spelling candidates use all p
 single edits before the unchanged final spelling test, including non-alphanumeric word
 boundaries. Longer words retain the broader candidate filter.
 
+A second read-only experiment compared direct payment names first with the complete
+suggestions read. In a warmed pass, `danch` took 906 ms for direct names and 1,798 ms
+for all names; `danc` and `smith` gained little or nothing. Issuing both reads in sequence
+would delay the completed `danch` answer to about 2,704 ms and repeat the source checks.
+The dropdown therefore keeps 1 response per uncached query. Splitting it requires a
+separate decision about optional spelling expansion or a streaming read that preserves
+one consistent source view; it is not an unconditional second request.
+
 ## Verification status
 
 113 focused backend tests and 836 Finance browser-logic tests pass. TypeScript, Finance
@@ -73,5 +81,6 @@ abbreviation and token-refresh findings have regressions and fixes. Local Chrome
 covered desktop and 390-pixel layout, loading with retained rows, completed replacement,
 failure/recovery, keyboard selection and the printed-name destination with return context.
 
-Implementation verified locally. Live release and independent final review remain owned by
-the parent chat, 01a1adf6-895d-7060-b1cd-ff51d9c39484. Working folder retained for follow-up.
+Release identity, live measurements and final acceptance are recorded in the linked task.
+The parent chat, 01a1adf6-895d-7060-b1cd-ff51d9c39484, owns delivery. Working folder retained
+for follow-up.
