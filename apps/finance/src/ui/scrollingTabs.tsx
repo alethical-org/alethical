@@ -112,10 +112,8 @@ export function ScrollingTabs<T extends string>({
     const left = scrollButtons && element.scrollLeft > TOLERANCE;
     const right = scrollLimit(element) - element.scrollLeft > (scrollButtons ? TOLERANCE : GUTTER);
     const active = document.activeElement;
-    if (active?.matches(':focus-visible')) {
-      if (active === leftButton.current && !left) restoreFocus.current = 'right';
-      if (active === rightButton.current && !right) restoreFocus.current = 'left';
-    }
+    if (active && active === leftButton.current && !left) restoreFocus.current = 'right';
+    if (active && active === rightButton.current && !right) restoreFocus.current = 'left';
     setEdges((current) =>
       left === current.left && right === current.right ? current : { left, right },
     );
@@ -138,16 +136,30 @@ export function ScrollingTabs<T extends string>({
     if (!element) return;
     check();
     element.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
+    const checkLayout = () => {
+      const focused = document.activeElement;
+      if (
+        scrollButtons &&
+        focused instanceof HTMLElement &&
+        element.contains(focused) &&
+        focused.matches('[role="tab"]:focus-visible')
+      ) {
+        revealTab(element, focused, true);
+      }
+      check();
+    };
+    window.addEventListener('resize', checkLayout);
     // A late font load can change the tabs' widths without resizing the row.
     const observer =
-      scrollButtons && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+      scrollButtons && typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(checkLayout)
+        : null;
     observer?.observe(element);
     if (observer) tabButtons(element).forEach((tab) => observer.observe(tab));
     return () => {
       observer?.disconnect();
       element.removeEventListener('scroll', check);
-      window.removeEventListener('resize', check);
+      window.removeEventListener('resize', checkLayout);
     };
   }, [check, scrollButtons, tabContent]);
 

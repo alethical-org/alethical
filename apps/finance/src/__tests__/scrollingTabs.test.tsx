@@ -66,7 +66,7 @@ it('still reveals a newly selected tab after pointer focus', () => {
   expect(document.activeElement).toBe(target);
 });
 
-it('reveals earlier tabs with the left button without changing selection', () => {
+it('reveals earlier tabs and transfers focus when a clicked arrow disappears', () => {
   const onChange = vi.fn();
   act(() =>
     root.render(
@@ -100,7 +100,7 @@ it('reveals earlier tabs with the left button without changing selection', () =>
   const left = container.querySelector<HTMLButtonElement>('[aria-label="Scroll tabs left"]')!;
   expect(left).toBeTruthy();
   expect(container.querySelector('[aria-label="Scroll tabs right"]')).toBeNull();
-  vi.spyOn(left, 'matches').mockReturnValue(true);
+  vi.spyOn(left, 'matches').mockReturnValue(false);
   act(() => {
     left.focus();
     left.click();
