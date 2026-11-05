@@ -187,3 +187,81 @@ def test_finance_discovery_routes_require_access(finance_api):
         "lobbying/principals?q=health",
     ]:
         assert finance_api.get("/api/v1/finance/" + path).status_code == 401
+
+
+def test_home_summary_keeps_all_three_file_groups_counts_and_public_default(
+    finance_api, finance_db, board
+):
+    from sqlalchemy import event
+    from alethical.tests.test_finance_similar_names import build_summaries, sync_counts
+
+    sync_counts(finance_db, board)
+    before = get(finance_api, "finance/name-search", q="exmaple", limit=10)
+    build_summaries(finance_db, board)
+    statements = []
+    connection = finance_db.connection()
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", capture)
+    try:
+        after = get(finance_api, "finance/name-search", q="exmaple", limit=10)
+    finally:
+        event.remove(connection, "before_cursor_execute", capture)
+    before.pop("current_claim_validated_at")
+    after.pop("current_claim_validated_at")
+    assert before == after
+    assert all(
+        names(after, kind) for kind in ["gave", "got_paid", "got_paid_independent"]
+    )
+    grouped_queries = [s for s in statements if "WITH names AS" in s]
+    assert len(grouped_queries) == 3
+    assert all("FROM cf_identity_name_summary" in s for s in grouped_queries)
+    assert not any("FROM cf_contribution_row" in s for s in grouped_queries)
+    public = get(finance_api, "campaign-finance/search", q="exmaple", limit=10)
+    assert all(
+        not names(public, kind) for kind in ["gave", "got_paid", "got_paid_independent"]
+    )
+
+
+def test_home_summary_preserves_direct_first_and_capped_count(
+    finance_api, finance_db, board, monkeypatch
+):
+    from alethical.api.services import campaign_finance_search as search
+    from alethical.tests.test_finance_similar_names import build_summaries, sync_counts
+
+    for number, name in enumerate(["Exmaple, Aaron", "Example, Zora"], 100):
+        finance_db.add(gift(board.contributions_snapshot_id, number, contributor=name))
+    finance_db.commit()
+    sync_counts(finance_db, board)
+    monkeypatch.setattr(search, "COUNTED_UP_TO", 2)
+    before = get(finance_api, "finance/name-search", q="example", limit=1)
+    build_summaries(finance_db, board)
+    after = get(finance_api, "finance/name-search", q="example", limit=1)
+    before.pop("current_claim_validated_at")
+    after.pop("current_claim_validated_at")
+    assert before == after
+    group = next(group for group in after["groups"] if group["kind"] == "gave")
+    assert group["total"] is None and group["at_least"] == 2 and group["has_more"]
+    assert group["results"][0]["name"] == "Example, Jordan A"
+    assert group["results"][0]["payment_count"] == 3
+
+
+def test_home_summary_refuses_only_the_partially_removed_source(
+    finance_api, finance_db, board
+):
+    from sqlalchemy import text
+    from alethical.tests.test_finance_similar_names import build_summaries, sync_counts
+
+    sync_counts(finance_db, board)
+    build_summaries(finance_db, board)
+    finance_db.execute(text("DELETE FROM cf_contribution_row WHERE row_number=31"))
+    finance_db.commit()
+    after = get(finance_api, "finance/name-search", q="exmaple", limit=10)
+    groups = {group["kind"]: group for group in after["groups"]}
+    assert groups["gave"]["state"] == "unavailable"
+    assert groups["gave"]["results"] == []
+    assert groups["gave"]["total"] is None
+    assert groups["got_paid"]["results"]
+    assert groups["got_paid_independent"]["results"]

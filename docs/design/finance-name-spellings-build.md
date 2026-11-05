@@ -51,6 +51,13 @@ Exact results stay visible while variant results load or fail. Old responses can
 replace newer scopes, and previous data never crosses account boundaries. A zero
 exact group remains when variants have records. Errors are not empty results.
 
+Spelling candidates and Finance homepage payment-name searches use the complete
+name summary for each saved file, so repeated payment rows do not repeat the
+matching work. Missing completion markers retain the raw-file read. Filer scope,
+source checks and exact spelling counts remain. Employer search pages matching
+names before counting their donors in the source rows; incomplete source files
+cannot supply summary-backed counts. Public exact-name search keeps its own path.
+
 ## Sources and build checks
 
 Fresh source: root drawings and CLAUDE.md eug-139 in Alethical B2B (50).zip,
@@ -65,6 +72,9 @@ kept apart; no arbitrary top-3 rule; stable source keys and no duplicated paymen
 filter, sort, pagination and return context; slow/failed/out-of-order loads;
 account changes; agency file/version overlap; Vote held values and missing data;
 keyboard, touch and rendered layouts across the approved bands.
+Live-data performance checks include the complete name-search response, strong
+and secondary spelling lookup, and employer search. Summary-backed and raw reads
+must agree on eligible names, counts, paging and explicit source scope.
 
 ## Work and ownership
 

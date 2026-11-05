@@ -27,6 +27,7 @@ from alethical.api.services.finance_name_matching import (
 from alethical.api.services.finance_payments_under_name import ReleaseChanged
 from alethical.db import models as m
 from alethical.pipeline.campaign_finance import SPEC_BY_DATASET
+from alethical.pipeline import campaign_finance_name_summary as name_summary
 from alethical.pipeline.campaign_finance_reader import ReleaseNoLongerHeld
 
 Role = Literal["donor", "payee", "employer"]
@@ -85,7 +86,7 @@ def read(
     release_id: UUID | None = None,
 ) -> dict:
     searches = probes(name)
-    version = finance_versions.check(db, version, "money", "identity")
+    version = finance_versions.check(db, version, "money", "identity", "name_summary")
     db.execute(
         text(
             "SELECT set_config('statement_timeout', :timeout, true), set_config('pg_trgm.similarity_threshold', :threshold, true)"
@@ -106,6 +107,11 @@ def read(
         if dataset is None
         or identities._PRINTED[kind].dataset.value == DATASETS[dataset]
     )
+    pairs = [
+        (release.file_for(identities._PRINTED[kind].dataset).snapshot_id, kind)
+        for kind in kinds
+    ]
+    built = name_summary.complete(db, pairs)
     candidates = []
     sources = []
     result = {
@@ -139,13 +145,35 @@ def read(
                 getattr(model, SPEC_BY_DATASET[printed.dataset].filer_attribute)
                 == filer
             )
+        candidate_name = printed.name
+        if (source.snapshot_id, kind) in built:
+            summary = name_summary.Summary
+            candidate_name = summary.name
+            # Summary rows contain each exact spelling once for the complete
+            # saved file. A filer still has to hold that spelling in its own
+            # rows; year remains outside candidate discovery, as before.
+            matching_scope = [
+                summary.snapshot_id == source.snapshot_id,
+                summary.record_kind == kind,
+            ]
+            if filer is not None:
+                matching_scope.append(
+                    select(1)
+                    .select_from(model)
+                    .where(*candidate_scope, printed.name == summary.name)
+                    .exists()
+                )
+        else:
+            # A missing marker never means no names. Keep the raw read for
+            # snapshots whose summary has not been built completely.
+            matching_scope = candidate_scope
         candidates.append(
-            select(printed.name.label("name")).where(
-                *candidate_scope,
-                printed.name != name,
+            select(candidate_name.label("name")).where(
+                *matching_scope,
+                candidate_name != name,
                 or_(
-                    strong_candidates(printed.name, name, person=role == "donor"),
-                    or_(*(printed.name.op("%")(query) for query in searches))
+                    strong_candidates(candidate_name, name, person=role == "donor"),
+                    or_(*(candidate_name.op("%")(query) for query in searches))
                     if searches and not strong_only
                     else false(),
                 ),
