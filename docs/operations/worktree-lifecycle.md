@@ -208,13 +208,24 @@ The existing daily cleanup run saves the inventory privately in
 paid service runs. A missing owner is a review finding, never deletion permission.
 Retained work stays until its owner completes the requested outcome. The shared
 [`worktree-cleanup` skill](https://github.com/euglopi/tool-settings/blob/main/shared/skills/worktree-cleanup/SKILL.md)
-combines that review with user-requested cleanup. Invoking it without extra words
-in the owning chat supplies the cleanup request for that chat's folders, not a
-claim that delivery or acceptance is complete. It uses the host's native lifecycle
-for app-managed copies and this guide's guarded release process for legacy external
-copies. It keeps chat history and reports removed, trimmed, queued or retained
-folders. Trimming still needs its own safety checks and an existing scoped cleanup
-route; loading or editing the skill does not authorize cleanup.
+runs a project-wide cleanup batch when invoked without extra words in Claude Code
+or Codex. The invocation supplies the scoped cleanup request; it does not certify
+delivery, acceptance or every owner's release. The batch includes archived chats
+and external helper folders, verifies each folder's actual manager and uses that
+manager's supported route. Open chats without an explicit cleanup release stay.
+Unknown ownership, missing host coverage and unavailable cross-chat controls retain
+the affected folders while independent eligible cleanup continues.
+
+The batch keeps chat history and reports removed, trimmed, queued, retained and
+already absent folders. This guide's external helper still requires current owner
+releases and its existing merge proof; archived status does not create those
+receipts. Work replaced by another branch and unsaved drafts require comparison
+and recovery, but this helper has no reviewed-retirement override. Do not change
+another task's branch or bypass a refusal to make its folder removable. Trimming
+requires an existing scoped cleanup command and its own safety checks. A later
+batch cannot protect files an app already deleted when a chat was archived; the
+skill installs no archive hook and changes no app retention settings. Loading or
+editing the skill does not authorize running cleanup.
 
 Claude and Codex lifecycle hooks record ownership without adding routine messages
 or instructions to the conversation. Starting or resuming work cancels queued
