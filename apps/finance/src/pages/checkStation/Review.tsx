@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { registerKindLabel } from '@alethical/shared/committeeMoneyShared';
 import { useDebouncedSearchCommit } from '@alethical/shared/hooks/useDebouncedSearchCommit';
+import { tooShortTitle } from '@alethical/shared/moneyNameSearch';
 import { apiGet, useRead } from '../../api/read';
 import { useFinanceSession } from '../../auth/session';
 import { Link, useLocation } from '../../router';
@@ -195,7 +196,15 @@ interface MoneyResult {
   filer_kind?: string | null;
 }
 
-type MoneyMatches = { money: { groups?: { results: MoneyResult[] }[] } | null };
+// The suggestions service uses campaign_finance_search.MIN_QUERY_LENGTH.
+const MONEY_LOOKUP_MIN_LENGTH = 3;
+interface MoneyGroup {
+  kind: string;
+  state: string;
+  reason?: string | null;
+  results: MoneyResult[];
+}
+type MoneyMatches = { money: { state?: string; groups?: MoneyGroup[] } | null };
 type LookupResults = {
   scope: string;
   kind: string;
@@ -207,7 +216,7 @@ function matchingRecords(
   data: Queue | MoneyMatches,
   kind: string,
   fileKey: string,
-): TargetResult[] {
+): TargetResult[] | 'too-short' | 'unavailable' {
   if ('rows' in data)
     return data.rows
       .filter((row) => row.key !== fileKey)
@@ -222,9 +231,15 @@ function matchingRecords(
           .filter(Boolean)
           .join(' · '),
       }));
-  const all = (data.money?.groups ?? []).flatMap((group) => group.results);
+  const group = data.money?.groups?.find((item) =>
+    kind === 'committee' ? item.kind === 'committees' : item.kind === 'principals',
+  );
+  if (group?.reason === 'query_too_short') return 'too-short';
+  if (data.money?.state === 'unavailable' || !group) return 'unavailable';
+  if (group.state === 'not_reported') return [];
+  if (group.state !== 'reported' || !Array.isArray(group.results)) return 'unavailable';
   return kind === 'committee'
-    ? all
+    ? group.results
         .filter((row) => row.kind === 'committee' && row.registration_number != null)
         .map((row) => ({
           id: String(row.registration_number),
@@ -233,7 +248,7 @@ function matchingRecords(
             .filter(Boolean)
             .join(' · '),
         }))
-    : all
+    : group.results
         .filter((row) => row.kind === 'principal' && row.entity_id != null)
         .map((row) => ({
           id: String(row.entity_id),
@@ -338,10 +353,12 @@ function Workbench({
         : `finance/suggestions?${new URLSearchParams({ q: lookupQuery, request_id: 'station-check', limit: '10' })}`
       : null;
   const lookup = useRead<Queue | MoneyMatches>(lookupPath);
-  const remoteRows = useMemo(
+  const remote = useMemo(
     () => (lookup.data ? matchingRecords(lookup.data, conn.type, fileKey) : null),
     [conn.type, fileKey, lookup.data],
   );
+  const remoteRows = Array.isArray(remote) ? remote : null;
+  const lookupTooShort = remote === 'too-short';
   useEffect(() => {
     if (lookup.accessDenied) {
       setHeldLookup(null);
@@ -358,6 +375,7 @@ function Workbench({
   const retainedLookup =
     lookupKey &&
     !lookup.accessDenied &&
+    !lookupTooShort &&
     heldLookup?.scope === lookupScope &&
     heldLookup.kind === conn.type
       ? heldLookup
@@ -368,7 +386,10 @@ function Workbench({
       : remoteRows;
   const lookupRows = currentRows ?? retainedLookup?.rows ?? null;
   const lookupStale = currentRows === null && retainedLookup !== null;
-  const lookupFailed = !!lookupPath && (lookup.failed || lookup.notFound);
+  const lookupFailed =
+    !!lookupPath &&
+    !lookup.pending &&
+    (lookup.failed || lookup.notFound || remote === 'unavailable');
   const lookupBusy =
     !!lookupKey && (!lookupPath || lookup.loading || lookup.pending) && !lookupFailed;
   const correcting = fact.correcting ? (facts.find((f) => f.id === fact.correcting) ?? null) : null;
@@ -1233,6 +1254,11 @@ function Workbench({
               {err('target') && <Warning>{err('target')}</Warning>}
             </div>
             {!conn.target && lookupBusy && <LoadingLine>Searching…</LoadingLine>}
+            {!conn.target && lookupTooShort && (
+              <div className="mb-dashed ck-flat" role="status">
+                {tooShortTitle(MONEY_LOOKUP_MIN_LENGTH)}
+              </div>
+            )}
             {!conn.target && lookupFailed && (
               <Refused onRetry={runSearch}>We couldn’t load these records</Refused>
             )}

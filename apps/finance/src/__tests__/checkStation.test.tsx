@@ -565,6 +565,85 @@ describe('Check TV station files', () => {
     expect(text()).not.toContain('We couldn’t load these records');
   });
 
+  it('shows the minimum for a short record search instead of reporting no matches', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Committee');
+    lookup = async () =>
+      json({
+        money: {
+          state: 'unavailable',
+          groups: [
+            { kind: 'committees', state: 'unavailable', reason: 'query_too_short', results: [] },
+          ],
+        },
+      });
+    await type('c-query', 'Ex');
+    await press('Search');
+    expect(text()).toContain('Type at least 3 characters');
+    expect(text()).not.toContain('No held records match');
+    expect(text()).not.toContain('Try again');
+  });
+
+  it('keeps the old query’s results when the selected record group is unavailable', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Committee');
+    await type('c-query', 'Example');
+    await press('Search');
+    expect(text()).toContain('Registration 90001');
+
+    lookup = async () =>
+      json({
+        money: {
+          state: 'reported',
+          groups: [
+            { kind: 'committees', state: 'unavailable', reason: 'no_register', results: [] },
+            { kind: 'principals', state: 'not_reported', results: [] },
+          ],
+        },
+      });
+    await type('c-query', 'Another');
+    await press('Search');
+    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).toContain('Previous results for “Example”');
+    expect(text()).toContain('Registration 90001');
+    expect(text()).not.toContain('No held records match');
+
+    lookup = async () =>
+      json({
+        money: {
+          state: 'reported',
+          groups: [
+            { kind: 'committees', state: 'not_reported', results: [] },
+            {
+              kind: 'principals',
+              state: 'unavailable',
+              reason: 'no_lobbying_release',
+              results: [],
+            },
+          ],
+        },
+      });
+    await press('Try again');
+    expect(text()).toContain('No held records match');
+    expect(text()).not.toContain('We couldn’t load these records');
+    expect(text()).not.toContain('Registration 90001');
+
+    const unexpectedRead = vi.fn(async () => json({}, 500));
+    lookup = unexpectedRead;
+    await press('Committee');
+    await press('Lobbying principal');
+    await press('Search');
+    expect(unexpectedRead).not.toHaveBeenCalled();
+    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).not.toContain('No held records match');
+  });
+
   it('cannot restore a preview after the reviewer changes the query', async () => {
     vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);

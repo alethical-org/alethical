@@ -86,6 +86,70 @@ beforeEach(async () => {
   root = createRoot(host);
   await act(async () => root.render(<Probe />));
 });
+async function moneyState(index: number, reason: string, partial = false) {
+  const request = pending[index];
+  await act(async () =>
+    request.resolve(
+      new Response(
+        JSON.stringify({
+          data: {
+            request_id: request.url.searchParams.get('request_id'),
+            q: request.url.searchParams.get('q'),
+            money: {
+              state: reason === 'query_too_short' ? 'unavailable' : 'reported',
+              groups: [
+                { kind: 'gave', state: 'unavailable', reason, results: [] },
+                ...(partial
+                  ? [
+                      {
+                        kind: 'people',
+                        state: 'reported',
+                        results: [
+                          { kind: 'person', id: 'new-person', full_name: 'Current person' },
+                        ],
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            bills: [],
+          },
+        }),
+      ),
+    ),
+  );
+}
+it('explains a server short-query response without claiming no matches', async () => {
+  await type('de');
+  await tick();
+  await moneyState(0, 'query_too_short');
+  expect(host.textContent).toContain('Type at least 3 characters');
+  expect(host.textContent).not.toContain('No matching suggestions');
+  expect(host.querySelector('button')).toBeNull();
+});
+it('retains labeled suggestions for unavailable sources and does not cache partial failures', async () => {
+  await type('danc');
+  await tick();
+  await answer(0, 'Danchik');
+  await type('danch');
+  await tick();
+  await moneyState(1, 'source_unavailable');
+  expect(host.textContent).toContain('Previous suggestions for “danc”');
+  expect(host.textContent).toContain('Danchik');
+  await act(async () => host.querySelector('button')!.click());
+  await moneyState(2, 'source_unavailable', true);
+  expect(host.textContent).toContain('Current person');
+  expect(host.textContent).toContain('Some suggestions couldn’t load');
+  expect(host.textContent).not.toContain('Danchik');
+  expect(host.querySelector('button')!.textContent).toBe('Try again');
+  await type('another');
+  await type('danch');
+  await tick();
+  expect(pending).toHaveLength(4);
+  await answer(3, 'Recovered');
+  expect(host.textContent).toContain('Recovered');
+  expect(host.querySelector('button')).toBeNull();
+});
 afterEach(async () => {
   await act(async () => root.unmount());
   for (const request of pending) request.resolve(new Response('{}', { status: 500 }));

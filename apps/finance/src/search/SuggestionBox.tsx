@@ -1,3 +1,4 @@
+import { tooShortTitle } from '@alethical/shared/moneyNameSearch';
 import {
   useCallback,
   useEffect,
@@ -26,7 +27,7 @@ import {
   type SuggestionsAnswer,
 } from './suggestions';
 
-type Status = 'idle' | 'loading' | 'ready' | 'failed';
+type Status = 'idle' | 'loading' | 'ready' | 'failed' | 'too-short';
 
 const DEBOUNCE_MS = 140;
 const CACHE_MS = 60_000;
@@ -149,6 +150,23 @@ export function useSuggestionBox(id: string, from: string | null) {
             pendingQuery.current = null;
             if (answer.state === 'ok' && answer.data.request_id === requestId) {
               const next = suggestionGroups(answer.data);
+              const money = answer.data.money;
+              if (money?.groups?.some((group) => group.reason === 'query_too_short')) {
+                setHeld(null);
+                setActive(-1);
+                setStatus('too-short');
+                return;
+              }
+              if (
+                !money ||
+                money.state === 'unavailable' ||
+                money.groups?.some((group) => group.state === 'unavailable')
+              ) {
+                if (next.length) setHeld({ scope, query: typed, groups: next });
+                setActive(-1);
+                setStatus('failed');
+                return;
+              }
               cache.current.set(typed, { at: Date.now(), groups: next });
               if (cache.current.size > CACHE_LIMIT)
                 cache.current.delete(cache.current.keys().next().value!);
@@ -259,19 +277,25 @@ export function useSuggestionBox(id: string, from: string | null) {
   }
 
   const count = rows.length;
+  const failure =
+    count > 0 && own?.query === query.trim()
+      ? 'Some suggestions couldn’t load'
+      : 'Suggestions couldn’t load';
   const previous =
-    count > 0 && own && (status === 'loading' || status === 'failed')
+    count > 0 && own && own.query !== query.trim() && (status === 'loading' || status === 'failed')
       ? `Previous suggestions for “${own.query}”`
       : '';
   const live = !open
     ? ''
-    : status === 'loading'
-      ? 'Searching…'
-      : status === 'failed'
-        ? 'Suggestions couldn’t load'
-        : count
-          ? `${count} ${count === 1 ? 'suggestion' : 'suggestions'}`
-          : 'No matching suggestions';
+    : status === 'too-short'
+      ? tooShortTitle(3)
+      : status === 'loading'
+        ? 'Searching…'
+        : status === 'failed'
+          ? failure
+          : count
+            ? `${count} ${count === 1 ? 'suggestion' : 'suggestions'}`
+            : 'No matching suggestions';
 
   const inputProps = {
     ref: input,
@@ -314,6 +338,7 @@ export function useSuggestionBox(id: string, from: string | null) {
       maxHeight={maxHeight}
       live={previous ? `${live} ${previous}` : live}
       previous={previous}
+      failure={failure}
       retryRef={retryButton}
       onRetry={() => {
         input.current?.focus();
@@ -425,6 +450,7 @@ function SuggestionPanel(props: {
   maxHeight: number;
   live: string;
   previous: string;
+  failure: string;
   retryRef: RefObject<HTMLButtonElement | null>;
   onRetry: () => void;
   onRetryBlur: (event: FocusEvent<HTMLButtonElement>) => void;
@@ -459,6 +485,7 @@ function SuggestionPanel(props: {
           <span>Try another name or bill number</span>
         </div>
       )}
+      {props.status === 'too-short' && <div className="f-sg-note">{tooShortTitle(3)}</div>}
       {props.status === 'failed' && (
         <div className="f-sg-note">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -470,7 +497,10 @@ function SuggestionPanel(props: {
               strokeLinecap="round"
             />
           </svg>
-          <span className="f-sg-text">Suggestions couldn’t load{previous}</span>
+          <span className="f-sg-text">
+            {props.failure}
+            {previous}
+          </span>
           <button
             ref={props.retryRef}
             type="button"
