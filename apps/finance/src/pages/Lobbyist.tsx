@@ -148,7 +148,6 @@ function evidenceFor(
   payer: string,
   committee: LobbyingContributionCommittee,
   year: number | null,
-  payment: LobbyingContributionPayment,
   copiedAt: string | null,
 ): Evidence {
   const kind = committee.kind ?? registerKindFromEntityType(committee.recipient_type);
@@ -160,7 +159,6 @@ function evidenceFor(
       ...(copiedAt
         ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(copiedAt)}` }]
         : []),
-      { label: 'Record number in source file', value: String(payment.record_number) },
     ],
     quote: 'No saved source excerpt is held for this record',
     quoteLabel: 'SOURCE TEXT',
@@ -360,7 +358,6 @@ function Donations({
                                       payer,
                                       committee,
                                       year.year,
-                                      payment,
                                       contributions.copied_at,
                                     ),
                                   )

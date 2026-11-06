@@ -85,7 +85,7 @@ function SplitPart({ part, from }: { part: IdentitySummary; from: string | null 
 }
 
 /** Rounds 38 and 39: a split record's old reference opens a choice of the parts it
- * became, each with its reference and confirmed-record count. */
+ * became, with confirmed-record counts where available. */
 function SplitChoice({ identity, from }: { identity: Identity; from: string | null }) {
   const parts = identity.split_into ?? [];
   return (
@@ -430,17 +430,6 @@ function Profile({
                 {boardItems.map((item) => (
                   <span key={item}>{item}</span>
                 ))}
-              </dd>
-            </div>
-          )}
-          {identity.reference && (
-            <div className="f-sources-row">
-              <dt>Confirmed identity</dt>
-              <dd>
-                <span>
-                  Alethical reference{'\u00a0'}
-                  {identity.reference}
-                </span>
               </dd>
             </div>
           )}

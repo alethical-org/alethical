@@ -470,7 +470,7 @@ describe('Organization profile', () => {
     expect(sources).toContain('Campaign payment files copied Oct 28, 2026');
     expect(sources).toContain('Lobbyist list and spending reports copied Oct 29, 2026');
     expect(sources).toContain('Committee registrations copied Oct 28, 2026');
-    expect(sources).toContain('Alethical reference\u00a0ORG-0042');
+    expect(text()).not.toContain('ORG-0042');
     expect(sources).not.toContain(ORG);
     expect(sources).toContain('Official identifiers');
     expect(sources).toContain('State entity ID\u00a08450');
@@ -627,9 +627,8 @@ describe('Organization profile', () => {
     );
     const rows = [...container.querySelectorAll('.org-split-list li')].map((li) => li.textContent);
     expect(rows).toEqual([
-      'Example Health AssociationAlethical reference ORG-0043 · 2 confirmed records',
-      'Example Health FoundationAlethical reference ORG-0044',
-      // A reference still being numbered falls back to the name alone.
+      'Example Health Association2 confirmed records',
+      'Example Health Foundation',
       'Example Health Fund',
     ]);
     // No internal id is printed anywhere.
@@ -673,6 +672,21 @@ describe('Organization derived labels', () => {
       label: 'Registration number',
       value: '141',
     });
+  });
+
+  it('keeps importer locators out of source evidence while preserving the quote', () => {
+    const item = confirmation('c-principal', 'principal', '8450', {
+      evidence: {
+        source: 'lobbying_expenditure_row',
+        snapshot_id: 'snap',
+        locator: '82',
+        url: null,
+        quote: 'Example Health Association',
+      },
+    });
+    const evidence = confirmationEvidence('Example Health Association', item);
+    expect(evidence.rows?.some((row) => /Row|Record number/.test(row.label))).toBe(false);
+    expect(evidence.quote).toBe('Example Health Association');
   });
 
   it('states a period from its earliest and latest dates', () => {

@@ -469,7 +469,7 @@ describe('Payments under this name', () => {
     expect(container.textContent).toContain('Loading payments for similar spellings…');
   });
 
-  it('opens the held locators of the source row', async () => {
+  it('opens source evidence without importer entry numbers', async () => {
     await render('/money/names/Example%20Media%20LLC', payee);
     const view = section('Campaign payments').querySelector<HTMLButtonElement>('.pn-view')!;
     await act(async () => view.click());
@@ -484,7 +484,6 @@ describe('Payments under this name', () => {
     expect(rows).toEqual({
       'Saved source': 'Expenditure file',
       'Source version': 'Copy of Oct 29, 2026',
-      'Record number in source file': '11',
       Filer: 'Education Minn PAC',
       Date: 'Jul 20, 2026',
       Amount: '$1,250',

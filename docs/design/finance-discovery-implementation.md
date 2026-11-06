@@ -23,9 +23,8 @@ Delivery and acceptance are tracked in [issue 2911](https://github.com/alethical
   without repeating their headings.
 - Directory membership does not prove current representation. Missing report,
   missing amount and conflicting reports are different states; none becomes zero.
-- Source identifiers use the approved precise labels: Registration number, State
-  entity ID, Alethical reference, Record number in source file, and applicable held
-  FCC/legislative identifiers. Technical keys and source quotations are preserved.
+- Identifier labels and visibility follow the [Finance app guide](../product-onboarding/finance-app-guide.md).
+  Technical keys and source quotations are preserved.
 
 ## Delivery dependencies and ownership
 
@@ -106,3 +105,22 @@ review are complete. Release checks and live acceptance remain open in
   The design lint finding for Inter is the approved Finance typeface exception.
   Independent review accepted the corrected Media version and stale-count paths.
   Current-head CI and production acceptance remain pending.
+
+
+## ID visibility follow-up
+
+The Finance app guide owns the rule: identity review and Alethical IDs stay in the
+background; importer entry positions also stay out of source details. Public profiles,
+source facts and official IDs remain. No backend records or access rules change.
+
+The retained identity page was reachable by direct URL despite absent navigation.
+App registration and the enabled-route list must both exclude it. Evidence panels
+must omit importer positions while preserving official lobbyist/filer registration
+locators. Regression checks cover direct arrival without identity reads, payment
+source facts/links and confirmation quotes with retained official registrations.
+
+Design update: Opus 5.5 Medium, bounded edits to existing drawings and rules. Build
+recommendation: GPT-6.1 Sol Medium. Medium fits the settled removal and source-field
+classification; higher effort has no identified unresolved design decision to settle.
+Independent review checks missed uses and preservation of source evidence. Delivery
+remains in PR 2913 until current-head checks, Design review and live verification pass.

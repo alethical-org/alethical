@@ -193,7 +193,7 @@ focus, hover and pressed treatments stay visible; this scroll never moves the pa
 
 The addresses follow Design's system map (decision D20), with the station-file pages under
 Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
-`/money/recipients`, `/money/connections`, `/money/identities`, `/money/employers`,
+`/money/recipients`, `/money/connections`, `/money/employers`,
 `/money/employers/:name`, `/money/committees/:id`, `/money/names/:query`, `/money/races/:id`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
@@ -202,7 +202,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 Built: `/`, `/home`, `/sign-in`, `/investor-access`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
-`/money/races/:id`, `/money/recipients`, `/money/connections`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
+`/money/races/:id`, `/money/recipients`, `/money/connections`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
 `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
@@ -274,8 +274,18 @@ owns the cross-product requirements and Design-review checks.
 
 Finance labels identifiers by their source and purpose. **Registration number** is the
 Board's committee or lobbyist registration; **State entity ID** is the Board's entity
-identifier; **Alethical reference** identifies an Alethical person or organization record;
-**Record number in source file** identifies a row within a particular saved source file.
+identifier. **Alethical ID** identifies a person or organization record in Alethical.
+It stays in the background, including profiles, source details and the choices shown
+after a record splits. Identity-review controls and entry links are not exposed to
+readers or administrators; `/money/identities` answers the existing not-found page.
+Saved identities, evidence, history and internal maintenance remain available in the
+backend. Revisit a review interface only for a specific user need.
+Finance prioritizes understanding reported facts and connections. Show a technical detail
+only when it serves a specific reader need. File entry numbers stay in the background,
+including in source details; they can be retrieved for an investigation when needed.
+Revisit their visibility only when a specific user need or pain demonstrates its value.
+Source details show the source name, copy date, relevant held excerpt and available source
+link. Preserve file entry numbers internally with their source copy for traceability.
 An evidence locator that is a lobbyist registration keeps the registration label, even
 when its technical source name ends in `_row`. Existing FCC file/facility and legislative
 identifiers retain their source-specific names. No identifier is added where none is held,
@@ -518,50 +528,6 @@ an unavailable source is not a no-match result.
   "Minimum is more than maximum", and both keep the last valid results. Recipients whose
   totals are withheld are left out of a range and counted under the count line. Opened with no
   earlier page, it returns to Campaign money.
-- **Confirm identities (`/money/identities`)**: "Names to review" lists exact printed names
-  (donor, campaign payee and outside-spending payee, each file its own row) by money recorded
-  under the name, with All names, Donor names or Payee names and Not confirmed, Confirmed or All,
-  20 a page; a total follows the shared money rule ("Missing payment amount", "Reporting period
-  incomplete", "Filing year 2025"). Opening a name shows every identity confirmed for some of its
-  records ("Confirmed for {k} of {n} records"), the remaining records and "Suggested matches"
-  (only identities already holding records of that spelling; Alethical never suggests by
-  name), then "Records under this exact spelling", 50 a page on 1 copy of the Board's file, and
-  the name's history with "View evidence". Every account can confirm selected records to an
-  identity, create a person or organization, withdraw (with a reason), merge another record in
-  after previewing the links that move, or split 1 into 2; each needs an evidence note that
-  says more than the shared name, and a source, which is kept apart from the note. An
-  identity is shown by its reference (ORG-0042 for an organization, PER-0042 for a person),
-  or by its name while the server has not served one, never by its internal id. Merge and split history rows name the identities and keep the event's
-  evidence and date, without record counts: the saved events do not hold counts at the
-  time of the change, and current counts can change with later confirmations or source
-  updates. A later merge keeps its own row naming the reference it now opens. A record count that rests on a Board file the server does not
-  hold is never printed as 0 or as a partial sum: every row and History event stays and only
-  the number is dropped ("Confirmed as {identity}", "withdrawn: {reason}", "confirmed
-  records moved to {reference}", "These confirmed records will move from …", "{k} records
-  selected" without "of n", and "Records covered" without its "N records"). History shows a
-  loading bar while the identities it reads load, "We couldn’t load the history" with Try
-  again when any of them fails (including a missing identity that a merge or split names), and "No
-  confirmations or suggestions yet" only when every read finished and none returned an
-  event. Linked histories are followed through repeated merges and splits, reading each
-  identity once; an oversized history fails visibly instead of silently truncating.
-  History also reads the original owners of withdrawn confirmations for that exact
-  spelling, even when no current confirmation or selected-year source row remains. Those
-  owners do not become current confirmations or merge choices. A split into more than 2 parts
-  lists each part and reads "now opens a choice of all {n}". A legislator or public-person link is named by its role ("Legislative service",
-  "Official IDs"), never by its internal id. A withdrawal of several confirmations sends 1
-  request each; if a later one fails, the page refreshes (each one withdrawn leaves the
-  confirmed card and gets its History withdrawal row), says "{k} of {n} confirmations were
-  withdrawn. The other {m} were not saved. Your note is kept below." (each verb "was" for a
-  count of 1) with Try again, and Try
-  again sends only the rest. A selection is the server's record fingerprints, or "All
-  records" / "{year} records", which the server resolves. "Saved" appears only after the
-  server accepts; otherwise "Not saved. Your entries are kept." with Try again, "These
-  records changed since this form opened…" or, after the Board's file is replaced, "Reload
-  the records", which keeps the words and clears the selection. Unfinished entries are kept
-  as 1 draft per name, role, action and target ("Unsaved draft", "Discard draft"). A
-  contextual arrival names the spelling and its role (`?name=&role=`); a spelling with no
-  records reads "This record is not held". It is entered only from its context, never from
-  Finance Home.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page. The Session menu lists the sessions the server holds, the
   current one first; with 1 session held it shows 1 option.
@@ -599,8 +565,8 @@ none.
 
 ## Limits and privacy
 
-- Confirm identities writes through the server's identity routes; every account reads every
-  note, source, reason and name typed there.
+- The retained identity services keep their existing access rules; hiding the review
+  interface does not make saved names, evidence or notes confidential.
 - Finance never links to alethical.com; a CI test fails if any app file names an
   alethical.com page. A check of the production build (`pnpm run check:built-links`) reads
   every text file Finance ships except source maps, code from `@alethical/shared` included.
