@@ -1,8 +1,8 @@
 # Finance search and record clarity
 
-Approved 6 November 2026. Eugene approved the Lobbying design, Finance identifier
-wording and applying the shared lessons across Finance, then building and verifying
-the result. The current chat owns delivery; work stays in its retained checkout.
+Approved scope: Lobbying design, Finance identifier wording and shared search and
+list defaults across Finance, including implementation and verification. The
+current chat owns delivery; work stays in its retained checkout.
 Delivery and acceptance are tracked in [issue 2911](https://github.com/alethical-org/alethical/issues/2911).
 
 ## Required behavior
