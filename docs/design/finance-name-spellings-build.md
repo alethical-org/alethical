@@ -25,10 +25,8 @@ filed rows remain separate even when their fields match. Agency files appear onc
 per file/version under their first applicable spelling and retain other spellings
 as “Also printed as”. Source evidence, checking status and copy dates remain.
 
-One qualification appears above variant groups: “Similar spellings may refer to
-the same person” (donor), “Similar spellings may refer to the same person or
-organization” (payee), “Similar spellings may refer to the same employer”, or
-“Similar spellings may refer to the same agency”. Donor/employer count note:
+Show the grouped names and counts without a standalone spelling qualification.
+Use the existing gap above the group when the note is absent. Donor/employer count note:
 “Record counts may include more than one entry for the same donation. Our records
 may not include all giving.” Committee name-filter subtotals retain their scoped
 meaning, labelled “Matching itemized contributions”, “Matching itemized

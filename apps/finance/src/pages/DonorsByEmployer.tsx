@@ -601,7 +601,6 @@ function Detail({
   // donor is loaded.
   const donorCount = data?.donor_name_count ?? (donorsHasMore ? null : named);
   const profiles = (identity.data?.identities ?? []).filter((item) => item.confirmed > 0);
-  const hasVariants = (data?.spellings?.length ?? 0) > 1;
 
   return (
     <section aria-labelledby="de-employer-h" className="de-results" ref={reveal.list}>
@@ -616,9 +615,6 @@ function Detail({
         <h2 id="de-employer-h" className="de-spelling">
           <PrintedName name={spelling} />
         </h2>
-        {hasVariants && (
-          <p className="de-variants-note">Similar spellings may refer to the same employer</p>
-        )}
         {profiles.map((profile) => {
           const href = profileHref(
             { id: profile.id, kind: profile.kind, line: profile.name },

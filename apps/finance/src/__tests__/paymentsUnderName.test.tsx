@@ -318,7 +318,6 @@ describe('Payments under this name', () => {
     ]);
     expect(container.querySelectorAll('.pn-view')).toHaveLength(2);
     expect(container.textContent).not.toContain('No campaign payments');
-    expect(container.textContent).toContain('Similar spellings may refer to the same person');
     expect(container.textContent).toContain('Employer as filed: Example Health Association');
     const variants = requests.filter(
       (url) =>

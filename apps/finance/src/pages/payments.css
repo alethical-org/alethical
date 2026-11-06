@@ -167,14 +167,6 @@
   justify-content: space-between;
   gap: 6px 16px;
 }
-.pn-variants-note {
-  margin: 28px 0 0;
-  font-size: 15px;
-  line-height: 1.5;
-}
-.pn-variants-note + .pn-section {
-  margin-top: 16px;
-}
 .pn-spelling-groups {
   margin-top: 12px;
   background: var(--surface);
@@ -429,11 +421,6 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: end;
-}
-.de-variants-note {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.5;
 }
 .de-results {
   margin-top: 24px;
