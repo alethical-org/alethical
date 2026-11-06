@@ -6,7 +6,8 @@ import { navigate, useLocation } from '../router';
  * A page's in-page choices (tab, year, page, query, role) live in its address,
  * so Back, a copied link and a new tab all reopen the same view (Design build
  * notes, "Return context"). A change replaces the address rather than adding
- * a history step, and a default value is left out of it.
+ * a history step by default; a view transition can explicitly add one. A default
+ * value is left out of the address.
  */
 export function useAddressState<T extends Record<string, string>>(defaults: T) {
   const location = useLocation();
@@ -16,14 +17,14 @@ export function useAddressState<T extends Record<string, string>>(defaults: T) {
     if (value !== null) values[key] = value as T[keyof T];
   }
   const set = useCallback(
-    (changes: Partial<T>) => {
+    (changes: Partial<T>, { replace = true } = {}) => {
       const params = new URLSearchParams(window.location.search);
       for (const [key, value] of Object.entries(changes)) {
         if (value === undefined || value === '' || value === defaults[key]) params.delete(key);
         else params.set(key, String(value));
       }
       const query = params.toString();
-      navigate(window.location.pathname + (query ? `?${query}` : ''), { replace: true });
+      navigate(window.location.pathname + (query ? `?${query}` : ''), { replace });
     },
     // The defaults are written inline by each page; their values, not identity, matter.
     [JSON.stringify(defaults)],

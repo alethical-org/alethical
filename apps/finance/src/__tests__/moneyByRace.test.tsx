@@ -366,7 +366,7 @@ describe('Money by race page', () => {
     expect(link?.getAttribute('href')).toBe(
       '/money/committees/18558?year=2026&from=%2Fmoney%2Fraces%2Fhouse-1a',
     );
-    expect(text).toContain('Registration 18558');
+    expect(text).toContain('Registration number 18558');
     expect(text).toContain('$10,700');
     expect(text).toContain('Figures for Jan\u00a01,\u00a02026 to Jul\u00a020,\u00a02026');
     expect(text).toContain('$10,075');

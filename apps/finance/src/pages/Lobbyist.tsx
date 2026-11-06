@@ -160,7 +160,7 @@ function evidenceFor(
       ...(copiedAt
         ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(copiedAt)}` }]
         : []),
-      { label: 'Record number', value: String(payment.record_number) },
+      { label: 'Record number in source file', value: String(payment.record_number) },
     ],
     quote: 'No saved source excerpt is held for this record',
     quoteLabel: 'SOURCE TEXT',
@@ -325,7 +325,9 @@ function Donations({
                           const filed = payment.contributor_name?.trim() || null;
                           const amount = formatMoney(payment.amount);
                           const payer =
-                            filed ?? registered ?? `Registration ${record.registration_number}`;
+                            filed ??
+                            registered ??
+                            `Registration number ${record.registration_number}`;
                           return (
                             <div key={payment.record_number} className="lbl-pay">
                               <span className="lbl-pay-date f-num">
@@ -423,7 +425,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
   const identity = useConfirmedIdentity('lobbyist', shown ? reg : null);
 
   const name = shown
-    ? (shown.name ?? shown.formatted_name ?? `Registration ${shown.registration_number}`)
+    ? (shown.name ?? shown.formatted_name ?? `Registration number ${shown.registration_number}`)
     : '';
   const orgs = shown?.principals.rows ?? [];
   // 5 at a time with "Show more", the approved reveal for a lobbyist's clients.
@@ -485,7 +487,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
               <div className="lb-tags">
                 <span className="lb-chip">LOBBYIST</span>
                 <span className="lb-reg f-num">
-                  Registration {shown.registration_number}
+                  Registration number {shown.registration_number}
                   {'\u00a0·'}
                 </span>
                 <span className="lb-status">{registrationStatus(shown.state)}</span>
@@ -509,7 +511,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
                     {visibleOrgs.map((row) => {
                       const shownName = row.spending_name ?? row.name;
                       const note = [
-                        `Entity ID ${row.entity_id}`,
+                        `State entity ID ${row.entity_id}`,
                         row.spending_name && row.spending_name !== row.name
                           ? `registered as ${row.name} in the lobbyist list`
                           : null,

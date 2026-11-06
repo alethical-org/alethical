@@ -244,7 +244,10 @@ function matchingRecords(
         .map((row) => ({
           id: String(row.registration_number),
           name: row.name ?? '',
-          line: [registerKindLabel(row.filer_kind), `Registration ${row.registration_number}`]
+          line: [
+            registerKindLabel(row.filer_kind),
+            `Registration number ${row.registration_number}`,
+          ]
             .filter(Boolean)
             .join(' · '),
         }))
@@ -253,7 +256,7 @@ function matchingRecords(
         .map((row) => ({
           id: String(row.entity_id),
           name: row.name ?? '',
-          line: `Entity ID ${row.entity_id}`,
+          line: `State entity ID ${row.entity_id}`,
         }));
 }
 

@@ -484,7 +484,7 @@ describe('Payments under this name', () => {
     expect(rows).toEqual({
       'Saved source': 'Expenditure file',
       'Source version': 'Copy of Oct 29, 2026',
-      Row: '11',
+      'Record number in source file': '11',
       Filer: 'Education Minn PAC',
       Date: 'Jul 20, 2026',
       Amount: '$1,250',
@@ -899,6 +899,16 @@ describe('Payments under this name', () => {
     const clear = container.querySelector<HTMLButtonElement>('.pn-scope button')!;
     await act(async () => clear.click());
     expect(window.location.search).toBe('?role=payee&year=2026');
+  });
+
+  it('names the registration number when scoped records have no filer name', async () => {
+    await render(
+      '/money/names/Example%20Media%20LLC?role=payee&filer=30558&dataset=expenditures&year=2026',
+      () => json(page('vendor', [], { year: 2026, filer: '30558' })),
+    );
+    expect(container.querySelector('.pn-scope')?.textContent).toBe(
+      'Showing records filed by Registration number 30558, campaign payments fileClear all',
+    );
   });
 
   it('keeps a spelling with stray spaces exactly, and shows its spaces', async () => {

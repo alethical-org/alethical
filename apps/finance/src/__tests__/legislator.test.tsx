@@ -277,7 +277,7 @@ describe('Legislator profile', () => {
     await render('/legislators/patty-acomb', answering(CURRENT));
     const card = container.querySelector('.cf-account')!;
     expect(card.textContent).toContain('Acomb, Patty House Committee');
-    expect(card.textContent).toContain('Candidate committee · Registration 18272');
+    expect(card.textContent).toContain('Candidate committee · Registration number 18272');
     expect(card.textContent).toContain('Checked on Aug 31, 2026');
     expect(card.textContent).toContain('$30,655');
     expect(card.textContent).toContain('Report period Jan 1, 2025 to Dec 31, 2025');

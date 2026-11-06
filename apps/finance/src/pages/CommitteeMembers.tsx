@@ -376,7 +376,7 @@ function Account({
   here: string;
 }) {
   const reg = account.registration_number;
-  const name = account.committee_name ?? `Registration ${reg}`;
+  const name = account.committee_name ?? `Registration number ${reg}`;
   const href = isBuilt('committee')
     ? withFrom(hrefFor('committee', { id: reg }, { year }), here)
     : null;
@@ -400,7 +400,7 @@ function Account({
           <span className="cmm-account-name">{name}</span>
         )}
         <span className="cmm-sub">
-          {kind ? `${kind} · Registration ${reg}` : `Registration ${reg}`}
+          {kind ? `${kind} · Registration number ${reg}` : `Registration number ${reg}`}
         </span>
       </div>
       {!data && read.loading && <LoadingLine>Loading…</LoadingLine>}

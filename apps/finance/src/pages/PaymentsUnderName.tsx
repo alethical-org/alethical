@@ -12,7 +12,6 @@ import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import {
   CAP_NEXT_LABEL,
-  filerRegistrationLabel,
   paymentsShowingLine,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
@@ -323,7 +322,7 @@ function rowEvidence(
           ]
         : []),
       {
-        label: 'Row',
+        label: 'Record number in source file',
         value: String(held?.record_number ?? fields.recordNumber),
       },
       { label: 'Filer', value: shown.committee },
@@ -712,7 +711,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const filerName = filer
     ? (reads
         .flatMap((read) => (read.data?.state === 'reported' ? rowsFor(read.data, here) : []))
-        .find((item) => item.registration === filer)?.committee ?? filerRegistrationLabel(filer))
+        .find((item) => item.registration === filer)?.committee ?? `Registration number ${filer}`)
     : null;
   const scope = scopeLine(filerName, datasetFile);
 

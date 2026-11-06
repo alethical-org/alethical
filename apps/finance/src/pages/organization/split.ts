@@ -7,7 +7,7 @@ import type { IdentitySummary } from './types';
 export function splitPartSub(part: IdentitySummary): string {
   const counted = part.status === 'active' ? (part.confirmed_records ?? null) : null;
   return [
-    part.reference,
+    part.reference ? `Alethical reference ${part.reference}` : null,
     counted === null
       ? null
       : `${counted.toLocaleString('en-US')} confirmed ${counted === 1 ? 'record' : 'records'}`,

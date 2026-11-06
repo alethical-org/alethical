@@ -1,15 +1,11 @@
-import { LOBBYING_NO_SPENDING_PAGE } from '@alethical/shared/lobbyingRecordCopy';
 import { useEffect, useRef, type FormEvent } from 'react';
 
 import {
   LOBBYING_DIRECTORY_COPY as COPY,
   LOBBYING_SOURCE_URL,
-  lobbyingHeldYearsNote,
   lobbyingPrincipalCount,
-  lobbyingShowingLine,
 } from '@alethical/shared/lobbyingDirectoryCopy';
 import type {
-  LobbyingDirectoryDonations,
   LobbyingLobbyistsPage,
   LobbyingPrincipalsPage,
   LobbyingSummary,
@@ -18,7 +14,7 @@ import { lobbyingDonationYear } from '@alethical/shared/lobbyingTypes';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { formatMoney } from '../ui/money';
 
-import { apiPath, useRead } from '../api/read';
+import { apiPath, useRead, type Read } from '../api/read';
 import { Link, useLocation } from '../router';
 import { useLiveSearch } from '../search/useLiveSearch';
 import { withFrom } from '../returnContext';
@@ -26,7 +22,7 @@ import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
-import { SourcesAndUpdates } from '../ui/parts';
+import { Arrow, BackLink, SourcesAndUpdates } from '../ui/parts';
 import { OfficialLink } from './lobbying/parts';
 import './lobbying.css';
 
@@ -108,22 +104,10 @@ export function pageCount(total: number | null): number {
   return Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE));
 }
 
-/** The principals tab's note, qualifying its rows: names from several reporting years
- * and the dated lobbyist list, and why some rows have no page. */
-export function principalsNote(copiedAt: string | null, latestYear: number | null): string {
-  const list = copiedAt
-    ? ` and the lobbyist list copied ${centralDateLabel(copiedAt)}`
-    : ' and the lobbyist list';
-  const through = latestYear == null ? '' : ` through ${latestYear}`;
-  return `This directory includes organizations from different reporting years${list}. Some organizations have no spending page because the Board’s spending file has no rows for them${through}.`;
+/** Membership in this directory never establishes a current representation link. */
+export function principalsNote(_copiedAt: string | null, _latestYear: number | null): string {
+  return 'Includes names from past years; listing does not establish current representation';
 }
-
-const LOBBYISTS_NOTE =
-  'Amounts include matching campaign contribution records, including donated goods or services';
-const GIVING_NOTE =
-  'These amounts are not a complete record of giving. Client counts reflect the lobbyist-list copy date, not the selected contribution year.';
-const SEARCH_NOTE = 'Find lobbyists or organizations using all or part of a name';
-const PRINCIPALS_INTRO = 'Browse organizations named in lobbying registrations or spending reports';
 
 export type PrincipalDirectoryRow = LobbyingPrincipalsPage['principals'][number] & {
   spending_year?: number | null;
@@ -139,25 +123,24 @@ type Page = LobbyingLobbyistsPage | PrincipalsPage;
 
 /** A principal row's figure for the selected year: that year's own filed total, or
  * why there is none. Never the latest total, never zero for a missing row. */
-export function principalSpending(row: PrincipalDirectoryRow, year: string | number): string {
+export function principalSpending(row: PrincipalDirectoryRow, _year: string | number): string {
   if (row.spending_state === 'ambiguous') return 'Amount unavailable: more than one report';
   if (row.spending_state === 'reported')
     return formatMoney(row.total_spent ?? null) ?? 'Amount not given';
-  if (!row.linkable) return LOBBYING_NO_SPENDING_PAGE;
-  if (row.spending_state === 'not_reported') return `No spending report for ${year}`;
+  if (!row.linkable || row.spending_state === 'not_reported') return 'No spending report available';
   return 'Amount unavailable';
 }
 
 type LobbyistRow = LobbyingLobbyistsPage['lobbyists'][number];
 
 /** A lobbyist row's contributions recorded in the selected year (Round 30): the
- * matched sum, "No matching donation records", or "Amount unavailable" when any
+ * matched sum, "No matching contribution records", or "Amount unavailable" when any
  * matching amount is missing or unresolved, which withholds the whole sum. */
 export function lobbyistContributions(row: LobbyistRow): string {
   if (row.donation_state === 'reported') {
     return formatMoney(row.donation_amount ?? null) ?? 'Amount unavailable';
   }
-  if (row.donation_state === 'no_records') return 'No matching donation records';
+  if (row.donation_state === 'no_records') return 'No matching contribution records';
   return 'Amount unavailable';
 }
 
@@ -175,10 +158,16 @@ const FAILED: Record<DirectoryTab, string> = {
   principals:
     'We couldn’t load the Board’s principal records. This says nothing about what was reported or registered.',
 };
-const EMPTY: Record<DirectoryTab, string> = {
-  lobbyists: 'No lobbyist is listed under that spelling in these records',
-  principals: 'No principal matches that spelling in the Board’s files',
+const LABELS: Record<DirectoryTab, string> = {
+  lobbyists: 'Lobbyists',
+  principals: 'Who lobbyists represent',
 };
+const DEFINITIONS: Record<DirectoryTab, string> = {
+  lobbyists: 'People registered to influence government decisions on behalf of others',
+  principals: 'Individuals, companies, associations, unions, nonprofits and public bodies',
+};
+const NO_MATCH_HINT =
+  'Names appear as filed and spellings can vary. Try a shorter part of the name.';
 
 function Chevron({ next = false }: { next?: boolean }) {
   return (
@@ -194,14 +183,337 @@ function Chevron({ next = false }: { next?: boolean }) {
   );
 }
 
-/**
- * Lobbying (Lobbying drawing, Rounds 30 to 35): the Board's registered lobbyists
- * and the principals named in its lobbying files, in 2 tabs, searched and paged on
- * the server. Each tab has its own Year and Sort; the lobbyists' column is the
- * contributions matched to each registration in the selected completed year, the
- * principals' that year's own filed spending. Tab, name, page, year and sort live in
- * the address.
- */
+type Choices = { year: string; sort: string; page: number };
+
+/** Each group owns its answer and its labels, even when the other group fails. */
+function DirectoryGroup({
+  tab,
+  read,
+  choices,
+  query,
+  here,
+  preview,
+  search,
+  latestYear,
+  onChange,
+  viewAllHref,
+}: {
+  tab: DirectoryTab;
+  read: Read<Page>;
+  choices: Choices;
+  query: string;
+  here: string;
+  preview: boolean;
+  search: boolean;
+  latestYear: number | null;
+  onChange: (next: Partial<Choices>) => void;
+  viewAllHref: string;
+}) {
+  const { year, sort, page } = choices;
+  const reported = read.data && read.data.state !== 'unavailable' ? read.data : null;
+  const total = reported?.total ?? null;
+  const rows = isLobbyists(reported)
+    ? reported.lobbyists
+    : isPrincipals(reported)
+      ? reported.principals
+      : [];
+  const rowCount = Math.min(rows.length, preview ? 5 : PAGE_SIZE);
+  const servedParams = new URLSearchParams(read.dataPath?.split('?')[1]);
+  const shownQuery = reported?.q ?? servedParams.get('q') ?? '';
+  const answerYear = isLobbyists(reported)
+    ? reported.donations?.year
+    : isPrincipals(reported)
+      ? reported.year
+      : null;
+  const listYear = answerYear != null ? String(answerYear) : (servedParams.get('year') ?? '');
+  const years = isLobbyists(reported)
+    ? (reported.donations?.available_years ?? [])
+    : isPrincipals(reported)
+      ? (reported.years ?? [])
+      : [];
+  const yearOptions = [...new Set([...(year ? [Number(year)] : []), ...years])].sort(
+    (a, b) => b - a,
+  );
+  const defaultYear = tab === 'lobbyists' ? String(years[0] ?? '') : String(latestYear ?? '');
+  const shownYear = year || defaultYear || listYear;
+  const pages = pageCount(total);
+  const shownPage = reported ? Math.floor((reported.offset ?? 0) / PAGE_SIZE) + 1 : page;
+  const blocked = read.loading || read.pending || read.updating || read.failed || read.notFound;
+  const empty = reported !== null && total === 0 && !blocked;
+  const filtered = (year !== '' && year !== defaultYear) || sort !== SORTS[tab][0].value;
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (
+      !preview &&
+      reported &&
+      !blocked &&
+      reported.offset === (page - 1) * PAGE_SIZE &&
+      page > pages
+    )
+      onChange({ page: pages });
+  }, [reported, blocked, page, pages, preview, onChange]);
+  function goPage(next: number) {
+    if (blocked) return;
+    onChange({ page: next });
+    list.current?.focus({ preventScroll: true });
+    if (list.current)
+      window.scrollTo({
+        top: Math.max(0, list.current.getBoundingClientRect().top + window.scrollY - 20),
+        behavior: 'smooth',
+      });
+  }
+  return (
+    <section aria-label={LABELS[tab]} className="lb-dir">
+      {preview && (
+        <h3 className="lb-group-title">
+          {LABELS[tab]}
+          {total !== null &&
+            !read.failed &&
+            !read.notFound &&
+            !read.updating &&
+            !read.loading &&
+            ` (${COUNT(total)})`}
+        </h3>
+      )}
+      {!search && <p className="lb-lane">{DEFINITIONS[tab]}</p>}
+      {tab === 'principals' && <p className="lb-lane">{principalsNote(null, null)}</p>}
+      {read.loading && <LoadingRows label={`Loading ${LABELS[tab].toLowerCase()}`} />}
+      {(read.failed || read.notFound) && (
+        <div className="lb-notice">
+          <Refused onRetry={read.retry} retrying={read.pending}>
+            {reported
+              ? 'We couldn’t update these results. Previous results are shown.'
+              : FAILED[tab]}
+          </Refused>
+        </div>
+      )}
+      {read.updating && (
+        <div className="lb-notice">
+          <Updating />
+        </div>
+      )}
+      {!empty && reported && (
+        <div className="lb-controls">
+          {yearOptions.length > 0 && (
+            <Dropdown
+              name={tab === 'lobbyists' ? 'Contribution year' : 'Spending year'}
+              value={shownYear}
+              options={yearOptions.map((value) => ({ value: String(value), label: String(value) }))}
+              onChange={(next) => onChange({ year: next === defaultYear ? '' : next, page: 1 })}
+            />
+          )}
+          <Dropdown
+            name="Sort by"
+            value={sort}
+            options={SORTS[tab]}
+            onChange={(next) => onChange({ sort: next, page: 1 })}
+          />
+          {filtered && (
+            <ClearAll onClick={() => onChange({ year: '', sort: SORTS[tab][0].value, page: 1 })} />
+          )}
+        </div>
+      )}
+      <div
+        ref={list}
+        tabIndex={-1}
+        className={`lb-results${empty && search ? ' lb-results-empty' : ''}`}
+      >
+        {reported && (
+          <>
+            {!preview && !empty && total !== null && total > 0 && (
+              <div aria-live="polite" className="lb-count f-num">
+                {rowCount
+                  ? `Showing ${COUNT((shownPage - 1) * PAGE_SIZE + 1)}–${COUNT((shownPage - 1) * PAGE_SIZE + rowCount)} of ${COUNT(total)}${!search ? (tab === 'lobbyists' ? ' registered lobbyists' : ' represented people and organizations') : ''}`
+                  : 'No matches'}
+                {shownQuery ? ` matching “${shownQuery}”` : query ? ' for all names' : ''}
+              </div>
+            )}
+            {preview && shownQuery !== query && (read.failed || read.notFound || read.updating) && (
+              <p className="lb-count" role="status">
+                {shownQuery
+                  ? `Previous results matching “${shownQuery}”`
+                  : 'Previous results for all names'}
+              </p>
+            )}
+            {empty ? (
+              search ? (
+                <p className="lb-empty-group" role="status">
+                  No matches
+                </p>
+              ) : (
+                <Empty title="No matches" next={NO_MATCH_HINT} />
+              )
+            ) : (
+              rowCount > 0 && (
+                <>
+                  <div role="table" aria-label={LABELS[tab]} className="lb-table">
+                    <div role="row" className="lb-tr lb-head">
+                      <span role="columnheader">Name</span>
+                      <span role="columnheader">
+                        {tab === 'lobbyists' ? 'Registration and clients' : 'State entity ID'}
+                      </span>
+                      <span role="columnheader" className="lb-third">
+                        {tab === 'lobbyists'
+                          ? 'Campaign contributions in'
+                          : 'Reported lobbying spending in'}
+                        {listYear && (
+                          <>
+                            {' '}
+                            <span className="lb-head-year f-num">{listYear}</span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    {isLobbyists(reported) &&
+                      reported.lobbyists.slice(0, preview ? 5 : PAGE_SIZE).map((row) => {
+                        const figure = lobbyistContributions(row);
+                        const held = row.donation_state === 'reported';
+                        return (
+                          <div role="row" key={row.registration_number} className="lb-tr">
+                            <span role="cell" className="lb-name f-marked">
+                              <RecordMark kind="person" />
+                              {isBuilt('lobbyist') ? (
+                                <Link
+                                  to={`${withFrom(
+                                    hrefFor(
+                                      'lobbyist',
+                                      { id: row.registration_number },
+                                      { year: listYear || null },
+                                    ),
+                                    here,
+                                  )}#contributions`}
+                                  className="lb-name-link"
+                                >
+                                  {row.name}
+                                </Link>
+                              ) : (
+                                <span>{row.name}</span>
+                              )}
+                            </span>
+                            <span role="cell" className="lb-second f-num">
+                              Registration number{'\u00a0'}
+                              {row.registration_number}
+                              <span className="lb-second-b">
+                                {lobbyingPrincipalCount(row.principal_count)}
+                              </span>
+                            </span>
+                            <span
+                              role="cell"
+                              className={`lb-third lb-figure ${held ? 'lb-strong' : 'lb-missing'} f-num`}
+                            >
+                              {listYear && (
+                                <span className="lb-phone-only">
+                                  Campaign contributions in {listYear}:{' '}
+                                </span>
+                              )}
+                              <span className="lb-figure-value">{figure}</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    {isPrincipals(reported) &&
+                      reported.principals.slice(0, preview ? 5 : PAGE_SIZE).map((row) => {
+                        const rowYear = row.spending_year ?? listYear;
+                        const href =
+                          row.linkable && isBuilt('principal')
+                            ? withFrom(
+                                hrefFor(
+                                  'principal',
+                                  { id: String(row.entity_id) },
+                                  {
+                                    year: rowYear ? String(rowYear) : null,
+                                  },
+                                ),
+                                here,
+                              )
+                            : null;
+                        return (
+                          <div role="row" key={row.entity_id} className="lb-tr">
+                            <span role="cell" className="lb-name f-marked">
+                              <RecordMark kind="organization" />
+                              {href ? (
+                                <Link to={href} className="lb-name-link">
+                                  {row.name}
+                                </Link>
+                              ) : (
+                                <span>{row.name}</span>
+                              )}
+                            </span>
+                            <span role="cell" className="lb-second f-num">
+                              <span className="lb-phone-only">State entity ID{'\u00a0'}</span>
+                              {row.entity_id}
+                            </span>
+                            <span
+                              role="cell"
+                              className={`lb-third lb-figure ${row.spending_state === 'reported' ? 'lb-strong' : 'lb-missing'} f-num`}
+                            >
+                              {rowYear && (
+                                <span className="lb-phone-only">
+                                  Reported lobbying spending in {rowYear}:{' '}
+                                </span>
+                              )}
+                              <span className="lb-figure-value">
+                                {principalSpending(row, rowYear)}
+                              </span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {!preview && pages > 1 && (
+                    <nav aria-label="Pages" className="lb-pager">
+                      <button
+                        type="button"
+                        className="f-btn f-btn-secondary lb-page-btn"
+                        disabled={blocked || shownPage <= 1}
+                        onClick={() => goPage(shownPage - 1)}
+                      >
+                        <Chevron />
+                        Previous
+                      </button>
+                      <span aria-live="polite" className="lb-page-line f-num">
+                        Page {COUNT(Math.min(shownPage, pages))} of {COUNT(pages)}
+                      </span>
+                      <button
+                        type="button"
+                        className="f-btn f-btn-secondary lb-page-btn"
+                        disabled={blocked || shownPage >= pages}
+                        onClick={() => goPage(shownPage + 1)}
+                      >
+                        Next
+                        <Chevron next />
+                      </button>
+                    </nav>
+                  )}
+                  {preview && total !== null && total > 5 && (
+                    <Link
+                      to={viewAllHref}
+                      className="lb-view-all"
+                      aria-disabled={blocked || undefined}
+                      onClick={(event) => {
+                        if (blocked) event.preventDefault();
+                      }}
+                    >
+                      {tab === 'lobbyists'
+                        ? 'View all matching '
+                        : 'View all matching represented people and '}
+                      <span className="lb-view-all-end">
+                        {tab === 'lobbyists' ? 'lobbyists' : 'organizations'}
+                        <Arrow />
+                      </span>
+                    </Link>
+                  )}
+                </>
+              )
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function Lobbying(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
@@ -211,158 +523,191 @@ export function Lobbying(_props: { match: RouteMatch }) {
     page: '1',
     year: '',
     sort: '',
+    view: '',
+    lobbyistsYear: '',
+    lobbyistsSort: '',
+    lobbyistsPage: '1',
+    principalsYear: '',
+    principalsSort: '',
+    principalsPage: '1',
+    lobbyistsSearchYear: '',
+    lobbyistsSearchSort: '',
+    lobbyistsSearchPage: '1',
+    principalsSearchYear: '',
+    principalsSearchSort: '',
+    principalsSearchPage: '1',
   });
   const tab = tabFromParam(address.tab);
   const query = address.q.trim().slice(0, MAX_QUERY).trimEnd();
-  const page = pageFromParam(address.page);
-  const year = yearFromParam(tab, address.year);
-  const sort = sortFromParam(tab, address.sort);
-  const defaultSort = SORTS[tab][0].value;
-
-  // Each tab keeps its own Year and Sort (Round 30): the other tab's last choice
-  // returns to the address when the reader comes back to it.
-  const remembered = useRef<Record<DirectoryTab, { year: string; sort: string }>>({
-    lobbyists: { year: '', sort: '' },
-    principals: { year: '', sort: '' },
-  });
-  remembered.current[tab] = { year, sort: sort === defaultSort ? '' : sort };
-
-  const [typed, setTyped, applySearch] = useLiveSearch(
-    query,
-    here,
-    (q) => setAddress({ q, page: '1' }),
-    (value) => value.trim().slice(0, MAX_QUERY).trimEnd(),
-  );
-
-  const read = useRead<Page>(listPath(tab, query, page, year, sort), {
+  const search = query !== '';
+  const expanded =
+    search && (address.view === 'lobbyists' || address.view === 'principals') ? address.view : null;
+  function browseChoices(kind: DirectoryTab): Choices {
+    return {
+      year: yearFromParam(kind, kind === tab ? address.year : address[`${kind}Year`]),
+      sort: sortFromParam(kind, kind === tab ? address.sort : address[`${kind}Sort`]),
+      page: pageFromParam(kind === tab ? address.page : address[`${kind}Page`]),
+    };
+  }
+  function choices(kind: DirectoryTab): Choices {
+    const browse = browseChoices(kind);
+    if (!search) return browse;
+    // An explicit "default" keeps a cleared search filter separate from browse choices.
+    const rawYear = address[`${kind}SearchYear`];
+    const rawSort = address[`${kind}SearchSort`];
+    return {
+      year: rawYear === 'default' ? '' : rawYear ? yearFromParam(kind, rawYear) : browse.year,
+      sort: rawSort ? sortFromParam(kind, rawSort) : browse.sort,
+      page: expanded === kind ? pageFromParam(address[`${kind}SearchPage`]) : 1,
+    };
+  }
+  const lobbyistChoices = choices('lobbyists');
+  const principalChoices = choices('principals');
+  const resultsHeading = useRef<HTMLHeadingElement>(null);
+  const previousView = useRef(expanded);
+  useEffect(() => {
+    if (previousView.current !== expanded && search) resultsHeading.current?.focus();
+    previousView.current = expanded;
+  }, [expanded, search]);
+  const readOptions = {
     keepPrevious: true,
-    acceptData: (data) => data.state !== 'unavailable',
-  });
-  // The tab counts are each whole directory; the open tab's own read already holds
-  // its count when nothing is searched.
+    acceptData: (data: Page) => data.state !== 'unavailable',
+  };
+  const lobbyists = useRead<Page>(
+    search || tab === 'lobbyists'
+      ? listPath(
+          'lobbyists',
+          query,
+          lobbyistChoices.page,
+          lobbyistChoices.year,
+          lobbyistChoices.sort,
+        )
+      : null,
+    readOptions,
+  );
+  const principals = useRead<Page>(
+    search || tab === 'principals'
+      ? listPath(
+          'principals',
+          query,
+          principalChoices.page,
+          principalChoices.year,
+          principalChoices.sort,
+        )
+      : null,
+    readOptions,
+  );
   const lobbyistCount = useRead<LobbyingLobbyistsPage>(
-    tab === 'lobbyists' && !query ? null : countPath('lobbyists'),
+    !search && tab !== 'lobbyists' ? countPath('lobbyists') : null,
   );
   const principalCount = useRead<LobbyingPrincipalsPage>(
-    tab === 'principals' && !query ? null : countPath('principals'),
+    !search && tab !== 'principals' ? countPath('principals') : null,
   );
   const summary = useRead<LobbyingSummary>('lobbying/summary');
-
-  // A kept answer from the other tab is never drawn under this tab.
-  const own =
-    tab === 'lobbyists'
-      ? isLobbyists(read.data)
-        ? read.data
-        : null
-      : isPrincipals(read.data)
-        ? read.data
-        : null;
-  const reported = own !== null && own.state !== 'unavailable' ? own : null;
-  const unavailable = own !== null && own.state === 'unavailable';
-  const total = reported?.total ?? null;
-  const pages = pageCount(total);
-  const shownQuery =
-    reported?.q ?? new URLSearchParams(read.dataPath?.split('?')[1]).get('q') ?? '';
-
-  // A page past the end (a stale link, or a search that now matches fewer) opens the
-  // last page that exists rather than an empty list.
-  useEffect(() => {
-    const current = reported?.offset === (page - 1) * PAGE_SIZE;
-    if (current && !read.updating && !read.failed && total !== null && page > pages) {
-      setAddress({ page: String(pages) });
-    }
-  }, [reported, read.updating, read.failed, total, page, pages, setAddress]);
-
-  function wholeCount(kind: DirectoryTab): string | null {
-    const served =
-      kind === tab && !query && !shownQuery
-        ? (reported?.total ?? null)
-        : kind === 'lobbyists'
-          ? lobbyistCount.data?.state === 'reported'
-            ? lobbyistCount.data.total
-            : null
-          : principalCount.data?.state === 'reported'
-            ? principalCount.data.total
-            : null;
-    return typeof served === 'number' ? COUNT(served) : null;
+  function changeQuery(q: string) {
+    setAddress(
+      {
+        q,
+        view: '',
+        lobbyistsSearchPage: '1',
+        principalsSearchPage: '1',
+        ...(!q
+          ? {
+              lobbyistsSearchYear: '',
+              lobbyistsSearchSort: '',
+              principalsSearchYear: '',
+              principalsSearchSort: '',
+            }
+          : {}),
+      },
+      { replace: Boolean(query) === Boolean(q) },
+    );
   }
-
-  const list = useRef<HTMLDivElement>(null);
-  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
-  function goPage(next: number) {
-    if (pagingUnavailable) return;
-    setAddress({ page: String(next) });
-    const element = list.current;
-    if (!element) return;
-    const top = element.getBoundingClientRect().top + window.scrollY - 20;
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    element.focus({ preventScroll: true });
-  }
-
+  const [typed, setTyped, applySearch] = useLiveSearch(query, here, changeQuery, (value) =>
+    value.trim().slice(0, MAX_QUERY).trimEnd(),
+  );
+  const searchBusy =
+    search &&
+    typed.trim() === query &&
+    [lobbyists, principals].some((read) => read.loading || read.updating || read.pending);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    applySearch();
+    if (!searchBusy) applySearch();
   }
-
   function openTab(next: DirectoryTab) {
-    const kept = remembered.current[next];
-    setAddress({ tab: next, page: '1', year: kept.year, sort: kept.sort });
+    if (search) {
+      setAddress({ view: next }, { replace: false });
+      return;
+    }
+    const current = browseChoices(tab);
+    const kept = browseChoices(next);
+    setAddress(
+      {
+        tab: next,
+        year: kept.year,
+        sort: kept.sort === SORTS[next][0].value ? '' : kept.sort,
+        page: String(kept.page),
+        [`${tab}Year`]: current.year,
+        [`${tab}Sort`]: current.sort === SORTS[tab][0].value ? '' : current.sort,
+        [`${tab}Page`]: String(current.page),
+      },
+      { replace: false },
+    );
   }
-
-  const freshFailure = (read.failed && own === null) || (unavailable && !read.updating);
-  const retainedFailure = read.failed && reported !== null;
-  const copiedAt = reported?.copied_at ?? summary.data?.copied_at ?? null;
-  const latestYear =
-    (isPrincipals(reported) ? reported.latest_reported_year : null) ??
-    summary.data?.latest_reported_year ??
-    null;
-  // The contribution file's own years and copy date ride on the lobbyist list read,
-  // including the count read made while the other tab is open.
-  const donations: LobbyingDirectoryDonations | null =
-    (isLobbyists(reported) ? reported.donations : null) ??
-    (isLobbyists(read.data) ? read.data.donations : null) ??
-    lobbyistCount.data?.donations ??
-    null;
-  const spendingYear = isPrincipals(reported) ? (reported.year ?? null) : null;
-  const donationYear = isLobbyists(reported) ? (reported.donations?.year ?? null) : null;
-  const shownYear =
-    tab === 'principals'
-      ? year || (spendingYear === null ? '' : String(spendingYear))
-      : year || (donationYear === null ? '' : String(donationYear));
-  // The year the rows on screen belong to: the shown answer's own year, so kept
-  // rows never take a new selection's year while it loads or after it fails. The
-  // address's year stands in only before any answer.
-  const answerYear = tab === 'principals' ? spendingYear : donationYear;
-  const listYear = answerYear !== null ? String(answerYear) : reported ? '' : year;
-  const yearOptions = [
-    ...new Set([
-      ...(year ? [Number(year)] : []),
-      ...(tab === 'principals'
-        ? isPrincipals(reported)
-          ? (reported.years ?? [])
-          : []
-        : (donations?.available_years ?? [])),
-    ]),
-  ].sort((a, b) => b - a);
-  const heldYears = lobbyingHeldYearsNote(summary.data?.first_year ?? null);
-  const rowCount = isLobbyists(reported)
-    ? reported.lobbyists.length
-    : isPrincipals(reported)
-      ? reported.principals.length
-      : 0;
-  // The page the rows on screen belong to: while the next page loads, the
-  // earlier rows keep their own numbers rather than the new page's.
-  const shownPage = reported ? Math.floor((reported.offset ?? 0) / PAGE_SIZE) + 1 : page;
-  const showing =
-    reported && total !== null ? lobbyingShowingLine(tab, shownPage, rowCount, total) : null;
-  // The year the server opens on: the newest completed year with matched
-  // contributions, or the newest spending year. Choosing it leaves the address.
-  const defaultYear =
-    tab === 'lobbyists'
-      ? String(donations?.available_years?.[0] ?? '')
-      : String(summary.data?.latest_reported_year ?? '');
-  const filtered = (year !== '' && year !== defaultYear) || sort !== defaultSort;
-
+  function changeGroup(kind: DirectoryTab, next: Partial<Choices>) {
+    if (search)
+      setAddress({
+        ...(next.year !== undefined ? { [`${kind}SearchYear`]: next.year || 'default' } : {}),
+        ...(next.sort !== undefined ? { [`${kind}SearchSort`]: next.sort } : {}),
+        ...(next.page !== undefined ? { [`${kind}SearchPage`]: String(next.page) } : {}),
+      });
+    else
+      setAddress({
+        ...(next.year !== undefined ? { year: next.year } : {}),
+        ...(next.sort !== undefined
+          ? { sort: next.sort === SORTS[kind][0].value ? '' : next.sort }
+          : {}),
+        ...(next.page !== undefined ? { page: String(next.page) } : {}),
+      });
+  }
+  const reads = { lobbyists, principals };
+  const bothEmpty =
+    search &&
+    [lobbyists, principals].every(
+      (read) =>
+        !read.loading &&
+        !read.updating &&
+        !read.failed &&
+        !read.notFound &&
+        read.data !== null &&
+        read.data.state !== 'unavailable' &&
+        read.data.total === 0,
+    );
+  function count(kind: DirectoryTab) {
+    const read = reads[kind];
+    const data =
+      search || tab === kind
+        ? read.data
+        : kind === 'lobbyists'
+          ? lobbyistCount.data
+          : principalCount.data;
+    return data !== null &&
+      data.state !== 'unavailable' &&
+      (!search || (!read.failed && !read.notFound && !read.updating && !read.loading)) &&
+      data.total != null
+      ? COUNT(data.total)
+      : null;
+  }
+  const copiedAt =
+    lobbyists.data?.copied_at ?? principals.data?.copied_at ?? summary.data?.copied_at;
+  const donations = isLobbyists(lobbyists.data)
+    ? lobbyists.data.donations
+    : lobbyistCount.data?.donations;
+  const allResultsParams = new URLSearchParams(location.search);
+  allResultsParams.delete('view');
+  const allResultsHref = location.pathname + (allResultsParams.size ? `?${allResultsParams}` : '');
+  const groups: DirectoryTab[] =
+    search && !expanded ? ['lobbyists', 'principals'] : [expanded ?? tab];
   return (
     <main id="main" className="f-page">
       <div className="f-content">
@@ -370,305 +715,160 @@ export function Lobbying(_props: { match: RouteMatch }) {
           <h1 tabIndex={-1} className="f-page-title">
             Lobbying
           </h1>
-          <p className="lb-lead">{COPY.intro}</p>
+          <p className="lb-lead">
+            Find Minnesota lobbyists, who they represent, and reported lobbying spending
+          </p>
         </header>
-
         <form role="search" onSubmit={submit} className="lb-search">
-          <label htmlFor="lob-name" className="f-visually-hidden">
-            Search by name
-          </label>
-          <input
-            id="lob-name"
-            type="search"
-            className="f-field lb-field"
-            value={typed}
-            maxLength={MAX_QUERY}
-            autoComplete="off"
-            placeholder="Search by name"
-            onChange={(event) => setTyped(event.target.value)}
-          />
-          <button type="submit" className="f-btn lb-submit">
-            Search
+          <div className="lb-search-field">
+            <label htmlFor="lob-name">Search by name</label>
+            <input
+              id="lob-name"
+              type="search"
+              className="f-field lb-field"
+              value={typed}
+              maxLength={MAX_QUERY}
+              autoComplete="off"
+              placeholder="Full or partial name"
+              onChange={(event) => setTyped(event.target.value)}
+            />
+          </div>
+          <button
+            type="submit"
+            className="f-btn lb-submit"
+            aria-label={searchBusy ? 'Searching' : 'Search'}
+            aria-disabled={searchBusy || undefined}
+            aria-busy={searchBusy || undefined}
+          >
+            <span className="lb-submit-state" aria-hidden="true" data-visible={!searchBusy}>
+              Search
+            </span>
+            <span className="lb-submit-state" aria-hidden="true" data-visible={searchBusy}>
+              <span className="f-spinner" />
+              Searching
+            </span>
           </button>
         </form>
-        <p className="lb-helper">{SEARCH_NOTE}</p>
-
-        <div className="lb-layout">
-          <section aria-label={tab === 'lobbyists' ? 'Lobbyists' : 'Principals'} className="lb-dir">
+        {search && (
+          <div className="lb-search-heading">
+            {expanded && (
+              <div className="lb-back">
+                <BackLink to={allResultsHref} name="all results" />
+              </div>
+            )}
+            <div className="lb-heading-line">
+              <h2 ref={resultsHeading} tabIndex={-1}>
+                Results for “{query}”
+              </h2>
+              <button
+                type="button"
+                className="f-btn f-btn-secondary"
+                onClick={() => {
+                  changeQuery('');
+                  document.getElementById('lob-name')?.focus();
+                }}
+              >
+                Clear search
+              </button>
+            </div>
+          </div>
+        )}
+        <div className={`lb-layout${!search || expanded ? ' lb-full-layout' : ''}`}>
+          {(!search || expanded) && (
             <div className="lb-tabs">
               <Tabs
-                label="Directory"
-                value={tab}
-                tabs={[
-                  {
-                    value: 'lobbyists',
-                    label: 'Lobbyists',
-                    count: wholeCount('lobbyists'),
-                  },
-                  {
-                    value: 'principals',
-                    label: 'Principals',
-                    count: wholeCount('principals'),
-                  },
-                ]}
+                label={search ? 'Matching records' : 'Directory'}
+                value={expanded ?? tab}
+                tabs={(['lobbyists', 'principals'] as const).map((value) => ({
+                  value,
+                  label: LABELS[value],
+                  count: count(value),
+                }))}
                 onChange={openTab}
               />
             </div>
-            <p className="lb-lane">
-              {tab === 'lobbyists' ? COPY.lobbyists.intro : PRINCIPALS_INTRO}
-            </p>
-            <div className="lb-controls">
-              {yearOptions.length > 0 && (
-                <Dropdown
-                  name="Year"
-                  value={shownYear}
-                  options={yearOptions.map((option) => ({
-                    value: String(option),
-                    label: String(option),
-                  }))}
-                  onChange={(next) =>
-                    setAddress({
-                      year: next === defaultYear ? '' : next,
-                      page: '1',
-                    })
-                  }
-                />
-              )}
-              <Dropdown
-                name="Sort by"
-                value={sort}
-                options={SORTS[tab]}
-                onChange={(next) =>
-                  setAddress({
-                    sort: next === defaultSort ? '' : next,
-                    page: '1',
-                  })
-                }
+          )}
+          {bothEmpty ? (
+            <Empty title={`No matches for “${query}”`} next={NO_MATCH_HINT} />
+          ) : (
+            groups.map((kind) => (
+              <DirectoryGroup
+                key={kind}
+                tab={kind}
+                read={reads[kind]}
+                choices={kind === 'lobbyists' ? lobbyistChoices : principalChoices}
+                query={query}
+                here={here}
+                preview={search && !expanded}
+                search={search}
+                latestYear={summary.data?.latest_reported_year ?? null}
+                onChange={(next) => changeGroup(kind, next)}
+                viewAllHref={(() => {
+                  const params = new URLSearchParams(location.search);
+                  params.set('view', kind);
+                  return `${location.pathname}?${params}`;
+                })()}
               />
-              {filtered && (
-                <ClearAll onClick={() => setAddress({ year: '', sort: '', page: '1' })} />
-              )}
-            </div>
-
-            <div ref={list} tabIndex={-1} className="lb-results">
-              {read.loading && (
-                <LoadingRows
-                  label={tab === 'lobbyists' ? COPY.lobbyists.loading : COPY.principals.loading}
-                />
-              )}
-              {!read.loading && own === null && read.updating && (
-                <LoadingRows
-                  label={tab === 'lobbyists' ? COPY.lobbyists.loading : COPY.principals.loading}
-                />
-              )}
-              {freshFailure && (
-                <Refused onRetry={read.retry} retrying={read.pending}>
-                  {FAILED[tab]}
-                </Refused>
-              )}
-              {reported && (
-                <>
-                  {read.updating && (
-                    <div className="lb-notice">
-                      <Updating />
-                    </div>
-                  )}
-                  {retainedFailure && (
-                    <div className="lb-notice">
-                      <Refused onRetry={read.retry} retrying={read.pending}>
-                        We couldn’t update these results. Previous results are shown.
-                      </Refused>
-                    </div>
-                  )}
-                  <div aria-live="polite" className="lb-count f-num">
-                    {showing}
-                    {shownQuery && ` matching “${shownQuery}”`}
-                  </div>
-                  {rowCount === 0 ? (
-                    <Empty title={EMPTY[tab]} next={COPY.noMatchWhy} />
-                  ) : (
-                    <>
-                      <div
-                        role="table"
-                        aria-label={tab === 'lobbyists' ? 'Lobbyists' : 'Principals'}
-                        className="lb-table"
-                      >
-                        <div role="row" className="lb-tr lb-head">
-                          <span role="columnheader">NAME</span>
-                          <span role="columnheader">
-                            {tab === 'lobbyists' ? 'REGISTRATION AND CLIENTS' : 'ENTITY ID'}
-                          </span>
-                          <span role="columnheader" className="lb-third">
-                            {tab === 'lobbyists'
-                              ? 'CONTRIBUTIONS RECORDED IN'
-                              : 'REPORTED SPENDING'}
-                            {listYear && (
-                              <>
-                                {' '}
-                                <span className="lb-head-year f-num">{listYear}</span>
-                              </>
-                            )}
-                          </span>
-                        </div>
-                        {isLobbyists(reported) &&
-                          reported.lobbyists.map((row) => {
-                            const figure = lobbyistContributions(row);
-                            const held = row.donation_state === 'reported';
-                            return (
-                              <div role="row" key={row.registration_number} className="lb-tr">
-                                <span role="cell" className="lb-name f-marked">
-                                  <RecordMark kind="person" />
-                                  {isBuilt('lobbyist') ? (
-                                    <Link
-                                      to={`${withFrom(
-                                        hrefFor(
-                                          'lobbyist',
-                                          { id: row.registration_number },
-                                          { year: listYear || null },
-                                        ),
-                                        here,
-                                      )}#contributions`}
-                                      className="lb-name-link"
-                                    >
-                                      {row.name}
-                                    </Link>
-                                  ) : (
-                                    <span>{row.name}</span>
-                                  )}
-                                </span>
-                                <span role="cell" className="lb-second f-num">
-                                  Registration {row.registration_number}
-                                  <span className="lb-second-b">
-                                    {lobbyingPrincipalCount(row.principal_count)}
-                                  </span>
-                                </span>
-                                <span
-                                  role="cell"
-                                  className={`lb-third lb-figure ${held ? 'lb-strong' : 'lb-missing'} f-num`}
-                                >
-                                  {listYear && (
-                                    <span className="lb-phone-only">
-                                      Contributions recorded in {listYear}:{' '}
-                                    </span>
-                                  )}
-                                  <span className="lb-figure-value">{figure}</span>
-                                </span>
-                              </div>
-                            );
-                          })}
-                        {isPrincipals(reported) &&
-                          reported.principals.map((row) => {
-                            const rowYear = row.spending_year ?? spendingYear ?? listYear;
-                            const href =
-                              row.linkable && isBuilt('principal')
-                                ? withFrom(
-                                    hrefFor(
-                                      'principal',
-                                      { id: String(row.entity_id) },
-                                      {
-                                        year: rowYear ? String(rowYear) : null,
-                                      },
-                                    ),
-                                    here,
-                                  )
-                                : null;
-                            return (
-                              <div role="row" key={row.entity_id} className="lb-tr">
-                                <span role="cell" className="lb-name f-marked">
-                                  <RecordMark kind="organization" />
-                                  {href ? (
-                                    <Link to={href} className="lb-name-link">
-                                      {row.name}
-                                    </Link>
-                                  ) : (
-                                    <span>{row.name}</span>
-                                  )}
-                                </span>
-                                <span role="cell" className="lb-second f-num">
-                                  Entity ID {row.entity_id}
-                                </span>
-                                <span
-                                  role="cell"
-                                  className={`lb-third lb-figure ${row.spending_state === 'reported' ? 'lb-strong' : 'lb-missing'} f-num`}
-                                >
-                                  {/* "No spending report for {year}" names its year itself. */}
-                                  {rowYear &&
-                                    !(row.spending_state === 'not_reported' && row.linkable) && (
-                                      <span className="lb-phone-only">
-                                        Reported spending {rowYear}:{' '}
-                                      </span>
-                                    )}
-                                  <span className="lb-figure-value">
-                                    {principalSpending(row, rowYear)}
-                                  </span>
-                                </span>
-                              </div>
-                            );
-                          })}
-                      </div>
-                      <p className="lb-list-note">
-                        {tab === 'lobbyists'
-                          ? LOBBYISTS_NOTE
-                          : principalsNote(copiedAt, latestYear)}
-                      </p>
-                      {pages > 1 && (
-                        <nav aria-label="Pages" className="lb-pager">
-                          <button
-                            type="button"
-                            className="f-btn f-btn-secondary lb-page-btn"
-                            aria-disabled={pagingUnavailable || shownPage <= 1 || undefined}
-                            onClick={() => shownPage > 1 && goPage(shownPage - 1)}
-                          >
-                            <Chevron />
-                            Previous
-                          </button>
-                          <span aria-live="polite" className="lb-page-line f-num">
-                            Page {COUNT(Math.min(shownPage, pages))} of {COUNT(pages)}
-                          </span>
-                          <button
-                            type="button"
-                            className="f-btn f-btn-secondary lb-page-btn"
-                            aria-disabled={pagingUnavailable || shownPage >= pages || undefined}
-                            onClick={() => shownPage < pages && goPage(shownPage + 1)}
-                          >
-                            Next
-                            <Chevron next />
-                          </button>
-                        </nav>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
+            ))
+          )}
         </div>
-
         <section aria-labelledby="lb-about" className="lb-about">
           <h2 id="lb-about">About these records</h2>
           <ul>
-            <li>{COPY.currentOnly}</li>
-            <li>{COPY.annual}</li>
-            <li>{COPY.principals.definition}</li>
-            {heldYears && <li>{heldYears}</li>}
-            <li>{GIVING_NOTE}</li>
+            {(search || tab === 'lobbyists') && (
+              <li>
+                Lobbyists and their clients reflect the registration-list copy date, not the
+                selected contribution year. Past client relationships are not shown.
+              </li>
+            )}
+            {(search || tab === 'principals') && (
+              <>
+                <li>Names come from registrations and spending reports across years.</li>
+                <li>
+                  Lobbying spending is reported by calendar year.
+                  {summary.data?.first_year != null
+                    ? ` These spending records begin in ${summary.data.first_year}.`
+                    : ''}
+                </li>
+              </>
+            )}
+            {(search || tab === 'lobbyists') && (
+              <>
+                <li>
+                  Contribution totals use records matched to each lobbyist’s registration and
+                  include donated goods or services. They are not a complete record of giving.
+                </li>
+                <li>
+                  A missing or unresolved matching amount means no contribution total is shown.
+                </li>
+              </>
+            )}
+            {(search || tab === 'principals') && (
+              <li>
+                In state spending records, a “principal” is a person or organization that funds
+                lobbying and must report its spending under Minnesota law.
+              </li>
+            )}
           </ul>
         </section>
       </div>
       <SourcesAndUpdates>
+        <p className="f-sources-line">
+          State entity IDs and lobbyist registration numbers come from the Minnesota Campaign
+          Finance and Public Disclosure Board
+        </p>
         {copiedAt && (
-          <p className="f-sources-line f-num">
-            Lobbying records copied {centralDateLabel(copiedAt)}.
+          <p className="f-sources-line lb-sources-next f-num">
+            Lobbying records copied: {centralDateLabel(copiedAt)}
           </p>
         )}
         {donations?.copied_at && (
           <p className="f-sources-line lb-sources-next f-num">
-            Campaign contribution file copied {centralDateLabel(donations.copied_at)}.
+            Campaign contribution file copied: {centralDateLabel(donations.copied_at)}
           </p>
         )}
         <p className="f-sources-line lb-sources-gap">
-          These records come from the Minnesota Campaign Finance and Public Disclosure Board. The
-          copy date is when Alethical obtained the source, not the end date of every filing.
+          Copy dates show when Alethical obtained the files, not the reporting periods they cover
         </p>
         <OfficialLink href={LOBBYING_SOURCE_URL}>{COPY.sourceLabel}</OfficialLink>
       </SourcesAndUpdates>

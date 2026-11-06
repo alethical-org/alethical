@@ -114,13 +114,13 @@ export function nodeSub(node: GraphNode): string {
     case 'organization':
       return `Confirmed organization${printed}`;
     case 'committee':
-      return `${registerKind ? `${registerKind} · ` : ''}Registration ${node.record_id}`;
+      return `${registerKind ? `${registerKind} · ` : ''}Registration number ${node.record_id}`;
     case 'file':
       return node.saved_at ? `Saved ${day(node.saved_at)}` : '';
     case 'lobbyist':
-      return `Lobbyist registration ${node.record_id}`;
+      return `Lobbyist registration number ${node.record_id}`;
     case 'principal':
-      return `Entity ID ${node.record_id}`;
+      return `State entity ID ${node.record_id}`;
     case 'printed_name':
       return node.role === 'donor'
         ? 'Printed donor name'

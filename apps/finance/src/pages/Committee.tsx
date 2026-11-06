@@ -144,7 +144,7 @@ function evidenceFor(
             },
           ]
         : []),
-      { label: 'Record number', value: String(recordNumber) },
+      { label: 'Record number in source file', value: String(recordNumber) },
     ],
     quote: 'No saved source excerpt is held for this record',
     quoteLabel: 'SOURCE TEXT',
@@ -438,7 +438,8 @@ export function Committee({ match }: { match: RouteMatch }) {
     );
   }
 
-  const name = record.register.name ?? record.committee_name ?? `Registration ${registration}`;
+  const name =
+    record.register.name ?? record.committee_name ?? `Registration number ${registration}`;
   const kind = committeeEyebrow(registerKind, record.entity_sub_type);
   const ballot = isBallotQuestionFiler(record.entity_sub_type);
 
@@ -557,7 +558,7 @@ export function Committee({ match }: { match: RouteMatch }) {
         <header className="cmt-header">
           <div className="cmt-eyebrow">
             {kind && <span className="cmt-kind">{kind}</span>}
-            <span className="cmt-reg">Registration {registration}</span>
+            <span className="cmt-reg">Registration number {registration}</span>
             <span className="cmt-reg-status">{status}</span>
           </div>
           <h1 tabIndex={-1} className="f-page-title cmt-title">

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearReadCache } from '../api/read';
 import { Organization } from '../pages/Organization';
 import {
+  confirmationEvidence,
   EMPTY_SECTION,
   eligibleTotal,
   filingYearsLabel,
@@ -384,7 +385,7 @@ describe('Organization profile', () => {
     // Lobbying: the principal with its latest reported year and lobbyists as listed.
     const lob = rowsOf('Lobbying');
     expect(lob).toHaveLength(1);
-    expect(lob[0]).toContain('Principal · Entity ID 8450');
+    expect(lob[0]).toContain('Principal · State entity ID 8450');
     expect(lob[0]).toContain(
       'Reported spending 2025 · 2 lobbyists listed: Example, Jordan A; Example, Wen',
     );
@@ -427,7 +428,7 @@ describe('Organization profile', () => {
     expect(rel).toHaveLength(1);
     expect(rel[0]).toContain('Example Action PAC');
     expect(rel[0]).toContain(
-      'Political committee · Registration 30004 · Supporting association named on the committee’s registration',
+      'Political committee · Registration number 30004 · Supporting association named on the committee’s registration',
     );
 
     // The withdrawn spelling and the employer spelling are never read.
@@ -469,10 +470,10 @@ describe('Organization profile', () => {
     expect(sources).toContain('Campaign payment files copied Oct 28, 2026');
     expect(sources).toContain('Lobbyist list and spending reports copied Oct 29, 2026');
     expect(sources).toContain('Committee registrations copied Oct 28, 2026');
-    expect(sources).toContain('Organization reference ORG-0042');
+    expect(sources).toContain('Alethical reference\u00a0ORG-0042');
     expect(sources).not.toContain(ORG);
     expect(sources).toContain('Official identifiers');
-    expect(sources).toContain('Lobbying principal entity ID 8450');
+    expect(sources).toContain('State entity ID\u00a08450');
     // No street address, phone or email is copied from a record into the profile.
     expect(text()).not.toContain('55401');
   });
@@ -626,8 +627,8 @@ describe('Organization profile', () => {
     );
     const rows = [...container.querySelectorAll('.org-split-list li')].map((li) => li.textContent);
     expect(rows).toEqual([
-      'Example Health AssociationORG-0043 · 2 confirmed records',
-      'Example Health FoundationORG-0044',
+      'Example Health AssociationAlethical reference ORG-0043 · 2 confirmed records',
+      'Example Health FoundationAlethical reference ORG-0044',
       // A reference still being numbered falls back to the name alone.
       'Example Health Fund',
     ]);
@@ -658,6 +659,22 @@ describe('Organization profile', () => {
 });
 
 describe('Organization derived labels', () => {
+  it('labels lobbyist evidence locators as registration numbers', () => {
+    const item = confirmation('c-lobbyist', 'lobbyist', '141', {
+      evidence: {
+        source: 'lobbyist_row',
+        snapshot_id: 'snap',
+        locator: '141',
+        url: null,
+        quote: 'Example, Morgan',
+      },
+    });
+    expect(confirmationEvidence('Example, Morgan', item).rows).toContainEqual({
+      label: 'Registration number',
+      value: '141',
+    });
+  });
+
   it('states a period from its earliest and latest dates', () => {
     expect(periodOf(['2026-01-09', '2025-03-02', null])).toBe('Mar 2, 2025 to Jan 9, 2026');
     expect(periodOf(['2026-01-09', '2026-01-09'])).toBe('Jan 9, 2026');

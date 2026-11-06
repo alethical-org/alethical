@@ -201,7 +201,9 @@ export function ReadState<T>({ read, noun = 'results' }: { read: Read<T>; noun?:
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
           {read.changed
-            ? RECORDS_CHANGED
+            ? read.data
+              ? RECORDS_CHANGED
+              : 'These records changed. Reload the list.'
             : `We couldn’t load these ${noun}${noun === 'results' ? '. This is a problem on our side.' : read.data ? '.' : ''}${read.data ? ' Previous results are shown.' : ''}`}
         </Refused>
       )}

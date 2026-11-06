@@ -397,7 +397,7 @@ function AccountCard({
           <div className="cf-account-name">{name}</div>
           <div className="cf-account-kind f-num">
             {kind && <>{kind} · </>}
-            <span className="f-nowrap">Registration {account.registrationNumber}</span>
+            <span className="f-nowrap">Registration number {account.registrationNumber}</span>
           </div>
           {checkedOn && <div className="cf-account-basis">Checked on {checkedOn}</div>}
         </div>

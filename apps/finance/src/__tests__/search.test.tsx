@@ -223,7 +223,7 @@ describe('Search results', () => {
     expect(committees.querySelector('a')?.getAttribute('href')).toBe(
       '/money/committees/18822?from=%2Fsearch%3Fq%3Ddavis',
     );
-    expect(committees.textContent).toContain('Candidate committee · Registration 18822');
+    expect(committees.textContent).toContain('Candidate committee · Registration number 18822');
     expect(committees.querySelector('.f-mark-committee')).not.toBeNull();
 
     const bills = family('Bills');
@@ -232,7 +232,7 @@ describe('Search results', () => {
     expect(bills.querySelector('.f-code')?.textContent).toBe('HF 3363');
     expect(bills.textContent).toContain('2025–26 · House');
 
-    expect(family('Organizations').textContent).toContain('No matching records');
+    expect(family('Organizations').textContent).toContain('No matches');
     expect(family('Organizations').querySelector('h2')?.textContent).toBe('Organizations0');
   });
 
