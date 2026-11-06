@@ -62,7 +62,10 @@ approve publishing unfinished media.
   `git worktree remove --force <path>`, or create a branch in the shared checkout.
   `/usr/bin/git` lacks the newer Git branch guard. Read other revisions with
   `git show origin/main:<path>`; write with absolute paths into your own worktree.
-  Scan open PRs/issues before starting; follow [workflow rule 10](.claude/rules/workflow.md) for safe Git and recovery.
+  Scan open PRs/issues before starting and follow [workflow rule 10](.claude/rules/workflow.md).
+- **Check who owns the changes before editing a dirty file.** Even in your own worktree,
+  leave the file alone if you cannot verify ownership or safely separate your edits.
+  Use a verified clean worktree when available and continue independent work.
 - **`.claude/worktrees/` is ignored but holds other agents' live branches.** Never
   treat it as scratch, edit/delete/reformat it, or include it in replacements or sweeps
   of ignored/temporary files. Exclude it through file-access controls when supported.
