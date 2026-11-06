@@ -277,7 +277,12 @@ Board's committee or lobbyist registration; **State entity ID** is the Board's e
 identifier. **Alethical ID** identifies a person or organization record in Alethical. Show it
 where it helps review, merge or split identities. Omit it from ordinary browsing, including
 profiles and the choices shown after a record splits.
-**Record number in source file** identifies a row within a particular saved source file.
+Finance prioritizes understanding reported facts and connections. Show a technical detail
+only when it serves a specific reader need. File entry numbers stay in the background,
+including in source details; they can be retrieved for an investigation when needed.
+Revisit their visibility only when a specific user need or pain demonstrates its value.
+Source details show the source name, copy date, relevant held excerpt and available source
+link. Preserve file entry numbers internally with their source copy for traceability.
 An evidence locator that is a lobbyist registration keeps the registration label, even
 when its technical source name ends in `_row`. Existing FCC file/facility and legislative
 identifiers retain their source-specific names. No identifier is added where none is held,
