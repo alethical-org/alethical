@@ -144,7 +144,10 @@ for the owning permission and password-management rules.
   Committees, Bills and Payments under a name, each opening its page; a match whose page is
   not built yet is left out. "Searching…", "No matching suggestions" with "Try another name or
   bill number", and "Suggestions couldn’t load" are the panel's other states, each announced
-  to screen readers. Arrow keys move through the rows and View all results, Enter opens the
+  to screen readers. A server response below its minimum says "Type at least 3 characters".
+  A partial failure keeps valid current rows with "Some suggestions couldn’t load" and
+  Try again; unavailable sources are never cached as a successful empty answer.
+  Arrow keys move through the rows and View all results, Enter opens the
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
   Bill suggestions match the typed letters in the held title, short title or description,
   without spelling correction: `danc` can find “dance”, but `danch` cannot. Bill-number
@@ -275,6 +278,9 @@ it opens the full results page on Search or Enter. Full name search states its e
 employer lookups return to an empty entry view when cleared, since an empty name is not a
 request to retrieve every payment. The station-file review's record lookup also searches
 while typing; selecting, previewing and saving a connection remain explicit actions.
+Its committee and principal lookups state the 3-character minimum. If the selected source
+is unavailable, prior results keep their original query label with a failure notice and retry;
+an unavailable source is not a no-match result.
 
 - **Search results (`/search?q=`)**: People (sitting legislators and lobbyists), Organizations
   (lobbying principals), Committees, Bills and Payments under a name, each family loaded,
