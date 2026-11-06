@@ -217,11 +217,11 @@ it('a split record’s old reference opens the choice of the person meant', asyn
   expect(container.textContent).toContain(SPLIT_LEAD);
   expect(container.textContent).toContain('Split Person A');
   const lines = [...container.querySelectorAll('.person-split-link')].map((row) => row.textContent);
-  // The served reference and count; no count held reads the reference alone, never 0.
+  // Keep held counts; omit missing counts and Alethical IDs.
   expect(lines).toEqual([
-    'Split Person AAlethical reference PER-0007 · 3 confirmed records',
-    'Split Organization BAlethical reference ORG-0012',
-    'Merged Organization CAlethical reference ORG-0013',
+    'Split Person A3 confirmed records',
+    'Split Organization B',
+    'Merged Organization C',
   ]);
   // A part later merged opens the record it became.
   expect(container.querySelector('a[href^="/organizations/d"]')).not.toBeNull();

@@ -470,7 +470,7 @@ describe('Organization profile', () => {
     expect(sources).toContain('Campaign payment files copied Oct 28, 2026');
     expect(sources).toContain('Lobbyist list and spending reports copied Oct 29, 2026');
     expect(sources).toContain('Committee registrations copied Oct 28, 2026');
-    expect(sources).toContain('Alethical reference\u00a0ORG-0042');
+    expect(text()).not.toContain('ORG-0042');
     expect(sources).not.toContain(ORG);
     expect(sources).toContain('Official identifiers');
     expect(sources).toContain('State entity ID\u00a08450');
@@ -627,10 +627,9 @@ describe('Organization profile', () => {
     );
     const rows = [...container.querySelectorAll('.org-split-list li')].map((li) => li.textContent);
     expect(rows).toEqual([
-      'Example Health AssociationAlethical reference ORG-0043 · 2 confirmed records',
-      'Example Health FoundationAlethical reference ORG-0044',
-      // A reference still being numbered falls back to the name alone.
-      'Example Health Fund',
+      'Example Health Association2 confirmed records',
+      'Example Health Foundation',
+        'Example Health Fund',
     ]);
     // No internal id is printed anywhere.
     expect(text()).not.toContain(OTHER);

@@ -274,7 +274,9 @@ owns the cross-product requirements and Design-review checks.
 
 Finance labels identifiers by their source and purpose. **Registration number** is the
 Board's committee or lobbyist registration; **State entity ID** is the Board's entity
-identifier; **Alethical reference** identifies an Alethical person or organization record;
+identifier. **Alethical ID** identifies a person or organization record in Alethical. Show it
+where it helps review, merge or split identities. Omit it from ordinary browsing, including
+profiles and the choices shown after a record splits.
 **Record number in source file** identifies a row within a particular saved source file.
 An evidence locator that is a lobbyist registration keeps the registration label, even
 when its technical source name ends in `_row`. Existing FCC file/facility and legislative
@@ -530,7 +532,7 @@ an unavailable source is not a no-match result.
   identity, create a person or organization, withdraw (with a reason), merge another record in
   after previewing the links that move, or split 1 into 2; each needs an evidence note that
   says more than the shared name, and a source, which is kept apart from the note. An
-  identity is shown by its reference (ORG-0042 for an organization, PER-0042 for a person),
+  identity is shown by its Alethical ID (ORG-0042 for an organization, PER-0042 for a person),
   or by its name while the server has not served one, never by its internal id. Merge and split history rows name the identities and keep the event's
   evidence and date, without record counts: the saved events do not hold counts at the
   time of the change, and current counts can change with later confirmations or source
