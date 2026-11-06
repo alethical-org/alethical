@@ -267,7 +267,8 @@ held produce an unavailable state, never a zero. A requested release that change
   into an identity or its rows into a money total.
 
 Finance browsing adds `/name-spellings` to find strong complete-name variants, with a
-release pin and the same role/filer/dataset boundaries. It never writes identities or
+release pin and the same role/filer/dataset boundaries. Donor candidates may omit a
+single middle initial when the rest of the name agrees. It never writes identities or
 changes `/payments-under-name`'s exact source-row reader. Main pages load each spelling
 separately, retain exact rows during variant loading/failure, and show no combined money
 total or confirmation status. Secondary `/similar-names` accepts repeated `exclude_name`

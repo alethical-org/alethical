@@ -1,8 +1,8 @@
 """Finance browsing matches, never identity claims or rewrites of source names.
 
-Full-name spelling groups are deliberately stricter than discovery: every meaningful
-word must agree and at most one long word may have a small typing difference. Search
-results can find a word within a longer name, but retain that result's own identifier.
+Full-name spelling groups allow a small typing difference or a missing middle
+initial. Discovery can find a word within a longer name and retains that
+result's own identifier.
 """
 
 from __future__ import annotations
@@ -69,6 +69,24 @@ def _word_typo(left: str, right: str) -> bool:
     )
 
 
+def _person_parts(value: str) -> tuple[list[str], list[str], tuple[str, ...]]:
+    words = _tokens(value, person=True)
+    suffixes = tuple(word for word in words if word in _SUFFIXES)
+    if "," in value:
+        surname, given = value.split(",", 1)
+        return (
+            _tokens(surname, person=True),
+            [word for word in _tokens(given, person=True) if word not in _SUFFIXES],
+            suffixes,
+        )
+    core = [word for word in words if word not in _SUFFIXES]
+    return core[-1:], core[:-1], suffixes
+
+
+def _has_middle_initial(given: list[str]) -> bool:
+    return len(given) == 2 and len(given[1]) == 1 and given[1].isalpha()
+
+
 def strong_spelling(query: str, candidate: str, *, person: bool = False) -> bool:
     """A likely complete spelling variant, not evidence of a shared identity.
 
@@ -78,26 +96,18 @@ def strong_spelling(query: str, candidate: str, *, person: bool = False) -> bool
     """
     left, right = _tokens(query, person=person), _tokens(candidate, person=person)
     if person:
-
-        def personal_parts(value: str):
-            words = _tokens(value, person=True)
-            suffixes = tuple(word for word in words if word in _SUFFIXES)
-            core = [word for word in words if word not in _SUFFIXES]
-            if "," in value:
-                surname = _tokens(value.split(",", 1)[0], person=True)
-                given = [
-                    word
-                    for word in _tokens(value.split(",", 1)[1], person=True)
-                    if word not in _SUFFIXES
-                ]
-            else:
-                surname, given = core[-1:], core[:-1]
-            return surname, given, suffixes
-
-        family_a, given_a, suffix_a = personal_parts(query)
-        family_b, given_b, suffix_b = personal_parts(candidate)
-        if not given_a or given_a != given_b or suffix_a != suffix_b:
+        family_a, given_a, suffix_a = _person_parts(query)
+        family_b, given_b, suffix_b = _person_parts(candidate)
+        if not given_a or suffix_a != suffix_b:
             return False
+        if given_a != given_b:
+            shorter, longer = sorted((given_a, given_b), key=len)
+            return (
+                bool(family_a)
+                and family_a == family_b
+                and _has_middle_initial(longer)
+                and shorter == longer[:1]
+            )
         left, right = family_a, family_b
     if not left or not right or len(left) != len(right):
         return False
@@ -150,9 +160,10 @@ def closeness(query: str, candidate: str) -> float:
 def strong_candidates(column, query: str, *, person: bool = False):
     """Necessary conditions for strong_spelling, not a second eligibility rule.
 
-    Every normalized word must be unchanged except at most one long word whose
-    first 2 letters agree. Exact words anchor the indexed regex branches; a
-    one-word organization uses its prefix. Abbreviations and punctuated LLC keep
+    Every normalized word must be unchanged except a missing middle initial
+    or at most one long word whose first 2 letters agree. Exact words anchor the
+    indexed regex branches; a one-word organization uses its prefix.
+    Abbreviations and punctuated LLC keep
     their raw forms. Non-ASCII source names are included conservatively because
     Python's NFKC/casefold can change their characters. Only strong_spelling
     decides which retrieved keys appear in the main groups.
@@ -185,6 +196,17 @@ def strong_candidates(column, query: str, *, person: bool = False):
 
     unchanged = [whole(token_pattern(word)) for word in words]
     branches = [and_(*unchanged)]
+    if person:
+        surname, given, suffixes = _person_parts(query)
+        if surname and _has_middle_initial(given):
+            branches.append(
+                and_(
+                    *(
+                        whole(token_pattern(word))
+                        for word in [*surname, given[0], *suffixes]
+                    )
+                )
+            )
     for index, word in enumerate(words):
         if len(word) < 5 or any(char.isdigit() for char in word):
             continue
