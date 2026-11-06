@@ -356,6 +356,13 @@ On web, `react-native-web` maps _most_ RN accessibility props to real ARIA — s
 on the rendered site and fixable in RN. **`accessibilityState` is the exception, and it is a silent
 one: see the box below before writing one.**
 
+Every search uses search as you type (live search): typing or deleting updates results,
+clearing restores the unfiltered view, and Search or Enter still applies immediately.
+Apply the shared [Search and result updates](https://github.com/euglopi/tool-settings/blob/main/shared/guides/search-interactions.md)
+rule to new search, Design prompts, reviews and authorized builds. Its interaction and
+acceptance requirements apply even when a drawing is silent; the authorized Design
+record update carries settled corrections into drawings, notes and saved rules.
+
 Instant search result lists use one selection treatment everywhere. Each row is at least 48px tall,
 uses 10px horizontal padding and reserves a transparent 2px border with a 10px radius. Hover and
 keyboard movement replace that transparent border with bright green (`#2ed47e`) around the 1 current

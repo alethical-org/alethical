@@ -1,8 +1,9 @@
 import { useFinanceSession } from '../auth/session';
 import { useVersionedRead } from '../api/versionedRead';
 import { useEffect, useState, type FormEvent } from 'react';
+import { useDebouncedSearchCommit } from '@alethical/shared/hooks/useDebouncedSearchCommit';
 import { useRead } from '../api/read';
-import { Link, useLocation } from '../router';
+import { cameByHistory, Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt } from '../routes';
 import { useAddressState } from '../ui/addressState';
@@ -130,7 +131,13 @@ export function MediaBuys() {
   const tab: Tab = TABS.some((t) => t.value === state.tab) ? (state.tab as Tab) : 'folders';
   const page = Math.min(42, Math.max(1, Math.trunc(Number(state.page)) || 1));
   const [typed, setTyped] = useState(state.q);
-  useEffect(() => setTyped(state.q), [state.q]);
+  // Keep spaces in an ongoing draft when its trimmed query reaches the address.
+  // A different query from navigation still replaces the field.
+  useEffect(() => setTyped((draft) => (draft.trim() === state.q ? draft : state.q)), [state.q]);
+  useEffect(() => {
+    if (cameByHistory()) setTyped(state.q);
+  }, [here, state.q]);
+  useDebouncedSearchCommit(typed, state.q, (q) => setState({ q, page: '1' }));
   const folders = tab === 'folders';
   const read = useVersionedRead<Browse>(
     mediaPath(['browse'], {
