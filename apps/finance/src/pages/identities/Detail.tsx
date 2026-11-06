@@ -842,7 +842,13 @@ export function Detail({
                 <span className="ci-identity-text">
                   <span className="ci-strong">{identity.name}</span>
                   <span className="ci-muted ci-small f-num">
-                    {identityKindLabel(identity.kind)} · <Refs>{refOf(identity)}</Refs> ·{' '}
+                    {identityKindLabel(identity.kind)} ·{' '}
+                    <Refs>
+                      {identity.reference
+                        ? `Alethical reference ${identity.reference}`
+                        : identity.name}
+                    </Refs>{' '}
+                    ·{' '}
                     {identityLine(
                       spellingConfirmations(reads.byId.get(identity.id), kind, name),
                       identity.confirmed,
@@ -937,7 +943,8 @@ export function Detail({
             <span className="ci-identity-text">
               <span className="ci-confirmed-name">{conf.name}</span>
               <span className="ci-muted ci-small f-num">
-                {identityKindLabel(conf.kind)} · <Refs>{refOf(conf)}</Refs>
+                {identityKindLabel(conf.kind)} ·{' '}
+                <Refs>{conf.reference ? `Alethical reference ${conf.reference}` : conf.name}</Refs>
               </span>
             </span>
             {confHref && (
@@ -1027,7 +1034,12 @@ export function Detail({
                       <span className="ci-suggestion-plain">{identity.name}</span>
                     )}
                     <span className="ci-muted ci-small f-num">
-                      {identityKindLabel(identity.kind)} · <Refs>{refOf(identity)}</Refs>
+                      {identityKindLabel(identity.kind)} ·{' '}
+                      <Refs>
+                        {identity.reference
+                          ? `Alethical reference ${identity.reference}`
+                          : identity.name}
+                      </Refs>
                     </span>
                   </span>
                   <span className="ci-status ci-small">
@@ -1209,7 +1221,7 @@ function RecordRow({
   const registration = record.display?.filer_registration_number ?? registrationOf(record.fields);
   const filer =
     record.display?.filer_name ??
-    (registration ? `Registration ${registration}` : 'Filer not given');
+    (registration ? `Registration number ${registration}` : 'Filer not given');
   const date = day(recordDate(record.fields)) ?? 'Date not given';
   const type = record.display?.record_type ?? record.display?.record_types?.join(' · ') ?? '';
   const year = yearOf(record);

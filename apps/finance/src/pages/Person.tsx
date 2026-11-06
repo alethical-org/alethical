@@ -180,11 +180,15 @@ export function timelineRows(
       date: c.checked_at?.slice(0, 10) ?? null,
       kind: 'LOBBYING',
       title: 'Registered lobbyist',
-      detail: `Registration ${c.record_key}`,
+      detail: `Registration number ${c.record_key}`,
       href: isBuilt('lobbyist') ? hrefFor('lobbyist', { id: c.record_key }) : null,
       link: 'Open lobbying record',
       source: checked ? `Checked ${checked}` : 'Not checked',
-      note: ['Lobbyist', `Registration ${c.record_key}`, checked && `identity confirmed ${checked}`]
+      note: [
+        'Lobbyist',
+        `Registration number ${c.record_key}`,
+        checked && `identity confirmed ${checked}`,
+      ]
         .filter(Boolean)
         .join(' · '),
     });

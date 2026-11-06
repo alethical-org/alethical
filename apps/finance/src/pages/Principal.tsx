@@ -274,7 +274,7 @@ export function Principal({ match }: { match: RouteMatch }) {
             <header className="lb-header">
               <div className="lb-tags">
                 <span className="lb-chip">PRINCIPAL</span>
-                <span className="lb-reg f-num">Entity ID {shown.entity_id}</span>
+                <span className="lb-reg f-num">State entity ID {shown.entity_id}</span>
               </div>
               <h1 tabIndex={-1} className="f-page-title lb-title">
                 {shown.name}
@@ -320,7 +320,7 @@ export function Principal({ match }: { match: RouteMatch }) {
                         <li key={row.registration_number}>
                           <RecordRow
                             name={row.name}
-                            note={`Registration ${row.registration_number}`}
+                            note={`Registration number ${row.registration_number}`}
                             href={
                               isBuilt('lobbyist')
                                 ? withFrom(

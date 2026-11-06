@@ -471,7 +471,7 @@ describe('Check TV station files', () => {
     await press('Committee');
     await type('c-query', 'Example');
     await press('Search');
-    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Registration number 90001');
     await press('Preview record');
     expect(text()).toContain('Selected record');
     expect(text()).toContain('A matching name alone does not establish identity');
@@ -523,7 +523,7 @@ describe('Check TV station files', () => {
     await press(/Choose a connection/);
     await press('Committee');
     await type('c-query', 'Example');
-    await vi.waitFor(() => expect(text()).toContain('Registration 90001'));
+    await vi.waitFor(() => expect(text()).toContain('Registration number 90001'));
 
     const requests: Array<{
       query: string | null;
@@ -537,11 +537,11 @@ describe('Check TV station files', () => {
     await type('c-query', 'Another');
     await press('Search');
     expect(requests.map((request) => request.query)).toEqual(['Another']);
-    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Registration number 90001');
     expect(text()).toContain('Previous results');
     await act(async () => requests[0].resolve(json({}, 500)));
     expect(text()).toContain('We couldn’t load these records');
-    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Registration number 90001');
     expect(text()).not.toContain('No held records match');
 
     await press('Try again');
@@ -550,7 +550,7 @@ describe('Check TV station files', () => {
     expect(requests[1].signal?.aborted).toBe(true);
     await act(async () => requests[1].resolve(json({}, 500)));
     expect(text()).not.toContain('We couldn’t load these records');
-    expect(text()).not.toContain('Registration 90001');
+    expect(text()).not.toContain('Registration number 90001');
 
     await type('c-query', 'A third');
     await press('Search');
@@ -595,7 +595,7 @@ describe('Check TV station files', () => {
     await press('Committee');
     await type('c-query', 'Example');
     await press('Search');
-    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Registration number 90001');
 
     lookup = async () =>
       json({
@@ -611,7 +611,7 @@ describe('Check TV station files', () => {
     await press('Search');
     expect(text()).toContain('We couldn’t load these records');
     expect(text()).toContain('Previous results for “Example”');
-    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Registration number 90001');
     expect(text()).not.toContain('No held records match');
 
     lookup = async () =>
@@ -632,7 +632,7 @@ describe('Check TV station files', () => {
     await press('Try again');
     expect(text()).toContain('No held records match');
     expect(text()).not.toContain('We couldn’t load these records');
-    expect(text()).not.toContain('Registration 90001');
+    expect(text()).not.toContain('Registration number 90001');
 
     const unexpectedRead = vi.fn(async () => json({}, 500));
     lookup = unexpectedRead;
@@ -680,7 +680,7 @@ describe('Check TV station files', () => {
     await press('Committee');
     await type('c-query', 'Example');
     await press('Search');
-    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Registration number 90001');
     let finish!: (answer: Response) => void;
     let requestSignal: AbortSignal | null | undefined;
     lookup = (_url, signal) =>
@@ -698,7 +698,7 @@ describe('Check TV station files', () => {
     expect(requestSignal?.aborted).toBe(true);
     await act(async () => finish(json({}, 500)));
     await flush();
-    expect(text()).not.toContain('Registration 90001');
+    expect(text()).not.toContain('Registration number 90001');
     expect(text()).not.toContain('We couldn’t load these records');
     expect(document.querySelector('[aria-label="Records found"]')).toBeNull();
   });

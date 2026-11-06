@@ -141,7 +141,10 @@ describe('names and links', () => {
   it('keeps a printed name separate from a confirmed identity', () => {
     expect(nodeSub(payee)).toBe('Printed payee name');
     expect(nodeSub(org)).toBe('Confirmed organization');
-    expect(nodeSub(committee)).toBe('Registration 18135');
+    expect(nodeSub(committee)).toBe('Registration number 18135');
+    expect(nodeSub({ ...committee, kind: 'lobbyist', record_id: '141' })).toBe(
+      'Lobbyist registration number 141',
+    );
     expect(nodeHref(payee)).toContain('/money/names/');
     expect(nodeHref(payee)).toContain('role=payee');
     expect(nodeHref(org)).toBe('/organizations/7');
@@ -739,7 +742,7 @@ describe('Money connections page', () => {
     );
     await flush();
     const panel = container.querySelector('aside')!;
-    expect(panel.textContent).toContain('Registration 18135');
+    expect(panel.textContent).toContain('Registration number 18135');
     expect(panel.textContent).toContain('Payments · to');
     expect(panel.textContent).toContain('$420');
     expect(panel.textContent).toContain('Filing year 2025');

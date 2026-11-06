@@ -130,6 +130,314 @@ function registerRequests() {
   return requests.filter((url) => url.includes('/finance/committees'));
 }
 
+const SEARCH_MATCHES = [
+  { kind: 'candidate_committee', name: 'Example candidate committee', id: '18135' },
+  { kind: 'political_committee_or_fund', name: 'Example education fund', id: '30004' },
+  { kind: 'party_unit', name: 'Example party unit', id: '40001' },
+] as const;
+
+function matchingRegister(url: string) {
+  const params = new URL(url).searchParams;
+  const match = SEARCH_MATCHES.find((item) => item.kind === params.get('kind'))!;
+  return register({
+    kind: match.kind,
+    q: params.get('q'),
+    status: params.get('status'),
+    party: params.get('party'),
+    candidate_parties: ['DFL', 'Republican'],
+    committees: [
+      {
+        ...register().committees[0],
+        name: match.name,
+        registration_number: match.id,
+        kind: match.kind,
+        party: match.kind === 'candidate_committee' ? 'DFL' : null,
+      },
+    ],
+  });
+}
+
+describe('Campaign money search across browsing categories', () => {
+  it.each(['', 'candidates'])(
+    'hides a retained zero count after a missing response in view %s',
+    async (view) => {
+      await render(`/money?q=Example&party=DFL${view ? `&view=${view}` : ''}`, (url) => {
+        const params = new URL(url).searchParams;
+        if (params.get('kind') === 'candidate_committee') {
+          if (params.get('status') === 'open') return json(null, 404);
+          return json({
+            ...matchingRegister(url),
+            committees: [],
+            page: { limit: 50, offset: 0, has_more: false, total: 0 },
+          });
+        }
+        return json(matchingRegister(url));
+      });
+      const group = container.querySelector('section[aria-label="Candidate committees"]')!;
+      const registration = [...group.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
+        button.textContent?.startsWith('Registration:'),
+      )!;
+      await act(async () => registration.click());
+      const open = [...group.querySelectorAll<HTMLButtonElement>('[role="option"] button')].find(
+        (button) => button.textContent === 'Open registrations',
+      )!;
+      await act(async () => open.click());
+      await settle();
+      expect(group.querySelector('[role="alert"]')).not.toBeNull();
+      const heading = view
+        ? container.querySelector('[role="tab"][aria-selected="true"]')
+        : group.querySelector('h3');
+      expect(heading?.textContent).toBe('Candidate committees');
+    },
+  );
+
+  it('moves keyboard focus to results after view transitions and to the input on clear', async () => {
+    await render('/money?q=Example', (url) => {
+      const data = matchingRegister(url);
+      return json({ ...data, page: { limit: 50, offset: 0, has_more: false, total: 8 } });
+    });
+    const full = [...container.querySelectorAll<HTMLAnchorElement>('a')].find(
+      (link) => link.textContent?.trim() === 'View all matching candidate committees',
+    )!;
+    expect(new URL(full.href).searchParams.get('view')).toBe('candidates');
+    full.focus();
+    await act(async () => full.click());
+    await settle();
+    expect(document.activeElement).toBe(container.querySelector('.cm-search-title h2'));
+    const back = container.querySelector<HTMLAnchorElement>('.cm-back')!;
+    expect(new URL(back.href).searchParams.has('view')).toBe(false);
+    back.focus();
+    await act(async () => back.click());
+    await settle();
+    expect(document.activeElement).toBe(container.querySelector('.cm-search-title h2'));
+    const clear = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent === 'Clear search',
+    )!;
+    clear.focus();
+    await act(async () => clear.click());
+    await settle();
+    expect(document.activeElement).toBe(container.querySelector('#money-name'));
+  });
+
+  it.each(['candidates', 'committees', 'party'])(
+    'finds every matching category when search starts from %s',
+    async (tab) => {
+      await render(`/money?tab=${tab}&q=Example`, (url) => json(matchingRegister(url)));
+      expect(
+        new Set(registerRequests().map((url) => new URL(url).searchParams.get('kind'))),
+      ).toEqual(new Set(SEARCH_MATCHES.map((item) => item.kind)));
+      for (const match of SEARCH_MATCHES) {
+        expect(container.textContent).toContain(match.name);
+      }
+      for (const url of registerRequests()) {
+        expect(new URL(url).searchParams.get('q')).toBe('Example');
+      }
+    },
+  );
+
+  it('keeps successful matching groups when another group fails', async () => {
+    await render('/money?tab=candidates&q=Example', (url) =>
+      new URL(url).searchParams.get('kind') === 'political_committee_or_fund'
+        ? json(null, 503)
+        : json(matchingRegister(url)),
+    );
+    expect(container.textContent).toContain('Example candidate committee');
+    expect(container.textContent).toContain('Example party unit');
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.textContent).toContain('Try again');
+    expect(container.textContent).not.toContain('0 committees');
+    expect(container.textContent).not.toContain('No matching records');
+  });
+
+  it('labels a failed group with its previous query while other groups show the new query', async () => {
+    await render('/money?q=Example&party=DFL', (url) => {
+      const params = new URL(url).searchParams;
+      if (params.get('q') === 'Changed' && params.get('kind') === 'candidate_committee') {
+        return json(null, 500);
+      }
+      const data = matchingRegister(url);
+      return json({
+        ...data,
+        committees: data.committees.map((row) => ({
+          ...row,
+          name: row.name.replace('Example', params.get('q')!),
+        })),
+      });
+    });
+    const input = container.querySelector<HTMLInputElement>('#money-name')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+        input,
+        'Changed',
+      );
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () =>
+      input.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    );
+    await settle();
+    const failed = container.querySelector('section[aria-label="Candidate committees"]')!;
+    expect(failed.textContent).toContain('Example candidate committee');
+    expect(failed.textContent).toContain(
+      'Previous results: Candidate committees · All registrations · DFL · Matching “Example”',
+    );
+    expect(failed.querySelector('h3')?.textContent).toBe('Candidate committees');
+    expect(failed.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.textContent).toContain('Changed education fund');
+    expect(container.textContent).toContain('Changed party unit');
+  });
+
+  it('keeps candidate party filtering out of other matching categories', async () => {
+    await render('/money?q=Example&party=DFL', (url) => json(matchingRegister(url)));
+    const reads = registerRequests().map((url) => new URL(url).searchParams);
+    expect(new Set(reads.map((params) => params.get('kind'))).size).toBe(3);
+    for (const params of reads) {
+      expect(params.get('party')).toBe(params.get('kind') === 'candidate_committee' ? 'DFL' : null);
+    }
+    expect(container.textContent).toContain('Example education fund');
+    expect(container.textContent).toContain('Example party unit');
+  });
+
+  it('returns an out-of-category detail to the exact directory search and filters', async () => {
+    const path = '/money?tab=party&q=Example&reg=open&sort=registration&from=%2Fhome';
+    await render(path, (url) => json(matchingRegister(url)));
+    const link = [...container.querySelectorAll<HTMLAnchorElement>('a')].find(
+      (item) => item.textContent === 'Example education fund',
+    );
+    expect(link).toBeTruthy();
+    const target = new URL(link!.href);
+    expect(target.pathname).toBe('/money/committees/30004');
+    expect(target.searchParams.get('from')).toBe(path);
+  });
+
+  it('previews 5 matches and pages each full group in batches of 50', async () => {
+    await render('/money?tab=party&q=Example', (url) => {
+      const data = matchingRegister(url);
+      const offset = Number(new URL(url).searchParams.get('offset'));
+      return json({
+        ...data,
+        committees: Array.from({ length: 50 }, (_, i) => ({
+          ...data.committees[0],
+          name: `${data.committees[0].name} ${offset + i + 1}`,
+          registration_number: String(Number(data.committees[0].registration_number) + offset + i),
+        })),
+        page: { limit: 50, offset, total: 120, has_more: offset < 100 },
+      });
+    });
+    expect(container.querySelectorAll('.cm-row:not(.cm-head)')).toHaveLength(15);
+    expect(container.querySelector('.cm-pager')).toBeNull();
+    const full = [...container.querySelectorAll<HTMLAnchorElement>('a')].find(
+      (link) => link.textContent?.trim() === 'View all matching committees and funds',
+    )!;
+    await act(async () => full.click());
+    await settle();
+    expect(container.querySelectorAll('.cm-row:not(.cm-head)')).toHaveLength(50);
+    expect(container.textContent).toContain('Page 1 of 3');
+    expect(container.querySelector('.cm-table')?.nextElementSibling?.className).toBe('cm-pager');
+    const next = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'Next',
+    )!;
+    await act(async () => next.click());
+    await settle();
+    expect(container.textContent).toContain('Example education fund 51');
+    expect(new URLSearchParams(location.search).get('spage_committees')).toBe('2');
+    const last = new URL(registerRequests().at(-1)!).searchParams;
+    expect(last.get('kind')).toBe('political_committee_or_fund');
+    expect(last.get('offset')).toBe('50');
+    expect(last.get('limit')).toBe('50');
+    const tabs = container.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    await act(async () => tabs[0].click());
+    await settle();
+    expect(container.textContent).toContain('Page 1 of 3');
+    await act(async () => container.querySelectorAll<HTMLButtonElement>('[role="tab"]')[1].click());
+    await settle();
+    expect(container.textContent).toContain('Page 2 of 3');
+    expect(container.textContent).toContain('Example education fund 51');
+  });
+
+  it('keeps empty group recovery filters and changes only that group', async () => {
+    await render('/money?q=Example&reg_committees=open&party_candidates=DFL', (url) => {
+      const data = matchingRegister(url);
+      return json({
+        ...data,
+        committees: [],
+        page: { limit: 50, offset: 0, total: 0, has_more: false },
+      });
+    });
+    expect(container.textContent).not.toContain('No matches for “Example”');
+    expect(container.querySelectorAll('.cm-group')).toHaveLength(3);
+    expect(container.querySelector('[role="table"]')).toBeNull();
+    expect(container.textContent).not.toContain('Sort by:');
+    const group = container.querySelector<HTMLElement>(
+      'section[aria-label="Committees and funds"]',
+    )!;
+    expect(group.textContent).toContain('Committees and funds (0)');
+    expect(group.textContent).toContain('Registration: Open registrations');
+    const clear = [...group.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent === 'Clear all',
+    )!;
+    const before = registerRequests().length;
+    await act(async () => clear.click());
+    await settle();
+    const changed = registerRequests()
+      .slice(before)
+      .map((url) => new URL(url).searchParams);
+    expect(changed).toHaveLength(1);
+    expect(changed[0].get('kind')).toBe('political_committee_or_fund');
+    expect(changed[0].get('status')).toBe('all');
+    expect(new URLSearchParams(location.search).get('party_candidates')).toBe('DFL');
+  });
+
+  it('restores browse choices on clear and creates history only for entering and leaving search', async () => {
+    const path = '/money?tab=committees&reg=open&sort=registration&page=2';
+    await render(path, (url) => {
+      const data = matchingRegister(url);
+      return json({
+        ...data,
+        page: {
+          limit: 50,
+          offset: Number(new URL(url).searchParams.get('offset')),
+          total: 120,
+          has_more: true,
+        },
+      });
+    });
+    const push = vi.spyOn(window.history, 'pushState');
+    async function search(value: string) {
+      const input = container.querySelector<HTMLInputElement>('#money-name')!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () =>
+        input.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+      );
+      await settle();
+    }
+    await search('Example');
+    expect(push).toHaveBeenCalledTimes(1);
+    await search('Examples');
+    expect(push).toHaveBeenCalledTimes(1);
+    const clear = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent === 'Clear search',
+    )!;
+    await act(async () => clear.click());
+    await settle();
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(location.pathname + location.search).toBe(path);
+    expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain(
+      'Committees and funds',
+    );
+    expect(container.textContent).toContain('Page 2 of 3');
+    expect(container.textContent).toContain('Registration: Open registrations');
+    expect(container.textContent).toContain('Sort by: Registration number');
+    push.mockRestore();
+  });
+});
+
 describe('Campaign money directory', () => {
   it('renders registration search, held party and explicit retained and dated status', async () => {
     const base = register().committees[0];
@@ -313,7 +621,7 @@ describe('Campaign money directory', () => {
     )!;
     await act(async () => menu.click());
     const registration = [...container.querySelectorAll('[role="option"] button')].find(
-      (b) => b.textContent === 'Registration',
+      (b) => b.textContent === 'Registration number',
     )!;
     await act(async () => (registration as HTMLButtonElement).click());
     await settle();
@@ -338,7 +646,7 @@ describe('Campaign money directory', () => {
     expect(container.querySelector('[role="cell"] .f-mark-committee')).not.toBeNull();
     expect(text).toContain('Candidate committee');
     expect(text).toContain('18135');
-    expect(text).toContain('Page 1 of 1');
+    expect(container.querySelector('.cm-pager')).toBeNull();
     // The Sources group holds a 2-sentence line, so every line ends with a period.
     expect(text).toContain('Register copied Oct 28, 2026.');
     expect(text).toContain(
@@ -400,7 +708,7 @@ describe('Campaign money directory', () => {
     expect(statuses).toEqual(['Terminated Jul 28, 2026', 'Terminated', 'Open registration']);
     expect(
       [...container.querySelectorAll('[role="columnheader"]')].map((cell) => cell.textContent),
-    ).toEqual(['NAME', 'TYPE', 'REGISTRATION', 'REGISTRATION STATUS']);
+    ).toEqual(['NAME', 'TYPE', 'REGISTRATION NUMBER', 'REGISTRATION STATUS']);
   });
 
   it('honours ?tab=party and ?tab=committees from Finance Home', async () => {
@@ -443,7 +751,7 @@ describe('Campaign money directory', () => {
       expect(params.get('q')).toBe('Example');
       expect(params.get('party')).toBe('DFL');
       expect(params.get('reg')).toBe('open');
-      expect(params.has('page')).toBe(false);
+      expect(params.get('page')).toBe('2');
       expect(registerRequests().at(-1)).toContain('q=Example');
       await enter('');
       expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
@@ -455,16 +763,28 @@ describe('Campaign money directory', () => {
   it('searches registered names on the server and keeps payments apart', async () => {
     await render('/money?q=caucus', () => json(register()));
     expect(registerRequests()[0]).toContain('q=caucus');
-    expect(container.textContent).toContain('Registrations matching “caucus” are listed below.');
+    expect(container.querySelector('.cm-name-search p')?.textContent).toBe(
+      'Payments recorded under that spelling are a separate search',
+    );
+    expect(container.querySelector('.cm-payments-note')?.textContent).toBe(
+      'Every campaign and outside-spending payment, grouped by exact spelling',
+    );
+    const paymentLinks = container.querySelectorAll<HTMLAnchorElement>('a[href^="/money/names/"]');
+    expect(paymentLinks).toHaveLength(1);
+    expect(new URL(paymentLinks[0].href).pathname).toBe('/money/names/caucus');
+    expect(new URL(paymentLinks[0].href).searchParams.get('from')).toBe('/money?q=caucus');
+    expect(container.querySelector('.cm-aside')?.textContent).not.toContain(
+      'Payments under a name',
+    );
     expect(container.textContent).toContain('Payments under a name');
   });
 
   it('keeps earlier registrations labelled with their own search if a new search fails', async () => {
-    let finish!: (response: Response) => void;
-    await render('/money?q=Hortman&page=2', (url) =>
+    const finishes: Array<(response: Response) => void> = [];
+    await render('/money?q=Hortman&view=candidates&spage_candidates=2', (url) =>
       url.includes('q=Other')
         ? new Promise<Response>((resolve) => {
-            finish = resolve;
+            finishes.push(resolve);
           })
         : json(
             register({
@@ -484,9 +804,11 @@ describe('Campaign money directory', () => {
       input.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     expect(container.textContent).toContain('Matching “Hortman”');
-    expect(container.textContent).toContain('Payments recorded under “Other”');
+    expect(container.textContent).toContain(
+      'Payments recorded under that spelling are a separate search',
+    );
     expect(container.textContent).not.toContain('Registrations matching “Other”');
-    await act(async () => finish(new Response('', { status: 503 })));
+    await act(async () => finishes.forEach((finish) => finish(new Response('', { status: 503 }))));
     await settle();
     expect(container.textContent).toContain('Matching “Hortman”');
     expect(container.textContent).toContain('Try again');
@@ -497,7 +819,7 @@ describe('Campaign money directory', () => {
     )!;
     expect(next.getAttribute('aria-disabled')).toBe('true');
     await act(async () => next.click());
-    expect(window.location.search).toBe('?q=Other');
+    expect(window.location.search).toBe('?q=Other&view=candidates');
   });
 
   it('pages on the server and writes the page to the address', async () => {
@@ -516,7 +838,7 @@ describe('Campaign money directory', () => {
     expect(registerRequests().at(-1)).toContain('offset=50');
   });
 
-  it('shows No matching records with the shared next step', async () => {
+  it('shows one all-empty result with the registration search hint', async () => {
     await render('/money?q=zzzz', () =>
       json(
         register({
@@ -526,9 +848,10 @@ describe('Campaign money directory', () => {
       ),
     );
     const text = container.textContent ?? '';
-    expect(text).toContain('No matching records');
-    expect(text).toContain('Try a shorter part of the name or a different spelling.');
-    expect(text).toContain('0 candidate committees');
+    expect(text).toContain('No matches for “zzzz”');
+    expect(text).toContain('Try a full or partial name or registration number');
+    expect(container.querySelector('[role="table"]')).toBeNull();
+    expect(container.querySelector('.cm-pager')).toBeNull();
   });
 
   it('says a failed load is our problem and offers Try again', async () => {

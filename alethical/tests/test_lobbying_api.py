@@ -664,6 +664,56 @@ def test_principals_directory_returns_only_the_selected_year_reported_total(clie
     assert row["spending_state"] == "ambiguous"
 
 
+def test_principals_directory_distinguishes_missing_amount_from_missing_report(
+    client, db
+):
+    _, spending, _ = _pair(db)
+    db.add(
+        models.LobbyingExpenditureRow(
+            snapshot_id=spending.id,
+            row_number=997,
+            principal="Amount not given",
+            entity_id="100002",
+            report_year=2024,
+        )
+    )
+    spending.row_count += 1
+    db.commit()
+
+    def principal(year):
+        return next(
+            row
+            for row in _get(client, f"principals?year={year}")["principals"]
+            if row["entity_id"] == 100002
+        )
+
+    present = principal(2024)
+    assert present["total_spent"] is None
+    assert present["spending_state"] == "reported"
+    assert present["linkable"] is True
+
+    absent = principal(2023)
+    assert absent["total_spent"] is None
+    assert absent["spending_state"] == "not_reported"
+    assert absent["linkable"] is True
+
+    # Two blank source rows are still ambiguous, never one missing report.
+    db.add(
+        models.LobbyingExpenditureRow(
+            snapshot_id=spending.id,
+            row_number=998,
+            principal="Amount not given",
+            entity_id="100002",
+            report_year=2024,
+        )
+    )
+    spending.row_count += 1
+    db.commit()
+    repeated = principal(2024)
+    assert repeated["total_spent"] is None
+    assert repeated["spending_state"] == "ambiguous"
+
+
 def test_principals_directory_sorts_zero_before_missing_and_keeps_years(client, db):
     _, spending, _ = _pair(db)
     db.add(

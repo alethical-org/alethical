@@ -2,7 +2,6 @@ import { useEffect, useRef, type FormEvent } from 'react';
 
 import {
   COMMITTEE_PAGE_SIZE,
-  committeeEmptyWhy,
   kindFilterNoun,
   type CommitteeKindFilter,
 } from '@alethical/shared/committeeList';
@@ -10,7 +9,7 @@ import { committeeEyebrow, formatDay } from '@alethical/shared/committeeMoneySha
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentCopyLines } from '@alethical/shared/paymentCopyDates';
 
-import { useRead } from '../api/read';
+import { useRead, type Read } from '../api/read';
 import { Link, useLocation } from '../router';
 import { useLiveSearch } from '../search/useLiveSearch';
 import { withFrom } from '../returnContext';
@@ -260,115 +259,175 @@ export function punctuateGroup(items: string[]): string[] {
   return items.map((line) => (/[.!?]$/.test(line) ? line : `${line}.`));
 }
 
-/**
- * Campaign money (Campaign Money drawing): the committee register in 3 tabs,
- * a name search over registered names kept apart from payments under a name,
- * paged on the server, with the limits of the records beside it.
- */
+const ADDRESS_DEFAULTS = {
+  tab: 'candidates',
+  q: '',
+  page: '1',
+  sort: 'name',
+  reg: 'all',
+  party: '',
+  view: '',
+  reg_candidates: '',
+  reg_committees: '',
+  reg_party: '',
+  sort_candidates: '',
+  sort_committees: '',
+  sort_party: '',
+  spage_candidates: '1',
+  spage_committees: '1',
+  spage_party: '1',
+  party_candidates: '',
+};
+type DirectoryAddress = typeof ADDRESS_DEFAULTS;
+type GroupChoices = { reg: string; sort: string; party: string; page: string };
+function validParty(value: string): string {
+  return value.length <= 200 && !value.includes('\0') ? value : '';
+}
+const READ_OPTIONS = {
+  keepPrevious: true,
+  acceptData: (data: CommitteeRegister) => data.state === 'reported',
+};
+
+function resultCount(read: Read<CommitteeRegister>): number | null {
+  if (read.loading || read.pending || read.updating || read.failed || read.notFound) return null;
+  return read.data?.page.total ?? null;
+}
+
+function searchChoices(address: DirectoryAddress, tab: DirectoryTab): GroupChoices {
+  const browseTab = tabFromParam(address.tab);
+  return {
+    reg: registrationFilter(address[`reg_${tab}`] || (tab === browseTab ? address.reg : 'all')),
+    sort:
+      (address[`sort_${tab}`] || (tab === browseTab ? address.sort : 'name')) === 'registration'
+        ? 'registration'
+        : 'name',
+    party:
+      tab === 'candidates'
+        ? address.party_candidates === 'all'
+          ? ''
+          : validParty(address.party_candidates || address.party)
+        : '',
+    page: address[`spage_${tab}`],
+  };
+}
+
+/** Reads stay mounted by category, so one failure cannot replace another group's result. */
 export function CampaignMoney(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const [address, setAddress] = useAddressState({
-    tab: 'candidates',
-    q: '',
-    page: '1',
-    sort: 'name',
-    reg: 'all',
-    party: '',
-  });
+  const [address, setAddress] = useAddressState(ADDRESS_DEFAULTS);
   const tab = tabFromParam(address.tab);
   const submitted = address.q.trim().slice(0, MAX_QUERY).trimEnd();
-  const page = pageFromParam(address.page);
-  const reg = registrationFilter(address.reg);
-  const party =
-    tab === 'candidates' && address.party.length <= 200 && !address.party.includes('\0')
-      ? address.party
-      : '';
-
+  const full =
+    submitted && TABS.some((item) => item.value === address.view)
+      ? (address.view as DirectoryTab)
+      : null;
+  const browseChoices = {
+    reg: registrationFilter(address.reg),
+    sort: address.sort === 'registration' ? 'registration' : 'name',
+    party: tab === 'candidates' ? validParty(address.party) : '',
+    page: address.page,
+  };
+  const choices = {
+    candidates: searchChoices(address, 'candidates'),
+    committees: searchChoices(address, 'committees'),
+    party: searchChoices(address, 'party'),
+  };
+  function pathFor(group: DirectoryTab) {
+    const choice = choices[group];
+    return submitted
+      ? registerPath(
+          group,
+          submitted,
+          full === group ? pageFromParam(choice.page) : 1,
+          choice.sort,
+          choice.reg,
+          choice.party,
+        )
+      : null;
+  }
+  const browse = useRead<CommitteeRegister>(
+    submitted
+      ? null
+      : registerPath(
+          tab,
+          '',
+          pageFromParam(address.page),
+          browseChoices.sort,
+          browseChoices.reg,
+          browseChoices.party,
+        ),
+    READ_OPTIONS,
+  );
+  const candidates = useRead<CommitteeRegister>(pathFor('candidates'), READ_OPTIONS);
+  const committees = useRead<CommitteeRegister>(pathFor('committees'), READ_OPTIONS);
+  const party = useRead<CommitteeRegister>(pathFor('party'), READ_OPTIONS);
+  const searchReads = { candidates, committees, party };
+  const summary = useRead<MoneySummary>('campaign-finance/summary');
+  const phone = useBand() === 'phone';
   const [typed, setTyped, applySearch] = useLiveSearch(
     submitted,
     here,
-    (q) => setAddress({ q, page: '1' }),
+    (q) => {
+      setAddress(
+        {
+          q,
+          view: q ? address.view : '',
+          spage_candidates: '1',
+          spage_committees: '1',
+          spage_party: '1',
+        },
+        { replace: Boolean(q) === Boolean(submitted) },
+      );
+    },
     (value) => value.trim().slice(0, MAX_QUERY).trimEnd(),
   );
-
-  // An unavailable register is a failed read, so the last list stays on screen
-  // with Try again rather than being replaced by the outage.
-  const read = useRead<CommitteeRegister>(
-    registerPath(tab, submitted, page, address.sort, reg, party),
-    {
-      keepPrevious: true,
-      acceptData: (data) => data.state === 'reported',
-    },
-  );
-  const summary = useRead<MoneySummary>('campaign-finance/summary');
-  const phone = useBand() === 'phone';
-  const register = read.data;
-  const unavailable = register !== null && register.state !== 'reported';
-  const rows = register && !unavailable ? register.committees : [];
-  const total = register && !unavailable ? (register.page.total ?? null) : null;
-  const pages = pageCount(total);
-  const shownPage = register ? Math.floor(register.page.offset / COMMITTEE_PAGE_SIZE) + 1 : page;
-  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
-
-  // A page past the end (a stale link, or a search that now matches fewer)
-  // opens the last page that exists rather than an empty list.
-  useEffect(() => {
-    const own = register?.page.offset === (page - 1) * COMMITTEE_PAGE_SIZE;
-    if (own && !read.updating && !read.failed && total !== null && page > pages) {
-      setAddress({ page: String(pages) });
-    }
-  }, [register, read.updating, read.failed, total, page, pages, setAddress]);
-
-  const list = useRef<HTMLDivElement>(null);
-  function goPage(next: number) {
-    if (pagingUnavailable) return;
-    setAddress({ page: String(next) });
-    const element = list.current;
-    if (!element) return;
-    const top = element.getBoundingClientRect().top + window.scrollY - 20;
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    element.focus({ preventScroll: true });
-  }
-
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     applySearch();
   }
-
-  const byKind = register?.held_by_kind ?? null;
+  const allEmpty = TABS.every(({ value }) => {
+    const read = searchReads[value],
+      choice = choices[value];
+    return resultCount(read) === 0 && choice.reg === 'all' && !choice.party;
+  });
+  const groups = sourceGroups(
+    submitted ? (candidates.data ?? committees.data ?? party.data) : browse.data,
+    summary.data,
+  );
+  const cards = SIDE_CARDS.filter((card) => isBuilt(card.route));
+  const searchInput = useRef<HTMLInputElement>(null);
+  const resultsHeading = useRef<HTMLHeadingElement>(null);
+  const previousView = useRef({ submitted, full });
+  useEffect(() => {
+    const previous = previousView.current;
+    previousView.current = { submitted, full };
+    if (previous.submitted && !submitted) searchInput.current?.focus();
+    else if (submitted && previous.full !== full) resultsHeading.current?.focus();
+  }, [submitted, full]);
+  function showFull(view: DirectoryTab | '') {
+    setAddress({ view }, { replace: false });
+  }
+  function viewHref(view: DirectoryTab | '') {
+    const params = new URLSearchParams(location.search);
+    if (view) params.set('view', view);
+    else params.delete('view');
+    return `${location.pathname}?${params}`;
+  }
   const tabs = TABS.map((item) => {
-    const count = byKind?.[item.kind];
+    const read = searchReads[item.value];
+    const current = new URLSearchParams(read.dataPath?.split('?')[1]).get('q') === submitted;
+    const count = submitted
+      ? current
+        ? resultCount(read)
+        : null
+      : browse.data?.held_by_kind?.[item.kind];
     return {
       value: item.value,
       label: item.label,
       count: typeof count === 'number' ? formatCount(count) : null,
     };
   });
-  const tabLabel = TABS.find((item) => item.value === tab)?.label ?? '';
-
-  const freshFailure = (read.failed && register === null) || (unavailable && !read.updating);
-  const retainedFailure = read.failed && register !== null && !unavailable;
-  const showList = register !== null && !unavailable;
-  const shownQuery = new URLSearchParams(read.dataPath?.split('?')[1]).get('q') ?? '';
-  // Kept rows keep their own tab's noun while another tab loads or fails, so an
-  // earlier list is never relabelled as the new one.
-  const shownTab = TABS.find((item) => item.kind === register?.kind)?.value ?? tab;
-  const count = countLine(shownTab, total);
-  const previousScope = [
-    TABS.find((item) => item.value === shownTab)?.label,
-    REGISTRATIONS.find((item) => item.value === registrationFilter(register?.status))?.label,
-    register?.party,
-    shownQuery ? `Matching “${shownQuery}”` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  const partyOptions = [
-    ...new Set([...(register?.candidate_parties ?? []), ...(party ? [party] : [])]),
-  ];
-  const groups = sourceGroups(unavailable ? null : register, summary.data);
-  const cards = SIDE_CARDS.filter((card) => isBuilt(card.route));
-
   return (
     <main id="main" className="f-page">
       <div className="f-content">
@@ -400,6 +459,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             Search by name or registration number
           </label>
           <input
+            ref={searchInput}
             id="money-name"
             type="search"
             className="f-field cm-field"
@@ -416,242 +476,108 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
           </button>
         </form>
 
-        {submitted && (isBuilt('payments-under-name') || shownQuery === submitted) && (
+        {submitted && isBuilt('payments-under-name') && (
           <section aria-label="Name search" className="cm-name-search">
-            {isBuilt('payments-under-name') ? (
-              <>
-                <p>
-                  {shownQuery === submitted
-                    ? `Registrations matching “${submitted}” are listed below. Payments recorded under that spelling are a separate search:`
-                    : `Payments recorded under “${submitted}” are a separate search:`}
-                </p>
-                <Link
-                  to={withFrom(hrefFor('payments-under-name', { query: submitted }), here)}
-                  className="cm-card cm-payments"
-                >
-                  <span className="cm-payments-text">
-                    <span className="cm-card-title">Payments under a name</span>
-                    <span className="cm-payments-note">
-                      Every campaign and outside-spending payment printed under “{submitted}”,
-                      grouped by exact spelling
-                    </span>
-                  </span>
-                  <Arrow />
-                </Link>
-              </>
-            ) : (
-              <p>Registrations matching “{submitted}” are listed below.</p>
-            )}
+            <p>Payments recorded under that spelling are a separate search</p>
+            <Link
+              to={withFrom(hrefFor('payments-under-name', { query: submitted }), here)}
+              className="cm-card cm-payments"
+            >
+              <span className="cm-payments-text">
+                <span className="cm-card-title">Payments under a name</span>
+                <span className="cm-payments-note">
+                  Every campaign and outside-spending payment, grouped by exact spelling
+                </span>
+              </span>
+              <Arrow />
+            </Link>
           </section>
         )}
 
         <div className="cm-layout">
-          <section aria-label={tabLabel} className="cm-directory">
-            <div className="cm-tabs">
-              <ScrollingTabs
-                label="Directory"
-                value={tab}
-                tabs={tabs}
-                onChange={(next) => setAddress({ tab: next, party: '', page: '1' })}
-              />
-            </div>
-
-            <div className="cm-filters">
-              {tab === 'candidates' && partyOptions.length > 0 && (
-                <Dropdown
-                  name="Party"
-                  value={party}
-                  options={[
-                    { value: '', label: 'All parties' },
-                    ...partyOptions.map((value) => ({ value, label: value })),
-                  ]}
-                  onChange={(party) => setAddress({ party, page: '1' })}
-                />
-              )}
-              <Dropdown
-                name="Registration"
-                value={reg}
-                options={REGISTRATIONS}
-                onChange={(reg) => setAddress({ reg, page: '1' })}
-              />
-              <Dropdown
-                name="Sort by"
-                value={address.sort === 'registration' ? 'registration' : 'name'}
-                options={[
-                  { value: 'name', label: 'Name A–Z' },
-                  { value: 'registration', label: 'Registration' },
-                ]}
-                onChange={(sort) => setAddress({ sort, page: '1' })}
-              />
-              {(address.sort === 'registration' || reg !== 'all' || party) && (
-                <ClearAll
-                  onClick={() =>
-                    setAddress({
-                      sort: 'name',
-                      reg: 'all',
-                      party: '',
-                      page: '1',
-                    })
+          <div className="cm-directory">
+            {submitted && (
+              <div className="cm-search-heading">
+                {full && (
+                  <Link to={viewHref('')} className="cm-view-all cm-back">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M15 6 L9 12 L15 18"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    Back to all results
+                  </Link>
+                )}
+                <div className="cm-search-title">
+                  <h2 ref={resultsHeading} tabIndex={-1}>
+                    Results for “{submitted}”
+                  </h2>
+                  <button
+                    type="button"
+                    className="f-btn f-btn-secondary"
+                    onClick={() => applySearch('')}
+                  >
+                    Clear search
+                  </button>
+                </div>
+              </div>
+            )}
+            {(!submitted || full) && (
+              <div className="cm-tabs">
+                <ScrollingTabs
+                  label={submitted ? 'Result groups' : 'Directory'}
+                  value={full ?? tab}
+                  tabs={tabs}
+                  onChange={(next) =>
+                    submitted
+                      ? showFull(tabFromParam(next))
+                      : setAddress({ tab: next, party: '', page: '1' })
                   }
                 />
-              )}
-            </div>
-            <div ref={list} tabIndex={-1} className="cm-list">
-              {read.loading && <LoadingRows />}
-              {freshFailure && (
-                <Refused onRetry={read.retry} retrying={read.pending}>
-                  We couldn’t load these results. This is a problem on our side and says nothing
-                  about who is registered.
-                </Refused>
-              )}
-              {showList && (
-                <>
-                  {read.updating && (
-                    <div className="cm-notice">
-                      <Updating />
-                    </div>
-                  )}
-                  {retainedFailure && (
-                    <div className="cm-notice">
-                      <Refused onRetry={read.retry} retrying={read.pending}>
-                        We couldn’t update these results. Previous results are shown.
-                      </Refused>
-                    </div>
-                  )}
-                  {(read.updating || retainedFailure) && (
-                    <p className="cm-notice" role="status">
-                      Previous results: {previousScope}
-                    </p>
-                  )}
-                  <div aria-live="polite" className="f-count-line cm-count">
-                    {count}
-                  </div>
-                  {rows.length === 0 ? (
-                    <Empty
-                      title="No matching records"
-                      next={committeeEmptyWhy('all', shownQuery)}
-                    />
-                  ) : (
-                    <>
-                      <div role="table" aria-label="Directory" className="cm-table">
-                        <div role="row" className="cm-row cm-head">
-                          <span role="columnheader">NAME</span>
-                          <span role="columnheader">TYPE</span>
-                          <span role="columnheader" className="cm-reg">
-                            REGISTRATION
-                          </span>
-                          <span role="columnheader">REGISTRATION STATUS</span>
-                        </div>
-                        {rows.map((row) => {
-                          const status = registrationStatus(row);
-                          return (
-                            <div role="row" key={row.registration_number} className="cm-row">
-                              <span role="cell" className="cm-name f-marked">
-                                <RecordMark kind="committee" />
-                                {isBuilt('committee') ? (
-                                  <Link
-                                    to={withFrom(
-                                      hrefFor('committee', {
-                                        id: row.registration_number,
-                                      }),
-                                      here,
-                                    )}
-                                    className="cm-name-link"
-                                  >
-                                    {row.name}
-                                  </Link>
-                                ) : (
-                                  <span>{row.name}</span>
-                                )}
-                              </span>
-                              <span role="cell" className="cm-kind">
-                                {[
-                                  committeeEyebrow(row.kind, row.sub_type),
-                                  shownTab === 'candidates' ? row.party : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' · ')}
-                              </span>
-                              <span role="cell" className="cm-reg f-num">
-                                <span className="cm-reg-word">Registration </span>
-                                {row.registration_number}
-                              </span>
-                              <span
-                                role="cell"
-                                className="cm-status f-num"
-                                data-status={status.state}
-                              >
-                                {status.text}
-                                {(row.retained || row.registration_status === 'not_listed') &&
-                                  row.captured_at && (
-                                    <span className="cm-status-copy">
-                                      Last listed in the register copied{' '}
-                                      {centralDateLabel(row.captured_at)}
-                                    </span>
-                                  )}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <nav aria-label="Pages" className="cm-pager">
-                        <button
-                          type="button"
-                          className="f-btn f-btn-secondary cm-page-btn"
-                          aria-disabled={pagingUnavailable || shownPage <= 1 || undefined}
-                          onClick={() => shownPage > 1 && goPage(shownPage - 1)}
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M15 5 L8 12 L15 19"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                          Previous
-                        </button>
-                        <span aria-live="polite" className="cm-page-line f-num">
-                          Page {formatCount(Math.min(shownPage, pages))} of {formatCount(pages)}
-                        </span>
-                        <button
-                          type="button"
-                          className="f-btn f-btn-secondary cm-page-btn"
-                          aria-disabled={pagingUnavailable || shownPage >= pages || undefined}
-                          onClick={() => shownPage < pages && goPage(shownPage + 1)}
-                        >
-                          Next
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M9 5 L16 12 L9 19"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </nav>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
-
+              </div>
+            )}
+            {submitted && !full && allEmpty ? (
+              <Empty
+                title={`No matches for “${submitted}”`}
+                next="Try a full or partial name or registration number"
+              />
+            ) : submitted ? (
+              <div className="cm-search-groups">
+                {TABS.filter((item) => !full || item.value === full).map((item) => (
+                  <RegisterGroup
+                    key={item.value}
+                    tab={item.value}
+                    read={searchReads[item.value]}
+                    here={here}
+                    choices={choices[item.value]}
+                    preview={!full}
+                    viewAllHref={viewHref(item.value)}
+                    setAddress={(change) => {
+                      const updates: Partial<DirectoryAddress> = {};
+                      if (change.reg !== undefined) updates[`reg_${item.value}`] = change.reg;
+                      if (change.sort !== undefined) updates[`sort_${item.value}`] = change.sort;
+                      if (change.party !== undefined && item.value === 'candidates')
+                        updates.party_candidates = change.party || 'all';
+                      if (change.page !== undefined) updates[`spage_${item.value}`] = change.page;
+                      setAddress(updates);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <RegisterGroup
+                tab={tab}
+                read={browse}
+                here={here}
+                choices={browseChoices}
+                setAddress={setAddress}
+              />
+            )}
+          </div>
           <aside aria-label="Other ways in" className="cm-aside">
             {cards.map((card) => (
               <Link
@@ -679,5 +605,285 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
       </div>
       <SourcesAndUpdates groups={groups} />
     </main>
+  );
+}
+
+function RegisterGroup({
+  tab,
+  read,
+  here,
+  choices,
+  preview = false,
+  viewAllHref,
+  setAddress,
+}: {
+  tab: DirectoryTab;
+  read: Read<CommitteeRegister>;
+  here: string;
+  choices: GroupChoices;
+  preview?: boolean;
+  viewAllHref?: string;
+  setAddress: (change: Partial<GroupChoices>) => void;
+}) {
+  const { reg, sort, party } = choices;
+  const page = pageFromParam(choices.page);
+  const register = read.data;
+  const rows = register?.committees ?? [];
+  const total = register?.page.total ?? null;
+  const pages = pageCount(total);
+  const shownPage = register ? Math.floor(register.page.offset / COMMITTEE_PAGE_SIZE) + 1 : page;
+  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
+  useEffect(() => {
+    const own = register?.page.offset === (page - 1) * COMMITTEE_PAGE_SIZE;
+    if (!preview && own && !read.updating && !read.failed && total !== null && page > pages)
+      setAddress({ page: String(pages) });
+  }, [preview, register, read.updating, read.failed, total, page, pages, setAddress]);
+  const list = useRef<HTMLDivElement>(null);
+  function goPage(next: number) {
+    if (pagingUnavailable) return;
+    setAddress({ page: String(next) });
+    if (list.current) {
+      window.scrollTo({
+        top: Math.max(0, list.current.getBoundingClientRect().top + window.scrollY - 20),
+        behavior: 'smooth',
+      });
+      list.current.focus({ preventScroll: true });
+    }
+  }
+  const freshFailure = (read.failed || read.notFound) && !register;
+  const retainedFailure = (read.failed || read.notFound) && !!register;
+  const showList = register !== null;
+  const shownParams = new URLSearchParams(read.dataPath?.split('?')[1]);
+  const shownQuery = shownParams.get('q') ?? '';
+  const shownTab = TABS.find((item) => item.kind === register?.kind)?.value ?? tab;
+  const count = countLine(shownTab, total);
+  const previousScope = [
+    TABS.find((item) => item.value === shownTab)?.label,
+    REGISTRATIONS.find((item) => item.value === registrationFilter(shownParams.get('status')))
+      ?.label,
+    shownParams.get('party'),
+    shownQuery ? `Matching “${shownQuery}”` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const partyOptions = [
+    ...new Set([...(register?.candidate_parties ?? []), ...(party ? [party] : [])]),
+  ];
+  const label = TABS.find((item) => item.value === tab)!.label;
+  const currentCount = resultCount(read);
+  return (
+    <section aria-label={label} className="cm-group">
+      {preview && (
+        <h3>
+          {label}
+          {currentCount !== null ? ` (${formatCount(currentCount)})` : ''}
+        </h3>
+      )}
+      {(rows.length > 0 || reg !== 'all' || party) && (
+        <div className="cm-filters">
+          {tab === 'candidates' && partyOptions.length > 0 && (
+            <Dropdown
+              name="Party"
+              value={party}
+              options={[
+                { value: '', label: 'All parties' },
+                ...partyOptions.map((value) => ({ value, label: value })),
+              ]}
+              onChange={(party) => setAddress({ party, page: '1' })}
+            />
+          )}
+          <Dropdown
+            name="Registration"
+            value={reg}
+            options={REGISTRATIONS}
+            onChange={(reg) => setAddress({ reg, page: '1' })}
+          />
+          {rows.length > 0 && (
+            <Dropdown
+              name="Sort by"
+              value={sort}
+              options={[
+                { value: 'name', label: 'Name A–Z' },
+                { value: 'registration', label: 'Registration number' },
+              ]}
+              onChange={(sort) => setAddress({ sort, page: '1' })}
+            />
+          )}
+          {(sort === 'registration' || reg !== 'all' || party) && (
+            <ClearAll
+              onClick={() =>
+                setAddress({
+                  sort: 'name',
+                  reg: 'all',
+                  party: '',
+                  page: '1',
+                })
+              }
+            />
+          )}
+        </div>
+      )}
+      <div ref={list} tabIndex={-1} className="cm-list">
+        {read.loading && <LoadingRows />}
+        {freshFailure && (
+          <Refused onRetry={read.retry} retrying={read.pending}>
+            We couldn’t load these results. This is a problem on our side and says nothing about who
+            is registered.
+          </Refused>
+        )}
+        {showList && (
+          <>
+            {read.updating && (
+              <div className="cm-notice">
+                <Updating />
+              </div>
+            )}
+            {retainedFailure && (
+              <div className="cm-notice">
+                <Refused onRetry={read.retry} retrying={read.pending}>
+                  We couldn’t update these results. Previous results are shown.
+                </Refused>
+              </div>
+            )}
+            {(read.updating || retainedFailure) && (
+              <p className="cm-notice" role="status">
+                Previous results: {previousScope}
+              </p>
+            )}
+            {!preview && (
+              <div aria-live="polite" className="f-count-line cm-count">
+                {count}
+              </div>
+            )}
+            {rows.length === 0 ? (
+              <p role="status" className="cm-empty">
+                No matches
+              </p>
+            ) : (
+              <>
+                <div role="table" aria-label={label} className="cm-table">
+                  <div role="row" className="cm-row cm-head">
+                    <span role="columnheader">NAME</span>
+                    <span role="columnheader">TYPE</span>
+                    <span role="columnheader" className="cm-reg">
+                      REGISTRATION NUMBER
+                    </span>
+                    <span role="columnheader">REGISTRATION STATUS</span>
+                  </div>
+                  {(preview ? rows.slice(0, 5) : rows).map((row) => {
+                    const status = registrationStatus(row);
+                    return (
+                      <div role="row" key={row.registration_number} className="cm-row">
+                        <span role="cell" className="cm-name f-marked">
+                          <RecordMark kind="committee" />
+                          {isBuilt('committee') ? (
+                            <Link
+                              to={withFrom(
+                                hrefFor('committee', {
+                                  id: row.registration_number,
+                                }),
+                                here,
+                              )}
+                              className="cm-name-link"
+                            >
+                              {row.name}
+                            </Link>
+                          ) : (
+                            <span>{row.name}</span>
+                          )}
+                        </span>
+                        <span role="cell" className="cm-kind">
+                          {[
+                            committeeEyebrow(row.kind, row.sub_type),
+                            shownTab === 'candidates' ? row.party : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                        <span role="cell" className="cm-reg f-num">
+                          <span className="cm-reg-word">Registration number </span>
+                          {row.registration_number}
+                        </span>
+                        <span role="cell" className="cm-status f-num" data-status={status.state}>
+                          {status.text}
+                          {(row.retained || row.registration_status === 'not_listed') &&
+                            row.captured_at && (
+                              <span className="cm-status-copy">
+                                Last listed in the register copied{' '}
+                                {centralDateLabel(row.captured_at)}
+                              </span>
+                            )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {preview &&
+                  (total === null ? rows.length > 5 || register?.page.has_more : total > 5) && (
+                    <Link to={viewAllHref!} className="cm-view-all">
+                      View all matching{' '}
+                      {TABS.find((item) => item.value === tab)?.label.toLowerCase()}
+                      <Arrow />
+                    </Link>
+                  )}
+                {!preview && pages > 1 && (
+                  <nav aria-label="Pages" className="cm-pager">
+                    <button
+                      type="button"
+                      className="f-btn f-btn-secondary cm-page-btn"
+                      aria-disabled={pagingUnavailable || shownPage <= 1 || undefined}
+                      onClick={() => shownPage > 1 && goPage(shownPage - 1)}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M15 5 L8 12 L15 19"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      Previous
+                    </button>
+                    <span aria-live="polite" className="cm-page-line f-num">
+                      Page {formatCount(Math.min(shownPage, pages))} of {formatCount(pages)}
+                    </span>
+                    <button
+                      type="button"
+                      className="f-btn f-btn-secondary cm-page-btn"
+                      aria-disabled={pagingUnavailable || shownPage >= pages || undefined}
+                      onClick={() => shownPage < pages && goPage(shownPage + 1)}
+                    >
+                      Next
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M9 5 L16 12 L9 19"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </nav>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </section>
   );
 }

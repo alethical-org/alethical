@@ -1,0 +1,82 @@
+/* Combined category search, Media Buys drawing section 2. Existing row and
+   control treatments remain shared with the other media pages. */
+.mb-directory {
+  outline: none;
+}
+.mb-search-heading {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.mb-search-heading > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.mb-search-heading h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.mb-result-group {
+  min-width: 0;
+  margin-top: 14px;
+}
+.mb-result-group + .mb-result-group {
+  margin-top: 32px;
+}
+.mb-result-group h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.mb-result-group > h3 ~ .mb-results {
+  margin-top: 14px;
+}
+.mb-result-group .mb-filters:has([data-open]) {
+  z-index: 41;
+}
+.mb-group-empty {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--secondary);
+}
+.mb-all-results {
+  justify-self: start;
+}
+.mb-view-all {
+  margin-top: 10px;
+  min-height: 44px;
+}
+.mb-held-scope {
+  display: block;
+}
+@media (max-width: 767px) {
+  .mb-directory .mb-filters > .f-dropdown,
+  .mb-directory .mb-filters > .f-dropdown > button {
+    width: 100%;
+  }
+}
+
+.mb-all-results,
+.mb-view-all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--link);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.mb-all-results:hover,
+.mb-view-all:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

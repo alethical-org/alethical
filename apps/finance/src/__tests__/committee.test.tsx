@@ -524,7 +524,7 @@ describe('Committee page', () => {
     await render('/money/committees/90001', loadedAnswers());
     expect(container.querySelector('h1')?.textContent).toBe('Example Candidate Committee');
     expect(text()).toContain('Candidate committee');
-    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Registration number 90001');
     expect(container.querySelector('.cmt-reg-status')?.textContent).toBe('Registered Feb 3, 2025');
     expect(text()).toContain('Report: 2026 Pre-Primary Report · Amendment 1');
     const figures = [...container.querySelectorAll('.cmt-figure-box dt')].map(

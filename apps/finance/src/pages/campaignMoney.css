@@ -153,6 +153,84 @@ a.cm-card:active {
 .cm-aside {
   min-width: 0;
 }
+.cm-directory {
+  outline: none;
+}
+.cm-search-heading {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.cm-search-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.cm-search-title h2 {
+  flex: 1 1 260px;
+  min-width: 0;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.cm-search-groups {
+  display: grid;
+  gap: 32px;
+}
+.cm-search-groups .cm-table {
+  margin-top: 14px;
+}
+.cm-search-groups .cm-count:not(:empty) + .cm-table {
+  margin-top: 0;
+}
+.cm-group {
+  min-width: 0;
+}
+.cm-group h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.cm-empty {
+  margin: 14px 0 0;
+  color: var(--secondary);
+  font-size: 14px;
+}
+.cm-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cm-back {
+  justify-self: start;
+  margin: 0;
+}
+@media (hover: hover) {
+  .cm-view-all:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
 .cm-aside {
   display: grid;
   gap: 14px;
@@ -171,6 +249,9 @@ a.cm-card:active {
   align-items: center;
   position: relative;
   z-index: 40;
+}
+.cm-filters:has(.f-dropdown[data-open]) {
+  z-index: 41;
 }
 .cm-list {
   outline: none;
@@ -243,6 +324,9 @@ a.cm-card:active {
 .cm-reg {
   text-align: right;
   white-space: nowrap;
+}
+.cm-head .cm-reg {
+  white-space: normal;
 }
 .cm-row:not(.cm-head) .cm-reg {
   font-size: 14px;

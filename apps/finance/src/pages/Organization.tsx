@@ -437,7 +437,7 @@ function Profile({
             <div className="f-sources-row">
               <dt>Confirmed identity</dt>
               <dd>
-                <span>Organization reference {identity.reference}</span>
+                <span>Alethical reference {identity.reference}</span>
               </dd>
             </div>
           )}
@@ -448,7 +448,7 @@ function Profile({
             <ul className="org-ids">
               {identifiers.map((key) => (
                 <li key={key} className="f-num">
-                  <span className="org-id">Lobbying principal entity ID {key}</span>
+                  <span className="org-id">State entity ID {key}</span>
                   {BOARD} · Minnesota
                 </li>
               ))}

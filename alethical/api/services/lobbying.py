@@ -344,7 +344,7 @@ def principals_page(
                     "ambiguous"
                     if row.spending_rows and row.spending_rows > 1
                     else REPORTED
-                    if row.total_spent is not None
+                    if row.spending_rows == 1
                     else NOT_REPORTED
                 ),
             }

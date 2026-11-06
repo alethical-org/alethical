@@ -1721,7 +1721,7 @@
 .f-evidence-body dl {
   margin: 0;
   display: grid;
-  grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
   gap: 8px 16px;
   font-size: 14px;
   line-height: 1.45;

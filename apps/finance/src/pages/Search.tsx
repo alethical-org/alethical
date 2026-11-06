@@ -185,7 +185,7 @@ export function moneyFamilies(
       people.push({
         key: `lobbyist-${reg}`,
         name: result.name ?? '',
-        note: `Lobbyist · Registration ${reg}`,
+        note: `Lobbyist · Registration number ${reg}`,
         href: linked('lobbyist', { id: reg }),
       });
     }
@@ -197,7 +197,10 @@ export function moneyFamilies(
     orgs.push({
       key: `principal-${result.entity_id ?? reg ?? result.name}`,
       name: result.name ?? '',
-      note: join('Principal', reg && `Registration ${reg}`),
+      note: join(
+        'Principal',
+        result.entity_id != null ? `State entity ID ${result.entity_id}` : null,
+      ),
       href: result.entity_id != null ? linked('principal', { id: String(result.entity_id) }) : null,
     });
   }
@@ -209,7 +212,7 @@ export function moneyFamilies(
     committees.push({
       key: `committee-${reg}`,
       name: result.name ?? '',
-      note: join(registerKindLabel(result.filer_kind), `Registration ${reg}`),
+      note: join(registerKindLabel(result.filer_kind), `Registration number ${reg}`),
       href: linked('committee', { id: reg }),
     });
   }
@@ -550,7 +553,7 @@ function Family({
           </div>
         </div>
       )}
-      {shown.state === 'empty' && <div className="sr-empty">No matching records</div>}
+      {shown.state === 'empty' && <div className="sr-empty">No matches</div>}
       {shown.state === 'too-short' && <div className="sr-empty">{tooShortTitle(shown.floor)}</div>}
       {shown.state === 'rows' && (
         <>

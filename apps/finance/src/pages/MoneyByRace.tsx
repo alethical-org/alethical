@@ -939,7 +939,7 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
                               <span className="mr-plain">{committee.name}</span>
                             )}
                             <span className="mr-sub f-num">
-                              Registration {committee.registrationNumber}
+                              Registration number {committee.registrationNumber}
                             </span>
                           </span>
                           {figures.map((figure) => (

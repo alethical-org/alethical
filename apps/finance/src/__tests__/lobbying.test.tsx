@@ -238,6 +238,81 @@ function directoryAnswer(lobbyists: () => Response, principals: () => Response):
   };
 }
 
+it('finds a represented name even when the search starts on Lobbyists', async () => {
+  await render(
+    '/lobbying?tab=lobbyists&q=Xcel',
+    (match) => <Lobbying match={match} />,
+    directoryAnswer(
+      () =>
+        json(
+          lobbyistsPage({
+            state: 'not_reported',
+            q: 'Xcel',
+            total: 0,
+            has_more: false,
+            lobbyists: [],
+          }),
+        ),
+      () =>
+        json(
+          principalsPage({
+            q: 'Xcel',
+            total: 1,
+            has_more: false,
+            principals: [
+              {
+                entity_id: 8450,
+                name: 'Xcel Energy',
+                registered_names: [],
+                state: 'reported',
+                linkable: true,
+                latest_reported_year: 2025,
+              },
+            ],
+          }),
+        ),
+    ),
+  );
+  expect(text()).toContain('Xcel Energy');
+  expect(text()).toContain('Who lobbyists represent');
+  expect(text()).toContain('No matches');
+  expect(container.querySelectorAll('[role="table"]')).toHaveLength(1);
+});
+
+it('keeps represented matches when the lobbyist search fails', async () => {
+  await render(
+    '/lobbying?q=Xcel',
+    (match) => <Lobbying match={match} />,
+    directoryAnswer(
+      () => new Response('', { status: 500 }),
+      () =>
+        json(
+          principalsPage({
+            q: 'Xcel',
+            total: 1,
+            has_more: false,
+            principals: [
+              {
+                entity_id: 8450,
+                name: 'Xcel Energy',
+                registered_names: [],
+                state: 'reported',
+                linkable: true,
+                latest_reported_year: 2025,
+              },
+            ],
+          }),
+        ),
+    ),
+  );
+  expect(text()).toContain('Xcel Energy');
+  expect(text()).toContain('Try again');
+  expect(text()).not.toContain('Lobbyists (0)');
+  expect(container.querySelector('button[type="submit"]')?.getAttribute('aria-label')).toBe(
+    'Search',
+  );
+});
+
 function payment(record: number, amount: string | null, date: string | null, extra = {}) {
   return {
     record_number: record,
@@ -420,19 +495,21 @@ describe('Lobbying directory', () => {
     const list = requests.find((url) => url.includes('/lobbying/lobbyists?'));
     expect(list).toBe(`${API}/api/v1/finance/lobbying/lobbyists?sort=name&limit=50&offset=0`);
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
-    expect(tabs).toEqual(['Lobbyists1,673', 'Principals3,448']);
+    expect(tabs).toEqual(['Lobbyists1,673', 'Who lobbyists represent3,448']);
     expect(text()).toContain('Showing 1–3 of 1,673 registered lobbyists');
-    expect(text()).toContain('Find lobbyists or organizations using all or part of a name');
+    expect(text()).toContain(
+      'Find Minnesota lobbyists, who they represent, and reported lobbying spending',
+    );
     expect(text()).not.toContain('part of a name.');
     const head = container.querySelector('.lb-head')?.textContent;
-    expect(head).toBe('NAMEREGISTRATION AND CLIENTSCONTRIBUTIONS RECORDED IN 2025');
+    expect(head).toBe('NameRegistration and clientsCampaign contributions in 2025');
     const rows = [...container.querySelectorAll('.lb-tr:not(.lb-head)')].map((row) =>
-      row.textContent?.replace('Contributions recorded in 2025: ', ''),
+      row.textContent?.replace(/\u00a0/g, ' ').replace('Campaign contributions in 2025: ', ''),
     );
     expect(rows).toEqual([
-      'Aafedt, David MRegistration 17338 clients listedAmount unavailable',
-      'Aasen, MichaelRegistration 63321 client listed$400',
-      'Abbott, LeeRegistration 70012 clients listedNo matching donation records',
+      'Aafedt, David MRegistration number 17338 clients listedAmount unavailable',
+      'Aasen, MichaelRegistration number 63321 client listed$400',
+      'Abbott, LeeRegistration number 70012 clients listedNo matching contribution records',
     ]);
     const link = container.querySelector<HTMLAnchorElement>('[role="cell"] a');
     expect(link?.textContent).toBe('Aafedt, David M');
@@ -440,24 +517,24 @@ describe('Lobbying directory', () => {
       '/lobbying/lobbyists/1733?year=2025&from=%2Flobbying#contributions',
     );
     expect(container.querySelector('[role="cell"] .f-mark-person')).not.toBeNull();
-    expect(text()).toContain('Year: 2025');
+    expect(text()).toContain('Contribution year: 2025');
     expect(text()).toContain('Sort by: Name A–Z');
     expect(button('Clear all')).toBeUndefined();
     expect(text()).toContain('Page 1 of 34');
-    expect(container.querySelector('.lb-list-note')?.textContent).toBe(
-      'Amounts include matching campaign contribution records, including donated goods or services',
-    );
+    expect(container.querySelector('.lb-list-note')).toBeNull();
+    expect(
+      container.querySelector('.lb-table')?.nextElementSibling?.classList.contains('lb-pager'),
+    ).toBe(true);
     const about = [...container.querySelectorAll('.lb-about li')].map((li) => li.textContent);
-    expect(about).toContain('The spending records shown here begin in 2014.');
     expect(about).toContain(
-      'These amounts are not a complete record of giving. Client counts reflect the lobbyist-list copy date, not the selected contribution year.',
+      'Contribution totals use records matched to each lobbyist’s registration and include donated goods or services. They are not a complete record of giving.',
     );
-    // Sources and updates is 1 group with a 2-sentence line, so every line ends with a period.
     const sources = [...container.querySelectorAll('.f-sources p')].map((p) => p.textContent);
     expect(sources).toEqual([
-      'Lobbying records copied Oct 29, 2026.',
-      'Campaign contribution file copied Oct 28, 2026.',
-      'These records come from the Minnesota Campaign Finance and Public Disclosure Board. The copy date is when Alethical obtained the source, not the end date of every filing.',
+      'State entity IDs and lobbyist registration numbers come from the Minnesota Campaign Finance and Public Disclosure Board',
+      'Lobbying records copied: Oct 29, 2026',
+      'Campaign contribution file copied: Oct 28, 2026',
+      'Copy dates show when Alethical obtained the files, not the reporting periods they cover',
     ]);
     expect(text()).toContain('View Minnesota’s lobbying source files');
     expect(text()).not.toMatch(/organis|illustrative|example|sample|fixture|demo/i);
@@ -487,7 +564,7 @@ describe('Lobbying directory', () => {
       }),
     );
     const year = [...container.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
-      b.textContent?.startsWith('Year'),
+      b.textContent?.startsWith('Contribution year'),
     )!;
     await act(async () => year.click());
     const option = [...container.querySelectorAll<HTMLElement>('[role="option"] button')].find(
@@ -495,13 +572,15 @@ describe('Lobbying directory', () => {
     )!;
     await act(async () => option.click());
     await settle();
+    expect(text()).toContain('Contribution year: 2024');
+    expect(new URLSearchParams(window.location.search).get('year')).toBe('2024');
     // The 2025 rows stay, still labelled 2025, with a failure and Try again.
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
     expect(container.querySelector('.lb-head')?.textContent).toContain(
-      'CONTRIBUTIONS RECORDED IN 2025',
+      'Campaign contributions in 2025',
     );
     expect(container.querySelector('.lb-phone-only')?.textContent).toBe(
-      'Contributions recorded in 2025: ',
+      'Campaign contributions in 2025: ',
     );
     expect(
       container.querySelector<HTMLAnchorElement>('[role="cell"] a')?.getAttribute('href'),
@@ -534,7 +613,7 @@ describe('Lobbying directory', () => {
       `${API}/api/v1/finance/lobbying/lobbyists?sort=donations_desc&limit=50&offset=0`,
     );
     const yearButton = [...container.querySelectorAll('button')].find((b) =>
-      b.textContent?.startsWith('Year:'),
+      b.textContent?.startsWith('Contribution year:'),
     )!;
     await act(async () => yearButton.click());
     await act(async () => button('2024')!.click());
@@ -573,16 +652,21 @@ describe('Lobbying directory', () => {
       [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((t) =>
         t.textContent?.startsWith(label),
       )!;
-    await act(async () => tab('Principals').click());
+    await act(async () => tab('Who lobbyists represent').click());
     await settle();
-    expect(window.location.search).toBe('?tab=principals');
+    const switched = new URLSearchParams(window.location.search);
+    expect(switched.get('tab')).toBe('principals');
+    expect(switched.get('lobbyistsYear')).toBe('2024');
+    expect(switched.get('lobbyistsSort')).toBe('donations_asc');
     expect(requests).toContain(
       `${API}/api/v1/finance/lobbying/principals?sort=spending_desc&limit=50&offset=0`,
     );
     expect(text()).toContain('Sort by: Spending: highest first');
     await act(async () => tab('Lobbyists').click());
     await settle();
-    expect(window.location.search).toBe('?year=2024&sort=donations_asc');
+    const returned = new URLSearchParams(window.location.search);
+    expect(returned.get('year')).toBe('2024');
+    expect(returned.get('sort')).toBe('donations_asc');
   });
 
   it('opens the principals tab from the address, linking only principals with spending rows', async () => {
@@ -598,10 +682,12 @@ describe('Lobbying directory', () => {
     expect(list).toBe(
       `${API}/api/v1/finance/lobbying/principals?sort=spending_desc&limit=50&offset=0`,
     );
-    expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain('Principals');
-    expect(text()).toContain('Showing 1–2 of 3,448 principals');
+    expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain(
+      'Who lobbyists represent',
+    );
+    expect(text()).toContain('Showing 1–2 of 3,448 represented people and organizations');
     expect(text()).toContain(
-      'Browse organizations named in lobbying registrations or spending reports',
+      'Individuals, companies, associations, unions, nonprofits and public bodies',
     );
     const links = [...container.querySelectorAll<HTMLAnchorElement>('[role="cell"] a')];
     expect(links.map((a) => a.textContent)).toEqual(['100%']);
@@ -609,11 +695,12 @@ describe('Lobbying directory', () => {
       '/lobbying/principals/8450?from=%2Flobbying%3Ftab%3Dprincipals',
     );
     expect(text()).toContain('AMP Robotics Corporation');
-    expect(text()).toContain('Entity ID 8887');
-    expect(text()).toContain('No spending page available');
-    expect(text()).toContain('REPORTED SPENDING');
-    expect(container.querySelector('.lb-list-note')?.textContent).toBe(
-      'This directory includes organizations from different reporting years and the lobbyist list copied Oct 29, 2026. Some organizations have no spending page because the Board’s spending file has no rows for them through 2025.',
+    expect(text()).toContain('State entity ID 8887');
+    expect(text()).toContain('No spending report available');
+    expect(text()).toContain('Reported lobbying spending in');
+    expect(container.querySelector('.lb-list-note')).toBeNull();
+    expect(text()).toContain(
+      'Includes names from past years; listing does not establish current representation',
     );
   });
 
@@ -644,16 +731,16 @@ describe('Lobbying directory', () => {
     );
     const request = requests.find((url) => url.includes('/principals?sort=spending_asc'))!;
     expect(new URL(request).searchParams.get('year')).toBe('2024');
-    expect(text()).toContain('REPORTED SPENDING 2024');
+    expect(text()).toContain('Reported lobbying spending in 2024');
     expect(text()).toContain('$50,000,000');
-    expect(text()).toContain('No spending report for 2024');
+    expect(text()).toContain('No spending report available');
     expect(container.querySelector('a[href^="/lobbying/principals/8450?year=2024"]')).toBeTruthy();
     expect(
       principalSpending({ ...rows[0], total_spent: null, spending_state: 'ambiguous' }, 2024),
     ).toBe('Amount unavailable: more than one report');
     expect(principalSpending({ ...rows[0], total_spent: '0' }, 2024)).toBe('$0');
     expect(principalSpending({ ...rows[1], linkable: false }, 2024)).toBe(
-      'No spending page available',
+      'No spending report available',
     );
     await act(async () => button('Clear all')!.click());
     await settle();
@@ -701,7 +788,7 @@ describe('Lobbying directory', () => {
       expect(params.get('q')).toBe('Example');
       expect(params.get('tab')).toBe('principals');
       expect(params.get('year')).toBe('2024');
-      expect(params.has('page')).toBe(false);
+      expect(params.get('page')).toBe('2');
       expect(requests.some((url) => url.includes('principals?q=Example'))).toBe(true);
       await enter('');
       expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
@@ -718,6 +805,7 @@ describe('Lobbying directory', () => {
         () =>
           json(
             lobbyistsPage({
+              state: 'not_reported',
               lobbyists: [],
               total: 0,
               has_more: false,
@@ -728,13 +816,11 @@ describe('Lobbying directory', () => {
       ),
     );
     expect(requests.some((url) => url.includes('lobbyists?q=zzzz&sort=name'))).toBe(true);
-    expect(text()).toContain('0 registered lobbyists');
-    expect(text()).toContain('No lobbyist is listed under that spelling in these records');
-    expect(text()).toContain(
-      'Names are matched as filed, and spellings vary between filings; try a shorter part of the name',
-    );
-    // A search needs the whole directory's count from its own read.
-    expect(requests.some((url) => url.endsWith('lobbyists?sort=name&limit=1'))).toBe(true);
+    expect(text()).toContain('Lobbyists (0)');
+    expect(text()).toContain('No matches');
+    expect(container.querySelector('[aria-label="Lobbyists"] .lb-controls')).toBeNull();
+    expect(container.querySelector('[aria-label="Lobbyists"] [role="table"]')).toBeNull();
+    expect(requests.some((url) => url.includes('principals?q=zzzz'))).toBe(true);
   });
 
   it('says a failed load says nothing about who was listed, and tries again', async () => {
@@ -780,6 +866,416 @@ describe('Lobbying directory', () => {
     expect(text()).not.toContain('No principal matches');
   });
 
+  it('shows one empty state only after both searches succeed, without empty controls or tables', async () => {
+    await render(
+      '/lobbying?tab=principals&q=zzzz',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () =>
+          json(
+            lobbyistsPage({
+              state: 'not_reported',
+              q: 'zzzz',
+              total: 0,
+              has_more: false,
+              lobbyists: [],
+            }),
+          ),
+        () =>
+          json(
+            principalsPage({
+              state: 'not_reported',
+              q: 'zzzz',
+              total: 0,
+              has_more: false,
+              principals: [],
+            }),
+          ),
+      ),
+    );
+    expect(text()).toContain('No matches for “zzzz”');
+    expect(text()).toContain(
+      'Names appear as filed and spellings can vary. Try a shorter part of the name.',
+    );
+    expect(container.querySelectorAll('[role="table"]')).toHaveLength(0);
+    expect(container.querySelectorAll('.lb-controls')).toHaveLength(0);
+    expect(text()).not.toContain('Lobbyists (0)');
+    expect(button('Clear search')).toBeDefined();
+  });
+
+  it.each([404, 500])(
+    'keeps the exact old query and year beside retained rows after %s while the other group updates',
+    async (status) => {
+      const old = lobbyistsPage({ q: 'old' });
+      await render(
+        '/lobbying?q=old',
+        (match) => <Lobbying match={match} />,
+        (url) => {
+          const parsed = new URL(url);
+          if (url.includes('/summary')) return json(SUMMARY);
+          if (url.includes('/lobbying/lobbyists?'))
+            return parsed.searchParams.get('q') === 'new'
+              ? new Response('', { status })
+              : json(old);
+          if (url.includes('/lobbying/principals?'))
+            return json(
+              principalsPage({
+                q: parsed.searchParams.get('q') ?? '',
+                principals: [
+                  {
+                    ...principalsPage().principals[0],
+                    name:
+                      parsed.searchParams.get('q') === 'new'
+                        ? 'New organization'
+                        : 'Old organization',
+                  },
+                ],
+              }),
+            );
+          return null;
+        },
+      );
+      const input = container.querySelector<HTMLInputElement>('#lob-name')!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          'new',
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () =>
+        container
+          .querySelector('form')!
+          .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+      );
+      await settle();
+      const retained = container.querySelector('section[aria-label="Lobbyists"]')!;
+      expect(retained.textContent).toContain('matching “old”');
+      expect(retained.textContent).toContain('Campaign contributions in 2025');
+      expect(retained.textContent).toContain('Previous results are shown');
+      expect(retained.querySelector('h3')?.textContent).toBe('Lobbyists');
+      expect(text()).toContain('New organization');
+      expect(retained.querySelector('a')?.getAttribute('href')).toContain('year=2025');
+    },
+  );
+
+  it('previews five per group and preserves independent full pages, links, browser return and browsing choices', async () => {
+    await render(
+      '/lobbying?tab=principals&year=2024&sort=spending_asc&page=2&q=clinic',
+      (match) => <Lobbying match={match} />,
+      (url) => {
+        if (url.includes('/summary')) return json(SUMMARY);
+        const params = new URL(url).searchParams;
+        const offset = Number(params.get('offset') ?? 0);
+        const q = params.get('q') ?? '';
+        const length = Math.min(50, 60 - offset);
+        if (url.includes('/lobbying/lobbyists?'))
+          return json(
+            lobbyistsPage({
+              q,
+              offset,
+              total: 60,
+              has_more: offset === 0,
+              lobbyists: Array.from({ length }, (_, i) => ({
+                ...lobbyistsPage().lobbyists[0],
+                registration_number: String(offset + i),
+                name: `Lobbyist ${offset + i}`,
+              })),
+            }),
+          );
+        if (url.includes('/lobbying/principals?'))
+          return json({
+            ...principalsPage(),
+            q,
+            offset,
+            total: 60,
+            has_more: offset === 0,
+            year: Number(params.get('year') ?? 2025),
+            years: [2025, 2024],
+            principals: Array.from({ length }, (_, i) => ({
+              ...principalsPage().principals[0],
+              entity_id: offset + i,
+              name: `Organization ${offset + i}`,
+            })),
+          });
+        return null;
+      },
+    );
+    expect(container.querySelectorAll('.lb-tr:not(.lb-head)')).toHaveLength(10);
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(0);
+    await act(async () =>
+      [...container.querySelectorAll<HTMLAnchorElement>('a')]
+        .find(
+          (link) => link.textContent === 'View all matching represented people and organizations',
+        )!
+        .click(),
+    );
+    await settle();
+    expect(document.activeElement).toBe(container.querySelector('.lb-heading-line h2'));
+    const fullAddress = window.location.pathname + window.location.search;
+    expect(new URLSearchParams(window.location.search).get('view')).toBe('principals');
+    expect(container.querySelectorAll('.lb-tr:not(.lb-head)')).toHaveLength(50);
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2);
+    await act(async () => button('Next')!.click());
+    await settle();
+    expect(container.querySelectorAll('.lb-tr:not(.lb-head)')).toHaveLength(10);
+    expect(text()).toContain('Page 2 of 2');
+    expect(new URLSearchParams(window.location.search).get('principalsSearchPage')).toBe('2');
+    const record = container.querySelector<HTMLAnchorElement>('.lb-table a')!;
+    expect(new URL(record.href).searchParams.get('from')).toBe(
+      window.location.pathname + window.location.search,
+    );
+    const lobbyistsTab = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+      (button) => button.textContent?.startsWith('Lobbyists'),
+    )!;
+    await act(async () => lobbyistsTab.click());
+    await settle();
+    expect(text()).toContain('Page 1 of 2');
+    await act(async () => container.querySelector<HTMLAnchorElement>('.lb-back a')!.click());
+    await settle();
+    expect(container.querySelectorAll('.lb-tr:not(.lb-head)')).toHaveLength(10);
+    expect(document.activeElement).toBe(container.querySelector('.lb-heading-line h2'));
+    // A copied or browser-restored full-list address carries its own view and scope.
+    await act(async () => {
+      window.history.replaceState(null, '', fullAddress);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await settle();
+    expect(container.querySelectorAll('.lb-tr:not(.lb-head)')).toHaveLength(50);
+    await act(async () => button('Clear search')!.click());
+    await settle();
+    expect(document.activeElement).toBe(container.querySelector('#lob-name'));
+    const restored = new URLSearchParams(window.location.search);
+    expect(restored.get('tab')).toBe('principals');
+    expect(restored.get('year')).toBe('2024');
+    expect(restored.get('sort')).toBe('spending_asc');
+    expect(restored.get('page')).toBe('2');
+    expect(restored.has('q')).toBe(false);
+    expect(restored.has('view')).toBe(false);
+    expect(text()).toContain('Page 2 of 2');
+  });
+
+  it('keeps a newly selected default year visible after its read fails', async () => {
+    await render(
+      '/lobbying?year=2024',
+      (match) => <Lobbying match={match} />,
+      (url) => {
+        if (url.includes('/summary')) return json(SUMMARY);
+        if (url.includes('/lobbying/principals?')) return json(principalsPage());
+        if (url.includes('/lobbying/lobbyists?'))
+          return url.includes('year=2024')
+            ? json(lobbyistsPage({ donations: { ...lobbyistsPage().donations!, year: 2024 } }))
+            : new Response('', { status: 500 });
+        return null;
+      },
+    );
+    const year = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.startsWith('Contribution year'),
+    )!;
+    await act(async () => year.click());
+    await act(async () => button('2025')!.click());
+    await settle();
+    expect(text()).toContain('Contribution year: 2025');
+    expect(container.querySelector('.lb-head')?.textContent).toContain(
+      'Campaign contributions in 2024',
+    );
+    expect(container.querySelector('[role="alert"]')).toBeTruthy();
+  });
+
+  it('keeps search years independent and restores the original browsing year when cleared', async () => {
+    await render(
+      '/lobbying?tab=principals&year=2024&q=energy',
+      (match) => <Lobbying match={match} />,
+      (url) => {
+        if (url.includes('/summary')) return json(SUMMARY);
+        const params = new URL(url).searchParams;
+        if (url.includes('/lobbying/lobbyists?'))
+          return json(
+            lobbyistsPage({
+              q: params.get('q') ?? '',
+              donations: {
+                ...lobbyistsPage().donations!,
+                year: Number(params.get('year') ?? 2025),
+              },
+            }),
+          );
+        if (url.includes('/lobbying/principals?'))
+          return json({
+            ...principalsPage(),
+            q: params.get('q') ?? '',
+            year: Number(params.get('year') ?? 2025),
+            years: [2025, 2024],
+          });
+        return null;
+      },
+    );
+    const year = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.startsWith('Contribution year'),
+    )!;
+    await act(async () => year.click());
+    await act(async () => button('2024')!.click());
+    await settle();
+    let params = new URLSearchParams(window.location.search);
+    expect(params.get('lobbyistsSearchYear')).toBe('2024');
+    expect(params.get('year')).toBe('2024');
+    const spending = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.startsWith('Spending year'),
+    )!;
+    await act(async () => spending.click());
+    await act(async () => button('2025')!.click());
+    await settle();
+    expect(container.querySelector('section[aria-label="Lobbyists"]')?.textContent).toContain(
+      'Campaign contributions in 2024',
+    );
+    expect(
+      container.querySelector('section[aria-label="Who lobbyists represent"]')?.textContent,
+    ).toContain('Reported lobbying spending in 2025');
+    await act(async () => button('Clear search')!.click());
+    await settle();
+    params = new URLSearchParams(window.location.search);
+    expect(params.get('year')).toBe('2024');
+    expect(params.has('lobbyistsSearchYear')).toBe(false);
+    expect(params.has('principalsSearchYear')).toBe(false);
+    expect(text()).toContain('Spending year: 2024');
+  });
+
+  it('shows a busy search until both groups settle, and does not repeat an unchanged submission', async () => {
+    let answerPrincipals!: (response: Response) => void;
+    await render(
+      '/lobbying?q=energy',
+      (match) => <Lobbying match={match} />,
+      (url) => {
+        if (url.includes('/summary')) return json(SUMMARY);
+        if (url.includes('/lobbying/lobbyists?')) return json(lobbyistsPage({ q: 'energy' }));
+        if (url.includes('/lobbying/principals?'))
+          return new Promise<Response>((resolve) => {
+            answerPrincipals = resolve;
+          });
+        return null;
+      },
+    );
+    const submit = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(submit.getAttribute('aria-label')).toBe('Searching');
+    expect(submit.getAttribute('aria-disabled')).toBe('true');
+    expect(text()).toContain('Aafedt, David M');
+    const before = requests.length;
+    await act(async () =>
+      container
+        .querySelector('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    );
+    expect(requests).toHaveLength(before);
+    await act(async () => answerPrincipals(json(principalsPage({ q: 'energy' }))));
+    await settle();
+    expect(submit.getAttribute('aria-label')).toBe('Search');
+    expect(submit.hasAttribute('aria-disabled')).toBe(false);
+    expect(container.querySelectorAll('.lb-count')).toHaveLength(0);
+    expect(
+      container.querySelector(
+        'section[aria-label="Who lobbyists represent"] .lb-second .lb-phone-only',
+      )?.textContent,
+    ).toBe('State entity ID\u00a0');
+  });
+
+  it('adds history when entering and clearing search but replaces subsequent query edits', async () => {
+    await render(
+      '/lobbying?tab=principals&year=2024',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () => json(lobbyistsPage()),
+        () => json(principalsPage()),
+      ),
+    );
+    const push = vi.spyOn(window.history, 'pushState');
+    const replace = vi.spyOn(window.history, 'replaceState');
+    const input = container.querySelector<HTMLInputElement>('#lob-name')!;
+    async function submit(value: string) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () =>
+        container
+          .querySelector('form')!
+          .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+      );
+      await settle();
+    }
+    try {
+      await submit('energy');
+      expect(push).toHaveBeenCalledTimes(1);
+      const afterFirst = replace.mock.calls.length;
+      await submit('energy two');
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(replace.mock.calls.length).toBe(afterFirst + 1);
+      await act(async () => button('Clear search')!.click());
+      await settle();
+      expect(push).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        const back = new Promise<void>((resolve) =>
+          window.addEventListener('popstate', () => resolve(), { once: true }),
+        );
+        window.history.back();
+        await back;
+      });
+      await settle();
+      expect(new URLSearchParams(window.location.search).get('q')).toBe('energy two');
+      expect(input.value).toBe('energy two');
+      expect(new URLSearchParams(window.location.search).get('year')).toBe('2024');
+    } finally {
+      push.mockRestore();
+      replace.mockRestore();
+    }
+  });
+
+  it('labels a valid empty represented group and refuses unavailable groups without inventing zero', async () => {
+    await render(
+      '/lobbying?q=person',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () => json(lobbyistsPage({ q: 'person' })),
+        () =>
+          json(
+            principalsPage({
+              state: 'not_reported',
+              q: 'person',
+              total: 0,
+              has_more: false,
+              principals: [],
+            }),
+          ),
+      ),
+    );
+    const represented = container.querySelector('section[aria-label="Who lobbyists represent"]')!;
+    expect(represented.querySelector('h3')?.textContent).toBe('Who lobbyists represent (0)');
+    expect(represented.textContent).toContain('No matches');
+    expect(represented.querySelector('.lb-controls')).toBeNull();
+    expect(represented.querySelector('[role="table"]')).toBeNull();
+    expect(text()).toContain('Aafedt, David M');
+  });
+
+  it('shows retry for unavailable search responses instead of blank or empty groups', async () => {
+    await render(
+      '/lobbying?q=person',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () =>
+          json(lobbyistsPage({ state: 'unavailable', q: 'person', total: null, lobbyists: [] })),
+        () =>
+          json(principalsPage({ state: 'unavailable', q: 'person', total: null, principals: [] })),
+      ),
+    );
+    expect(container.querySelectorAll('[role="alert"]')).toHaveLength(2);
+    expect(text()).not.toContain('No matches');
+    expect(text()).not.toContain('(0)');
+    expect(container.querySelector('button[type="submit"]')?.getAttribute('aria-label')).toBe(
+      'Search',
+    );
+  });
+
   it('builds its reads and labels from the address', () => {
     expect(tabFromParam('principals')).toBe('principals');
     expect(tabFromParam('other')).toBe('lobbyists');
@@ -805,7 +1301,7 @@ describe('Lobbying directory', () => {
     );
     expect(countPath('principals')).toBe('finance/lobbying/principals?limit=1');
     expect(principalsNote(null, null)).toBe(
-      'This directory includes organizations from different reporting years and the lobbyist list. Some organizations have no spending page because the Board’s spending file has no rows for them.',
+      'Includes names from past years; listing does not establish current representation',
     );
     const row = lobbyistsPage().lobbyists[0];
     expect(
@@ -816,7 +1312,7 @@ describe('Lobbying directory', () => {
       }),
     ).toBe('$0');
     expect(lobbyistContributions({ ...row, donation_state: 'no_records' })).toBe(
-      'No matching donation records',
+      'No matching contribution records',
     );
     expect(lobbyistContributions({ ...row, donation_state: undefined })).toBe('Amount unavailable');
   });
@@ -845,7 +1341,7 @@ describe('Lobbyist record', () => {
     expect(container.querySelector('h1')?.textContent).toBe('Kozak, Andrew');
     expect(text()).toContain('LOBBYIST');
     // The dot ends the registration's line, so a wrapped status never starts with it.
-    expect(container.querySelector('.lb-reg')?.textContent).toBe('Registration 141\u00a0·');
+    expect(container.querySelector('.lb-reg')?.textContent).toBe('Registration number 141\u00a0·');
     expect(container.querySelector('.lb-status')?.textContent).toBe('Registered on the copy date');
 
     // Organisations: the spending file's name, the listed spelling noted, unlinked without spending.
@@ -855,7 +1351,7 @@ describe('Lobbyist record', () => {
     ]);
     expect(orgLinks[0].textContent).toContain('American Express');
     expect(orgLinks[0].textContent).toContain(
-      'Entity ID 2263 · registered as American Express Co in the lobbyist list',
+      'State entity ID 2263 · registered as American Express Co in the lobbyist list',
     );
     expect(text()).toContain('No spending page available');
 
@@ -1009,7 +1505,7 @@ describe('Lobbyist record', () => {
     });
     gone.principals = { state: 'not_registered_today', total: 0, rows: [] };
     await render('/lobbying/lobbyists/141', (match) => <Lobbyist match={match} />, ANSWER(gone));
-    expect(container.querySelector('h1')?.textContent).toBe('Registration 141');
+    expect(container.querySelector('h1')?.textContent).toBe('Registration number 141');
     expect(container.querySelector('.lb-status')?.textContent).toBe('Not listed on the copy date');
     expect(text()).toContain('7 matching records');
   });
@@ -1195,7 +1691,7 @@ describe('Principal record', () => {
     expect(requests).toContain(`${API}/api/v1/lobbying/principals/8450`);
     expect(container.querySelector('h1')?.textContent).toBe('Health Association');
     expect(text()).toContain('PRINCIPAL');
-    expect(text()).toContain('Entity ID 8450');
+    expect(text()).toContain('State entity ID 8450');
     expect(text()).toContain(
       'A principal is a person or organization that funds lobbying and must report its spending under Minnesota law',
     );
@@ -1233,7 +1729,7 @@ describe('Principal record', () => {
     expect(lobbyists[0].getAttribute('href')).toBe(
       '/lobbying/lobbyists/5245?from=%2Flobbying%2Fprincipals%2F8450%3FspendView%3Dtable',
     );
-    expect(lobbyists[0].textContent).toContain('Registration 5245');
+    expect(lobbyists[0].textContent).toContain('Registration number 5245');
     expect(text()).toContain('Registered as Health Assn in the lobbyist list');
     expect(text()).toContain(
       'The lobbyist list shows who was registered for this principal in records copied Oct 29, 2026',

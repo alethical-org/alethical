@@ -129,7 +129,7 @@ function json(data: unknown, status = 200) {
   });
 }
 function serve(answer: (url: URL) => Response | Promise<Response>) {
-  const fetcher = vi.fn(async (input: string) => {
+  const fetcher = vi.fn(async (input: string, init?: RequestInit) => {
     const url = new URL(input);
     if (url.pathname.endsWith('/pages/1') || url.pathname.endsWith('/pages/2'))
       return new Response(new Blob(['x'], { type: 'image/png' }), {
@@ -137,7 +137,17 @@ function serve(answer: (url: URL) => Response | Promise<Response>) {
       });
     if (url.pathname.endsWith('/sources'))
       return json({ stations: STATIONS, text_reader_version: 'x' });
-    return answer(url);
+    const response = answer(url);
+    const signal = init?.signal;
+    if (!(response instanceof Promise) || !signal) return response;
+    // A browser abort frees the request slot even if a mocked old server reply
+    // is deliberately held until after a newer query has already completed.
+    return new Promise<Response>((resolve, reject) => {
+      const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+      response.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    });
   });
   vi.stubGlobal('fetch', fetcher);
   return fetcher;
@@ -196,6 +206,411 @@ describe('Media buys', () => {
     });
   }
 
+  it.each(['folders', 'agencies', 'stations', 'years'])(
+    'finds an agency name when broad search starts on %s',
+    async (tab) => {
+      const fetcher = serve((url) => {
+        const group = url.searchParams.get('tab');
+        return json({
+          tab: group,
+          q: 'Example',
+          page: 1,
+          page_size: 12,
+          total: group === 'agencies' ? 1 : 0,
+          capped: false,
+          years: [],
+          categories: [],
+          rows:
+            group === 'agencies'
+              ? [
+                  {
+                    key: 'Example Agency',
+                    label: 'Example Agency',
+                    file_count: 2,
+                  },
+                ]
+              : [],
+        });
+      });
+      await render(`/media-buys?tab=${tab}&q=Example`, () => <MediaBuys />);
+      expect(text()).toContain('Example Agency');
+      const groups = fetcher.mock.calls
+        .filter(([url]) => url.includes('/browse'))
+        .map(([url]) => new URL(url));
+      expect(new Set(groups.map((url) => url.searchParams.get('tab')))).toEqual(
+        new Set(['folders', 'agencies', 'stations', 'years']),
+      );
+      expect(groups.every((url) => url.searchParams.get('search_scope') === 'tab')).toBe(true);
+    },
+  );
+
+  it('keeps another category’s results when a broad-search group fails', async () => {
+    serve((url) => {
+      const tab = url.searchParams.get('tab');
+      if (tab === 'folders') return json(null, 503);
+      return json({
+        tab,
+        q: 'Example',
+        page: 1,
+        page_size: 12,
+        total: tab === 'agencies' ? 1 : 0,
+        capped: false,
+        years: [],
+        categories: [],
+        rows:
+          tab === 'agencies'
+            ? [
+                {
+                  key: 'Example Agency',
+                  label: 'Example Agency',
+                  file_count: 2,
+                },
+              ]
+            : [],
+      });
+    });
+    await render('/media-buys?q=Example', () => <MediaBuys />);
+    expect(text()).toContain('Example Agency');
+    expect(text()).toContain('Try again');
+    expect(text()).not.toContain('TV station folders (0)');
+  });
+
+  it('expands to 12 rows, pins each group’s own source version, and keeps the return address', async () => {
+    const fetcher = serve((url) => {
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      const page = Number(url.searchParams.get('page') ?? 1);
+      return json({
+        version: (tab === 'agencies' ? 'a' : 'b').repeat(16),
+        tab,
+        q: url.searchParams.get('q') ?? '',
+        station: '',
+        year: null,
+        category: '',
+        page,
+        page_size: 12,
+        total: tab === 'agencies' ? 30 : 0,
+        capped: false,
+        years: [],
+        categories: [],
+        rows:
+          tab === 'agencies'
+            ? Array.from({ length: 12 }, (_, index) => ({
+                key: `Agency ${page}-${index}`,
+                label: `Agency ${page}-${index}`,
+                file_count: 1,
+              }))
+            : [],
+      });
+    });
+    await render('/media-buys?tab=years&q=Agency&from=%2Fhome', () => <MediaBuys />);
+    expect(container.querySelectorAll('.mb-list li')).toHaveLength(5);
+    expect(container.querySelector('.mb-pager')).toBeNull();
+    container.querySelector<HTMLAnchorElement>('.mb-view-all')!.focus();
+    await click('View all matching agency names');
+    expect(document.activeElement).toBe(container.querySelector('.mb-search-heading h2'));
+    expect(container.querySelectorAll('.mb-list li')).toHaveLength(12);
+    expect(text()).toContain('Page 1 of 3');
+    await click('Next');
+    expect(text()).toContain('Page 2 of 3');
+    const request = fetcher.mock.calls
+      .map(([url]) => new URL(url))
+      .reverse()
+      .find((url) => url.searchParams.get('tab') === 'agencies');
+    expect(request?.searchParams.get('page')).toBe('2');
+    expect(request?.searchParams.get('version')).toBe('a'.repeat(16));
+    const row = container.querySelector<HTMLAnchorElement>('.mb-row')!;
+    expect(new URL(row.href).searchParams.get('from')).toBe(
+      window.location.pathname + window.location.search,
+    );
+    container.querySelector<HTMLAnchorElement>('.mb-all-results')!.focus();
+    await click('Back to all results');
+    expect(document.activeElement).toBe(container.querySelector('.mb-search-heading h2'));
+    expect(container.querySelectorAll('.mb-list li')).toHaveLength(5);
+    await click('Clear search');
+    expect(document.activeElement).toBe(container.querySelector('#tv-search'));
+    expect(new URLSearchParams(window.location.search).get('tab')).toBe('years');
+    expect(new URLSearchParams(window.location.search).get('from')).toBe('/home');
+  });
+
+  it('keeps recovery filters on an empty folder group and restores browsing filters on clear', async () => {
+    const fetcher = serve((url) => {
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      const station = url.searchParams.get('station') ?? '';
+      const browsing = !url.searchParams.get('q');
+      return json({
+        tab,
+        q: url.searchParams.get('q') ?? '',
+        station,
+        year: Number(url.searchParams.get('year')) || null,
+        category: url.searchParams.get('category') ?? '',
+        page: Number(url.searchParams.get('page') ?? 1),
+        page_size: 12,
+        total: tab === 'folders' ? (browsing ? 25 : !station ? 1 : 0) : 0,
+        capped: false,
+        years: [2025],
+        categories: ['State'],
+        rows:
+          (browsing || !station) && tab === 'folders'
+            ? [{ key: 'folder', label: 'Recovered folder', file_count: 1 }]
+            : [],
+      });
+    });
+    await render(
+      '/media-buys?tab=folders&q=Example&station=KARE&year=2025&category=State&page=2',
+      () => <MediaBuys />,
+    );
+    expect(text()).toContain('TV station folders (0)');
+    expect(text()).toContain('Station: KARE');
+    expect(text()).toContain('Clear all');
+    expect(container.querySelector('.mb-list')).toBeNull();
+    await click('Clear all');
+    expect(text()).toContain('Recovered folder');
+    const otherReads = fetcher.mock.calls
+      .map(([url]) => new URL(url))
+      .filter(
+        (url) => url.pathname.endsWith('/browse') && url.searchParams.get('tab') !== 'folders',
+      );
+    expect(
+      otherReads.every(
+        (url) =>
+          !url.searchParams.has('station') &&
+          !url.searchParams.has('year') &&
+          !url.searchParams.has('category'),
+      ),
+    ).toBe(true);
+    await click('Clear search');
+    const restored = new URLSearchParams(window.location.search);
+    expect(restored.get('station')).toBe('KARE');
+    expect(restored.get('year')).toBe('2025');
+    expect(restored.get('category')).toBe('State');
+    expect(restored.get('page')).toBe('2');
+  });
+
+  it('keeps capped query totals separate from catalogue counts', async () => {
+    serve((url) => {
+      const tab = url.searchParams.get('tab');
+      return json({
+        tab,
+        q: 'Example',
+        page: 1,
+        page_size: 12,
+        total: tab === 'folders' ? 500 : 0,
+        capped: tab === 'folders',
+        tab_counts: { folders: 900, agencies: 800, stations: 3, years: 5 },
+        years: [],
+        categories: [],
+        rows: tab === 'folders' ? [{ key: 'folder', label: 'Example folder', file_count: 17 }] : [],
+      });
+    });
+    await render('/media-buys?q=Example', () => <MediaBuys />);
+    expect(text()).toContain('TV station folders (At least 500)');
+    expect(text()).toContain('Results are limited to 500; add a word to narrow the search');
+    expect(text()).toContain('Agency names (0)');
+    expect(text()).not.toContain('900');
+    expect(text()).not.toContain('800');
+  });
+
+  it('restarts only the expanded group when its pinned source changes', async () => {
+    let restarted = false;
+    const fetcher = serve((url) => {
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      if (tab === 'agencies' && url.searchParams.get('page') === '2') {
+        restarted = true;
+        return new Response(
+          JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+          { status: 409, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return json({
+        version: (restarted ? 'c' : 'a').repeat(16),
+        tab,
+        q: 'Example',
+        station: '',
+        year: null,
+        category: '',
+        page: 1,
+        page_size: 12,
+        total: tab === 'agencies' ? 25 : 0,
+        capped: false,
+        years: [],
+        categories: [],
+        rows:
+          tab === 'agencies'
+            ? [
+                {
+                  key: 'agency',
+                  label: restarted ? 'Refreshed agency' : 'Held agency',
+                  file_count: 1,
+                },
+              ]
+            : [],
+      });
+    });
+    await render('/media-buys?q=Example&view=agencies', () => <MediaBuys />);
+    await click('Next');
+    expect(text()).toContain('These records changed. Reload the list. Previous results are shown.');
+    expect(text()).toContain('Held agency');
+    const before = fetcher.mock.calls.length;
+    await click('Try again');
+    expect(text()).toContain('Refreshed agency');
+    expect(text()).not.toContain('These records changed');
+    const newReads = fetcher.mock.calls.slice(before).map(([url]) => new URL(url));
+    expect(newReads).toHaveLength(2);
+    expect(newReads.every((url) => url.searchParams.get('tab') === 'agencies')).toBe(true);
+    expect(newReads[1].searchParams.get('version')).toBe('c'.repeat(16));
+    expect(newReads[0].searchParams.get('tab')).toBe('agencies');
+    expect(newReads[0].searchParams.get('page')).toBe('1');
+    expect(newReads[0].searchParams.has('version')).toBe(false);
+  });
+
+  it.each(['&view=agencies&agenciesPage=2', ''])(
+    'validates saved source pins when remounting the exact detail return address (%s)',
+    async (view) => {
+      let changed = false;
+      const fetcher = serve((url) => {
+        const tab = url.searchParams.get('tab') ?? 'folders';
+        const version = (tab === 'agencies' ? (changed ? 'c' : 'a') : 'b').repeat(16);
+        if (url.searchParams.has('version') && url.searchParams.get('version') !== version)
+          return new Response(
+            JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+            { status: 409, headers: { 'content-type': 'application/json' } },
+          );
+        return json({
+          version,
+          tab,
+          q: 'Example',
+          page: Number(url.searchParams.get('page') ?? 1),
+          page_size: 12,
+          total: tab === 'agencies' ? 25 : 0,
+          years: [],
+          categories: [],
+          rows:
+            tab === 'agencies'
+              ? [{ key: 'agency', label: changed ? 'New agency' : 'Old agency', file_count: 1 }]
+              : [],
+        });
+      });
+      await render('/media-buys?q=Example' + view, () => <MediaBuys />);
+      const row = container.querySelector<HTMLAnchorElement>('.mb-row')!;
+      const from = new URL(row.href).searchParams.get('from')!;
+      expect(new URL(from, window.location.origin).searchParams.has('agenciesSource')).toBe(true);
+      await act(async () => root.render(null));
+      clearReadCache();
+      changed = true;
+      const before = fetcher.mock.calls.length;
+      await render(from, () => <MediaBuys />);
+      expect(text()).toContain('These records changed. Reload the list.');
+      expect(text()).not.toContain('Previous results are shown');
+      expect(text()).not.toContain('New agency');
+      const returned = fetcher.mock.calls
+        .slice(before)
+        .map(([url]) => new URL(url))
+        .filter((url) => url.pathname.endsWith('/browse'));
+      expect(returned).toHaveLength(4);
+      expect(
+        returned
+          .find((url) => url.searchParams.get('tab') === 'agencies')
+          ?.searchParams.get('version'),
+      ).toBe('a'.repeat(16));
+      const beforeRetry = fetcher.mock.calls.length;
+      await click('Try again');
+      expect(text()).toContain('New agency');
+      expect(text()).not.toContain('These records changed');
+      const retried = fetcher.mock.calls.slice(beforeRetry).map(([url]) => new URL(url));
+      expect(
+        retried.every(
+          (url) =>
+            url.searchParams.get('tab') === 'agencies' && url.searchParams.get('page') === '1',
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it('recovers a stale group page address to the last page without claiming no matches', async () => {
+    const fetcher = serve((url) => {
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      const page = Number(url.searchParams.get('page') ?? 1);
+      return json({
+        version: 'a'.repeat(16),
+        tab,
+        q: 'Example',
+        page,
+        page_size: 12,
+        total: tab === 'agencies' ? 25 : 0,
+        years: [],
+        categories: [],
+        rows:
+          tab === 'agencies' && page <= 3
+            ? [{ key: 'agency', label: 'Last agency', file_count: 1 }]
+            : [],
+      });
+    });
+    await render('/media-buys?q=Example&view=agencies&agenciesPage=42&foldersPage=2', () => (
+      <MediaBuys />
+    ));
+    expect(text()).toContain('Last agency');
+    expect(text()).toContain('Page 3 of 3');
+    expect(text()).not.toContain('No matches');
+    expect(new URLSearchParams(window.location.search).get('agenciesPage')).toBe('3');
+    expect(new URLSearchParams(window.location.search).get('foldersPage')).toBe('2');
+    expect(
+      fetcher.mock.calls
+        .map(([url]) => new URL(url))
+        .some(
+          (url) =>
+            url.searchParams.get('tab') === 'agencies' &&
+            url.searchParams.get('page') === '3' &&
+            url.searchParams.get('version') === 'a'.repeat(16),
+        ),
+    ).toBe(true);
+  });
+
+  it('keeps the selected station label and recovery when source options fail', async () => {
+    const fetcher = serve(browseAnswer);
+    const fallback = fetcher.getMockImplementation()!;
+    fetcher.mockImplementation((input, init) =>
+      new URL(input).pathname.endsWith('/sources')
+        ? Promise.resolve(json({}, 503))
+        : fallback(input, init),
+    );
+    await render('/media-buys?station=KARE', () => <MediaBuys />);
+    expect(text()).toContain('Station: KARE');
+    await click('Clear all');
+    expect(text()).toContain('Station: All stations');
+    expect(new URLSearchParams(window.location.search).has('station')).toBe(false);
+  });
+
+  it.each([404, 503, 200])(
+    'does not call a retained empty group empty after an unavailable reply (%s)',
+    async (status) => {
+      serve((url) => {
+        const tab = url.searchParams.get('tab') ?? 'folders';
+        const q = url.searchParams.get('q') ?? '';
+        if (q === 'Unavailable' && tab === 'folders') return json({ state: 'unavailable' }, status);
+        return json({
+          tab,
+          q,
+          page: 1,
+          page_size: 12,
+          total: tab === 'agencies' ? 1 : 0,
+          capped: false,
+          years: [],
+          categories: [],
+          rows: tab === 'agencies' ? [{ key: 'agency', label: 'Held agency', file_count: 1 }] : [],
+        });
+      });
+      await render('/media-buys?q=First', () => <MediaBuys />);
+      await typeSearch('Unavailable');
+      await settleSearch();
+      const group = container.querySelector<HTMLElement>('[aria-label="TV station folders"]')!;
+      expect(group.textContent).toContain('Try again');
+      expect(group.textContent).not.toContain('No matches');
+      expect(group.querySelector('h3')?.textContent).toBe('TV station folders');
+      expect(text()).toContain('Held agency');
+      expect(text()).not.toContain('This record is no longer available');
+    },
+  );
+
   async function typeSearch(value: string) {
     const input = container.querySelector<HTMLInputElement>('#tv-search')!;
     await act(async () => {
@@ -225,11 +640,13 @@ describe('Media buys', () => {
       await typeSearch(' dem ');
       expect(fetcher).toHaveBeenCalledTimes(count);
       await settleSearch();
-      expect(fetcher).toHaveBeenCalledTimes(count + 1);
-      expect(container.querySelector('.mb-count')?.textContent).toContain('matching “dem”');
+      expect(fetcher).toHaveBeenCalledTimes(count + 4);
+      expect(container.querySelector('.mb-search-heading h2')?.textContent).toBe(
+        'Results for “dem”',
+      );
       const params = new URLSearchParams(window.location.search);
       expect(params.get('q')).toBe('dem');
-      expect(params.has('page')).toBe(false);
+      expect(params.get('page')).toBe('2');
       expect(params.get('tab')).toBe(tab);
       expect(params.get('station')).toBe('KARE');
       expect(params.get('year')).toBe('2026');
@@ -253,7 +670,7 @@ describe('Media buys', () => {
         .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     await flush();
-    expect(container.querySelector('.mb-count')?.textContent).toContain('matching “demuth”');
+    expect(text()).toContain('“demuth”');
     const count = fetcher.mock.calls.length;
     await settleSearch();
     expect(fetcher).toHaveBeenCalledTimes(count);
@@ -270,15 +687,17 @@ describe('Media buys', () => {
     await typeSearch(input.value + 'demuth');
     await settleSearch();
     expect(new URLSearchParams(window.location.search).get('q')).toBe('lisa demuth');
-    expect(container.querySelector('.mb-count')?.textContent).toContain('matching “lisa demuth”');
+    expect(container.querySelector('.mb-search-heading h2')?.textContent).toBe(
+      'Results for “lisa demuth”',
+    );
   });
 
   it('keeps earlier results during typing requests and failures, and ignores late answers', async () => {
-    let finishOld!: (response: Response) => void;
+    const finishOld: Array<(response: Response) => void> = [];
     serve((url) => {
       if (url.searchParams.get('q') === 'dem')
         return new Promise<Response>((resolve) => {
-          finishOld = resolve;
+          finishOld.push(resolve);
         });
       if (url.searchParams.get('q') === 'failed') return json(null, 503);
       return browseAnswer(url);
@@ -286,13 +705,14 @@ describe('Media buys', () => {
     await render('/media-buys?q=demuth', () => <MediaBuys />);
     await typeSearch('dem');
     await settleSearch();
-    expect(container.querySelector('.mb-count')?.textContent).toContain('matching “demuth”');
+    expect(text()).toContain('“demuth”');
     expect(text()).toContain('Updating');
     await typeSearch('');
     await settleSearch();
     expect(text()).toContain('All held records');
-    finishOld(browseAnswer(new URL('https://api.example.test/browse?q=dem')));
-    await flush();
+    for (const finish of finishOld)
+      finish(browseAnswer(new URL('https://api.example.test/browse?q=dem')));
+    await settleSearch();
     expect(text()).toContain('All held records');
     expect(container.querySelector('.mb-count')?.textContent).not.toContain('matching');
     await typeSearch('failed');
@@ -437,7 +857,7 @@ describe('Media buys', () => {
     expect(browse).not.toContain('station=');
   });
 
-  it('says a word search filters the selected tab, naming the words', async () => {
+  it('names the broad query when all categories are empty', async () => {
     serve(() =>
       json({
         tab: 'folders',
@@ -452,9 +872,8 @@ describe('Media buys', () => {
       }),
     );
     await render('/media-buys?q=walz', () => <MediaBuys />);
-    expect(container.querySelector('.mb-count')?.textContent).toBe(
-      '0 TV station folders matching “walz”',
-    );
+    expect(text()).toContain('No matches for “walz”');
+    expect(container.querySelector('.mb-list')).toBeNull();
     act(() => root.unmount());
     root = createRoot(container);
   });
@@ -488,11 +907,10 @@ describe('Media buys', () => {
         .map(([url]) => String(url))
         .some((url) => url.includes('search_scope=tab')),
     ).toBe(true);
-    expect(container.querySelector('[role="tablist"]')?.textContent).toContain(
-      'TV station folders700',
-    );
-    expect(container.querySelector('[role="tablist"]')?.textContent).toContain('Agency names610');
-    expect(container.querySelector('.mb-count')?.textContent).toBe('1 station matching “KARE”');
+    expect(text()).not.toContain('TV station folders700');
+    expect(text()).not.toContain('Agency names610');
+    expect(text()).toContain('Stations (1)');
+    expect(text()).toContain('Results for “KARE”');
     expect(container.textContent).toContain('Folders held for 2026, 2024');
   });
 
@@ -512,9 +930,7 @@ describe('Media buys', () => {
         }),
       );
       await render(`/media-buys?tab=${tab}&q=unknown`, () => <MediaBuys />);
-      expect(container.textContent).toContain(
-        `No ${tab === 'agencies' ? 'agency names' : tab} match this search`,
-      );
+      expect(container.textContent).toContain('No matches for “unknown”');
       expect(container.textContent).not.toContain('No TV station files match');
     },
   );
@@ -535,7 +951,7 @@ describe('Media buys', () => {
     );
     await render('/media-buys', () => <MediaBuys />);
     expect(container.textContent).not.toContain('Check TV station files');
-    expect(container.textContent).toContain('No TV station folders match this search');
+    expect(container.textContent).toContain('No matches');
     act(() => root.unmount());
     root = createRoot(container);
     vi.spyOn(routes, 'isBuilt').mockReturnValue(true);

@@ -272,6 +272,15 @@ unfinished edits; retained results keep their own query and filters during loadi
 The [shared search rule](https://github.com/euglopi/tool-settings/blob/main/shared/guides/search-interactions.md)
 owns the cross-product requirements and Design-review checks.
 
+Finance labels identifiers by their source and purpose. **Registration number** is the
+Board's committee or lobbyist registration; **State entity ID** is the Board's entity
+identifier; **Alethical reference** identifies an Alethical person or organization record;
+**Record number in source file** identifies a row within a particular saved source file.
+An evidence locator that is a lobbyist registration keeps the registration label, even
+when its technical source name ends in `_row`. Existing FCC file/facility and legislative
+identifiers retain their source-specific names. No identifier is added where none is held,
+and matching numbers or names never establish identity by themselves.
+
 Home remains a live suggestion entry, with its existing 140 ms pause and 2-character floor;
 it opens the full results page on Search or Enter. Full name search states its existing
 3-character minimum instead of showing old matches as current. Exact-name payment and
@@ -335,11 +344,17 @@ an unavailable source is not a no-match result.
   copy date when held; retention never means termination. Current rows show "Registered
   {date}" when held, "Open registration" without that date, "Terminated {date}", or
   "Registration status not held". Party prints beside candidate committee type only from
-  the filed record. Each filter resets the page; changing tab clears Party. Sort by chooses
+  the filed record. Each filter resets its group's page. Sort by chooses
   names A to Z or numeric registration-number order. Earlier rows kept during a pending or
   failed change keep their own tab, registration, party and search labels. Other ways in opens Vendors and payees,
   Donors by employer and Money by race; About these records states the records' limits. Results stay on
-  screen while an update loads or fails, with Try again.
+  screen while an update loads or fails, with Try again. A name or registration-number
+  search returns all 3 kinds as independent groups, with up to 5 rows per group and
+  View all for the full 50-row list. Each group keeps its own registration filter,
+  sort and page; Party applies only to candidate committees. Clearing search restores
+  the earlier browsing choices. Empty groups keep filters that can recover matches,
+  but omit empty tables, sorting and pagination. A failed group never reports zero
+  or hides another group's results. Payments under a name remains a separate destination.
 - **Committee (`/money/committees/:id`)**: the registration's status, the official report
   figures for the chosen report (beginning balance, total receipts, contributions, total
   expenditures and ending balance as filed; the report stays in the address), itemized
@@ -453,15 +468,21 @@ an unavailable source is not a no-match result.
   figures on screen under their own year, dimmed with "Updating results…" while the next
   answer loads, and with "We couldn’t update these results" and Try again when it fails.
   With no earlier page in the address, the return link reads "Back to Campaign money".
-- **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
-  server; each tab keeps its own Year and Sort in the address. Lobbyists show the campaign
+- **Lobbying (`/lobbying`)**: browse Lobbyists or Who lobbyists represent. Name search
+  searches both groups, regardless of the earlier browsing tab, with 5-row previews and
+  View all for each full 50-row list. Each group keeps its own year, sort, page, count
+  and failure state in the address; clearing search restores the earlier browsing choices.
+  Lobbyists show the campaign
   contributions matched to each registration in a completed calendar year ("No matching
-  donation records", or "Amount unavailable" when any matching amount is missing), sorted by
+  contribution records", or "Amount unavailable" when any matching amount is missing), sorted by
   name or by amount with rows without an amount last. Principals show each year's own filed
-  spending ("No spending report for {year}", never the latest total), sorted by spending or
+  spending ("No spending report available" under its selected year, never the latest total), sorted by spending or
   name. Missing figures stay explicit, never zero. A lobbyist row opens that year's
   contribution records; links keep the selected year, and old rows keep their own year while
-  a new selection loads.
+  a new selection loads. A present report with no numeric amount says "Amount not given";
+  duplicate reports remain ambiguous. Listed names include past years and do not establish
+  current representation. Pagination follows the table; general source and contribution
+  qualifications are in About these records, followed by Sources and updates.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
   "Show more") and its matched campaign contribution records by filing year and committee,
@@ -619,14 +640,20 @@ one names its exact saved version and page.
 
 - **Media buys (`/media-buys`)**: TV political-ad files from KSTP-TV, KARE and KMSP-TV,
   browsed by TV station folders (Station, Year and Category menus), agency names, stations
-  and years, with served totals on each tab. Word search filters the chosen tab as the
+  and years, with served totals on each tab. Word search searches all 4 browsing categories as the
   reader types or deletes letters, after a 250 ms pause, using the public bills search's
   shared helper. Clearing the field removes the word filter; Enter or
-  Search applies the words immediately. A changed query returns to page 1 while keeping
-  the chosen tab, filters and return context. Previous results keep their own labels
+  Search applies the words immediately. Each group shows up to 5 rows, with View all
+  opening its full 12-row list. Station, Year and Category apply only to folders;
+  an empty filtered folder group keeps its recovery controls. A changed query resets
+  search pages while preserving the earlier browsing choices for Clear search.
+  Previous results keep their own labels
   while updating or after a failure; late replies never replace newer results. Station
-  rows name the years held. The tab,
-  filters, words and page stay in the address. A safe earlier page adds its named return
+  rows name the years held. Each category keeps its own count, page, source version and
+  failure state. Requests retain category-name search semantics, not file-text search.
+  Catalogue tab counts are not query match counts; file counts are never summed across
+  categories. The tab, view, filters, words and group pages stay in the address.
+  A safe earlier page adds its named return
   link; the top-level list has no invented return. Nested returns keep the nearest 3
   earlier pages with their filters and section anchors, dropping only the oldest link.
   A capped count says "At least"; a failed

@@ -67,6 +67,7 @@ things work in practice and are the place to start if you're new.
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone
 - [Committee money wording](design/committee-money-refinements-copy.md) — approved labels and source-copy refinements
 - [Finance name spelling results](design/finance-name-spellings-build.md) — automatic spelling groups, comparison links and delivery checks
+- [Finance search and record clarity](design/finance-discovery-implementation.md) — searching across browsing categories, precise identifiers and delivery checks
 - [Faster Finance Home suggestions](implementation/finance-search-speed.md) — smaller reads, literal bill matches, cancellation and speed checks
 - [Money page context labels](design/money-page-context-labels-copy.md) — when the green label below a back link adds useful context and the approved words on every money page kind
 

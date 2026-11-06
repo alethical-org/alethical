@@ -105,12 +105,12 @@ describe('suggestionGroups', () => {
     });
     expect(groups[1].rows[0]).toEqual({
       name: 'Example Association',
-      context: 'Principal · Registration 4400',
+      context: 'Principal · State entity ID 77',
       href: '/lobbying/principals/77',
     });
     expect(groups[2].rows[0]).toEqual({
       name: 'Hortman, Melissa A House Committee',
-      context: 'Candidate committee · Registration 15677',
+      context: 'Candidate committee · Registration number 15677',
       href: '/money/committees/15677',
     });
     expect(groups[3].rows[0]).toEqual({

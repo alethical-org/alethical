@@ -309,7 +309,10 @@ function paymentEvidence(
         ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(fetchedAt)}` }]
         : []),
       {
-        label: recordNumbers.length === 1 ? 'Record number' : 'Record numbers',
+        label:
+          recordNumbers.length === 1
+            ? 'Record number in source file'
+            : 'Record numbers in source file',
         value: recordNumbers.join(', '),
       },
     ],
@@ -329,7 +332,12 @@ export function confirmationEvidence(title: string, item: IdentityConfirmation):
     ...(evidence?.locator
       ? [
           {
-            label: evidence.source === 'cf_filer' ? 'Registration' : 'Row',
+            label:
+              evidence.source === 'cf_filer' || evidence.source === 'lobbyist_row'
+                ? 'Registration number'
+                : evidence.source.endsWith('_row')
+                  ? 'Record number in source file'
+                  : 'Row',
             value: evidence.locator,
           },
         ]
@@ -368,7 +376,7 @@ export function givingRows(loads: ReadonlyArray<SpellingLoad<GivenPayment>>, her
       const committee =
         payment.recipient_name ||
         (payment.recipient_registration_number
-          ? `Registration ${payment.recipient_registration_number}`
+          ? `Registration number ${payment.recipient_registration_number}`
           : UNNAMED_PAYMENT_PARTY);
       const amount = formatMoney(payment.amount);
       // The tab of the record's own kind, with the printed name (Round 41).
@@ -480,7 +488,7 @@ export function receivedRows(loads: ReadonlyArray<SpellingLoad<PaidPayment>>, he
         : first.committee_registration_number;
       const payer =
         (independent ? first.spender : first.committee_name) ||
-        (registration ? `Registration ${registration}` : UNNAMED_PAYMENT_PARTY);
+        (registration ? `Registration number ${registration}` : UNNAMED_PAYMENT_PARTY);
       const total = eligibleTotal(
         payments.map((payment) => ({
           amount: payment.amount,
@@ -598,7 +606,7 @@ export function lobbyingRow(
   const amount = spending ? formatMoney(spending.total) : null;
   return {
     key: `lob|${item.id}`,
-    title: `Principal · Entity ID ${id}`,
+    title: `Principal · State entity ID ${id}`,
     note: principal
       ? [spending ? `Reported spending ${spending.year}` : null, listed].filter(Boolean).join(' · ')
       : PRINCIPAL_NOT_HELD,
@@ -629,11 +637,11 @@ export function relatedRow(
   const kind = committee
     ? committeeEyebrow(committee.register?.kind, committee.entity_sub_type)
     : null;
-  const title = name ?? `Registration ${registration}`;
+  const title = name ?? `Registration number ${registration}`;
   return {
     key: `rel|${item.id}`,
     title,
-    note: [kind, name ? `Registration ${registration}` : null, item.relation]
+    note: [kind, name ? `Registration number ${registration}` : null, item.relation]
       .filter(Boolean)
       .join(' · '),
     amount: '',

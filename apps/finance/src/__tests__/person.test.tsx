@@ -219,9 +219,9 @@ it('a split record’s old reference opens the choice of the person meant', asyn
   const lines = [...container.querySelectorAll('.person-split-link')].map((row) => row.textContent);
   // The served reference and count; no count held reads the reference alone, never 0.
   expect(lines).toEqual([
-    'Split Person APER-0007 · 3 confirmed records',
-    'Split Organization BORG-0012',
-    'Merged Organization CORG-0013',
+    'Split Person AAlethical reference PER-0007 · 3 confirmed records',
+    'Split Organization BAlethical reference ORG-0012',
+    'Merged Organization CAlethical reference ORG-0013',
   ]);
   // A part later merged opens the record it became.
   expect(container.querySelector('a[href^="/organizations/d"]')).not.toBeNull();

@@ -132,13 +132,13 @@ export function suggestionGroups(answer: SuggestionsAnswer): SuggestionGroup[] {
       } else if (result.kind === 'lobbyist' && reg) {
         add(
           'people',
-          { name: result.name ?? '', context: `Lobbyist · Registration ${reg}` },
+          { name: result.name ?? '', context: `Lobbyist · Registration number ${reg}` },
           linked('lobbyist', { id: reg }),
         );
       } else if (result.kind === 'principal' && result.entity_id != null) {
         add(
           'orgs',
-          { name: result.name ?? '', context: join('Principal', reg && `Registration ${reg}`) },
+          { name: result.name ?? '', context: `Principal · State entity ID ${result.entity_id}` },
           linked('principal', { id: String(result.entity_id) }),
         );
       } else if (result.kind === 'committee' && reg) {
@@ -146,7 +146,7 @@ export function suggestionGroups(answer: SuggestionsAnswer): SuggestionGroup[] {
           'committees',
           {
             name: result.name ?? '',
-            context: join(registerKindLabel(result.filer_kind), `Registration ${reg}`),
+            context: join(registerKindLabel(result.filer_kind), `Registration number ${reg}`),
           },
           linked('committee', { id: reg }),
         );

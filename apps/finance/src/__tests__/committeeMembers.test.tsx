@@ -252,7 +252,7 @@ describe('Committee members’ campaign accounts', () => {
     expect(account?.getAttribute('href')).toBe(
       `/money/committees/18822?year=${YEAR}&from=${encodeURIComponent(PATH)}`,
     );
-    expect(ben.textContent).toContain('Candidate committee · Registration 18822');
+    expect(ben.textContent).toContain('Candidate committee · Registration number 18822');
     const labels = [...ben.querySelectorAll('.cmm-figure dt')].map((item) => item.textContent);
     expect(labels).toEqual(['Total receipts', 'Total expenditures', 'Ending balance']);
     expect(ben.textContent).toContain('Total receipts$4,200');

@@ -1006,7 +1006,7 @@ describe('Confirm identities page', () => {
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
     expect(text()).toContain('2 identities · Confirmed for 3 of 4 records');
     expect(text()).toContain(
-      'Organization · ORG-0002 · Confirmed for 2 of 4 records · Checked on Aug 2, 2026',
+      'Organization · Alethical reference ORG-0002 · Confirmed for 2 of 4 records · Checked on Aug 2, 2026',
     );
     expect(text()).toContain('Shown below');
     // A reference never breaks at its hyphen.
