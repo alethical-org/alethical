@@ -297,7 +297,6 @@ function paymentEvidence(
   title: string,
   file: string,
   fetchedAt: string | null,
-  recordNumbers: number[],
   sourceUrl: string | null,
 ): Evidence {
   return {
@@ -308,13 +307,6 @@ function paymentEvidence(
       ...(fetchedAt
         ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(fetchedAt)}` }]
         : []),
-      {
-        label:
-          recordNumbers.length === 1
-            ? 'Record number in source file'
-            : 'Record numbers in source file',
-        value: recordNumbers.join(', '),
-      },
     ],
     quote: 'No saved source excerpt is held for this record',
     quoteLabel: 'SOURCE TEXT',
@@ -329,18 +321,8 @@ export function confirmationEvidence(title: string, item: IdentityConfirmation):
   const source = evidence ? (EVIDENCE_SOURCES[evidence.source] ?? evidence.source) : null;
   const rows = [
     ...(source ? [{ label: 'Saved source', value: source }] : []),
-    ...(evidence?.locator
-      ? [
-          {
-            label:
-              evidence.source === 'cf_filer' || evidence.source === 'lobbyist_row'
-                ? 'Registration number'
-                : evidence.source.endsWith('_row')
-                  ? 'Record number in source file'
-                  : 'Row',
-            value: evidence.locator,
-          },
-        ]
+    ...(evidence?.locator && (evidence.source === 'cf_filer' || evidence.source === 'lobbyist_row')
+      ? [{ label: 'Registration number', value: evidence.locator }]
       : []),
   ];
   const checked = item.checked_at ? centralDateLabel(item.checked_at) : null;
@@ -407,7 +389,6 @@ export function givingRows(loads: ReadonlyArray<SpellingLoad<GivenPayment>>, her
           `${payment.contributor ?? load.key} to ${committee}`,
           PAYMENT_FILE_LABELS.contributions,
           load.fetchedAt,
-          [payment.record_number],
           load.sourceUrl,
         ),
         latest: payment.received_on,
@@ -569,7 +550,6 @@ export function receivedRows(loads: ReadonlyArray<SpellingLoad<PaidPayment>>, he
             ? PAYMENT_FILE_LABELS.independentExpenditures
             : PAYMENT_FILE_LABELS.expenditures,
           load.fetchedAt,
-          payments.map((payment) => payment.record_number),
           load.sourceUrl,
         ),
         latest: [...dates].filter(Boolean).sort().pop() ?? null,

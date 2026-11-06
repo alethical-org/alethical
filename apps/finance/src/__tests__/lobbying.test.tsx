@@ -1429,7 +1429,7 @@ describe('Lobbyist record', () => {
     expect(dialog?.querySelector('h2')?.textContent).toBe('Kozak, Andrew V to DFL House Caucus');
     expect(dialog?.textContent).toContain('Contributions file');
     expect(dialog?.textContent).toContain('Copy of Oct 29, 2026');
-    expect(dialog?.textContent).toContain('605481');
+    expect(dialog?.textContent).not.toContain('605481');
     expect(dialog?.textContent).toContain('Not checked');
     expect(dialog?.querySelector('a')?.getAttribute('href')).toBe(
       'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20006/2026/',

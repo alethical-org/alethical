@@ -41,8 +41,8 @@ Expansion survives resize, resets on scope change and focuses the first new link
 Loading or failed spelling groups keep their comparison links until displayed.
 On narrower screens it follows results; desktop has an independent 300px payment
 rail and the existing 320px agency rail.
-Browsing confirmation cards and entry links are removed. Separate identity tools,
-evidence-backed profiles and registered links remain. No extra spelling filter,
+Identity-review visibility follows the [Finance app guide](../product-onboarding/finance-app-guide.md).
+Evidence-backed profiles and registered links remain. No extra spelling filter,
 manual exclusion control or Share action is in this approved pass.
 Identity confirmations, joins, splits, withdrawals and TV-file checks remain shared
 records for accounts with access. They do not override automatic spelling matches.

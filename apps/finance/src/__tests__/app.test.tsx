@@ -229,6 +229,17 @@ describe('the Finance shell', () => {
     expect(document.title).toBe('Page not found · Alethical Finance');
   });
 
+  it('keeps identity review unavailable even through a direct URL', async () => {
+    const fetcher = await renderAt(
+      '/money/identities?name=Example&role=donor',
+      fakeSupabase(SIGNED_IN),
+    );
+    expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
+    expect(document.title).toBe('Page not found · Alethical Finance');
+    expect(fetcher.mock.calls.some(([url]) => url.includes('/finance/identities'))).toBe(false);
+    expect(container.textContent).not.toContain('Confirm identities');
+  });
+
   it('shows the landing page at / to a signed-in account too', async () => {
     await renderAt('/', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('header.f-nav')).toBeNull();

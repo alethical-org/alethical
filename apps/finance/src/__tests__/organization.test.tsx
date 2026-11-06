@@ -629,7 +629,7 @@ describe('Organization profile', () => {
     expect(rows).toEqual([
       'Example Health Association2 confirmed records',
       'Example Health Foundation',
-        'Example Health Fund',
+      'Example Health Fund',
     ]);
     // No internal id is printed anywhere.
     expect(text()).not.toContain(OTHER);
@@ -672,6 +672,21 @@ describe('Organization derived labels', () => {
       label: 'Registration number',
       value: '141',
     });
+  });
+
+  it('keeps importer locators out of source evidence while preserving the quote', () => {
+    const item = confirmation('c-principal', 'principal', '8450', {
+      evidence: {
+        source: 'lobbying_expenditure_row',
+        snapshot_id: 'snap',
+        locator: '82',
+        url: null,
+        quote: 'Example Health Association',
+      },
+    });
+    const evidence = confirmationEvidence('Example Health Association', item);
+    expect(evidence.rows?.some((row) => /Row|Record number/.test(row.label))).toBe(false);
+    expect(evidence.quote).toBe('Example Health Association');
   });
 
   it('states a period from its earliest and latest dates', () => {

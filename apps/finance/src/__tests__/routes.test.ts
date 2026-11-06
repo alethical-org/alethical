@@ -51,6 +51,8 @@ describe('safeReturnPath', () => {
     '/sign-in',
     '/auth/return?source=google',
     '/not-a-page',
+    '/money/identities',
+    '/money/identities?name=Example',
     '/',
   ])('sends %s to Finance Home instead', (value) => {
     expect(safeReturnPath(value, true)).toBe('/home');

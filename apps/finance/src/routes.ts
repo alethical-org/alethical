@@ -202,7 +202,6 @@ export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'bill',
   'roll-call',
   'money-connections',
-  'identities',
   'media-buys',
   'station-folder',
   'station-file',

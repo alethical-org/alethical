@@ -128,7 +128,6 @@ function evidenceFor(
   title: string,
   file: string,
   copiedAt: string | null,
-  recordNumber: number,
   sourceHref: string,
 ): Evidence {
   return {
@@ -144,7 +143,6 @@ function evidenceFor(
             },
           ]
         : []),
-      { label: 'Record number in source file', value: String(recordNumber) },
     ],
     quote: 'No saved source excerpt is held for this record',
     quoteLabel: 'SOURCE TEXT',
@@ -346,7 +344,6 @@ export function Committee({ match }: { match: RouteMatch }) {
         `${group.name} · ${row.amount === null ? AMOUNT_MISSING : (formatMoney(row.amount) ?? AMOUNT_MISSING)}`,
         isExp ? PAYMENT_FILE_LABELS.expenditures : PAYMENT_FILE_LABELS.contributions,
         copied,
-        row.recordNumber,
         sourceHref,
       );
       if (isMade) {
@@ -822,7 +819,6 @@ export function Committee({ match }: { match: RouteMatch }) {
                       payment.vendor_name ? `${name} to ${payment.vendor_name}` : name,
                       PAYMENT_FILE_LABELS.independentExpenditures,
                       independent.data?.fetched_at ?? null,
-                      payment.record_number,
                       sourceHref,
                     ),
                   )

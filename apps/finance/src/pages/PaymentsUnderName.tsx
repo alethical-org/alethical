@@ -278,13 +278,11 @@ function row(
   };
 }
 
-/** The held locators (Design Round 37): the saved source, the copy it was read from
- * and the row in it, then the row's fields as filed and its excerpt. The Board's
- * file is linked only when no excerpt is held. */
+/** Saved source and copy, then the filed facts and excerpt. Importer entry
+ * positions stay in the background. Link the Board's file when no excerpt is held. */
 function rowEvidence(
   context: RowContext,
   fields: {
-    recordNumber: number;
     employer?: string | null;
     zip?: string | null;
     facts: RowFacts;
@@ -321,10 +319,6 @@ function rowEvidence(
             },
           ]
         : []),
-      {
-        label: 'Record number in source file',
-        value: String(held?.record_number ?? fields.recordNumber),
-      },
       { label: 'Filer', value: shown.committee },
       { label: 'Date', value: shown.date ?? DATE_MISSING },
       { label: 'Amount', value: shown.amount ?? AMOUNT_MISSING },
@@ -966,21 +960,6 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
       </SourcesAndUpdates>
       <EvidencePanel evidence={evidence} onClose={() => setEvidence(null)} />
     </main>
-  );
-}
-
-/** Where "Review confirmation" and "Confirm identity" open: Confirm identities for
- * exactly this spelling, role and year, only once that screen is built. */
-export function confirmHref(
-  name: string,
-  role: Role,
-  year: number | null,
-  here: string,
-): string | null {
-  if (!isBuilt('identities')) return null;
-  return withFrom(
-    hrefFor('identities', {}, { name, role, year: year === null ? null : String(year) }),
-    here,
   );
 }
 

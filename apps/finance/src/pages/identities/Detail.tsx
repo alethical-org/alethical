@@ -944,9 +944,7 @@ export function Detail({
               <span className="ci-confirmed-name">{conf.name}</span>
               <span className="ci-muted ci-small f-num">
                 {identityKindLabel(conf.kind)} ·{' '}
-                <Refs>
-                  {conf.reference ? `Alethical ID\u00a0${conf.reference}` : conf.name}
-                </Refs>
+                <Refs>{conf.reference ? `Alethical ID\u00a0${conf.reference}` : conf.name}</Refs>
               </span>
             </span>
             {confHref && (
