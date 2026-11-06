@@ -227,7 +227,7 @@ export function moneyFamilies(
       printed.push({
         key,
         name: result.name,
-        note: role === 'donor' ? 'Printed donor name' : 'Printed payee name',
+        note: role === 'donor' ? 'Donor name' : 'Payee name',
         href: linked('payments-under-name', { query: result.name }, { role }),
       });
     }

@@ -14,6 +14,8 @@ districts and bill numbers retain their existing matching rules. Vote searches
 only its held members. Connections searches only held labels and creates no edges.
 
 Payment and agency pages load strong full-name spelling variants automatically.
+Donor names with the same first and last names and suffix can differ by one
+missing middle initial. Different initials stay in Similar donor names.
 Exact spelling comes first, followed by variants A–Z. Each group prints its exact
 source spelling and own count. No person total or inferred identity is created.
 Employer pages combine selected employer spellings under each donor, showing the
@@ -31,6 +33,9 @@ organization” (payee), “Similar spellings may refer to the same employer”,
 may not include all giving.” Committee name-filter subtotals retain their scoped
 meaning, labelled “Matching itemized contributions”, “Matching itemized
 contributions made” or “Matching itemized expenditures”.
+
+Finance Home suggestions and full search use “Donor name” and “Payee name”
+under Payments under a name.
 
 Secondary Similar names omits main displayed spellings, ranks closest first with
 A–Z ties, shows 1 then Show more, and has no intro or confirmation labels.

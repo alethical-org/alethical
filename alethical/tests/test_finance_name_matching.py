@@ -37,7 +37,8 @@ def test_full_person_variants(candidate):
         "Li, Arthur",
         "Danchik, Alan",
         "Danchik, Arthur Jr",
-        "Danchik, Arthur A",
+        "Danchik, Arthur Allen",
+        "Dantchik, Arthur A",
         "Danchik, Arther",
     ],
 )

@@ -375,7 +375,9 @@ figure is ever added across committees or members.
   separately, never added together), a donor or an employer, read from Finance's own
   `/finance/payments-under-name`, 200 at a time with the server's count of every record in
   scope. Strong full-name spelling variants load automatically after the exact spelling,
-  each under its own original-spelling heading and count. Each record shows its date, amount,
+  each under its own original-spelling heading and count. For donors, a missing middle
+  initial can match when the first name, surname and suffix agree. Different middle
+  initials stay in Similar donor names. Each record shows its date, amount,
   committee and source evidence (the saved source, its copy, the row, the
   employer and ZIP as filed where held, and the whole source row as SOURCE TEXT, 1 "label:
   value" line per column in the file's order, a date as the page prints dates, an amount with

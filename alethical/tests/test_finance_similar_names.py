@@ -97,6 +97,45 @@ def test_automatic_spellings_are_complete_scoped_and_never_identity_claims(
     assert changed.status_code == 409
 
 
+def test_missing_middle_initial_keeps_conflicting_initial_in_similar_names(
+    finance_api, finance_db, board
+):
+    from alethical.pipeline import campaign_finance_name_summary as summaries
+
+    exact = "Kleven, Bruce M"
+    shorter = "Kleven, Bruce"
+    conflict = "Kleven, Bruce J"
+    add_names(finance_db, board, "donor", [exact, shorter, conflict])
+
+    def spellings(name):
+        response = finance_api.get(
+            "/api/v1/finance/name-spellings",
+            params={"name": name, "role": "donor"},
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["data"]["names"]
+
+    assert spellings(exact) == [shorter]
+    assert spellings(shorter) == [conflict, exact]
+    summaries.rebuild(
+        finance_db,
+        m.CampaignFinanceDataset.contributions,
+        board.contributions_snapshot_id,
+    )
+    finance_db.commit()
+    assert spellings(exact) == [shorter]
+    secondary = read(
+        finance_api,
+        name=exact,
+        role="donor",
+        release_id=str(board.id),
+        exclude_name=[shorter],
+    )
+    names = {row["name"] for row in secondary["rows"]}
+    assert conflict in names
+    assert shorter not in names
+
+
 def test_employer_variant_rows_group_once_with_original_spelling_and_paging(
     finance_api, finance_db, board
 ):

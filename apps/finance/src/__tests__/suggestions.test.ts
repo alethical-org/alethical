@@ -128,12 +128,12 @@ describe('suggestionGroups', () => {
     expect(printed.rows).toEqual([
       {
         name: 'Hortman Melissa A House Committee',
-        context: 'Printed donor name',
+        context: 'Donor name',
         href: '/money/names/Hortman%20Melissa%20A%20House%20Committee?role=donor',
       },
       {
         name: 'Hortman Melissa A House Committee',
-        context: 'Printed payee name',
+        context: 'Payee name',
         href: '/money/names/Hortman%20Melissa%20A%20House%20Committee?role=payee',
       },
     ]);
