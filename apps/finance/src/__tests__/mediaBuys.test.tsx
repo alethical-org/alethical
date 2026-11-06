@@ -546,7 +546,6 @@ describe('TV station folder, station and printed agency name', () => {
       <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
     ));
     expect(fetcher).toHaveBeenCalled();
-    expect(container.textContent).toContain('Similar spellings may refer to the same agency');
     expect(container.textContent).toContain('Also printed as: Exmaple Media');
     expect(container.querySelectorAll('a[href*="/media-buys/files/"]')).toHaveLength(1);
     expect(container.textContent).toContain('Checked on Nov 1, 2026');

@@ -516,7 +516,6 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                   <h2 id="files-heading">Files by reported name</h2>
                 </div>
                 <div className="mb-section-body">
-                  {included.length > 0 && <p>Similar spellings may refer to the same agency</p>}
                   <div role="table" aria-label="Files by reported name" className="mb-table">
                     <div role="row" className="mb-table-row mb-table-head" style={cols}>
                       <span role="columnheader">FILE</span>

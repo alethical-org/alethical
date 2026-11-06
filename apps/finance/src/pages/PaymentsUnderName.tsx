@@ -838,9 +838,6 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                 </Refused>
               </div>
             )}
-            {variantNames.length > 0 && (
-              <p className="pn-variants-note">{spellingQualification(roleOf(basis!.role))}</p>
-            )}
             {!allLoading &&
               !allFailed &&
               sections.map((spec, index) => (
@@ -985,14 +982,6 @@ export function confirmHref(
     hrefFor('identities', {}, { name, role, year: year === null ? null : String(year) }),
     here,
   );
-}
-
-export function spellingQualification(role: Role): string {
-  return role === 'donor'
-    ? 'Similar spellings may refer to the same person'
-    : role === 'employer'
-      ? 'Similar spellings may refer to the same employer'
-      : 'Similar spellings may refer to the same person or organization';
 }
 
 function VariantPayments({

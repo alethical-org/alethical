@@ -316,7 +316,6 @@ describe('Donors by employer', () => {
     expect(donor('Example, Wen').textContent).toContain(SPELLING);
     expect(donor('Example, Wen').textContent).toContain(other);
     expect(donor('Example, Wen').querySelector('.de-count')?.textContent).toBe('2 payment records');
-    expect(container.textContent).toContain('Similar spellings may refer to the same employer');
     expect(
       requests
         .find((url) => url.pathname.endsWith('/employers/donors'))
