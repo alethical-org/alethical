@@ -206,8 +206,15 @@ list to resolve current chat activity during a review.
 The existing daily cleanup run saves the inventory privately in
 `folder-inventory.json`, with its observation time. No recurring AI, messages or
 paid service runs. A missing owner is a review finding, never deletion permission.
-Retained work stays until its owner completes the requested outcome. The existing
-shared `worktree-triage` skill guides the judgment part of that review.
+Retained work stays until its owner completes the requested outcome. The shared
+[`worktree-cleanup` skill](https://github.com/euglopi/tool-settings/blob/main/shared/skills/worktree-cleanup/SKILL.md)
+combines that review with user-requested cleanup. Invoking it without extra words
+in the owning chat supplies the cleanup request for that chat's folders, not a
+claim that delivery or acceptance is complete. It uses the host's native lifecycle
+for app-managed copies and this guide's guarded release process for legacy external
+copies. It keeps chat history and reports removed, trimmed, queued or retained
+folders. Trimming still needs its own safety checks and an existing scoped cleanup
+route; loading or editing the skill does not authorize cleanup.
 
 Claude and Codex lifecycle hooks record ownership without adding routine messages
 or instructions to the conversation. Starting or resuming work cancels queued
