@@ -1729,7 +1729,7 @@ describe('Principal record', () => {
     expect(lobbyists[0].getAttribute('href')).toBe(
       '/lobbying/lobbyists/5245?from=%2Flobbying%2Fprincipals%2F8450%3FspendView%3Dtable',
     );
-    expect(lobbyists[0].textContent).toContain('Registration number 5245');
+    expect(lobbyists[0].textContent).toContain('Registration number\u00a05245');
     expect(text()).toContain('Registered as Health Assn in the lobbyist list');
     expect(text()).toContain(
       'The lobbyist list shows who was registered for this principal in records copied Oct 29, 2026',

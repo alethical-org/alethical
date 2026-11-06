@@ -320,7 +320,7 @@ export function Principal({ match }: { match: RouteMatch }) {
                         <li key={row.registration_number}>
                           <RecordRow
                             name={row.name}
-                            note={`Registration number ${row.registration_number}`}
+                            note={`Registration number\u00a0${row.registration_number}`}
                             href={
                               isBuilt('lobbyist')
                                 ? withFrom(

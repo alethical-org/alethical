@@ -845,7 +845,7 @@ export function Detail({
                     {identityKindLabel(identity.kind)} ·{' '}
                     <Refs>
                       {identity.reference
-                        ? `Alethical reference ${identity.reference}`
+                        ? `Alethical reference\u00a0${identity.reference}`
                         : identity.name}
                     </Refs>{' '}
                     ·{' '}
@@ -944,7 +944,9 @@ export function Detail({
               <span className="ci-confirmed-name">{conf.name}</span>
               <span className="ci-muted ci-small f-num">
                 {identityKindLabel(conf.kind)} ·{' '}
-                <Refs>{conf.reference ? `Alethical reference ${conf.reference}` : conf.name}</Refs>
+                <Refs>
+                  {conf.reference ? `Alethical reference\u00a0${conf.reference}` : conf.name}
+                </Refs>
               </span>
             </span>
             {confHref && (
@@ -1037,7 +1039,7 @@ export function Detail({
                       {identityKindLabel(identity.kind)} ·{' '}
                       <Refs>
                         {identity.reference
-                          ? `Alethical reference ${identity.reference}`
+                          ? `Alethical reference\u00a0${identity.reference}`
                           : identity.name}
                       </Refs>
                     </span>

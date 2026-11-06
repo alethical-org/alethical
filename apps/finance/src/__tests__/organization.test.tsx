@@ -470,10 +470,10 @@ describe('Organization profile', () => {
     expect(sources).toContain('Campaign payment files copied Oct 28, 2026');
     expect(sources).toContain('Lobbyist list and spending reports copied Oct 29, 2026');
     expect(sources).toContain('Committee registrations copied Oct 28, 2026');
-    expect(sources).toContain('Alethical reference ORG-0042');
+    expect(sources).toContain('Alethical reference\u00a0ORG-0042');
     expect(sources).not.toContain(ORG);
     expect(sources).toContain('Official identifiers');
-    expect(sources).toContain('State entity ID 8450');
+    expect(sources).toContain('State entity ID\u00a08450');
     // No street address, phone or email is copied from a record into the profile.
     expect(text()).not.toContain('55401');
   });
