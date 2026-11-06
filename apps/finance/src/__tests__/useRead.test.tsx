@@ -15,9 +15,10 @@ const supabase = {
   },
 } as unknown as SupabaseClient;
 
-function Probe({ path }: { path: string }) {
+function Probe({ path }: { path: string | null }) {
   const read = useRead<{ name: string }>(path);
-  return <p>{read.loading ? 'loading' : read.failed ? 'failed' : (read.data?.name ?? 'none')}</p>;
+  if (read.failed) return <button onClick={read.retry}>Retry</button>;
+  return <p aria-busy={read.pending}>{read.loading ? 'loading' : (read.data?.name ?? 'none')}</p>;
 }
 
 let container: HTMLDivElement;
@@ -34,9 +35,10 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
-function show(path: string) {
+function show(path: string | null) {
   root.render(
     <SessionProvider supabase={supabase} apiBaseUrl="https://api.test">
       <Probe path={path} />
@@ -45,6 +47,60 @@ function show(path: string) {
 }
 
 describe('useRead', () => {
+  it('is no longer pending when the active query is cleared', async () => {
+    vi.stubGlobal(
+      'fetch',
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted')));
+        }),
+    );
+    await act(async () => show('bills/1'));
+    expect(container.querySelector('p')?.getAttribute('aria-busy')).toBe('true');
+    await act(async () => show(null));
+    expect(container.textContent).toBe('none');
+    expect(container.querySelector('p')?.getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('reads the new address once after retrying the old one', async () => {
+    const fetcher = vi.fn(async (url: string) =>
+      url.endsWith('bills/1')
+        ? new Response(null, { status: 500 })
+        : new Response(JSON.stringify({ data: { name: 'Bill 2' } })),
+    );
+    vi.stubGlobal('fetch', fetcher);
+    await act(async () => show('bills/1'));
+    await act(async () => container.querySelector('button')!.click());
+    expect(fetcher.mock.calls.filter(([url]) => url.endsWith('bills/1'))).toHaveLength(2);
+    await act(async () => show('bills/2'));
+    expect(fetcher.mock.calls.filter(([url]) => url.endsWith('bills/2'))).toHaveLength(1);
+    expect(container.textContent).toBe('Bill 2');
+  });
+
+  it('shows loading instead of hydrating an expired cached answer on remount', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    let finish!: (response: Response) => void;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { name: 'Earlier bill' } })))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      );
+    vi.stubGlobal('fetch', fetcher);
+    await act(async () => show('bills/1'));
+    expect(container.textContent).toBe('Earlier bill');
+    await act(async () => root.render(null));
+    now.mockReturnValue(70_000);
+    await act(async () => show('bills/1'));
+    const stateWhileLoading = container.textContent;
+    await act(async () => finish(new Response(JSON.stringify({ data: { name: 'Updated bill' } }))));
+    expect(stateWhileLoading).toBe('loading');
+    expect(container.textContent).toBe('Updated bill');
+  });
+
   it('shows a record held from before when Back returns while the next read is still open', async () => {
     vi.stubGlobal(
       'fetch',

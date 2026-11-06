@@ -674,6 +674,42 @@ describe('Lobbying directory', () => {
     expect(new URL(request).searchParams.get('year')).toBeNull();
   });
 
+  it('updates and clears search as you type while keeping filters', async () => {
+    await render(
+      '/lobbying?tab=principals&year=2024&page=2&q=before',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () => json(lobbyistsPage()),
+        () => json(principalsPage()),
+      ),
+    );
+    const input = container.querySelector<HTMLInputElement>('.lb-search input')!;
+    async function enter(value: string) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+    }
+    vi.useFakeTimers();
+    try {
+      await enter('Example');
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('q')).toBe('Example');
+      expect(params.get('tab')).toBe('principals');
+      expect(params.get('year')).toBe('2024');
+      expect(params.has('page')).toBe(false);
+      expect(requests.some((url) => url.includes('principals?q=Example'))).toBe(true);
+      await enter('');
+      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('searches the open tab on the server and says when nothing matches', async () => {
     await render(
       '/lobbying?q=zzzz',

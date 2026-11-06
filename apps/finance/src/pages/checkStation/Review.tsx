@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { registerKindLabel } from '@alethical/shared/committeeMoneyShared';
+import { useDebouncedSearchCommit } from '@alethical/shared/hooks/useDebouncedSearchCommit';
+import { tooShortTitle } from '@alethical/shared/moneyNameSearch';
 import { apiGet, useRead } from '../../api/read';
 import { useFinanceSession } from '../../auth/session';
 import { Link, useLocation } from '../../router';
@@ -194,6 +196,67 @@ interface MoneyResult {
   filer_kind?: string | null;
 }
 
+// The suggestions service uses campaign_finance_search.MIN_QUERY_LENGTH.
+const MONEY_LOOKUP_MIN_LENGTH = 3;
+interface MoneyGroup {
+  kind: string;
+  state: string;
+  reason?: string | null;
+  results: MoneyResult[];
+}
+type MoneyMatches = { money: { state?: string; groups?: MoneyGroup[] } | null };
+type LookupResults = {
+  scope: string;
+  kind: string;
+  query: string;
+  rows: TargetResult[];
+};
+
+function matchingRecords(
+  data: Queue | MoneyMatches,
+  kind: string,
+  fileKey: string,
+): TargetResult[] | 'too-short' | 'unavailable' {
+  if ('rows' in data)
+    return data.rows
+      .filter((row) => row.key !== fileKey)
+      .map((row) => ({
+        id: `${row.key}@${row.version_id}`,
+        name: row.name,
+        line: [
+          row.station,
+          row.folder_label,
+          row.uploaded_at ? `Uploaded ${day(row.uploaded_at)}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      }));
+  const group = data.money?.groups?.find((item) =>
+    kind === 'committee' ? item.kind === 'committees' : item.kind === 'principals',
+  );
+  if (group?.reason === 'query_too_short') return 'too-short';
+  if (data.money?.state === 'unavailable' || !group) return 'unavailable';
+  if (group.state === 'not_reported') return [];
+  if (group.state !== 'reported' || !Array.isArray(group.results)) return 'unavailable';
+  return kind === 'committee'
+    ? group.results
+        .filter((row) => row.kind === 'committee' && row.registration_number != null)
+        .map((row) => ({
+          id: String(row.registration_number),
+          name: row.name ?? '',
+          line: [registerKindLabel(row.filer_kind), `Registration ${row.registration_number}`]
+            .filter(Boolean)
+            .join(' · '),
+        }))
+    : group.results
+        .filter((row) => row.kind === 'principal' && row.entity_id != null)
+        .map((row) => ({
+          id: String(row.entity_id),
+          name: row.name ?? '',
+          line: `Entity ID ${row.entity_id}`,
+        }));
+}
+
 function Workbench({
   file,
   fileKey,
@@ -213,7 +276,7 @@ function Workbench({
   onDraftChange: () => void;
   refresh: () => void;
 }) {
-  const { apiBaseUrl, accessToken } = useFinanceSession();
+  const { apiBaseUrl, accessToken, canEdit } = useFinanceSession();
   const location = useLocation();
   const here = location.pathname + location.search;
   const version = file.version_id;
@@ -233,10 +296,18 @@ function Workbench({
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [used, setUsed] = useState<Set<string>>(new Set());
   const [showDismissed, setShowDismissed] = useState(false);
-  const [search, setSearch] = useState<'idle' | 'busy' | 'failed'>('idle');
+  const [appliedLookup, setAppliedLookup] = useState('');
+  const [heldLookup, setHeldLookup] = useState<LookupResults | null>(null);
   const [previewing, setPreviewing] = useState<'idle' | 'busy' | 'failed'>('idle');
   const live = useRef(true);
-  useEffect(() => () => void (live.current = false), []);
+  const previewRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+      previewRequest.current?.abort();
+    };
+  }, []);
 
   const suggestions = useRead<Suggestions>(
     mediaPath(['files', fileKey, 'suggestions'], { version }),
@@ -260,6 +331,67 @@ function Workbench({
   const facts = currentFacts(file);
   const fact = draft.fact;
   const conn = draft.connection;
+  const lookupScope = `${apiBaseUrl}|${accessToken}|${canEdit}|${fileKey}|${version}`;
+  const currentScope = useRef(lookupScope);
+  currentScope.current = lookupScope;
+  const mayLookUp = !!accessToken && canEdit !== false && draft.mode === 'connection';
+  const lookupQuery = conn.query.trim();
+  const lookupKey =
+    mayLookUp &&
+    conn.type &&
+    conn.type !== 'issue' &&
+    (lookupQuery || conn.type === 'related_document')
+      ? JSON.stringify([lookupScope, conn.type, lookupQuery])
+      : '';
+  useDebouncedSearchCommit(lookupKey, lookupKey ? appliedLookup : '', setAppliedLookup);
+  // Drop the old request as soon as the input changes, including during the pause
+  // before the next read. The earlier answer keeps its own query below.
+  const lookupPath =
+    lookupKey && lookupKey === appliedLookup
+      ? conn.type === 'related_document'
+        ? mediaPath(['queue'], { q: lookupQuery, limit: 20 })
+        : `finance/suggestions?${new URLSearchParams({ q: lookupQuery, request_id: 'station-check', limit: '10' })}`
+      : null;
+  const lookup = useRead<Queue | MoneyMatches>(lookupPath);
+  const remote = useMemo(
+    () => (lookup.data ? matchingRecords(lookup.data, conn.type, fileKey) : null),
+    [conn.type, fileKey, lookup.data],
+  );
+  const remoteRows = Array.isArray(remote) ? remote : null;
+  const lookupTooShort = remote === 'too-short';
+  useEffect(() => {
+    if (lookup.accessDenied) {
+      setHeldLookup(null);
+      return;
+    }
+    if (!remoteRows || !lookupPath) return;
+    setHeldLookup({
+      scope: lookupScope,
+      kind: conn.type,
+      query: lookupQuery,
+      rows: remoteRows,
+    });
+  }, [conn.type, lookup.accessDenied, lookupPath, lookupQuery, lookupScope, remoteRows]);
+  const retainedLookup =
+    lookupKey &&
+    !lookup.accessDenied &&
+    !lookupTooShort &&
+    heldLookup?.scope === lookupScope &&
+    heldLookup.kind === conn.type
+      ? heldLookup
+      : null;
+  const currentRows =
+    mayLookUp && conn.type === 'issue' && lookupQuery
+      ? [{ id: lookupQuery, name: lookupQuery, line: '' }]
+      : remoteRows;
+  const lookupRows = currentRows ?? retainedLookup?.rows ?? null;
+  const lookupStale = currentRows === null && retainedLookup !== null;
+  const lookupFailed =
+    !!lookupPath &&
+    !lookup.pending &&
+    (lookup.failed || lookup.notFound || remote === 'unavailable');
+  const lookupBusy =
+    !!lookupKey && (!lookupPath || lookup.loading || lookup.pending) && !lookupFailed;
   const correcting = fact.correcting ? (facts.find((f) => f.id === fact.correcting) ?? null) : null;
 
   function touch() {
@@ -277,8 +409,33 @@ function Workbench({
     setDraft((was) => ({ ...was, connection: { ...was.connection, ...patch } }));
     if (clear) setErrors((was) => ({ ...was, [clear]: '' }));
   }
+  function cancelPreview() {
+    previewRequest.current?.abort();
+    previewRequest.current = null;
+    setPreviewing('idle');
+    setChanged(false);
+  }
+  function leaveLookup() {
+    if (!previewRequest.current) return;
+    cancelPreview();
+    setPreviewing('failed');
+  }
+  function resetTarget(patch: Partial<ConnectionEntries> = {}, clear = 'target') {
+    cancelPreview();
+    setConn(
+      {
+        target: null,
+        preview: null,
+        previewKey: '',
+        moneyChecked: false,
+        ...patch,
+      },
+      clear,
+    );
+  }
   function switchMode(mode: Mode) {
     if (anyBusy || draft.mode === mode) return;
+    if (mode === 'fact') leaveLookup();
     setDraft((was) => ({ ...was, mode }));
     setErrors({});
     setSaveState('idle');
@@ -286,6 +443,7 @@ function Workbench({
     setDupOf(null);
   }
   function startCorrection(target: Fact) {
+    leaveLookup();
     setDraft((was) => ({ ...was, mode: 'fact', fact: correctionOf(target) }));
     setErrors({});
     setSaveState('idle');
@@ -460,85 +618,23 @@ function Workbench({
     setWithdrawal((was) => (was && was.id === id ? { ...was, status: 'failed' } : was));
   }
 
-  async function runSearch() {
+  function runSearch() {
     if (busy) return;
     if (!conn.type) {
       setErrors((was) => ({ ...was, type: 'Choose the connection this page shows' }));
       focusSoon('conn-btn');
       return;
     }
-    const query = conn.query.trim();
+    if (!lookupKey) return;
     setErrors((was) => ({ ...was, target: '' }));
-    setChanged(false);
-    if (conn.type === 'issue') {
-      setConn({
-        results: query ? [{ id: query, name: query, line: '' }] : [],
-        target: null,
-        preview: null,
-        previewKey: '',
-      });
-      return;
-    }
-    setSearch('busy');
-    let results: TargetResult[] | null = null;
-    if (conn.type === 'related_document') {
-      const answer = await apiGet<Queue>(
-        apiBaseUrl,
-        mediaPath(['queue'], { q: query, limit: 20 }),
-        accessToken,
-      );
-      if (answer.state === 'ok')
-        results = answer.data.rows
-          .filter((row) => row.key !== fileKey)
-          .map((row) => ({
-            id: `${row.key}@${row.version_id}`,
-            name: row.name,
-            line: [
-              row.station,
-              row.folder_label,
-              row.uploaded_at ? `Uploaded ${day(row.uploaded_at)}` : '',
-            ]
-              .filter(Boolean)
-              .join(' · '),
-          }));
-    } else {
-      const answer = await apiGet<{ money: { groups?: { results: MoneyResult[] }[] } | null }>(
-        apiBaseUrl,
-        `finance/suggestions?${new URLSearchParams({ q: query, request_id: 'station-check', limit: '10' })}`,
-        accessToken,
-      );
-      if (answer.state === 'ok') {
-        const all = (answer.data.money?.groups ?? []).flatMap((group) => group.results);
-        results =
-          conn.type === 'committee'
-            ? all
-                .filter((r) => r.kind === 'committee' && r.registration_number != null)
-                .map((r) => ({
-                  id: String(r.registration_number),
-                  name: r.name ?? '',
-                  line: [registerKindLabel(r.filer_kind), `Registration ${r.registration_number}`]
-                    .filter(Boolean)
-                    .join(' · '),
-                }))
-            : all
-                .filter((r) => r.kind === 'principal' && r.entity_id != null)
-                .map((r) => ({
-                  id: String(r.entity_id),
-                  name: r.name ?? '',
-                  line: `Entity ID ${r.entity_id}`,
-                }));
-      }
-    }
-    if (!live.current) return;
-    if (results === null) {
-      setSearch('failed');
-      return;
-    }
-    setSearch('idle');
-    setConn({ results, target: null, preview: null, previewKey: '' });
+    if (lookupKey !== appliedLookup) setAppliedLookup(lookupKey);
+    else if (lookupFailed) lookup.retry();
   }
 
   async function preview(target: TargetResult, entries: ConnectionEntries = conn) {
+    previewRequest.current?.abort();
+    const request = new AbortController();
+    previewRequest.current = request;
     setConn({ target, preview: null, previewKey: '', moneyChecked: false }, 'target');
     setChanged(false);
     setPreviewing('busy');
@@ -550,8 +646,11 @@ function Workbench({
         role: ROLE_TYPES.includes(entries.type) && entries.role.trim() ? entries.role.trim() : null,
       }),
       accessToken,
+      fetch,
+      request.signal,
     );
-    if (!live.current) return;
+    if (!live.current || request.signal.aborted || currentScope.current !== lookupScope) return;
+    previewRequest.current = null;
     if (answer.state !== 'ok') {
       setPreviewing('failed');
       return;
@@ -568,6 +667,7 @@ function Workbench({
 
   function useSuggestion(suggestion: Suggestion, id: string) {
     if (anyBusy) return;
+    leaveLookup();
     setUsed((was) => new Set([...was, id]));
     setDraft((was) => ({
       ...was,
@@ -699,6 +799,8 @@ function Workbench({
         aria-disabled={busy || undefined}
         onClick={() => {
           if (busy) return;
+          cancelPreview();
+          setHeldLookup(null);
           discardDraft(store);
           setDraft(blankDraft(String(page)));
           setErrors({});
@@ -718,7 +820,12 @@ function Workbench({
     label: string,
     value: string,
     onChange: (value: string) => void,
-    options: { multiline?: boolean; readOnly?: boolean; numeric?: boolean; wide?: boolean } = {},
+    options: {
+      multiline?: boolean;
+      readOnly?: boolean;
+      numeric?: boolean;
+      wide?: boolean;
+    } = {},
   ) => (
     <label className={`ck-field${options.wide ? ' ck-wide' : ''}`}>
       <span className="ck-label">{label}</span>
@@ -1088,19 +1195,15 @@ function Workbench({
                     label: connectionLabel(value),
                   }))}
                   onChange={(value) => {
-                    setConn(
+                    setHeldLookup(null);
+                    resetTarget(
                       {
                         type: value,
                         results: null,
-                        target: null,
-                        preview: null,
-                        previewKey: '',
-                        moneyChecked: false,
                         role: ROLE_TYPES.includes(value) ? conn.role : '',
                       },
                       'type',
                     );
-                    setChanged(false);
                   }}
                 >
                   <span className={conn.type ? undefined : 'ck-placeholder'}>
@@ -1110,15 +1213,7 @@ function Workbench({
                 {err('type') && <Warning>{err('type')}</Warning>}
               </div>
               {ROLE_TYPES.includes(conn.type) &&
-                field('connRole', 'c-role', 'Role', conn.role, (v) =>
-                  setConn({
-                    role: v,
-                    target: null,
-                    preview: null,
-                    previewKey: '',
-                    moneyChecked: false,
-                  }),
-                )}
+                field('connRole', 'c-role', 'Role', conn.role, (v) => resetTarget({ role: v }))}
             </div>
             <div className="ck-field">
               <label htmlFor="c-query" className="ck-label">
@@ -1132,31 +1227,51 @@ function Workbench({
                   value={conn.query}
                   readOnly={busy}
                   data-error={err('target') ? true : undefined}
-                  onChange={(event) => setConn({ query: event.target.value })}
+                  onChange={(event) => {
+                    const query = event.target.value;
+                    if (query.trim() === lookupQuery) setConn({ query });
+                    else {
+                      if (!query.trim() && conn.type !== 'related_document') setHeldLookup(null);
+                      resetTarget({ query, results: null });
+                    }
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                       event.preventDefault();
-                      void runSearch();
+                      runSearch();
                     }
                   }}
                 />
                 <button
                   type="button"
                   className="f-btn f-btn-secondary ck-search-btn"
-                  aria-disabled={busy || search === 'busy' || undefined}
-                  onClick={() => search !== 'busy' && void runSearch()}
+                  aria-disabled={busy || undefined}
+                  onClick={runSearch}
                 >
                   Search
                 </button>
               </div>
               {err('target') && <Warning>{err('target')}</Warning>}
             </div>
-            {search === 'failed' && (
-              <Refused onRetry={() => void runSearch()}>We couldn’t load these records</Refused>
+            {!conn.target && lookupBusy && <LoadingLine>Searching…</LoadingLine>}
+            {!conn.target && lookupTooShort && (
+              <div className="mb-dashed ck-flat" role="status">
+                {tooShortTitle(MONEY_LOOKUP_MIN_LENGTH)}
+              </div>
             )}
-            {conn.results && conn.results.length > 0 && !conn.target && (
+            {!conn.target && lookupFailed && (
+              <Refused onRetry={runSearch}>We couldn’t load these records</Refused>
+            )}
+            {!conn.target && lookupStale && (lookupRows?.length ?? 0) > 0 && (
+              <p className="ck-note" role="status">
+                {retainedLookup?.query
+                  ? `Previous results for “${retainedLookup.query}”`
+                  : 'Previous results for all records'}
+              </p>
+            )}
+            {lookupRows && lookupRows.length > 0 && !conn.target && (
               <ul aria-label="Records found" className="ck-results">
-                {conn.results.map((result) => (
+                {lookupRows.map((result) => (
                   <li key={result.id}>
                     <div>
                       <span className="ck-sugg-value f-num">{result.name}</span>
@@ -1166,8 +1281,8 @@ function Workbench({
                       type="button"
                       className="f-btn f-btn-secondary ck-btn"
                       aria-label={`Preview record: ${result.name}${result.line ? `, ${result.line}` : ''}`}
-                      aria-disabled={busy || undefined}
-                      onClick={() => !busy && void preview(result)}
+                      aria-disabled={busy || lookupStale || undefined}
+                      onClick={() => !busy && !lookupStale && void preview(result)}
                     >
                       Preview record
                     </button>
@@ -1175,7 +1290,7 @@ function Workbench({
                 ))}
               </ul>
             )}
-            {conn.results && conn.results.length === 0 && !conn.target && (
+            {currentRows?.length === 0 && !conn.target && !lookupBusy && !lookupFailed && (
               <div className="mb-dashed ck-flat">No held records match</div>
             )}
             {conn.target && (
@@ -1196,8 +1311,7 @@ function Workbench({
                     className="ck-link-btn"
                     disabled={busy}
                     onClick={() => {
-                      setConn({ target: null, preview: null, previewKey: '', moneyChecked: false });
-                      setChanged(false);
+                      resetTarget();
                       focusSoon('c-query');
                     }}
                   >

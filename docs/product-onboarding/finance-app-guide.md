@@ -144,7 +144,10 @@ for the owning permission and password-management rules.
   Committees, Bills and Payments under a name, each opening its page; a match whose page is
   not built yet is left out. "Searching…", "No matching suggestions" with "Try another name or
   bill number", and "Suggestions couldn’t load" are the panel's other states, each announced
-  to screen readers. Arrow keys move through the rows and View all results, Enter opens the
+  to screen readers. A server response below its minimum says "Type at least 3 characters".
+  A partial failure keeps valid current rows with "Some suggestions couldn’t load" and
+  Try again; unavailable sources are never cached as a successful empty answer.
+  Arrow keys move through the rows and View all results, Enter opens the
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
   Bill suggestions match the typed letters in the held title, short title or description,
   without spelling correction: `danc` can find “dance”, but `danch` cannot. Bill-number
@@ -261,6 +264,24 @@ spending total for this committee for this year", and a year an account holds no
 "Not held"); an official report total and a sum of listed payments are separate figures; no
 figure is ever added across committees or members.
 
+All Finance search results update as the reader types or deletes. Remote result searches
+share a 250 ms pause; Search and Enter apply immediately. Clearing removes the text filter
+while keeping other choices and return context, and changed queries start at the first page.
+The field keeps its raw spaces and focus. Back, Forward and leaving the search cancel
+unfinished edits; retained results keep their own query and filters during loading or failure.
+The [shared search rule](https://github.com/euglopi/tool-settings/blob/main/shared/guides/search-interactions.md)
+owns the cross-product requirements and Design-review checks.
+
+Home remains a live suggestion entry, with its existing 140 ms pause and 2-character floor;
+it opens the full results page on Search or Enter. Full name search states its existing
+3-character minimum instead of showing old matches as current. Exact-name payment and
+employer lookups return to an empty entry view when cleared, since an empty name is not a
+request to retrieve every payment. The station-file review's record lookup also searches
+while typing; selecting, previewing and saving a connection remain explicit actions.
+Its committee and principal lookups state the 3-character minimum. If the selected source
+is unavailable, prior results keep their original query label with a failure notice and retry;
+an unavailable source is not a no-match result.
+
 - **Search results (`/search?q=`)**: People (sitting legislators and lobbyists), Organizations
   (lobbying principals), Committees, Bills and Payments under a name, each family loaded,
   counted and failed on its own ("At least {n}" when the server's count is capped). A name
@@ -370,7 +391,7 @@ figure is ever added across committees or members.
   unavailable", an account with no such report reads "No {year} report held", and a failed
   read, including one the server cannot find, fails that account alone with Try again. The return link appears only when the
   address names the earlier page.
-- **Payments under this name (`/money/names/:query?role=`)**: every payment record filed under
+- **Payments under this name (`/money/names/:query?role=`, `/money/names`)**: every payment record filed under
   1 exact printed spelling, as a payee (campaign spending and outside spending listed
   separately, never added together), a donor or an employer, read from Finance's own
   `/finance/payments-under-name`, 200 at a time with the server's count of every record in
@@ -400,7 +421,9 @@ figure is ever added across committees or members.
   amount or shared identity is inferred. Links preserve the filters and the starting name's return path. A different source copy
   is named beside the card; a matching copy uses the page's source information. A recognized
   file filter incompatible with the role gives an empty scope with Clear all, never an
-  unfiltered list. Opened with no earlier page, it returns to Campaign money.
+  unfiltered list. Editing the name retains the record type, year and filer/file filters;
+  clearing returns to `/money/names` with “Enter a name as reported”. Opened with no earlier
+  page, it returns to Campaign money.
 - **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
   spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
   with its donor-name count. The chosen spelling and strong employer variants load together,

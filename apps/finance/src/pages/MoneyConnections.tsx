@@ -4,6 +4,7 @@ import { useFinanceSession } from '../auth/session';
 import { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../api/read';
 import { Link, navigate, useLocation } from '../router';
+import { useLiveSearch } from '../search/useLiveSearch';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor } from '../routes';
 import { useAddressState } from '../ui/addressState';
@@ -77,9 +78,13 @@ export function MoneyConnections() {
     pages: '',
   });
   const [view, setView] = useView('view');
-  const [typed, setTyped] = useState(address.q);
-  useEffect(() => setTyped(address.q), [address.q]);
   const q = address.q.trim().slice(0, 200);
+  const [typed, setTyped, applySearch] = useLiveSearch(
+    address.q,
+    here,
+    (q) => setAddress({ q, focus: '', edge: '', pages: '' }),
+    (value) => value.trim().slice(0, 200).trimEnd(),
+  );
   const year =
     /^\d{4}$/.test(address.year) && +address.year >= 1900 && +address.year <= 2200
       ? address.year
@@ -251,7 +256,7 @@ export function MoneyConnections() {
           role="search"
           onSubmit={(e) => {
             e.preventDefault();
-            setAddress({ q: typed.trim(), focus: '', edge: '', pages: '' });
+            applySearch();
           }}
         >
           <label htmlFor="conn-q" className="f-visually-hidden">
@@ -350,6 +355,13 @@ export function MoneyConnections() {
           )}
           {safeHeld && !current && read.busy && (
             <BusyNotice retrying={read.pending} onRetry={read.retry} />
+          )}
+          {safeHeld && !current && last?.q !== q && (
+            <p className="f-count-line">
+              {last?.q
+                ? `Previous results matching “${last.q}”`
+                : 'Previous results with no name filter'}
+            </p>
           )}
           {safeHeld && (
             <div className="mc-loaded">

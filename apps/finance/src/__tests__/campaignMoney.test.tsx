@@ -423,11 +423,81 @@ describe('Campaign money directory', () => {
     expect(registerRequests()[0]).toContain('kind=political_committee_or_fund');
   });
 
+  it('updates and clears search as you type while keeping filters', async () => {
+    await render('/money?party=DFL&reg=open&page=2&q=before', () => json(register()));
+    const input = container.querySelector<HTMLInputElement>('#money-name')!;
+    async function enter(value: string) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+    }
+    vi.useFakeTimers();
+    try {
+      await enter('Example');
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('q')).toBe('Example');
+      expect(params.get('party')).toBe('DFL');
+      expect(params.get('reg')).toBe('open');
+      expect(params.has('page')).toBe(false);
+      expect(registerRequests().at(-1)).toContain('q=Example');
+      await enter('');
+      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('searches registered names on the server and keeps payments apart', async () => {
     await render('/money?q=caucus', () => json(register()));
     expect(registerRequests()[0]).toContain('q=caucus');
     expect(container.textContent).toContain('Registrations matching “caucus” are listed below.');
     expect(container.textContent).toContain('Payments under a name');
+  });
+
+  it('keeps earlier registrations labelled with their own search if a new search fails', async () => {
+    let finish!: (response: Response) => void;
+    await render('/money?q=Hortman&page=2', (url) =>
+      url.includes('q=Other')
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : json(
+            register({
+              page: { limit: 50, offset: 50, has_more: true, total: 150 },
+            }),
+          ),
+    );
+    const input = container.querySelector<HTMLInputElement>('#money-name')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+        input,
+        'Other',
+      );
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      input.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(container.textContent).toContain('Matching “Hortman”');
+    expect(container.textContent).toContain('Payments recorded under “Other”');
+    expect(container.textContent).not.toContain('Registrations matching “Other”');
+    await act(async () => finish(new Response('', { status: 503 })));
+    await settle();
+    expect(container.textContent).toContain('Matching “Hortman”');
+    expect(container.textContent).toContain('Try again');
+    expect(container.textContent).not.toContain('Registrations matching “Other”');
+    expect(container.textContent).toContain('Page 2 of 3');
+    const next = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Next',
+    )!;
+    expect(next.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => next.click());
+    expect(window.location.search).toBe('?q=Other');
   });
 
   it('pages on the server and writes the page to the address', async () => {

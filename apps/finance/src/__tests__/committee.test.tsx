@@ -592,6 +592,26 @@ describe('Committee page', () => {
     expect(text()).not.toContain('EXAMPLE, PRIYA');
   });
 
+  it('clears a legacy name filter while keeping the selected tab and sort', async () => {
+    await render('/money/committees/90001?q=Jordan&tab=individuals&sort=name', loadedAnswers());
+    const field = container.querySelector<HTMLInputElement>('.cmt-field')!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    expect(field.value).toBe('Jordan');
+    expect(text()).not.toContain('EXAMPLE, PRIYA');
+    await act(async () => {
+      setValue.call(field, '');
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(field.value).toBe('');
+    expect(text()).toContain('EXAMPLE, PRIYA');
+    expect(text()).toContain('Example, Jordan A');
+    const params = new URLSearchParams(window.location.search);
+    expect(params.has('q')).toBe(false);
+    expect(params.has('name')).toBe(false);
+    expect(params.get('tab')).toBe('individuals');
+    expect(params.get('sort')).toBe('name');
+  });
+
   it('opens a name to its payments with missing values left missing', async () => {
     await render('/money/committees/90001', loadedAnswers());
     const toggle = [...container.querySelectorAll('button')].find((item) =>

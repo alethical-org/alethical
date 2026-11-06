@@ -1,3 +1,4 @@
+import { useLiveSearch } from '../search/useLiveSearch';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { UNNAMED_PAYMENT_PARTY } from '@alethical/shared/committeeMoneyShared';
@@ -324,14 +325,27 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
   };
   const band = useBand();
   const single = band !== 'computer';
-  const chosen = match.route.name === 'employer' ? (match.params.name ?? '') : '';
+  const chosen =
+    match.route.name === 'employer'
+      ? (match.params.name ?? '')
+      : (location.searchParams.get('name') ?? '');
   const [address] = useAddressState({ q: '' });
   const q = address.q.trim();
   const searching = q.length >= MIN_SEARCH;
 
-  const [draft, setDraft] = useState(q || chosen);
-  // Back and Forward restore the earlier search into the field.
-  useEffect(() => setDraft(q || chosen), [q, chosen]);
+  const [draft, setDraft, applySearch] = useLiveSearch(q || chosen, here, (next) => {
+    navigate(
+      withFrom(
+        next && next.length < MIN_SEARCH
+          ? next === '.' || next === '..'
+            ? hrefFor('employers', {}, { name: next })
+            : hrefFor('employer', { name: next })
+          : hrefFor('employers', {}, { q: next }),
+        from,
+      ),
+      { replace: true, preserveFocus: true },
+    );
+  });
 
   const list = useRead<EmployerSpellings>(
     searching ? apiPath(['finance', 'employers'], { q, limit: SPELLINGS_PAGE }) : null,
@@ -345,6 +359,10 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
   );
   const spellings =
     list.data && !moreSpellings.accessDenied ? [...list.data.rows, ...moreSpellings.rows] : [];
+  const answeredQuery =
+    new URLSearchParams(list.dataPath?.split('?')[1]).get('q') ?? list.data?.q ?? q;
+  const listCurrent = answeredQuery === q && !list.updating && !list.failed && !list.pending;
+  const canLoadMore = listCurrent && !moreSpellings.loading;
   const spellingsHasMore = moreSpellings.hasMore ?? list.data?.page.has_more ?? false;
 
   // On a computer the first spelling opens beside the list until another is chosen.
@@ -353,22 +371,12 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
   const showDetail = selected !== '' && (!single || chosen !== '');
 
   function hrefOf(spelling: string) {
-    return withFrom(hrefFor('employer', { name: spelling }, { q: q || null }), from);
+    return withFrom(hrefFor('employer', { name: spelling }, { q: answeredQuery || null }), from);
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next = draft.trim();
-    if (!next) return;
-    // A search the directory cannot answer (under 3 characters) opens that exact spelling.
-    navigate(
-      withFrom(
-        next.length >= MIN_SEARCH
-          ? hrefFor('employers', {}, { q: next })
-          : hrefFor('employer', { name: next }),
-        from,
-      ),
-    );
+    applySearch();
   }
 
   const listRow = spellings.find((row) => row.name === selected) ?? null;
@@ -450,7 +458,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                       {n(list.data.total, 'spelling', 'spellings')}
                       {/* Spellings kept from an earlier search say which search
                           they answer (settled wording row 60). */}
-                      {list.data.q && list.data.q !== q ? ` matching “${list.data.q}”` : ''}
+                      {answeredQuery && answeredQuery !== q ? ` matching “${answeredQuery}”` : ''}
                     </span>
                   )}
                 </div>
@@ -477,7 +485,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                   <div className="de-list-more">
                     {moreSpellings.failed ? (
                       <Refused
-                        onRetry={() => moreSpellings.more(spellings.length)}
+                        onRetry={() => canLoadMore && moreSpellings.more(spellings.length)}
                         retrying={moreSpellings.loading}
                       >
                         We couldn’t load more employer spellings
@@ -486,8 +494,8 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                       <button
                         type="button"
                         className="f-btn f-btn-secondary f-btn-small"
-                        aria-disabled={moreSpellings.loading || undefined}
-                        onClick={() => moreSpellings.more(spellings.length)}
+                        aria-disabled={!canLoadMore || undefined}
+                        onClick={() => canLoadMore && moreSpellings.more(spellings.length)}
                       >
                         {moreSpellings.loading && <span className="f-spinner" aria-hidden="true" />}
                         Show more

@@ -20,6 +20,7 @@ export type RouteName =
   | 'campaign-money'
   | 'committee'
   | 'payments-under-name'
+  | 'payments-name-search'
   | 'money-by-race'
   | 'identities'
   | 'employers'
@@ -107,7 +108,18 @@ export const ROUTES: readonly RouteDefinition[] = [
     title: 'Payments under this name',
     section: 'money',
   },
-  { name: 'money-by-race', pattern: '/money/races/:id', title: 'Money by race', section: 'money' },
+  {
+    name: 'payments-name-search',
+    pattern: '/money/names',
+    title: 'Payments under this name',
+    section: 'money',
+  },
+  {
+    name: 'money-by-race',
+    pattern: '/money/races/:id',
+    title: 'Money by race',
+    section: 'money',
+  },
   {
     name: 'committee-members',
     pattern: '/legislature/committees/:id/members',
@@ -198,6 +210,7 @@ export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'station',
   'check-station-files',
   'payments-under-name',
+  'payments-name-search',
   'money-by-race',
   'lobbying',
   'lobbyist',

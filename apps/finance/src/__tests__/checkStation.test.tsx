@@ -14,10 +14,14 @@ import {
 import type { FileDetail } from '../pages/media/types';
 import { navigate } from '../router';
 import * as routes from '../routes';
+import { clearDrafts } from '../ui/drafts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'test-token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken,
+  }),
 }));
 
 class MemoryStorage implements Storage {
@@ -134,6 +138,9 @@ let container: HTMLDivElement;
 let root: Root;
 let posts: Array<{ path: string; body: Record<string, unknown> }>;
 let writeAnswer: (path: string) => Response;
+let lookup: ((url: URL, signal: AbortSignal | null | undefined) => Promise<Response>) | null;
+let preview: ((signal: AbortSignal | null | undefined) => Promise<Response>) | null;
+let accessToken: string;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(status < 300 ? { data } : data), {
@@ -167,6 +174,7 @@ function serve() {
       });
     if (path.endsWith('/suggestions') && path.startsWith('finance/media-buys'))
       return json(SUGGESTIONS);
+    if (path === 'finance/suggestions' && lookup) return lookup(url, init?.signal);
     if (path === 'finance/suggestions')
       return json({
         request_id: 'station-check',
@@ -189,6 +197,7 @@ function serve() {
           ],
         },
       });
+    if (path.endsWith('/target-preview') && preview) return preview(init?.signal);
     if (path.endsWith('/target-preview'))
       return json({
         kind: 'committee',
@@ -257,6 +266,9 @@ beforeEach(() => {
   URL.createObjectURL = vi.fn(() => 'blob:page');
   URL.revokeObjectURL = vi.fn();
   posts = [];
+  lookup = null;
+  preview = null;
+  accessToken = 'test-token';
   writeAnswer = () => json({ id: 'new-1', status: 'checked' }, 201);
   serve();
 });
@@ -483,6 +495,212 @@ describe('Check TV station files', () => {
     expect(text()).toContain('The selected record changed. Preview it again before saving.');
     await press('Preview again');
     expect(text()).not.toContain('The selected record changed');
+  });
+
+  it('finds issues as typed and clears the selected record with the query', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Issue');
+    await type('c-query', 'Transit ');
+    expect(document.querySelector('[aria-label="Records found"]')?.textContent ?? '').toContain(
+      'Transit',
+    );
+    expect((document.getElementById('c-query') as HTMLInputElement).value).toBe('Transit ');
+    await press('Preview record');
+    expect(text()).toContain('Selected record');
+    await type('c-query', '');
+    expect(text()).not.toContain('Selected record');
+    expect(document.querySelector('[aria-label="Records found"]')).toBeNull();
+    expect(posts).toEqual([]);
+  });
+
+  it('keeps earlier results on failure and ignores replies after clearing or switching type', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Committee');
+    await type('c-query', 'Example');
+    await vi.waitFor(() => expect(text()).toContain('Registration 90001'));
+
+    const requests: Array<{
+      query: string | null;
+      signal?: AbortSignal | null;
+      resolve: (response: Response) => void;
+    }> = [];
+    lookup = (url, signal) =>
+      new Promise((resolve) => {
+        requests.push({ query: url.searchParams.get('q'), signal, resolve });
+      });
+    await type('c-query', 'Another');
+    await press('Search');
+    expect(requests.map((request) => request.query)).toEqual(['Another']);
+    expect(text()).toContain('Registration 90001');
+    expect(text()).toContain('Previous results');
+    await act(async () => requests[0].resolve(json({}, 500)));
+    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).toContain('Registration 90001');
+    expect(text()).not.toContain('No held records match');
+
+    await press('Try again');
+    expect(requests).toHaveLength(2);
+    await type('c-query', '');
+    expect(requests[1].signal?.aborted).toBe(true);
+    await act(async () => requests[1].resolve(json({}, 500)));
+    expect(text()).not.toContain('We couldn’t load these records');
+    expect(text()).not.toContain('Registration 90001');
+
+    await type('c-query', 'A third');
+    await press('Search');
+    expect(requests).toHaveLength(3);
+    await press('Committee');
+    await press('Issue');
+    expect(requests[2].signal?.aborted).toBe(true);
+    await act(async () => requests[2].resolve(json({}, 500)));
+    expect(document.querySelector('[aria-label="Records found"]')?.textContent).toContain(
+      'A third',
+    );
+    expect(text()).not.toContain('We couldn’t load these records');
+  });
+
+  it('shows the minimum for a short record search instead of reporting no matches', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Committee');
+    lookup = async () =>
+      json({
+        money: {
+          state: 'unavailable',
+          groups: [
+            { kind: 'committees', state: 'unavailable', reason: 'query_too_short', results: [] },
+          ],
+        },
+      });
+    await type('c-query', 'Ex');
+    await press('Search');
+    expect(text()).toContain('Type at least 3 characters');
+    expect(text()).not.toContain('No held records match');
+    expect(text()).not.toContain('Try again');
+  });
+
+  it('keeps the old query’s results when the selected record group is unavailable', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Committee');
+    await type('c-query', 'Example');
+    await press('Search');
+    expect(text()).toContain('Registration 90001');
+
+    lookup = async () =>
+      json({
+        money: {
+          state: 'reported',
+          groups: [
+            { kind: 'committees', state: 'unavailable', reason: 'no_register', results: [] },
+            { kind: 'principals', state: 'not_reported', results: [] },
+          ],
+        },
+      });
+    await type('c-query', 'Another');
+    await press('Search');
+    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).toContain('Previous results for “Example”');
+    expect(text()).toContain('Registration 90001');
+    expect(text()).not.toContain('No held records match');
+
+    lookup = async () =>
+      json({
+        money: {
+          state: 'reported',
+          groups: [
+            { kind: 'committees', state: 'not_reported', results: [] },
+            {
+              kind: 'principals',
+              state: 'unavailable',
+              reason: 'no_lobbying_release',
+              results: [],
+            },
+          ],
+        },
+      });
+    await press('Try again');
+    expect(text()).toContain('No held records match');
+    expect(text()).not.toContain('We couldn’t load these records');
+    expect(text()).not.toContain('Registration 90001');
+
+    const unexpectedRead = vi.fn(async () => json({}, 500));
+    lookup = unexpectedRead;
+    await press('Committee');
+    await press('Lobbying principal');
+    await press('Search');
+    expect(unexpectedRead).not.toHaveBeenCalled();
+    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).not.toContain('No held records match');
+  });
+
+  it('cannot restore a preview after the reviewer changes the query', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Issue');
+    await type('c-query', 'Transit');
+    let finish!: (answer: Response) => void;
+    let requestSignal: AbortSignal | null | undefined;
+    preview = (signal) =>
+      new Promise((resolve) => {
+        requestSignal = signal;
+        finish = resolve;
+      });
+    await press('Preview record');
+    expect(text()).toContain('Selected record');
+    await type('c-query', 'Housing');
+    expect(requestSignal?.aborted).toBe(true);
+    await act(async () =>
+      finish(json({ label: 'Transit', target_fingerprint: 'fp-1', fields: [] })),
+    );
+    expect(text()).not.toContain('Selected record');
+    expect(document.querySelector('[aria-label="Records found"]')?.textContent).toContain(
+      'Housing',
+    );
+    expect(posts).toEqual([]);
+  });
+
+  it('drops private matches and cancels the lookup when the account changes', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await open(`/media-buys/check?file=${KEY}&version=${VERSION}`);
+    await press('Check a connection');
+    await press(/Choose a connection/);
+    await press('Committee');
+    await type('c-query', 'Example');
+    await press('Search');
+    expect(text()).toContain('Registration 90001');
+    let finish!: (answer: Response) => void;
+    let requestSignal: AbortSignal | null | undefined;
+    lookup = (_url, signal) =>
+      new Promise((resolve) => {
+        requestSignal = signal;
+        finish = resolve;
+      });
+    await type('c-query', 'Another account’s record');
+    await press('Search');
+    await act(async () => {
+      clearDrafts();
+      accessToken = 'different-account-token';
+      root.render(<CheckStationFiles />);
+    });
+    expect(requestSignal?.aborted).toBe(true);
+    await act(async () => finish(json({}, 500)));
+    await flush();
+    expect(text()).not.toContain('Registration 90001');
+    expect(text()).not.toContain('We couldn’t load these records');
+    expect(document.querySelector('[aria-label="Records found"]')).toBeNull();
   });
 });
 

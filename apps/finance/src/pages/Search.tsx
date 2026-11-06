@@ -1,3 +1,4 @@
+import { useLiveSearch } from '../search/useLiveSearch';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { registerKindLabel } from '@alethical/shared/committeeMoneyShared';
@@ -281,14 +282,25 @@ export function billFamily(bills: BillRow[]): FamilyState {
   };
 }
 
-type Shown = FamilyState | { state: 'loading' };
+type Shown = (FamilyState | { state: 'loading' }) & {
+  answeredQuery?: string;
+  updateFailed?: boolean;
+  pending?: boolean;
+};
 
-/** What a read gives a family: loading, failed, or its answer. A failed read
- * never shows the previous query's results. */
-function fromRead<T>(read: Read<T>, retrying: boolean, map: (data: T) => FamilyState): Shown {
-  if (read.failed) return { state: 'failed' };
-  if (read.loading || (retrying && read.pending) || !read.data) return { state: 'loading' };
-  return map(read.data);
+/** Retained rows keep their own query, even when the next read fails. */
+function fromRead<T>(read: Read<T>, map: (data: T) => FamilyState, retrying = false): Shown {
+  if (!read.data)
+    return {
+      state: read.failed || read.notFound ? 'failed' : 'loading',
+      pending: read.pending,
+    };
+  return {
+    ...map(read.data),
+    answeredQuery: new URLSearchParams(read.dataPath?.split('?')[1]).get('q') ?? undefined,
+    updateFailed: read.failed || read.notFound || (retrying && read.pending),
+    pending: read.pending,
+  };
 }
 
 export function SearchResults(_props: { match: RouteMatch }) {
@@ -296,13 +308,18 @@ export function SearchResults(_props: { match: RouteMatch }) {
   const params = location.searchParams;
   const submitted = (params.get('q') ?? '').trim();
   const expanded = params.get('family');
-  const from = params.get('from');
   const here = location.pathname + location.search;
   const back = returnTarget(location.search);
 
-  const [draft, setDraft] = useState(submitted);
-  // Back and Forward restore the earlier query into the field.
-  useEffect(() => setDraft(submitted), [submitted]);
+  const [draft, setDraft, applySearch] = useLiveSearch(submitted, here, (q) => {
+    const next = new URLSearchParams(window.location.search);
+    if (q) next.set('q', q);
+    else next.delete('q');
+    next.delete('family');
+    navigate(location.pathname + (next.size ? `?${next}` : ''), {
+      replace: true,
+    });
+  });
 
   const searchable = submitted.length >= MIN_QUERY_LENGTH ? submitted : null;
   const encoded = searchable ? encodeURIComponent(searchable) : null;
@@ -314,7 +331,8 @@ export function SearchResults(_props: { match: RouteMatch }) {
     encoded ? `search?q=${encoded}&types=bills&limit=${BILL_LIMIT}` : null,
     { keepPrevious: true },
   );
-  const [retrying, setRetrying] = useState<FamilyId | null>(null);
+
+  const [retrying, setRetrying] = useState<'money' | 'bills' | null>(null);
   useEffect(() => setRetrying(null), [submitted]);
 
   const families: Record<FamilyId, Shown> | null = !submitted
@@ -325,37 +343,48 @@ export function SearchResults(_props: { match: RouteMatch }) {
         ) as Record<FamilyId, Shown>)
       : (() => {
           const moneyShown = (id: Exclude<FamilyId, 'bills'>): Shown =>
-            fromRead(money, retrying === id, (data) => moneyFamilies(data)[id]);
+            fromRead(money, (data) => moneyFamilies(data)[id], retrying === 'money');
           return {
             people: moneyShown('people'),
             orgs: moneyShown('orgs'),
             committees: moneyShown('committees'),
-            bills: fromRead(bills, retrying === 'bills', (data) => billFamily(data.bills ?? [])),
+            bills: fromRead(bills, (data) => billFamily(data.bills ?? []), retrying === 'bills'),
             printed: moneyShown('printed'),
           };
         })();
 
   const all = families ? ORDER.map((id) => families[id]) : [];
   const anyLoading = all.some((family) => family.state === 'loading');
-  const allEmpty = all.length > 0 && all.every((family) => family.state === 'empty');
-  const updating = money.updating || bills.updating;
+  const allEmpty =
+    all.length > 0 &&
+    all.every(
+      (family) =>
+        family.state === 'empty' && !family.updateFailed && family.answeredQuery === submitted,
+    );
+  const updating =
+    !!searchable && (money.updating || bills.updating || money.pending || bills.pending);
+  const anyFailed = all.some((family) => family.state === 'failed' || family.updateFailed);
 
   const statusLine = !submitted
     ? 'Enter a name or bill number'
-    : anyLoading || updating
-      ? `Searching for “${submitted}”`
-      : `Results for “${submitted}” · each record family is counted on its own`;
+    : !searchable
+      ? tooShortTitle(MIN_QUERY_LENGTH)
+      : anyLoading || updating
+        ? `Searching for “${submitted}”`
+        : anyFailed
+          ? `Some results couldn’t load for “${submitted}”`
+          : `Results for “${submitted}” · each record family is counted on its own`;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next = draft.trim();
-    navigate(withFrom(hrefFor('search', {}, { q: next }), from));
+    applySearch();
   }
 
   function retry(id: FamilyId) {
-    setRetrying(id);
-    if (id === 'bills') bills.retry();
-    else money.retry();
+    const read = id === 'bills' ? bills : money;
+    if (read.pending) return;
+    setRetrying(id === 'bills' ? 'bills' : 'money');
+    read.retry();
   }
 
   return (
@@ -405,6 +434,7 @@ export function SearchResults(_props: { match: RouteMatch }) {
                   key={id}
                   id={id}
                   shown={families[id]}
+                  query={submitted}
                   open={expanded === id}
                   here={here}
                   onExpand={() => {
@@ -428,6 +458,7 @@ export function SearchResults(_props: { match: RouteMatch }) {
 function Family({
   id,
   shown,
+  query,
   open,
   here,
   onExpand,
@@ -435,6 +466,7 @@ function Family({
 }: {
   id: FamilyId;
   shown: Shown;
+  query: string;
   open: boolean;
   here: string;
   onExpand: () => void;
@@ -489,7 +521,10 @@ function Family({
         )}
       </div>
       {shown.state === 'loading' && <LoadingRows />}
-      {shown.state === 'failed' && (
+      {shown.answeredQuery && shown.answeredQuery !== query && (
+        <p className="sr-empty">Results for “{shown.answeredQuery}”</p>
+      )}
+      {(shown.state === 'failed' || shown.updateFailed) && (
         <div role="alert" className="f-alert sr-failed">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="9" stroke="#c0392b" strokeWidth="2" />
@@ -503,7 +538,12 @@ function Family({
           <div>
             We couldn’t load these results
             <div className="f-alert-action">
-              <button type="button" className="f-btn f-btn-secondary f-btn-small" onClick={onRetry}>
+              <button
+                type="button"
+                className="f-btn f-btn-secondary f-btn-small"
+                aria-disabled={shown.pending || undefined}
+                onClick={() => !shown.pending && onRetry()}
+              >
                 Try again
               </button>
             </div>

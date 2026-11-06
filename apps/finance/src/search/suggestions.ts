@@ -45,6 +45,7 @@ interface MoneyResult {
 interface MoneyGroup {
   kind: string;
   state: string;
+  reason?: string | null;
   results: MoneyResult[];
 }
 
@@ -60,7 +61,7 @@ interface BillRow {
 export interface SuggestionsAnswer {
   request_id: string;
   q: string;
-  money: { groups?: MoneyGroup[] } | null;
+  money: { state?: string; groups?: MoneyGroup[] } | null;
   bills: BillRow[];
 }
 

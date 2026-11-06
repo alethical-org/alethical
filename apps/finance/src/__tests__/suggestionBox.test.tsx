@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { useSuggestionBox } from '../search/SuggestionBox';
+import { navigate } from '../router';
 
 const session = vi.hoisted(() => ({
   apiBaseUrl: 'https://api.test',
@@ -85,6 +86,70 @@ beforeEach(async () => {
   root = createRoot(host);
   await act(async () => root.render(<Probe />));
 });
+async function moneyState(index: number, reason: string, partial = false) {
+  const request = pending[index];
+  await act(async () =>
+    request.resolve(
+      new Response(
+        JSON.stringify({
+          data: {
+            request_id: request.url.searchParams.get('request_id'),
+            q: request.url.searchParams.get('q'),
+            money: {
+              state: reason === 'query_too_short' ? 'unavailable' : 'reported',
+              groups: [
+                { kind: 'gave', state: 'unavailable', reason, results: [] },
+                ...(partial
+                  ? [
+                      {
+                        kind: 'people',
+                        state: 'reported',
+                        results: [
+                          { kind: 'person', id: 'new-person', full_name: 'Current person' },
+                        ],
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            bills: [],
+          },
+        }),
+      ),
+    ),
+  );
+}
+it('explains a server short-query response without claiming no matches', async () => {
+  await type('de');
+  await tick();
+  await moneyState(0, 'query_too_short');
+  expect(host.textContent).toContain('Type at least 3 characters');
+  expect(host.textContent).not.toContain('No matching suggestions');
+  expect(host.querySelector('button')).toBeNull();
+});
+it('retains labeled suggestions for unavailable sources and does not cache partial failures', async () => {
+  await type('danc');
+  await tick();
+  await answer(0, 'Danchik');
+  await type('danch');
+  await tick();
+  await moneyState(1, 'source_unavailable');
+  expect(host.textContent).toContain('Previous suggestions for “danc”');
+  expect(host.textContent).toContain('Danchik');
+  await act(async () => host.querySelector('button')!.click());
+  await moneyState(2, 'source_unavailable', true);
+  expect(host.textContent).toContain('Current person');
+  expect(host.textContent).toContain('Some suggestions couldn’t load');
+  expect(host.textContent).not.toContain('Danchik');
+  expect(host.querySelector('button')!.textContent).toBe('Try again');
+  await type('another');
+  await type('danch');
+  await tick();
+  expect(pending).toHaveLength(4);
+  await answer(3, 'Recovered');
+  expect(host.textContent).toContain('Recovered');
+  expect(host.querySelector('button')).toBeNull();
+});
 afterEach(async () => {
   await act(async () => root.unmount());
   for (const request of pending) request.resolve(new Response('{}', { status: 500 }));
@@ -111,10 +176,12 @@ it('keeps results visible while updating and after a failed request', async () =
   await type('danch');
   expect(host.textContent).toContain('Danchik');
   expect(host.textContent).toContain('Searching…');
+  expect(host.textContent).toContain('Previous suggestions for “danc”');
   await tick();
   await answer(1, '', 500);
   expect(host.textContent).toContain('Danchik');
   expect(host.textContent).toContain('Suggestions couldn’t load');
+  expect(host.textContent).toContain('Previous suggestions for “danc”');
   await act(async () =>
     box.inputProps.onKeyDown({
       key: 'ArrowDown',
@@ -122,6 +189,17 @@ it('keeps results visible while updating and after a failed request', async () =
     } as never),
   );
   expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain('Danchik');
+  const retry = host.querySelector('button')!;
+  expect(retry.textContent).toBe('Try again');
+  await act(async () => box.inputProps.onKeyDown({ key: 'Tab', preventDefault() {} } as never));
+  expect(document.activeElement).toBe(retry);
+  await act(async () => retry.click());
+  expect(document.activeElement).toBe(host.querySelector('input'));
+  expect(navigate).not.toHaveBeenCalled();
+  expect(pending[2].url.searchParams.get('q')).toBe('danch');
+  await answer(2, 'Updated suggestion');
+  expect(host.textContent).toContain('Updated suggestion');
+  expect(host.textContent).not.toContain('Previous suggestions');
 });
 it('reuses a recent exact query on refocus, then refreshes after 60 seconds', async () => {
   await type('danch');

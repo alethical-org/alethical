@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { apiGet, apiPath, useRead } from '../../api/read';
+import { apiGet, apiPath, useRead, useReadRetry } from '../../api/read';
 import { useFinanceSession } from '../../auth/session';
 
 /**
@@ -231,7 +231,7 @@ export function useNamePayments<T>(
     scope: string;
     value: NamePayments<T>;
   } | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const [attempt, retry] = useReadRetry(key);
   const [pending, setPending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
@@ -273,8 +273,6 @@ export function useNamePayments<T>(
       moreController.current?.abort();
     };
   }, [apiBaseUrl, accessToken, key, first, attempt]);
-
-  useEffect(() => setAttempt(0), [key]);
 
   const current = answer && answer.key === key ? answer : null;
   const own = current?.value ?? null;
@@ -331,7 +329,6 @@ export function useNamePayments<T>(
     // `query` is rebuilt each render; `key` carries its meaning.
   }, [apiBaseUrl, accessToken, key, own, loadingMore, changed]);
 
-  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   // A failed view keeps the last results on screen; the page labels them with their
   // own name and year (settled wording row 60), never as the new view.
   const failed = current?.failed === true && !pending;
