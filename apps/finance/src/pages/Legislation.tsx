@@ -9,6 +9,7 @@ import { useFinanceSession } from '../auth/session';
 import type { ServedCounts } from '../landing/counts';
 import { withFrom } from '../returnContext';
 import { Link, useLocation } from '../router';
+import { useLiveSearch } from '../search/useLiveSearch';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { billSession } from '../search/suggestions';
 import { useAddressState } from '../ui/addressState';
@@ -91,6 +92,7 @@ export function billPages(total: number | null): number {
 interface ListAnswer {
   rows: BillListItem[];
   total: number | null;
+  path: string;
 }
 
 type ListOutcome =
@@ -126,6 +128,7 @@ async function readList(
       answer: {
         rows: body.data as BillListItem[],
         total: typeof total === 'number' && Number.isFinite(total) && total >= 0 ? total : null,
+        path,
       },
     };
   } catch {
@@ -146,13 +149,24 @@ const listCache = new Map<string, { at: number; answer: ListAnswer }>();
  */
 function useBillList(path: string) {
   const { apiBaseUrl, accessToken } = useFinanceSession();
-  const key = `${accessToken}|${path}`;
-  const [answer, setAnswer] = useState<{ key: string; outcome: ListOutcome } | null>(() => {
+  const scope = JSON.stringify([apiBaseUrl, accessToken]);
+  const key = `${scope}|${path}`;
+  const [answer, setAnswer] = useState<{
+    key: string;
+    outcome: ListOutcome;
+  } | null>(() => {
     const held = listCache.get(key);
-    return held ? { key, outcome: { state: 'ok', answer: held.answer } } : null;
+    return held && Date.now() - held.at < LIST_CACHE_MS
+      ? { key, outcome: { state: 'ok', answer: held.answer } }
+      : null;
   });
-  const [last, setLast] = useState<ListAnswer | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const [last, setLast] = useState<{
+    scope: string;
+    answer: ListAnswer;
+  } | null>(null);
+  const [retryState, setRetryState] = useState({ key, attempt: 0 });
+  if (retryState.key !== key) setRetryState({ key, attempt: 0 });
+  const { attempt } = retryState;
   const [pending, setPending] = useState(false);
   const latest = useRef(0);
 
@@ -160,7 +174,7 @@ function useBillList(path: string) {
     const held = listCache.get(key);
     if (held && Date.now() - held.at < LIST_CACHE_MS && attempt === 0) {
       setAnswer({ key, outcome: { state: 'ok', answer: held.answer } });
-      setLast(held.answer);
+      setLast({ scope, answer: held.answer });
       setPending(false);
       return;
     }
@@ -172,7 +186,7 @@ function useBillList(path: string) {
       setPending(false);
       if (outcome.state === 'ok') {
         listCache.set(key, { at: Date.now(), answer: outcome.answer });
-        setLast(outcome.answer);
+        setLast({ scope, answer: outcome.answer });
       }
       setAnswer({ key, outcome });
     });
@@ -182,20 +196,23 @@ function useBillList(path: string) {
       latest.current += 1;
       controller.abort();
     };
-  }, [apiBaseUrl, accessToken, key, path, attempt]);
+  }, [apiBaseUrl, accessToken, key, path, attempt, scope]);
 
-  useEffect(() => setAttempt(0), [key]);
-  const retry = useCallback(() => setAttempt((value) => value + 1), []);
+  const retry = useCallback(
+    () => setRetryState(({ attempt }) => ({ key, attempt: attempt + 1 })),
+    [key],
+  );
 
   const current = answer && answer.key === key ? answer.outcome : null;
   const own = current?.state === 'ok' ? current.answer : null;
   const notFound = current?.state === 'not-found';
-  const shown = notFound ? { rows: [], total: 0 } : (own ?? last);
+  const previous = last?.scope === scope ? last.answer : null;
+  const shown = notFound ? { rows: [], total: 0, path } : (own ?? previous);
   return {
     own,
     shown,
     loading: shown === null && (current === null || pending),
-    updating: own === null && !notFound && last !== null && (current === null || pending),
+    updating: own === null && !notFound && previous !== null && (current === null || pending),
     failed: current?.state === 'failed' && !pending,
     pending,
     retry,
@@ -223,8 +240,11 @@ export function Legislation(_props: { match: RouteMatch }) {
     status: '',
     page: '1',
   });
-  const [draft, setDraft] = useState(address.q);
-  useEffect(() => setDraft(address.q), [address.q]);
+  const focusFirst = useRef(false);
+  const [draft, setDraft, applySearch] = useLiveSearch(address.q, here, (q) => {
+    focusFirst.current = false;
+    setAddress({ q, page: '1' });
+  });
   const page = pageNumber(address.page);
 
   const sessions = useRead<ServedSession[]>('sessions');
@@ -232,10 +252,6 @@ export function Legislation(_props: { match: RouteMatch }) {
   const current = sessions.data?.find((session) => session.is_current) ?? null;
   // The current session is the default, so its own slug in the address means the same view.
   const sessionValue = current && address.session === current.slug ? '' : address.session;
-  const chosen = sessionValue
-    ? (sessions.data?.find((session) => session.slug === sessionValue) ?? null)
-    : current;
-  const chosenLabel = chosen ? sessionShortLabel(chosen) : null;
   const sessionOptions: Option<string>[] = (sessions.data ?? [])
     .slice()
     .sort((a, b) => Number(b.is_current) - Number(a.is_current))
@@ -254,6 +270,14 @@ export function Legislation(_props: { match: RouteMatch }) {
   const total = list.shown?.total ?? null;
   const pages = billPages(total);
   const rows = list.shown?.rows ?? [];
+  const shownFilters = new URLSearchParams(list.shown?.path.split('?')[1]);
+  const shownQuery = shownFilters.get('q');
+  const shownSession = shownFilters.get('session');
+  const shownSessionRecord = shownSession
+    ? sessions.data?.find((session) => session.slug === shownSession)
+    : current;
+  const shownSessionLabel = shownSessionRecord ? sessionShortLabel(shownSessionRecord) : null;
+  const shownPage = Math.floor(Number(shownFilters.get('offset') ?? 0) / BILLS_PAGE_SIZE) + 1;
 
   // A page past the end (a stale link, or a search that now matches fewer)
   // opens the last page that exists rather than an empty list.
@@ -265,7 +289,6 @@ export function Legislation(_props: { match: RouteMatch }) {
 
   // Paging moves focus and the view to the first row once that page arrives.
   const listRef = useRef<HTMLUListElement>(null);
-  const focusFirst = useRef(false);
   useEffect(() => {
     if (!focusFirst.current || !list.own) return;
     focusFirst.current = false;
@@ -275,14 +298,14 @@ export function Legislation(_props: { match: RouteMatch }) {
   }, [list.own]);
 
   function goTo(next: number) {
-    if (next < 1 || next > pages || next === page) return;
+    if (!list.own || next < 1 || next > pages || next === page) return;
     focusFirst.current = true;
     setAddress({ page: String(next) });
   }
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    setAddress({ q: draft.trim(), page: '1' });
+    applySearch();
   }
 
   const filtered = sessionValue !== '' || address.chamber !== '' || address.status !== '';
@@ -311,7 +334,10 @@ export function Legislation(_props: { match: RouteMatch }) {
             type="search"
             className="f-field lg-search-field"
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              focusFirst.current = false;
+              setDraft(event.target.value);
+            }}
             placeholder="Search bills"
             autoComplete="off"
           />
@@ -353,13 +379,15 @@ export function Legislation(_props: { match: RouteMatch }) {
           {list.failed && (
             <Refused onRetry={list.retry} retrying={list.pending}>
               We couldn’t load these results. This is a problem on our side.
+              {list.shown && ' Previous results are shown.'}
             </Refused>
           )}
           {list.updating && !list.failed && <Updating />}
           {list.shown && (
             <>
               <div aria-live="polite" className="f-count-line lg-count">
-                {total !== null ? billCountLine(total, chosenLabel) : null}
+                {total !== null ? billCountLine(total, shownSessionLabel) : null}
+                {shownQuery && `${total === null ? '' : ' · '}Matching “${shownQuery}”`}
               </div>
               {rows.length === 0 ? (
                 <Empty title="No matching records" next="Try another name or bill number" />
@@ -370,7 +398,7 @@ export function Legislation(_props: { match: RouteMatch }) {
                       <BillRow
                         key={bill.id}
                         bill={bill}
-                        session={chosenLabel ?? billSession(bill.id)}
+                        session={shownSessionLabel ?? billSession(bill.id)}
                         here={here}
                       />
                     ))}
@@ -384,20 +412,20 @@ export function Legislation(_props: { match: RouteMatch }) {
                       <button
                         type="button"
                         className="f-btn f-btn-secondary lg-pager-button"
-                        aria-disabled={page <= 1 || undefined}
-                        onClick={() => goTo(page - 1)}
+                        aria-disabled={!list.own || shownPage <= 1 || undefined}
+                        onClick={() => goTo(shownPage - 1)}
                       >
                         <Chevron />
                         Previous
                       </button>
                       <span aria-live="polite" className="lg-pager-line">
-                        Page {page.toLocaleString('en-US')} of {pages.toLocaleString('en-US')}
+                        Page {shownPage.toLocaleString('en-US')} of {pages.toLocaleString('en-US')}
                       </span>
                       <button
                         type="button"
                         className="f-btn f-btn-secondary lg-pager-button lg-pager-next"
-                        aria-disabled={page >= pages || undefined}
-                        onClick={() => goTo(page + 1)}
+                        aria-disabled={!list.own || shownPage >= pages || undefined}
+                        onClick={() => goTo(shownPage + 1)}
                       >
                         Next
                         <ChevronRight />

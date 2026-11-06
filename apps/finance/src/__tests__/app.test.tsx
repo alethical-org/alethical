@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App';
+import { navigate } from '../router';
 import { rememberCodeRequest } from '../auth/codeRequest';
 import { SessionProvider } from '../auth/session';
 
@@ -254,4 +255,17 @@ describe('the Finance shell', () => {
     await renderAt('/no-such-page', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
   });
+});
+
+it('keeps typing focus across name-search paths but focuses ordinary destinations', async () => {
+  await renderAt('/money/names/Example', fakeSupabase(SIGNED_IN));
+  const input = container.querySelector<HTMLInputElement>('input')!;
+  input.focus();
+  await act(async () => navigate('/money/names/Other', { replace: true, preserveFocus: true }));
+  expect(document.activeElement).toBe(input);
+  await act(async () => navigate('/money/names', { replace: true, preserveFocus: true }));
+  expect(document.activeElement).toBe(input);
+  expect(container.textContent).toContain('Enter a name as reported');
+  await act(async () => navigate('/people'));
+  expect(document.activeElement).toBe(container.querySelector('h1'));
 });

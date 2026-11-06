@@ -175,13 +175,14 @@ export function Committee({ match }: { match: RouteMatch }) {
     year: String(years[0]),
     tab: 'individuals',
     name: '',
+    q: '',
     sort: 'total',
     report: '',
   });
   const year = chosenYear(address.year, years);
   // The name filter is `name` in every link into this page (Committee drawing);
   // older links carried `q`, which still opens the same filter.
-  const nameFilter = address.name || (location.searchParams.get('q') ?? '');
+  const nameFilter = address.name || address.q;
   const focusIndependent = address.tab === 'independent';
   const tab: TabKey = isTab(address.tab) ? address.tab : 'individuals';
   const sort: SortKey = isSort(address.sort) ? address.sort : 'total';
@@ -382,7 +383,7 @@ export function Committee({ match }: { match: RouteMatch }) {
       return {
         tabLabel: tabLabel(where),
         jump: () => {
-          setAddress({ tab: where, name: '' });
+          setAddress({ tab: where, name: '', q: '' });
           setShown(Number.POSITIVE_INFINITY);
           setOpen((previous) => new Set(previous).add(group.key));
           setJumped(row.id);
@@ -641,7 +642,7 @@ export function Committee({ match }: { match: RouteMatch }) {
                       value={tab}
                       tabs={tabs}
                       onChange={(value) => {
-                        setAddress({ tab: value, name: '' });
+                        setAddress({ tab: value, name: '', q: '' });
                         setShown(STEP);
                       }}
                     />
@@ -666,7 +667,7 @@ export function Committee({ match }: { match: RouteMatch }) {
                         placeholder="Search names in this tab"
                         autoComplete="off"
                         onChange={(event) => {
-                          setAddress({ name: event.target.value });
+                          setAddress({ name: event.target.value, q: '' });
                           setShown(STEP);
                         }}
                       />

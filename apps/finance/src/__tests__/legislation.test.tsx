@@ -461,6 +461,67 @@ describe('Legislation', () => {
     expect(text()).not.toContain('Clear all');
   });
 
+  it('updates and clears search as you type while keeping filters', async () => {
+    await renderLegislation('/bills?chamber=senate&status=vetoed&page=2&q=before', () =>
+      json([LIST_ROW], 200, { total: 50 }),
+    );
+    const input = container.querySelector<HTMLInputElement>('#bills-q')!;
+    async function enter(value: string) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+    }
+    vi.useFakeTimers();
+    try {
+      await enter('Example');
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('q')).toBe('Example');
+      expect(params.get('chamber')).toBe('senate');
+      expect(params.get('status')).toBe('vetoed');
+      expect(params.has('page')).toBe(false);
+      expect(requests.at(-1)).toContain('q=Example');
+      await enter('');
+      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('makes one request for the next search after retrying a failed query', async () => {
+    await renderLegislation('/bills?q=first', (url) =>
+      new URL(url).searchParams.get('q') === 'first'
+        ? json(null, 503)
+        : new Promise<Response>(() => {}),
+    );
+    const retry = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Try again',
+    )!;
+    await act(async () => retry.click());
+    await settle();
+    expect(requests.filter((url) => url.includes('q=first'))).toHaveLength(2);
+
+    vi.useFakeTimers();
+    try {
+      const input = container.querySelector<HTMLInputElement>('#bills-q')!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          'second',
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+      expect(requests.filter((url) => url.includes('q=second'))).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows the empty state when nothing matches', async () => {
     await renderLegislation('/bills?q=zzzz&status=vetoed', () => json([], 200, { total: 0 }));
     expect(requests).toContain(`${API}/api/v1/bills?limit=20&offset=0&q=zzzz&status=vetoed`);

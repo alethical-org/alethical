@@ -379,3 +379,75 @@ describe('family counts', () => {
     if (some.state === 'rows') expect(countLabel(some.count)).toBe('1');
   });
 });
+
+async function typeLive(value: string) {
+  const input = container.querySelector<HTMLInputElement>('input')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 280));
+  });
+  await settle();
+  return input;
+}
+
+it('searches and clears while typing, preserving the return context', async () => {
+  await render('/search?q=davis&from=%2Fhome', both);
+  const input = await typeLive('health ');
+  expect(new URLSearchParams(location.search).get('q')).toBe('health');
+  expect(input.value).toBe('health ');
+  expect(requests.some((url) => url.includes('q=health'))).toBe(true);
+  await typeLive('');
+  expect(new URLSearchParams(location.search).has('q')).toBe(false);
+  expect(new URLSearchParams(location.search).get('from')).toBe('/home');
+  expect(container.textContent).toContain('Enter a name or bill number');
+  expect(container.querySelector('.sr-families')).toBeNull();
+});
+
+it('retains each family under its answered query through a failed live update', async () => {
+  await render('/search?q=davis', both);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => json(null, 500)),
+  );
+  await typeLive('health');
+  const people = family('People');
+  expect(people.querySelectorAll('li')).toHaveLength(3);
+  expect(people.textContent).toContain('Results for “davis”');
+  expect(people.textContent).toContain('We couldn’t load these results');
+  expect(people.textContent).toContain('Try again');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => both(url)),
+  );
+  const retry = [...people.querySelectorAll('button')].find((b) => b.textContent === 'Try again')!;
+  await act(async () => retry.click());
+  await settle();
+  expect(family('People').textContent).not.toContain('Results for “davis”');
+});
+
+it('leaves the updating state when the edited query falls below the served minimum', async () => {
+  await render('/search?q=davis', both);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
+    ),
+  );
+  await typeLive('health');
+  expect(container.textContent).toContain('Searching for “health”');
+  await typeLive('he');
+  expect(container.textContent).toContain('Type at least 3 characters');
+  expect(container.textContent).not.toContain('Searching for');
+});
+
+it('offers retry when a search endpoint is unavailable', async () => {
+  await render('/search?q=davis', () => json(null, 404));
+  expect(family('People').textContent).toContain('Try again');
+  expect(container.textContent).not.toContain('Searching for');
+});

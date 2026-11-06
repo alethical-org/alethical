@@ -360,6 +360,45 @@ const button = (text: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent?.includes(text));
 
 describe('Money connections page', () => {
+  it('updates and clears search as you type while keeping filters', async () => {
+    window.history.replaceState(
+      null,
+      '',
+      '/money/connections?year=2026&rel=payments&focus=committee&edge=edge&pages=2&q=before',
+    );
+    serve(() => answer(page()));
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    const input = container.querySelector<HTMLInputElement>('#conn-q')!;
+    async function enter(value: string) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+    }
+    vi.useFakeTimers();
+    try {
+      await enter('Example');
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('q')).toBe('Example');
+      expect(params.get('year')).toBe('2026');
+      expect(params.get('rel')).toBe('payments');
+      expect(params.has('focus')).toBe(false);
+      expect(params.has('edge')).toBe(false);
+      expect(params.has('pages')).toBe(false);
+      expect(requests.at(-1)?.searchParams.get('q')).toBe('Example');
+      expect(requests.at(-1)?.searchParams.get('relationship')).toBe('payments');
+      await enter('');
+      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('opens on Map with the drawn footer and the grounding note, reading 100 per page', async () => {
     serve(() => answer(page()));
     await act(async () => root.render(<MoneyConnections />));

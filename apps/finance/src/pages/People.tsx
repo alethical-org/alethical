@@ -1,9 +1,10 @@
 import { RECORDS_CHANGED, useVersionedRead } from '../api/versionedRead';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useRef, type FormEvent } from 'react';
 import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legislatorProfile';
 import { apiPath, useRead } from '../api/read';
 import { copyDate, type ServedCounts } from '../landing/counts';
 import { Link, useLocation } from '../router';
+import { useLiveSearch } from '../search/useLiveSearch';
 import { withFrom } from '../returnContext';
 import { hrefFor, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
@@ -202,8 +203,12 @@ export function People(_props: { match: RouteMatch }) {
   const type = TYPES.some((t) => t.value === state.type) ? state.type : 'all';
   const page = Math.max(1, Math.trunc(Number(state.page) || 1)),
     query = state.q.trim().slice(0, 200);
-  const [typed, setTyped] = useState(state.q);
-  useEffect(() => setTyped(state.q), [state.q]);
+  const [typed, setTyped, applySearch] = useLiveSearch(
+    state.q,
+    here,
+    (q) => setState({ q, page: '1' }),
+    (value) => value.trim().slice(0, 200).trimEnd(),
+  );
   const sort = type === 'candidates' && state.sort === 'election_year' ? 'election_year' : 'name';
   // Only values the server accepts reach it, so a hand-edited address reads as
   // the unfiltered view rather than as a failure on our side.
@@ -240,12 +245,15 @@ export function People(_props: { match: RouteMatch }) {
   const data = read.data,
     rows = data?.rows ?? [],
     pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
+  const shownPage = data ? Math.floor(data.offset / PAGE_SIZE) + 1 : page;
+  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
   const list = useRef<HTMLElement>(null);
   function submit(e: FormEvent) {
     e.preventDefault();
-    setState({ q: typed.trim(), page: '1' });
+    applySearch();
   }
   function goPage(next: number) {
+    if (pagingUnavailable) return;
     setState({ page: String(next) });
     list.current?.focus({ preventScroll: true });
     list.current?.scrollIntoView?.({ block: 'start' });
@@ -260,11 +268,12 @@ export function People(_props: { match: RouteMatch }) {
     state.year !== '' ||
     sort !== 'name';
   const counts = data?.counts;
+  const shownQuery = new URLSearchParams(read.dataPath?.split('?')[1]).get('q') ?? '';
   const count =
     data && data.type === 'all' && counts
-      ? `${plural(counts.person, 'person', 'people')} · ${plural(counts.candidate, 'candidacy', 'candidacies')} · ${plural(counts.legislator, 'service record', 'service records')}${data.q ? ` matching “${data.q}”` : ''}`
+      ? `${plural(counts.person, 'person', 'people')} · ${plural(counts.candidate, 'candidacy', 'candidacies')} · ${plural(counts.legislator, 'service record', 'service records')}${shownQuery ? ` matching “${shownQuery}”` : ''}`
       : data
-        ? countLine(data.total, data.q ?? query, data.type ?? type)
+        ? countLine(data.total, shownQuery, data.type ?? type)
         : '';
   const filterOptions = data?.type === type ? data : undefined;
   const electionYear = state.scope === 'past' ? 'past' : state.year;
@@ -428,7 +437,7 @@ export function People(_props: { match: RouteMatch }) {
                 // drawn first line.
                 <Empty
                   title="No matching records"
-                  next={query ? 'Try another name or district' : undefined}
+                  next={shownQuery ? 'Try another name or district' : undefined}
                 />
               ) : (
                 <ul className="pp-list">
@@ -457,19 +466,19 @@ export function People(_props: { match: RouteMatch }) {
                 <nav aria-label="Pages" className="pp-pages">
                   <button
                     className="f-btn f-btn-secondary pp-page-btn pp-page-prev"
-                    disabled={read.pending || page <= 1}
-                    onClick={() => goPage(page - 1)}
+                    disabled={pagingUnavailable || shownPage <= 1}
+                    onClick={() => goPage(shownPage - 1)}
                   >
                     <Chevron />
                     Previous
                   </button>
                   <span className="pp-page-line f-num" aria-live="polite">
-                    Page {Math.floor(data.offset / PAGE_SIZE) + 1} of {pages}
+                    Page {shownPage} of {pages}
                   </span>
                   <button
                     className="f-btn f-btn-secondary pp-page-btn pp-page-next"
-                    disabled={read.pending || !data.has_more}
-                    onClick={() => goPage(page + 1)}
+                    disabled={pagingUnavailable || !data.has_more}
+                    onClick={() => goPage(shownPage + 1)}
                   >
                     Next
                     <Chevron />

@@ -102,6 +102,32 @@ async function render(
 }
 const button = (label: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent === label)!;
+it('updates and clears search as you type while keeping filters', async () => {
+  await render('/money/recipients?tab=printed&min=10&page=2&q=before');
+  const input = container.querySelector<HTMLInputElement>('#recipient-q')!;
+  async function enter(value: string) {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(250));
+  }
+  vi.useFakeTimers();
+  try {
+    await enter('Example');
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get('q')).toBe('Example');
+    expect(params.get('tab')).toBe('printed');
+    expect(params.get('min')).toBe('10');
+    expect(params.has('page')).toBe(false);
+    expect(requests.at(-1)?.searchParams.get('q')).toBe('Example');
+    await enter('');
+    expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('lists all payees without a query, preserving separate payment files and signed amounts', async () => {
   await render('/money/recipients');
   expect(requests[0].pathname).toContain('/finance/payees');

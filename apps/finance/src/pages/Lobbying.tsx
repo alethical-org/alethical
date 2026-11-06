@@ -1,5 +1,5 @@
 import { LOBBYING_NO_SPENDING_PAGE } from '@alethical/shared/lobbyingRecordCopy';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 
 import {
   LOBBYING_DIRECTORY_COPY as COPY,
@@ -20,6 +20,7 @@ import { formatMoney } from '../ui/money';
 
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
+import { useLiveSearch } from '../search/useLiveSearch';
 import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
@@ -212,7 +213,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
     sort: '',
   });
   const tab = tabFromParam(address.tab);
-  const query = address.q.trim().slice(0, MAX_QUERY);
+  const query = address.q.trim().slice(0, MAX_QUERY).trimEnd();
   const page = pageFromParam(address.page);
   const year = yearFromParam(tab, address.year);
   const sort = sortFromParam(tab, address.sort);
@@ -226,9 +227,12 @@ export function Lobbying(_props: { match: RouteMatch }) {
   });
   remembered.current[tab] = { year, sort: sort === defaultSort ? '' : sort };
 
-  const [typed, setTyped] = useState(query);
-  // Back, Forward or a new link changes the address: the field follows it.
-  useEffect(() => setTyped(query), [query]);
+  const [typed, setTyped, applySearch] = useLiveSearch(
+    query,
+    here,
+    (q) => setAddress({ q, page: '1' }),
+    (value) => value.trim().slice(0, MAX_QUERY).trimEnd(),
+  );
 
   const read = useRead<Page>(listPath(tab, query, page, year, sort), {
     keepPrevious: true,
@@ -257,6 +261,8 @@ export function Lobbying(_props: { match: RouteMatch }) {
   const unavailable = own !== null && own.state === 'unavailable';
   const total = reported?.total ?? null;
   const pages = pageCount(total);
+  const shownQuery =
+    reported?.q ?? new URLSearchParams(read.dataPath?.split('?')[1]).get('q') ?? '';
 
   // A page past the end (a stale link, or a search that now matches fewer) opens the
   // last page that exists rather than an empty list.
@@ -269,7 +275,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
 
   function wholeCount(kind: DirectoryTab): string | null {
     const served =
-      kind === tab && !query
+      kind === tab && !query && !shownQuery
         ? (reported?.total ?? null)
         : kind === 'lobbyists'
           ? lobbyistCount.data?.state === 'reported'
@@ -282,7 +288,9 @@ export function Lobbying(_props: { match: RouteMatch }) {
   }
 
   const list = useRef<HTMLDivElement>(null);
+  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
   function goPage(next: number) {
+    if (pagingUnavailable) return;
     setAddress({ page: String(next) });
     const element = list.current;
     if (!element) return;
@@ -293,7 +301,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setAddress({ q: typed.trim().slice(0, MAX_QUERY), page: '1' });
+    applySearch();
   }
 
   function openTab(next: DirectoryTab) {
@@ -474,6 +482,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
                   )}
                   <div aria-live="polite" className="lb-count f-num">
                     {showing}
+                    {shownQuery && ` matching “${shownQuery}”`}
                   </div>
                   {rowCount === 0 ? (
                     <Empty title={EMPTY[tab]} next={COPY.noMatchWhy} />
@@ -607,8 +616,8 @@ export function Lobbying(_props: { match: RouteMatch }) {
                           <button
                             type="button"
                             className="f-btn f-btn-secondary lb-page-btn"
-                            aria-disabled={page <= 1 || undefined}
-                            onClick={() => page > 1 && goPage(page - 1)}
+                            aria-disabled={pagingUnavailable || shownPage <= 1 || undefined}
+                            onClick={() => shownPage > 1 && goPage(shownPage - 1)}
                           >
                             <Chevron />
                             Previous
@@ -619,8 +628,8 @@ export function Lobbying(_props: { match: RouteMatch }) {
                           <button
                             type="button"
                             className="f-btn f-btn-secondary lb-page-btn"
-                            aria-disabled={page >= pages || undefined}
-                            onClick={() => page < pages && goPage(page + 1)}
+                            aria-disabled={pagingUnavailable || shownPage >= pages || undefined}
+                            onClick={() => shownPage < pages && goPage(shownPage + 1)}
                           >
                             Next
                             <Chevron next />

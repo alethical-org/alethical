@@ -5,6 +5,7 @@ import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import { apiPath } from '../api/read';
 import { Link, useLocation } from '../router';
+import { useLiveSearch } from '../search/useLiveSearch';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
@@ -52,8 +53,16 @@ export interface RecipientsPage {
   offset: number;
   years: number[];
   payment_types: string[];
-  counts?: { all: number | null; confirmed: number | null; printed: number | null };
-  sources: Array<{ dataset: string; fetched_at: string | null; source_url: string | null }>;
+  counts?: {
+    all: number | null;
+    confirmed: number | null;
+    printed: number | null;
+  };
+  sources: Array<{
+    dataset: string;
+    fetched_at: string | null;
+    source_url: string | null;
+  }>;
   q?: string;
   tab?: string;
   year?: number | null;
@@ -61,7 +70,10 @@ export interface RecipientsPage {
   /** Served only by a server that bounds totals (PR 2823): each recipient left out
    * of the range because its total is withheld, counted once under its reason; null
    * while no bound is set. Its presence is what offers the range. */
-  range_excluded?: { incomplete_amount: number; incomplete_period: number } | null;
+  range_excluded?: {
+    incomplete_amount: number;
+    incomplete_period: number;
+  } | null;
 }
 
 const DATE_MISSING = 'Date not given in the public file';
@@ -245,8 +257,12 @@ export function Recipients(_props: { match: RouteMatch }) {
     state.tab === 'confirmed' || state.tab === 'printed' ? state.tab : 'all';
   const page = Math.max(1, Math.trunc(Number(state.page) || 1));
   const sort = sortFromParam(state.sort);
-  const [typed, setTyped] = useState(state.q);
-  useEffect(() => setTyped(state.q), [state.q]);
+  const [typed, setTyped, applySearch] = useLiveSearch(
+    state.q,
+    here,
+    (q) => setState({ q, page: '1' }),
+    (value) => value.trim().slice(0, 200).trimEnd(),
+  );
   // The address holds the last valid range; the fields hold what is typed.
   const held = { min: parseBound(state.min), max: parseBound(state.max) };
   const min = held.min.ok ? held.min.value : null;
@@ -288,16 +304,18 @@ export function Recipients(_props: { match: RouteMatch }) {
     rows = data?.rows ?? [],
     pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE)),
     shownPage = data ? Math.floor(data.offset / PAGE_SIZE) + 1 : page;
+  const shownTab = data?.tab ?? new URLSearchParams(read.dataPath?.split('?')[1]).get('tab');
+  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
   const list = useRef<HTMLElement>(null);
   function goPage(next: number) {
-    if (read.pending) return;
+    if (pagingUnavailable) return;
     setState({ page: String(next) });
     list.current?.focus({ preventScroll: true });
     list.current?.scrollIntoView?.({ block: 'start' });
   }
   function submit(e: FormEvent) {
     e.preventDefault();
-    setState({ q: typed.trim(), page: '1' });
+    applySearch();
   }
   // The range is offered only by a server that bounds totals.
   const ranges = data != null && 'range_excluded' in data;
@@ -309,8 +327,8 @@ export function Recipients(_props: { match: RouteMatch }) {
     state.max !== '' ||
     draft.min !== '' ||
     draft.max !== '';
-  const noPrevious = shownPage <= 1;
-  const noNext = !data?.has_more;
+  const noPrevious = pagingUnavailable || shownPage <= 1;
+  const noNext = pagingUnavailable || !data?.has_more;
   return (
     <main id="main" className="f-page">
       <div className="f-content">
@@ -446,7 +464,10 @@ export function Recipients(_props: { match: RouteMatch }) {
                 {reversed ? 'Minimum is more than maximum' : ''}
               </p>
               <div className="vp-count f-count-line" aria-live="polite">
-                {countLine(data, tab)}
+                {countLine(
+                  data,
+                  shownTab === 'confirmed' || shownTab === 'printed' ? shownTab : 'all',
+                )}
                 {exclusionLines(data.range_excluded).map((line) => (
                   <span key={line} className="vp-excluded">
                     {line}

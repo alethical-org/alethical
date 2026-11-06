@@ -33,7 +33,7 @@ import { RollCall } from './pages/RollCall';
 import { NoAccess } from './pages/NoAccess';
 import { SignIn } from './pages/SignIn';
 import { Checking, NotFound, Unavailable } from './pages/Status';
-import { cameByHistory, navigate, savedScroll, useLocation } from './router';
+import { cameByHistory, keepsSearchFocus, navigate, savedScroll, useLocation } from './router';
 import { isBuilt, matchRoute, type RouteMatch, type RouteName } from './routes';
 import { AppShell } from './shell/AppShell';
 import './ui/finance.css';
@@ -48,6 +48,7 @@ const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   station: (match) => <TVStation match={match} />,
   'printed-agency-name': (match) => <PrintedAgency match={match} />,
   'payments-under-name': (match) => <PaymentsUnderName match={match} />,
+  'payments-name-search': (match) => <PaymentsUnderName match={match} />,
   'money-by-race': (match) => <MoneyByRace match={match} />,
   recipients: (match) => <Recipients match={match} />,
   lobbying: (match) => <Lobbying match={match} />,
@@ -94,7 +95,9 @@ export function App() {
   useEffect(() => {
     if (!signedOutRoute && status === 'signed-out') {
       const next = location.pathname + location.search;
-      navigate(`${signInPath}?next=${encodeURIComponent(next)}`, { replace: true });
+      navigate(`${signInPath}?next=${encodeURIComponent(next)}`, {
+        replace: true,
+      });
     }
   }, [location, signedOutRoute, status, signInPath]);
 
@@ -114,6 +117,7 @@ export function App() {
       first.current = false;
       return;
     }
+    if (keepsSearchFocus()) return;
     const back = cameByHistory() ? savedScroll() : null;
     window.scrollTo(0, back ?? 0);
     document

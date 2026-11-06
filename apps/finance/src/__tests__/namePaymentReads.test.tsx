@@ -52,6 +52,11 @@ function SpellingProbe({ name }: { name: string }) {
   return <div>{read.data?.names.join(',') ?? 'No rows'}</div>;
 }
 
+function RetryProbe({ name }: { name: string }) {
+  const read = useNamePayments({ name, role: 'contributor' });
+  return read.failed ? <button onClick={read.retry}>Retry</button> : <div>{read.data?.name}</div>;
+}
+
 beforeEach(() => {
   clearReadCache();
   waiting.clear();
@@ -97,6 +102,22 @@ it('ignores a late payment response after the reader chooses another name', asyn
   await act(async () => root.render(<PaymentProbe name="Second donor" />));
   await act(async () => waiting.get('Bearer account-a|Second donor')!(json(page('Second donor'))));
   await act(async () => old(json(page('First donor'))));
+  expect(container.textContent).toBe('Second donor');
+});
+
+it('reads the new name once after retrying the old one', async () => {
+  const fetcher = vi.fn(async (input: string) => {
+    const name = new URL(input).searchParams.get('name');
+    return name === 'First donor' ? json(null, 500) : json(page('Second donor'));
+  });
+  vi.stubGlobal('fetch', fetcher);
+  await act(async () => root.render(<RetryProbe name="First donor" />));
+  await act(async () => container.querySelector('button')!.click());
+  const requestedNames = () =>
+    fetcher.mock.calls.map(([url]) => new URL(url).searchParams.get('name'));
+  expect(requestedNames()).toEqual(['First donor', 'First donor']);
+  await act(async () => root.render(<RetryProbe name="Second donor" />));
+  expect(requestedNames()).toEqual(['First donor', 'First donor', 'Second donor']);
   expect(container.textContent).toBe('Second donor');
 });
 

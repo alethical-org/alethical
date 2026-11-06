@@ -301,6 +301,35 @@ describe('People', () => {
     expect(new URL(last).searchParams.has('version')).toBe(false);
   });
 
+  it('updates and clears search as you type while keeping filters', async () => {
+    await render('/people?type=legislators&chamber=senate&page=2&q=before', loaded);
+    const input = container.querySelector<HTMLInputElement>('#people-name')!;
+    async function enter(value: string) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+    }
+    vi.useFakeTimers();
+    try {
+      await enter('Example');
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('q')).toBe('Example');
+      expect(params.get('type')).toBe('legislators');
+      expect(params.get('chamber')).toBe('senate');
+      expect(params.has('page')).toBe(false);
+      expect(requests.at(-1)).toContain('q=Example');
+      await enter('');
+      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('searches by name on Search and says when nothing matches', async () => {
     await render('/people', loaded);
     const input = container.querySelector<HTMLInputElement>('#people-name')!;

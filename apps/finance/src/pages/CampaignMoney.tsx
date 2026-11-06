@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 
 import {
   COMMITTEE_PAGE_SIZE,
@@ -12,6 +12,7 @@ import { paymentCopyLines } from '@alethical/shared/paymentCopyDates';
 
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
+import { useLiveSearch } from '../search/useLiveSearch';
 import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
@@ -276,7 +277,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
     party: '',
   });
   const tab = tabFromParam(address.tab);
-  const submitted = address.q.trim().slice(0, MAX_QUERY);
+  const submitted = address.q.trim().slice(0, MAX_QUERY).trimEnd();
   const page = pageFromParam(address.page);
   const reg = registrationFilter(address.reg);
   const party =
@@ -284,9 +285,12 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
       ? address.party
       : '';
 
-  const [typed, setTyped] = useState(submitted);
-  // Back, Forward or a new link changes the address: the field follows it.
-  useEffect(() => setTyped(submitted), [submitted]);
+  const [typed, setTyped, applySearch] = useLiveSearch(
+    submitted,
+    here,
+    (q) => setAddress({ q, page: '1' }),
+    (value) => value.trim().slice(0, MAX_QUERY).trimEnd(),
+  );
 
   // An unavailable register is a failed read, so the last list stays on screen
   // with Try again rather than being replaced by the outage.
@@ -304,6 +308,8 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   const rows = register && !unavailable ? register.committees : [];
   const total = register && !unavailable ? (register.page.total ?? null) : null;
   const pages = pageCount(total);
+  const shownPage = register ? Math.floor(register.page.offset / COMMITTEE_PAGE_SIZE) + 1 : page;
+  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
 
   // A page past the end (a stale link, or a search that now matches fewer)
   // opens the last page that exists rather than an empty list.
@@ -316,6 +322,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
 
   const list = useRef<HTMLDivElement>(null);
   function goPage(next: number) {
+    if (pagingUnavailable) return;
     setAddress({ page: String(next) });
     const element = list.current;
     if (!element) return;
@@ -326,7 +333,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setAddress({ q: typed.trim().slice(0, MAX_QUERY), page: '1' });
+    applySearch();
   }
 
   const byKind = register?.held_by_kind ?? null;
@@ -343,6 +350,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   const freshFailure = (read.failed && register === null) || (unavailable && !read.updating);
   const retainedFailure = read.failed && register !== null && !unavailable;
   const showList = register !== null && !unavailable;
+  const shownQuery = new URLSearchParams(read.dataPath?.split('?')[1]).get('q') ?? '';
   // Kept rows keep their own tab's noun while another tab loads or fails, so an
   // earlier list is never relabelled as the new one.
   const shownTab = TABS.find((item) => item.kind === register?.kind)?.value ?? tab;
@@ -351,7 +359,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
     TABS.find((item) => item.value === shownTab)?.label,
     REGISTRATIONS.find((item) => item.value === registrationFilter(register?.status))?.label,
     register?.party,
-    register?.q ? `Matching “${register.q}”` : '',
+    shownQuery ? `Matching “${shownQuery}”` : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -408,13 +416,14 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
           </button>
         </form>
 
-        {submitted && (
+        {submitted && (isBuilt('payments-under-name') || shownQuery === submitted) && (
           <section aria-label="Name search" className="cm-name-search">
             {isBuilt('payments-under-name') ? (
               <>
                 <p>
-                  Registrations matching “{submitted}” are listed below. Payments recorded under
-                  that spelling are a separate search:
+                  {shownQuery === submitted
+                    ? `Registrations matching “${submitted}” are listed below. Payments recorded under that spelling are a separate search:`
+                    : `Payments recorded under “${submitted}” are a separate search:`}
                 </p>
                 <Link
                   to={withFrom(hrefFor('payments-under-name', { query: submitted }), here)}
@@ -518,7 +527,10 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                     {count}
                   </div>
                   {rows.length === 0 ? (
-                    <Empty title="No matching records" next={committeeEmptyWhy('all', submitted)} />
+                    <Empty
+                      title="No matching records"
+                      next={committeeEmptyWhy('all', shownQuery)}
+                    />
                   ) : (
                     <>
                       <div role="table" aria-label="Directory" className="cm-table">
@@ -586,8 +598,8 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                         <button
                           type="button"
                           className="f-btn f-btn-secondary cm-page-btn"
-                          aria-disabled={page <= 1 || undefined}
-                          onClick={() => page > 1 && goPage(page - 1)}
+                          aria-disabled={pagingUnavailable || shownPage <= 1 || undefined}
+                          onClick={() => shownPage > 1 && goPage(shownPage - 1)}
                         >
                           <svg
                             width="16"
@@ -607,13 +619,13 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                           Previous
                         </button>
                         <span aria-live="polite" className="cm-page-line f-num">
-                          Page {formatCount(Math.min(page, pages))} of {formatCount(pages)}
+                          Page {formatCount(Math.min(shownPage, pages))} of {formatCount(pages)}
                         </span>
                         <button
                           type="button"
                           className="f-btn f-btn-secondary cm-page-btn"
-                          aria-disabled={page >= pages || undefined}
-                          onClick={() => page < pages && goPage(page + 1)}
+                          aria-disabled={pagingUnavailable || shownPage >= pages || undefined}
+                          onClick={() => shownPage < pages && goPage(shownPage + 1)}
                         >
                           Next
                           <svg

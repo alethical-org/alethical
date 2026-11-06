@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { useSuggestionBox } from '../search/SuggestionBox';
+import { navigate } from '../router';
 
 const session = vi.hoisted(() => ({
   apiBaseUrl: 'https://api.test',
@@ -111,10 +112,12 @@ it('keeps results visible while updating and after a failed request', async () =
   await type('danch');
   expect(host.textContent).toContain('Danchik');
   expect(host.textContent).toContain('Searching…');
+  expect(host.textContent).toContain('Previous suggestions for “danc”');
   await tick();
   await answer(1, '', 500);
   expect(host.textContent).toContain('Danchik');
   expect(host.textContent).toContain('Suggestions couldn’t load');
+  expect(host.textContent).toContain('Previous suggestions for “danc”');
   await act(async () =>
     box.inputProps.onKeyDown({
       key: 'ArrowDown',
@@ -122,6 +125,17 @@ it('keeps results visible while updating and after a failed request', async () =
     } as never),
   );
   expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain('Danchik');
+  const retry = host.querySelector('button')!;
+  expect(retry.textContent).toBe('Try again');
+  await act(async () => box.inputProps.onKeyDown({ key: 'Tab', preventDefault() {} } as never));
+  expect(document.activeElement).toBe(retry);
+  await act(async () => retry.click());
+  expect(document.activeElement).toBe(host.querySelector('input'));
+  expect(navigate).not.toHaveBeenCalled();
+  expect(pending[2].url.searchParams.get('q')).toBe('danch');
+  await answer(2, 'Updated suggestion');
+  expect(host.textContent).toContain('Updated suggestion');
+  expect(host.textContent).not.toContain('Previous suggestions');
 });
 it('reuses a recent exact query on refocus, then refreshes after 60 seconds', async () => {
   await type('danch');

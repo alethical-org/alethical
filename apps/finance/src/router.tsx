@@ -13,6 +13,13 @@ const SCROLL_KEY = 'alethical-finance-scroll:';
 /** True when the current address was reached by Back or Forward, so a page
  * restores where the reader was instead of starting at the top. */
 let arrivedByHistory = false;
+let historyRevision = 0;
+let preserveSearchFocus = false;
+
+/** Only an in-place search edit may retain focus while its path changes. */
+export function keepsSearchFocus(): boolean {
+  return preserveSearchFocus;
+}
 
 export function cameByHistory(): boolean {
   return arrivedByHistory;
@@ -55,6 +62,8 @@ export function clearSavedScroll() {
 if (typeof window !== 'undefined') {
   window.addEventListener('popstate', () => {
     arrivedByHistory = true;
+    preserveSearchFocus = false;
+    historyRevision += 1;
     notify();
   });
   window.addEventListener('pagehide', saveScroll);
@@ -74,9 +83,19 @@ export function useLocation(): URL {
   return new URL(current, window.location.origin);
 }
 
-export function navigate(to: string, { replace = false } = {}) {
+/** Even Back to an identical address cancels unfinished search edits. */
+export function useHistoryNavigationKey(): number {
+  return useSyncExternalStore(
+    subscribe,
+    () => historyRevision,
+    () => 0,
+  );
+}
+
+export function navigate(to: string, { replace = false, preserveFocus = false } = {}) {
   saveScroll();
   arrivedByHistory = false;
+  preserveSearchFocus = preserveFocus;
   if (replace) window.history.replaceState(null, '', to);
   else window.history.pushState(null, '', to);
   notify();

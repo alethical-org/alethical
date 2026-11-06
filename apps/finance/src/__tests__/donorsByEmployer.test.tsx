@@ -16,6 +16,7 @@ import {
 } from '../pages/DonorsByEmployer';
 import type { IdentityRecords } from '../pages/payments/data';
 import { matchRoute } from '../routes';
+import { useLocation } from '../router';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -163,7 +164,12 @@ async function settle() {
   });
 }
 
-async function render(path: string, answer: Answer) {
+function LivePage() {
+  const location = useLocation();
+  return <DonorsByEmployer match={matchRoute(location.pathname)!} />;
+}
+
+async function render(path: string, answer: Answer, live = false) {
   window.history.replaceState(null, '', path);
   vi.stubGlobal(
     'fetch',
@@ -174,7 +180,7 @@ async function render(path: string, answer: Answer) {
     }),
   );
   await act(async () => {
-    root.render(<DonorsByEmployer match={matchRoute(path.split('?')[0])!} />);
+    root.render(live ? <LivePage /> : <DonorsByEmployer match={matchRoute(path.split('?')[0])!} />);
   });
   await settle();
 }
@@ -662,4 +668,63 @@ describe('Donors by employer helpers', () => {
       ),
     ).toEqual({ state: 'unconfirmed' });
   });
+});
+
+async function typeLive(value: string) {
+  const input = container.querySelector<HTMLInputElement>('input')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 280));
+  });
+  await settle();
+  return input;
+}
+
+it('updates employer spellings while typing and clears a chosen employer', async () => {
+  await render(`${PATH}?q=health&from=%2Fmoney`, answer(), true);
+  const input = await typeLive('example ');
+  expect(location.pathname).toBe('/money/employers');
+  expect(new URLSearchParams(location.search).get('q')).toBe('example');
+  expect(input.value).toBe('example ');
+  expect(requests.some((url) => url.searchParams.get('q') === 'example')).toBe(true);
+  await typeLive('');
+  expect(location.pathname).toBe('/money/employers');
+  expect(new URLSearchParams(location.search).has('q')).toBe(false);
+  expect(new URLSearchParams(location.search).get('from')).toBe('/money');
+  expect(container.querySelector('.de-layout')).toBeNull();
+});
+
+it('keeps a dot-only typed name in the lookup instead of following a parent path', async () => {
+  await render('/money/employers/Example', answer(), true);
+  const input = await typeLive('..');
+  expect(input.value).toBe('..');
+  expect(container.querySelector('h1')?.textContent).toContain('Donors by employer');
+  expect(location.pathname).toBe('/money/employers');
+  expect(new URLSearchParams(location.search).get('name')).toBe('..');
+  await typeLive('..Health');
+  expect(input.value).toBe('..Health');
+});
+
+it('does not mix retained employer spellings with a new query page', async () => {
+  setWidth(1280);
+  await render(
+    '/money/employers?q=health',
+    answer({ list: { ...LIST, page: { ...LIST.page, has_more: true } } }),
+    true,
+  );
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => json(null, 500)),
+  );
+  await typeLive('other');
+  const more = [...container.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Show more',
+  )!;
+  expect(more.getAttribute('aria-disabled')).toBe('true');
+  expect(container.querySelector('.de-spelling-list a')?.getAttribute('href')).toContain(
+    'q=health',
+  );
 });

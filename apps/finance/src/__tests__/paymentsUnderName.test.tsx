@@ -23,6 +23,7 @@ import {
 } from '../pages/PaymentsUnderName';
 import type { NamePayments, OutsideRow, ReceivedRow, SpentRow } from '../pages/payments/data';
 import { matchRoute } from '../routes';
+import { useLocation } from '../router';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -176,7 +177,12 @@ async function settle() {
   });
 }
 
-async function render(path: string, answer: Answer) {
+function LivePage() {
+  const location = useLocation();
+  return <PaymentsUnderName match={matchRoute(location.pathname)!} />;
+}
+
+async function render(path: string, answer: Answer, live = false) {
   window.history.replaceState(null, '', path);
   vi.stubGlobal(
     'fetch',
@@ -188,7 +194,9 @@ async function render(path: string, answer: Answer) {
   );
   const pathname = path.split('?')[0];
   await act(async () => {
-    root.render(<PaymentsUnderName match={matchRoute(pathname)!} />);
+    root.render(
+      live ? <LivePage /> : <PaymentsUnderName match={matchRoute(path.split('?')[0])!} />,
+    );
   });
   await settle();
 }
@@ -1119,4 +1127,48 @@ describe('Payments under this name helpers', () => {
     );
     expect(committeeHref('5', new Set(), 2025, 'party', 'A B', '/x')).toBeNull();
   });
+});
+
+async function typeLive(value: string) {
+  const input = container.querySelector<HTMLInputElement>('input')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 280));
+  });
+  await settle();
+  return input;
+}
+
+it('applies a typed name and clears it without losing record filters', async () => {
+  await render(
+    '/money/names/Example?role=donor&year=2026&filer=123&dataset=individuals&from=%2Fmoney',
+    payee,
+    true,
+  );
+  const input = await typeLive('Other ');
+  expect(decodeURIComponent(location.pathname)).toBe('/money/names/Other');
+  expect(input.value).toBe('Other ');
+  expect(new URLSearchParams(location.search).get('role')).toBe('donor');
+  expect(new URLSearchParams(location.search).get('year')).toBe('2026');
+  expect(new URLSearchParams(location.search).get('filer')).toBe('123');
+  expect(requests.some((url) => url.searchParams.get('name') === 'Other')).toBe(true);
+  await typeLive('');
+  expect(location.pathname).toBe('/money/names');
+  expect(new URLSearchParams(location.search).get('from')).toBe('/money');
+  expect(container.textContent).toContain('Enter a name as reported');
+  expect(container.querySelector('.pn-section')).toBeNull();
+});
+
+it('keeps a dot-only typed name in the lookup instead of following a parent path', async () => {
+  await render('/money/names/Example', payee, true);
+  const input = await typeLive('..');
+  expect(input.value).toBe('..');
+  expect(container.querySelector('h1')?.textContent).toContain('Payments under this name');
+  expect(location.pathname).toBe('/money/names');
+  expect(new URLSearchParams(location.search).get('q')).toBe('..');
+  await typeLive('..Health');
+  expect(input.value).toBe('..Health');
 });

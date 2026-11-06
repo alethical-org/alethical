@@ -8,6 +8,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
 } from 'react';
 
 import { apiGet } from '../api/read';
@@ -62,13 +63,16 @@ export function useSuggestionBox(id: string, from: string | null) {
   const [status, setStatus] = useState<Status>('idle');
   const [held, setHeld] = useState<{
     scope: string;
+    query: string;
     groups: SuggestionGroup[];
   } | null>(null);
-  const groups = held?.scope === scope ? held.groups : [];
+  const own = held?.scope === scope ? held : null;
+  const groups = own?.groups ?? [];
   const [active, setActive] = useState(-1);
   const [maxHeight, setMaxHeight] = useState(420);
   const root = useRef<HTMLElement | null>(null);
   const input = useRef<HTMLInputElement | null>(null);
+  const retryButton = useRef<HTMLButtonElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latest = useRef('');
   const controller = useRef<AbortController | null>(null);
@@ -94,7 +98,7 @@ export function useSuggestionBox(id: string, from: string | null) {
   }, []);
 
   const run = useCallback(
-    (value: string) => {
+    (value: string, immediate = false) => {
       const typed = value.trim();
       if (pendingQuery.current?.scope === scope && pendingQuery.current.typed === typed) {
         setOpen(true);
@@ -123,7 +127,7 @@ export function useSuggestionBox(id: string, from: string | null) {
       }
       const cached = cache.current.get(typed);
       if (cached && Date.now() - cached.at < CACHE_MS) {
-        setHeld({ scope, groups: cached.groups });
+        setHeld({ scope, query: typed, groups: cached.groups });
         setStatus('ready');
         return;
       }
@@ -132,7 +136,7 @@ export function useSuggestionBox(id: string, from: string | null) {
       const abort = new AbortController();
       controller.current = abort;
       pendingQuery.current = { scope, typed };
-      timer.current = setTimeout(() => {
+      function request() {
         const path = `finance/suggestions?q=${encodeURIComponent(typed)}&request_id=${requestId}`;
         void apiGet<SuggestionsAnswer>(apiBaseUrl, path, accessToken, fetch, abort.signal).then(
           (answer) => {
@@ -148,7 +152,7 @@ export function useSuggestionBox(id: string, from: string | null) {
               cache.current.set(typed, { at: Date.now(), groups: next });
               if (cache.current.size > CACHE_LIMIT)
                 cache.current.delete(cache.current.keys().next().value!);
-              setHeld({ scope, groups: next });
+              setHeld({ scope, query: typed, groups: next });
               setActive(-1);
               setStatus('ready');
             } else {
@@ -162,7 +166,9 @@ export function useSuggestionBox(id: string, from: string | null) {
             }
           },
         );
-      }, DEBOUNCE_MS);
+      }
+      if (immediate) request();
+      else timer.current = setTimeout(request, DEBOUNCE_MS);
     },
     [accessToken, allowed, apiBaseUrl, close, measure, scope],
   );
@@ -245,11 +251,18 @@ export function useSuggestionBox(id: string, from: string | null) {
         close();
       }
     } else if (key === 'Tab') {
-      close();
+      if (open && !event.shiftKey && retryButton.current) {
+        event.preventDefault();
+        retryButton.current.focus();
+      } else close();
     }
   }
 
   const count = rows.length;
+  const previous =
+    count > 0 && own && (status === 'loading' || status === 'failed')
+      ? `Previous suggestions for “${own.query}”`
+      : '';
   const live = !open
     ? ''
     : status === 'loading'
@@ -299,7 +312,20 @@ export function useSuggestionBox(id: string, from: string | null) {
       allActive={active === allIndex}
       status={status}
       maxHeight={maxHeight}
-      live={live}
+      live={previous ? `${live} ${previous}` : live}
+      previous={previous}
+      retryRef={retryButton}
+      onRetry={() => {
+        input.current?.focus();
+        run(query, true);
+      }}
+      onRetryBlur={(event) => {
+        if (!root.current?.contains(event.relatedTarget as Node | null)) close();
+      }}
+      onRetryEscape={() => {
+        input.current?.focus();
+        close();
+      }}
       onPick={close}
     >
       {groups.map((group) => (
@@ -398,10 +424,20 @@ function SuggestionPanel(props: {
   status: Status;
   maxHeight: number;
   live: string;
+  previous: string;
+  retryRef: RefObject<HTMLButtonElement | null>;
+  onRetry: () => void;
+  onRetryBlur: (event: FocusEvent<HTMLButtonElement>) => void;
+  onRetryEscape: () => void;
   onPick: () => void;
   children: ReactNode;
 }) {
   const empty = props.status === 'ready' && !hasRows(props.children);
+  const previous = props.previous && (
+    <span className="f-sg-context" style={{ overflowWrap: 'anywhere' }}>
+      {props.previous}
+    </span>
+  );
   return (
     <div
       className="f-sg-panel"
@@ -414,7 +450,7 @@ function SuggestionPanel(props: {
       {props.status === 'loading' && (
         <div className="f-sg-note">
           <span className="f-spinner" aria-hidden="true" />
-          Searching…
+          <span className="f-sg-text">Searching…{previous}</span>
         </div>
       )}
       {empty && (
@@ -434,7 +470,22 @@ function SuggestionPanel(props: {
               strokeLinecap="round"
             />
           </svg>
-          Suggestions couldn’t load
+          <span className="f-sg-text">Suggestions couldn’t load{previous}</span>
+          <button
+            ref={props.retryRef}
+            type="button"
+            className="f-btn f-btn-secondary f-btn-small"
+            onClick={props.onRetry}
+            onBlur={props.onRetryBlur}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') return;
+              event.preventDefault();
+              event.stopPropagation();
+              props.onRetryEscape();
+            }}
+          >
+            Try again
+          </button>
         </div>
       )}
       <div

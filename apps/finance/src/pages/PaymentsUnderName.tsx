@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useLiveSearch } from '../search/useLiveSearch';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
 import {
@@ -598,7 +599,6 @@ export function emptyLine(data: NamePayments<unknown>, filerName: string | null 
 export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const from = location.searchParams.get('from');
   const back = similarBack(location.search) ??
     returnTarget(location.search) ?? {
       to: hrefFor('campaign-money'),
@@ -607,7 +607,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const band = useBand();
   // The printed spelling exactly as the address carries it: " Schmidt, Steven" and
   // "Schmidt, Steven" are 2 spellings (settled wording row 63).
-  const raw = match.params.query ?? '';
+  const raw = match.params.query ?? location.searchParams.get('q') ?? '';
   const name = raw.trim() ? raw : '';
   const years = useMemo(() => campaignMoneyHistoryYears(), []);
   const [address, setAddress] = useAddressState({
@@ -625,9 +625,22 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const filer = filerFromParam(address.filer);
   const datasetFile = DATASET_FILE[address.dataset] ?? null;
 
-  const [draft, setDraft] = useState(name);
-  // Back and Forward restore the earlier name into the field.
-  useEffect(() => setDraft(name), [name]);
+  const [draft, setDraft, applySearch] = useLiveSearch(name, here, (next) => {
+    const params = new URLSearchParams(window.location.search);
+    // These identify a selected result or spelling comparison, not a search filter.
+    for (const key of ['section', 'similarStart', 'exclude', 'page', 'q']) params.delete(key);
+    // Browsers resolve dot-only path segments as directory navigation.
+    const dotOnly = next === '.' || next === '..';
+    if (dotOnly) params.set('q', next);
+    const path =
+      next && !dotOnly
+        ? hrefFor('payments-under-name', { query: next })
+        : hrefFor('payments-name-search');
+    navigate(path + (params.size ? `?${params}` : ''), {
+      replace: true,
+      preserveFocus: true,
+    });
+  });
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   useEffect(() => setEvidence(null), [name, role, year]);
 
@@ -705,21 +718,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next = draft.trim();
-    if (!next) return;
-    navigate(
-      withFrom(
-        hrefFor(
-          'payments-under-name',
-          { query: next },
-          {
-            role: role === 'payee' ? null : role,
-            year: year === null ? null : String(year),
-          },
-        ),
-        from,
-      ),
-    );
+    applySearch();
   }
 
   const allLoading = reads.length > 0 && reads.every((read) => read.loading);
@@ -811,6 +810,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
             </form>
           </div>
           <div className="pn-payment-results">
+            {!name && <p className="f-empty-box pn-gap">Enter a name as reported</p>}
             {sections.length === 0 && (
               <p className="f-empty-box pn-gap">
                 This file does not contain records for the selected record type
@@ -838,7 +838,8 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                 </Refused>
               </div>
             )}
-            {!allLoading &&
+            {!!name &&
+              !allLoading &&
               !allFailed &&
               sections.map((spec, index) => (
                 <section key={spec.id} aria-labelledby={`pn-${spec.id}`} className="pn-section">

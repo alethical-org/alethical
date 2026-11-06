@@ -16,7 +16,12 @@ export type ReadAnswer<T> =
   | { state: 'ok'; data: T; page?: PageInfo | null }
   | { state: 'not-found' }
   /** `busy`: the server was still busy (503) after every suggested wait. */
-  | { state: 'failed'; busy?: boolean; changed?: boolean; accessDenied?: boolean };
+  | {
+      state: 'failed';
+      busy?: boolean;
+      changed?: boolean;
+      accessDenied?: boolean;
+    };
 
 type Fetch = typeof fetch;
 
@@ -157,7 +162,10 @@ export async function apiGet<T>(
     if (response.status === 404) return { state: 'not-found' };
     if (!response.ok) return { state: 'failed' };
     try {
-      const body = (await response.json()) as { data?: T; page?: PageInfo | null };
+      const body = (await response.json()) as {
+        data?: T;
+        page?: PageInfo | null;
+      };
       if (body === null || typeof body !== 'object') return { state: 'failed' };
       if (unwrapped) return { state: 'ok', data: body as T };
       if (!('data' in body)) return { state: 'failed' };
@@ -172,6 +180,8 @@ export interface Read<T> {
   /** This view's data; for a result view, the previous view's while the next
    * loads (see `updating`). */
   data: T | null;
+  /** Request answered by the visible data, including a retained earlier result. */
+  dataPath?: string | null;
   /** Nothing to show yet: the first load for this view. */
   loading: boolean;
   /** A result view keeps its earlier results on screen while this one loads. */
@@ -192,6 +202,26 @@ export interface Read<T> {
 
 const CACHE_MS = 60_000;
 const cache = new Map<string, { at: number; answer: ReadAnswer<unknown> }>();
+
+function freshAnswer(key: string) {
+  const held = cache.get(key);
+  return held && Date.now() - held.at < CACHE_MS ? held.answer : null;
+}
+
+/** A retry applies only to the view it was requested on. Reset during render,
+ * before a new view's read effect can start with the previous retry count. */
+export function useReadRetry(key: string | null) {
+  const [state, setState] = useState({ key, attempt: 0 });
+  if (state.key !== key) setState({ key, attempt: 0 });
+  const retry = useCallback(() => {
+    if (key !== null) {
+      setState((current) =>
+        current.key === key ? { key, attempt: current.attempt + 1 } : current,
+      );
+    }
+  }, [key]);
+  return [state.key === key ? state.attempt : 0, retry] as const;
+}
 
 /** Forget every held answer: on sign-out or an account change, nothing read for
  * 1 account may be shown to the next. */
@@ -230,26 +260,35 @@ export function useRead<T>(
   accept.current = acceptData;
   const scope = `${apiBaseUrl}|${accessToken}`;
   const key = path ? `${scope}|${path}|${revision}` : null;
-  const [answer, setAnswer] = useState<{ key: string; answer: ReadAnswer<T> } | null>(() => {
-    const held = key ? cache.get(key) : undefined;
-    return held && key ? { key, answer: held.answer as ReadAnswer<T> } : null;
+  const [answer, setAnswer] = useState<{
+    key: string;
+    answer: ReadAnswer<T>;
+  } | null>(() => {
+    const held = key ? freshAnswer(key) : null;
+    return held && key ? { key, answer: held as ReadAnswer<T> } : null;
   });
   const [lastData, setLastData] = useState<{
     data: T;
+    path: string;
     page: PageInfo | null;
     scope: string;
   } | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const [attempt, retry] = useReadRetry(key);
   const [pending, setPending] = useState(false);
   const latest = useRef(0);
 
   useEffect(() => {
     if (!key || !path) return;
-    const held = cache.get(key);
-    if (held && Date.now() - held.at < CACHE_MS && attempt === 0) {
-      setAnswer({ key, answer: held.answer as ReadAnswer<T> });
-      if (held.answer.state === 'ok') {
-        setLastData({ data: held.answer.data as T, page: held.answer.page ?? null, scope });
+    const held = attempt === 0 ? freshAnswer(key) : null;
+    if (held) {
+      setAnswer({ key, answer: held as ReadAnswer<T> });
+      if (held.state === 'ok') {
+        setLastData({
+          data: held.data as T,
+          path,
+          page: held.page ?? null,
+          scope,
+        });
       }
       setPending(false);
       return;
@@ -272,7 +311,8 @@ export function useRead<T>(
         }
         if (next.state !== 'failed') cache.set(key, { at: Date.now(), answer: next });
         setAnswer({ key, answer: next });
-        if (next.state === 'ok') setLastData({ data: next.data, page: next.page ?? null, scope });
+        if (next.state === 'ok')
+          setLastData({ data: next.data, path, page: next.page ?? null, scope });
       },
     );
     return () => {
@@ -283,17 +323,15 @@ export function useRead<T>(
     };
   }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped, scope]);
 
-  // A new address starts over: a retry count belongs to the view it was made on.
-  useEffect(() => setAttempt(0), [key]);
-
-  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const current = answer && answer.key === key ? answer.answer : null;
-  const own = current?.state === 'ok' ? { data: current.data, page: current.page ?? null } : null;
+  const own =
+    current?.state === 'ok' ? { data: current.data, path, page: current.page ?? null } : null;
   const prior = lastData?.scope === scope ? lastData : null;
   const denied = current?.state === 'failed' && current.accessDenied;
   const shown = key === null || denied ? null : (own ?? (keepPrevious ? prior : null));
   return {
     data: shown?.data ?? null,
+    dataPath: shown?.path ?? null,
     page: shown?.page ?? null,
     loading: key !== null && shown === null && (current === null || pending),
     updating:
@@ -307,7 +345,7 @@ export function useRead<T>(
     changed: current?.state === 'failed' && current.changed === true,
     accessDenied: current?.state === 'failed' && current.accessDenied === true,
     notFound: current?.state === 'not-found',
-    pending,
+    pending: key !== null && pending,
     retry,
   };
 }
