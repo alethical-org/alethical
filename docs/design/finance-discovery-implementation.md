@@ -57,17 +57,26 @@ Delivery and acceptance are tracked in [issue 2911](https://github.com/alethical
 
 ## Current state
 
-Design's first update completed at Opus 5.5 Medium. User requested High after it began;
-The subsequent review completed at Opus 5.5 High without interrupting that request.
-Current source files downloaded from the existing project on 6 November:
-Lobbying.dc (5).html, Campaign Money.dc.html, Media Buys.dc.html, CLAUDE (6).md.
-Campaign money desktop and phone, Lobbying desktop and Media buys tablet have been
-inspected. The High review shortened Campaign money's repeated payment-search copy,
-resolved Media loading labels and corrected identifier wrapping. Remaining returned
-files and rendered states are under review. A separate signed-in preview now permits
-real-data browser checks without switching the user's Chrome tab.
-The initial code inventory was refreshed against main after PR 2909 landed;
-live search is reused, not reimplemented. Build and live acceptance remain open.
+Design's initial update and subsequent Opus 5.5 High reviews are complete. The
+current Lobbying, Campaign Money, Media Buys, identifier pages, shared rules and
+build notes were inspected. Final corrections remove an unsupported generic
+payment card, accurately describe the 500-result cap and correct an illustrative
+principal evidence locator. No illustrative data ships.
+
+Real-data browser review covers all three directories at 1280, 900 and 390 pixels,
+query updates, cross-category results, empty groups, full lists and pagination.
+Lobbying detail return restores search; Media agency detail return restores page 2
+and its source version. Clear search restores the prior browsing category and
+focuses the field. Lobbying's phone menu opens above results and closes with Escape.
+Registration numbers and state entity IDs were inspected on Lobbyist and Principal
+paths. Identifier states requiring unavailable real confirmations remain covered
+by focused tests, not claimed as rendered. Actual touch-device and diagonal pointer
+movement checks remain unperformed; narrow layouts were exercised with pointer and
+keyboard. Failure and stale-source states are covered by regression tests.
+
+The build reuses live search shipped in PR 2909. Local checks and independent code
+review are complete. Release checks and live acceptance remain open in
+[PR 2912](https://github.com/alethical-org/alethical/pull/2912).
 
 ## Review findings and prevention
 
@@ -92,6 +101,8 @@ live search is reused, not reimplemented. Build and live acceptance remain open.
 - Scope differences are intentional: Campaign money and Lobbying keep existing
   current-release endpoints; record-local searches, explicit All-recipient filters,
   and Money connections mode tabs are not widened. No new matching or identity rule.
-- Local Finance suite passed 920 tests before final review corrections. Production
-  build, built-link checks and return-link guard passed. Final checks, remaining
-  browser coverage, independent acceptance and release evidence are still pending.
+- Final local Finance suite passed 925 tests in 51 files; 30 focused backend
+  tests passed. Production build, built-link checks and return-link guard passed.
+  The design lint finding for Inter is the approved Finance typeface exception.
+  Independent review accepted the corrected Media version and stale-count paths.
+  Current-head CI and production acceptance remain pending.

@@ -2124,6 +2124,13 @@ with `state: no_spending_rows` and `linkable: false`. Each row's
 year names the spending file's coverage. Lobbyist rows carry their registration
 number, filed and formatted names, and a count of distinct current principal IDs.
 
+For a selected spending year, a principal's report status depends on the number
+of held report rows, not whether the amount is numeric. One row is `reported`,
+including a blank amount (`null`); no row is `not_reported`; multiple rows remain
+`ambiguous`. A numeric zero stays zero. The Finance directory displays these as
+Amount not given, No spending report available, and an ambiguous-report notice,
+respectively, keeping the selected year visible.
+
 The lobbyists route also accepts `year` (2015 through the last completed calendar
 year in America/Chicago) and `sort` (`name`, `donations_desc`, `donations_asc`,
 defaulting to `donations_desc` so the route matches the directory's own opening
