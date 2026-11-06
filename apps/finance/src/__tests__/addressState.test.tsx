@@ -15,7 +15,11 @@ it('adds history only for an explicit view transition and preserves unrelated sc
   function Harness() {
     const [address, set] = useAddressState({ q: '', view: '' });
     update = set;
-    return <span>{address.q}:{address.view}</span>;
+    return (
+      <span>
+        {address.q}:{address.view}
+      </span>
+    );
   }
   try {
     act(() => root.render(<Harness />));
