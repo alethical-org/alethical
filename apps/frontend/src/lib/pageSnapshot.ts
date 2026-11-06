@@ -71,7 +71,7 @@ import {
   stageLabel,
   statusLabel,
 } from './billDetail';
-import { citationSectionHref } from './billText';
+import { citationSectionHref, citationsForRenderedText, renderedTextVersion } from './billText';
 import type { CommitteeConfirmation, MoneyFilingsFeed } from '../data/types';
 import { CONFIRMATION_UNAVAILABLE_LINE } from './committeeConfirmation';
 import {
@@ -669,6 +669,8 @@ export interface BillSnapshotSource {
         source_chamber?: string | null;
       }[]
     | null;
+  versions?: { version_code: string; is_current?: boolean | null }[] | null;
+  summary_source_version?: { version_code: string } | null;
   ai_analysis?: {
     short_title?: string | null;
     summary?: string | null;
@@ -719,7 +721,7 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
   const authorName = author ? authorNameOnly(author.name) : '';
 
   const overview = billOverviewUrl(bill.official_url ?? undefined);
-  const citations: Citation[] = (bill.ai_analysis?.citations ?? [])
+  const served: Citation[] = (bill.ai_analysis?.citations ?? [])
     .filter((citation) => clean(citation.label).length > 0)
     .map((citation, index) => ({
       id: clean(citation.id) || `citation-${index}`,
@@ -730,6 +732,18 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
       sectionOrder: typeof citation.section_order === 'number' ? citation.section_order : null,
       sectionTopic: clean(citation.section_topic),
     }));
+  // The same rule as the app's mapper: positions only for the rendered version (#2857).
+  const rendered = renderedTextVersion(
+    (bill.versions ?? []).map((version) => ({
+      code: version.version_code,
+      isCurrent: version.is_current === true,
+    })),
+  );
+  const citations = citationsForRenderedText(
+    served,
+    bill.summary_source_version?.version_code,
+    rendered?.code,
+  );
   const citedSections = citationsBySection(citations).map((citation) => {
     const label = citationChipLabel(citation.label, citation.sectionTopic);
     const href = citationSectionHref(bill.id, citation);

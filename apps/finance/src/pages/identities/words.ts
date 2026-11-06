@@ -175,7 +175,7 @@ export const ROLE_LABELS: Record<string, string> = {
 
 /** Identifier kinds whose record key is Alethical's internal id for a held record
  * (identity_confirmations._HELD_RECORDS). That id is never printed (settled wording
- * row 21); the role label stands alone. */
+ * row 21); use its source name when held, otherwise the role label stands alone. */
 const HELD_ID_KINDS = new Set(['legislator', 'public_person']);
 
 /** The record key a reader may see: a printed name or registration number as filed,
@@ -183,12 +183,19 @@ const HELD_ID_KINDS = new Set(['legislator', 'public_person']);
 export function printableKey(confirmation: {
   record_kind: string;
   record_key: string;
+  record_name?: string | null;
 }): string | null {
-  return HELD_ID_KINDS.has(confirmation.record_kind) ? null : confirmation.record_key;
+  return HELD_ID_KINDS.has(confirmation.record_kind)
+    ? confirmation.record_name || null
+    : confirmation.record_key;
 }
 
-/** "{role} · {registration}", or the role alone for a held record. */
-export function roleTitle(confirmation: { record_kind: string; record_key: string }): string {
+/** "{role} · {registration or source name}", or the role alone if no name is held. */
+export function roleTitle(confirmation: {
+  record_kind: string;
+  record_key: string;
+  record_name?: string | null;
+}): string {
   const label = ROLE_LABELS[confirmation.record_kind] ?? confirmation.record_kind;
   const key = printableKey(confirmation);
   return key === null ? label : `${label} · ${key}`;

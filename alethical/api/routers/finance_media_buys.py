@@ -28,6 +28,7 @@ from alethical.api.services import finance_station_checks as checks
 from alethical.api.services import finance_station_queue as station_queue
 from alethical.api.services import tv_ad_review as review
 from alethical.api.services import tv_ads as reader
+from alethical.api.services import finance_versions
 from alethical.api.services.finance_access import FinanceAccount
 from alethical.db import models as m
 from alethical.db.session import get_db
@@ -36,7 +37,17 @@ router = APIRouter(
     prefix="/finance/media-buys", dependencies=[Depends(require_finance_access)]
 )
 
-CONNECTION_KINDS = {"committee", "candidate", "principal", "election", "race", "name"}
+CONNECTION_KINDS = {
+    "committee",
+    "candidate",
+    "principal",
+    "election",
+    "race",
+    "name",
+    "person",
+    "legislator",
+    "organization",
+}
 
 
 def records(db: Session = Depends(get_db)):
@@ -132,19 +143,30 @@ def browse(
     category: str = Query("", max_length=200),
     page: int = Query(1, ge=1, le=42),
     default_year: bool = False,
+    version: str | None = Query(
+        None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
+    search_scope: Literal["files", "tab"] = "files",
     db: Session = Depends(records),
 ) -> dict:
+    token = finance_versions.check(db, version, "station")
     return {
-        "data": media.browse(
-            db,
-            tab=tab,
-            q=q,
-            station=station,
-            year=year,
-            category=category,
-            page=page,
-            default_year=default_year,
-        )
+        "data": {
+            "version": token,
+            **media.browse(
+                db,
+                tab=tab,
+                q=q,
+                station=station,
+                year=year,
+                category=category,
+                page=page,
+                default_year=default_year,
+                search_scope=search_scope,
+            ),
+        }
     }
 
 
@@ -164,12 +186,21 @@ def queue(
     sort: Literal["suggested", "newest"] = "suggested",
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    version: str | None = Query(
+        None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
     db: Session = Depends(records),
 ) -> dict:
+    token = finance_versions.check(db, version, "station")
     return {
-        "data": station_queue.queue(
-            db, q=q, station=station, sort=sort, limit=limit, offset=offset
-        )
+        "data": {
+            "version": token,
+            **station_queue.queue(
+                db, q=q, station=station, sort=sort, limit=limit, offset=offset
+            ),
+        }
     }
 
 
@@ -214,7 +245,8 @@ def folder(key: str, db: Session = Depends(records)) -> dict:
 
 @router.get("/agencies/{key}", **answer(schema.FinanceAgency))
 def agency(key: str, db: Session = Depends(records)) -> dict:
-    return {"data": media.agency(db, key)}
+    token = finance_versions.check(db, None, "station")
+    return {"data": {"version": token, **media.agency(db, key)}}
 
 
 @router.get("/stations/{key}", **answer(schema.FinanceStation))

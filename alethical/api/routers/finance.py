@@ -7,7 +7,9 @@ under ``/api/v1/finance/`` private, so 1 account's answer never reaches another.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -15,10 +17,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.finance_access import require_finance_access
-from alethical.api.routers.public import _payment_page_payload, campaign_finance_search
-from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
+from alethical.api.services.finance_access import FinanceAccount
+from alethical.api.routers.public import _payment_page_payload
+from alethical.api.routers.finance_name_discovery import (
+    router as name_discovery_router,
+)
 from alethical.api.routers.public import same_legislature_session_ids
-from alethical.api.routers.public import search as legislature_search
 from alethical.api.routers.finance_money_reads import router as money_router
 from alethical.api.problems import problem_exception, problem_payload
 from alethical.api.serializers import companion_payload, sponsor_payloads
@@ -28,12 +32,15 @@ from alethical.api.services import (
     finance_people,
     finance_connections,
     finance_payments_under_name as under_name,
+    finance_versions,
+    finance_suggestions,
 )
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
 
 router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_access)])
 router.include_router(money_router)
+router.include_router(name_discovery_router)
 
 
 @router.get("/connections", response_model=dict)
@@ -44,8 +51,24 @@ def money_connections(
     focus: str | None = Query(None, max_length=2000, pattern=r"^[^\x00]*$"),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0, le=2147483647),
+    version: str | None = Query(
+        default=None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
     db: Session = Depends(get_db),
 ) -> dict | JSONResponse:
+    token = finance_versions.check(
+        db,
+        version,
+        "money",
+        "identity",
+        "accounts",
+        "lobbying",
+        "station",
+        "filing_register",
+        "graph_summary",
+    )
     try:
         data = finance_connections.connections(
             db,
@@ -70,7 +93,7 @@ def money_connections(
             ),
             headers={"Cache-Control": "private, no-store", "Retry-After": "10"},
         )
-    return {"data": data}
+    return {"data": {**data, "version": token}}
 
 
 @router.get("/payments-under-name")
@@ -151,9 +174,14 @@ def payments_under_name(
 
 
 @router.get("/access")
-def access() -> dict:
+def access(account: FinanceAccount = Depends(require_finance_access)) -> dict:
     """200 for a listed account; the access check answers 401 or 403 otherwise."""
-    return {"data": {"allowed": True}}
+    return {
+        "data": {
+            "allowed": True,
+            **({"can_edit": False} if not account.can_edit else {}),
+        }
+    }
 
 
 @router.get("/suggestions")
@@ -165,24 +193,15 @@ def suggestions(
 ) -> dict:
     """Grouped suggestions for 1 typed query, in 1 request.
 
-    The groups are alethical.com's own answers, not a copy: the money search
-    (``/campaign-finance/search``: legislators, committees, the 3 printed-name
-    groups, lobbyists and principals, exactly as typed and from 3 characters) and
-    the bill search (``/search``). ``request_id`` comes back unchanged, so the app
-    drops a reply that arrives after a newer one.
+    Money groups use Finance's own spelling-tolerant discovery: each official
+    result keeps its identifier and each printed name keeps its source records.
+    Bills match literal typed words or an exact number; the complete bill search
+    keeps its spelling expansion. ``request_id`` comes back unchanged,
+    so the app drops a reply that arrives after a newer one.
     """
     typed = q.strip()
-    money = campaign_finance_search(q=typed, limit=limit, db=db).data
-    # The bill search answers even an empty query with whatever it holds, so
-    # Finance asks it only from the money search's own minimum length: a stray
-    # space never suggests unrelated bills.
-    bills = (
-        legislature_search(
-            q=typed, types="bills", session=None, limit=limit, db=db
-        ).data["bills"]
-        if len(typed) >= MIN_QUERY_LENGTH
-        else []
-    )
+    money = finance_suggestions.money(db, typed, limit)
+    bills = finance_suggestions.bills(db, typed, limit)
     return {"data": {"request_id": request_id, "q": q, "money": money, "bills": bills}}
 
 
@@ -275,22 +294,53 @@ def payees(
     ),
     tab: finance_payees.PayeeTab = "all",
     sort: finance_payees.PayeeSort = "name",
+    min_amount: Decimal | None = Query(
+        default=None,
+        ge=Decimal("-1000000000000"),
+        le=Decimal("1000000000000"),
+        allow_inf_nan=False,
+        decimal_places=4,
+        description="Inclusive lower bound on each group's itemized total; may be negative.",
+    ),
+    max_amount: Decimal | None = Query(
+        default=None,
+        ge=Decimal("-1000000000000"),
+        le=Decimal("1000000000000"),
+        allow_inf_nan=False,
+        decimal_places=4,
+        description="Inclusive upper bound on each group's itemized total.",
+    ),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    version: str | None = Query(
+        default=None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
     db: Session = Depends(get_db),
 ) -> dict:
     """Itemized payee rows, keeping source files and confirmation coverage separate."""
-    return {
-        "data": finance_payees.directory(
-            db,
-            query=q,
-            year=year,
-            payment_type=payment_type,
-            tab=tab,
-            sort=sort,
-            limit=limit,
-            offset=offset,
+    if min_amount is not None and max_amount is not None and min_amount > max_amount:
+        raise problem_exception(
+            422, "Unprocessable Entity", "Minimum is more than maximum."
         )
+    token = finance_versions.check(db, version, "money", "identity")
+    return {
+        "data": {
+            "version": token,
+            **finance_payees.directory(
+                db,
+                query=q,
+                year=year,
+                payment_type=payment_type,
+                tab=tab,
+                sort=sort,
+                min_amount=min_amount,
+                max_amount=max_amount,
+                limit=limit,
+                offset=offset,
+            ),
+        }
     }
 
 
@@ -301,21 +351,47 @@ def people(
     scope: finance_people.PeopleScope = "all",
     year: int | None = Query(default=None, ge=1900, le=2200),
     service: finance_people.Service | None = None,
+    party: str | None = Query(
+        default=None, min_length=1, max_length=100, pattern=r"^[^\x00]*$"
+    ),
+    office: str | None = Query(
+        default=None, min_length=1, max_length=200, pattern=r"^[^\x00]*$"
+    ),
+    chamber: finance_people.Chamber | None = None,
     sort: finance_people.PeopleSort = "name",
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    version: str | None = Query(
+        default=None,
+        pattern=r"^[0-9a-f]{16}$",
+        description="The version an earlier page returned; 409 when its sources changed.",
+    ),
     db: Session = Depends(get_db),
 ) -> dict:
+    now = finance_people.read_time()
+    token = finance_versions.check(
+        db,
+        version,
+        "people",
+        on_date=now.astimezone(ZoneInfo("America/Chicago")).date(),
+    )
     return {
-        "data": finance_people.directory(
-            db,
-            query=q,
-            type=type,
-            scope=scope,
-            year=year,
-            service=service,
-            sort=sort,
-            limit=limit,
-            offset=offset,
-        )
+        "data": {
+            "version": token,
+            **finance_people.directory(
+                db,
+                now=now,
+                query=q,
+                type=type,
+                scope=scope,
+                year=year,
+                service=service,
+                party=party,
+                office=office,
+                chamber=chamber,
+                sort=sort,
+                limit=limit,
+                offset=offset,
+            ),
+        }
     }

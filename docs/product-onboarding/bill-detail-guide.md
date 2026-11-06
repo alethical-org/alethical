@@ -22,7 +22,9 @@ lower-priority archive.
 
 On a phone, the same record is 1 page with sticky jump controls. The order is Summary,
 Actions, Votes, Versions, and Bill Text. Bill Text closes the page so the phone needs
-only 1 source line.
+only 1 source line. The jump strip scrolls sideways just enough to keep the current
+section control visible, whether a shared link, a tap, or reading down the page selects
+it. This does not move the page vertically or move keyboard focus.
 
 The heading uses the short plain-language title. The full statutory title remains
 available as extra context on a computer, but it does not replace the readable heading
@@ -54,8 +56,18 @@ filed short description word-for-word under **Official description**, with an
 
 A cited location opens the exact Bill Text section and highlights it. The link carries
 both the source id and its position because the Minnesota Revisor can reuse 1 id for
-several sections. If the exact section no longer resolves, the product uses the official
-source rather than sending the reader to the wrong passage.
+several sections. A citation the record cannot place on 1 section keeps its label, and
+on web its quote, but is not a link. When a link's exact position is no longer in the
+text, because a later read of the bill moved it, or when a shared link names only the id
+(the older link form), Bill Text opens at the first section carrying that id and
+highlights it. When no
+section carries that id, nothing is highlighted and the page jumps to no section: on a
+computer Bill Text opens at its top, and on a phone the page scrolls to the start of Bill
+Text, for a tapped citation and a shared link alike. Any `?tab=text` address opens Bill
+Text on a phone too, including the Ask answer page's Bill text link.
+A cited location links, and its Bill Text section says **CITED IN SUMMARY**, only when the
+summary was written from the version Bill Text shows; a summary written from another
+version keeps its labels, and on web its quotes, without those links or badges.
 
 The facts area shows where the bill stands, its chief author, companion bill, issues,
 and official record links. A law with several proven start dates says **From {date}** or

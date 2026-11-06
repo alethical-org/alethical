@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { MediaBuysCard } from './media/MediaBuysCard';
+import { useEffect, useRef } from 'react';
 
 import { statusLabel } from '@alethical/shared/billStatus';
 import {
@@ -26,7 +27,7 @@ import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
-import { LoadingRows, Refused } from '../ui/controls';
+import { LoadingRows, Refused, Updating } from '../ui/controls';
 import {
   Arrow,
   BackLink,
@@ -207,9 +208,7 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
   const [address, setAddress] = useAddressState({ bills: '1' });
   const sessions = useRead<Session[]>('sessions');
   const current = sessions.data?.find((item) => item.is_current) ?? null;
-  const total = record.stats?.chief_bill_count ?? null;
-  const pages = total ? Math.max(1, Math.ceil(total / BILLS_PER_PAGE)) : 1;
-  const page = Math.min(Math.max(1, Number(address.bills) || 1), pages);
+  const page = Math.max(1, Math.trunc(Number(address.bills) || 1));
   const read = useRead<BillRow[]>(
     apiPath(['legislators', record.slug, 'bills'], {
       role: 'chief_author',
@@ -218,6 +217,16 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
     }),
     { keepPrevious: true },
   );
+  // The profile's all-held count has a different scope from this session's
+  // summarized results. Only the returned page total can determine its pages.
+  const total = read.page?.total ?? null;
+  const pages = total === null ? 1 : Math.max(1, Math.ceil(total / BILLS_PER_PAGE));
+  const shownPage = Math.floor((read.page?.offset ?? 0) / BILLS_PER_PAGE) + 1;
+  useEffect(() => {
+    if (read.data && !read.pending && !read.failed && total !== null && page > pages) {
+      setAddress({ bills: String(pages) });
+    }
+  }, [read.data, read.pending, read.failed, total, page, pages, setAddress]);
   const list = useRef<HTMLDivElement>(null);
   const go = (next: number) => {
     setAddress({ bills: String(next) });
@@ -241,15 +250,16 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
       </div>
       <div ref={list}>
         {read.loading && <LoadingRows />}
+        {read.updating && <Updating />}
         {read.failed && !read.data && (
           <Refused onRetry={read.retry} retrying={read.pending}>
             We couldn’t load these bills. This is a problem on our side.
           </Refused>
         )}
-        {/* "None held" only when the record's own count agrees: a list that comes
-            back empty against a positive count is a gap, never a stated zero. */}
-        {read.data && !read.loading && rows.length === 0 && !read.updating && !total && (
-          <div className="f-empty-box">No chief-authored bills held for this service</div>
+        {read.data && !read.pending && !read.failed && rows.length === 0 && total === 0 && (
+          <div className="f-empty-box">
+            No chief-authored bills with summaries are available for this session
+          </div>
         )}
         {rows.length > 0 && (
           <>
@@ -298,19 +308,19 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
                 <button
                   type="button"
                   className="f-btn f-btn-secondary pp-page-btn"
-                  aria-disabled={page <= 1 || undefined}
-                  onClick={() => page > 1 && go(page - 1)}
+                  aria-disabled={read.pending || shownPage <= 1 || undefined}
+                  onClick={() => !read.pending && shownPage > 1 && go(shownPage - 1)}
                 >
                   Previous
                 </button>
                 <span aria-live="polite" className="pp-page-line f-num">
-                  Page {page} of {pages}
+                  Page {shownPage} of {pages}
                 </span>
                 <button
                   type="button"
                   className="f-btn f-btn-secondary pp-page-btn"
-                  aria-disabled={page >= pages || undefined}
-                  onClick={() => page < pages && go(page + 1)}
+                  aria-disabled={read.pending || shownPage >= pages || undefined}
+                  onClick={() => !read.pending && shownPage < pages && go(shownPage + 1)}
                 >
                   Next
                 </button>
@@ -453,6 +463,7 @@ export function LegislatorProfile({ match }: { match: RouteMatch }) {
                   emptyLine="No campaign committee is confirmed for this service record"
                   from={here}
                 />
+                <MediaBuysCard kind="legislator" target={record.slug} name={record.full_name} />
                 {(current || (history && history.lines.length > 0)) && (
                   <section aria-labelledby="service-heading" className="lg2-section">
                     <h2 id="service-heading" className="f-section-title">

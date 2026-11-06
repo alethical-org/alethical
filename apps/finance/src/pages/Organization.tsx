@@ -1,3 +1,4 @@
+import { MediaBuysCard } from './media/MediaBuysCard';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { formatDay } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
@@ -417,6 +418,7 @@ function Profile({
             state={stateOf(related, committees.length > 0)}
             onView={setEvidence}
           />
+          <MediaBuysCard kind="organization" target={identity.id} name={identity.name} />
         </div>
       </div>
       <SourcesAndUpdates>

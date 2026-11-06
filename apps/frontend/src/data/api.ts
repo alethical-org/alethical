@@ -36,7 +36,7 @@ import {
   getCampaignFinanceRacesFromApiPayload,
   type ApiMoneyByRacePayload,
 } from '../lib/moneyByRaceReads';
-import type { SourceBlock } from '../lib/billText';
+import { citationsForRenderedText, renderedTextVersion, type SourceBlock } from '../lib/billText';
 import type { SiteMetricEventName } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/legislatorContact';
 import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
@@ -71,6 +71,7 @@ import {
   CommitteeMoney,
   CommitteeDonorStates,
   CommitteeNameConnections,
+  CommitteeSourceNotice,
   CommitteeStatedByKind,
   TrackedCommittee,
   CommitteePaymentsPage,
@@ -527,6 +528,9 @@ export interface ApiBillDetailPayload {
   versions?: ApiBillVersionPayload[] | null;
   topics?: ApiTopicPayload[] | null;
   ai_analysis?: ApiAiAnalysisPayload | null;
+  // The saved version the summary was written from, only when the summary is
+  // explicitly linked to it (#2856); its citations' positions belong to it.
+  summary_source_version?: { version_code: string } | null;
   companion?: ApiCompanionPayload | null;
 }
 
@@ -1572,6 +1576,16 @@ export function mapBillDetail(
   const fileNumber = fileMatch?.[2] ? Number(fileMatch[2]) : 0;
   const history = billHistoryFromPayload(payload);
 
+  const versions = (payload.versions ?? []).map((version) => ({
+    id: `${payload.id}-version-${version.version_code}`,
+    label: versionDisplayName(version.version_code, version.version_name),
+    date: formatOptionalDate(version.document_date),
+    summary: '',
+    url: version.html_url ?? version.pdf_url ?? payload.official_url ?? '',
+    isCurrentPointer: version.version_code.trim().toLowerCase() === 'current',
+    versionCode: version.version_code,
+    isCurrent: version.is_current ?? false,
+  }));
   return {
     id: payload.id,
     identifier: fileNumber ? formatBillIdentifier(fileType, fileNumber) : payload.id,
@@ -1613,18 +1627,13 @@ export function mapBillDetail(
     aiAnalysis: aiAnalysisFromPayload(payload.ai_analysis),
     questionPrompts: questionPromptsFromPayload(payload.ai_analysis),
     actions: history.actions,
-    versions: (payload.versions ?? []).map((version) => ({
-      id: `${payload.id}-version-${version.version_code}`,
-      label: versionDisplayName(version.version_code, version.version_name),
-      date: formatOptionalDate(version.document_date),
-      summary: '',
-      url: version.html_url ?? version.pdf_url ?? payload.official_url ?? '',
-      isCurrentPointer: version.version_code.trim().toLowerCase() === 'current',
-      versionCode: version.version_code,
-      isCurrent: version.is_current ?? false,
-    })),
+    versions,
     votes: mapBillVotes(votes),
-    citations: citationsFromAnalysis(payload.ai_analysis),
+    citations: citationsForRenderedText(
+      citationsFromAnalysis(payload.ai_analysis),
+      payload.summary_source_version?.version_code,
+      renderedTextVersion(versions)?.versionCode,
+    ),
     officialLinks: payload.official_url
       ? [{ id: `${payload.id}-official`, label: 'Official bill page', url: payload.official_url }]
       : [],
@@ -3113,6 +3122,7 @@ export interface ApiCommitteeMoneyPayload {
   fetched_at?: string | null;
   payment_copied_at?: ApiPaymentCopyDates | null;
   filings_copied_at?: string | null;
+  source_notices?: CommitteeSourceNotice[] | null;
   register?: ApiCommitteeRegisterPayload | null;
   money_in?: {
     state: string;
@@ -3186,6 +3196,8 @@ export function committeeFinanceFromPayload(payload: ApiCommitteeMoneyPayload): 
     fetchedAt: payload.fetched_at ?? null,
     filingsCopiedAt: payload.filings_copied_at ?? null,
     paymentCopiedAt: paymentCopyDatesFromPayload(payload.payment_copied_at),
+    // Absent on an answer from before notices existed, which holds none.
+    sourceNotices: payload.source_notices ?? [],
     register: {
       state: committeeRegisterState(register?.state),
       kind: register?.kind ?? null,

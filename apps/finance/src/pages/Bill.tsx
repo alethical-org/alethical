@@ -38,7 +38,9 @@ import {
   roleLabel,
   seatLabel,
   sessionShortLabel,
-  versionPhrase,
+  summaryVersionRow,
+  versionInSentence,
+  versionTitle,
   voteForAction,
   votesPath,
   versionTextPath,
@@ -103,9 +105,15 @@ export function Bill({ match }: { match: RouteMatch }) {
     () => (bill ? orderVersions(bill.versions ?? [], bill.actions ?? []) : []),
     [bill],
   );
+  // The version the summary and its citations were written from, never assumed
+  // to be the current one (settled wording row 46).
+  const summaryVersion = bill
+    ? summaryVersionRow(bill.summary_source_version, bill.versions ?? [], versions)
+    : null;
   const chosenVersion =
     versions.find((row) => row.code === address.version && !row.isLaw) ??
-    defaultTextVersion(versions);
+    (summaryVersion?.code === address.version ? summaryVersion : null) ??
+    defaultTextVersion(versions, bill?.versions ?? []);
   const text = useRead<VersionText>(
     bill && tab === 'text' && chosenVersion ? versionTextPath(id, chosenVersion.code) : null,
   );
@@ -160,7 +168,7 @@ export function Bill({ match }: { match: RouteMatch }) {
     .filter((row): row is NonNullable<typeof row> => row !== null);
   const voteList = votes.data ? orderVotes(votes.data) : [];
   const source = legislatureSource(bill.last_pulled_at);
-  const current = versions.find((row) => row.isCurrent) ?? defaultTextVersion(versions);
+  const current = defaultTextVersion(versions, bill.versions ?? []);
   const sponsors = ownAuthors(bill.all_sponsors ?? bill.chief_sponsors ?? [], chamber);
   const chiefs = sponsors.filter((sponsor) => sponsor.role === 'chief_author');
   const coauthors = sponsors.filter((sponsor) => sponsor.role === 'co_author');
@@ -235,7 +243,11 @@ export function Bill({ match }: { match: RouteMatch }) {
                   <div className="f-card">
                     <h2 className="f-card-title">Summary</h2>
                     <p className="bl-summary-text">{summary}</p>
-                    <p className="bl-meta">Alethical summary</p>
+                    <p className="bl-meta">
+                      {summaryVersion
+                        ? `Alethical summary of the ${versionInSentence(summaryVersion.label)}`
+                        : 'Alethical summary'}
+                    </p>
                   </div>
                   {citations.length > 0 && (
                     <div>
@@ -250,20 +262,26 @@ export function Bill({ match }: { match: RouteMatch }) {
                               <span className="bl-citation-where">
                                 {citationLabel(citation.label, citation.section_topic)}
                               </span>
-                              {current && (
-                                <span className="bl-citation-version">{current.label} version</span>
+                              {summaryVersion && (
+                                <span className="bl-citation-version">
+                                  {versionTitle(summaryVersion.label)}
+                                </span>
                               )}
                             </div>
                             <blockquote>{citation.excerpt}</blockquote>
-                            {current && (
+                            {(summaryVersion ?? current) && (
                               <button
                                 type="button"
                                 className="bl-text-button"
                                 onClick={() =>
-                                  openText(current, {
-                                    sectionId: citation.section_id,
-                                    sourceOrder: citation.section_order ?? null,
-                                  })
+                                  // A section is opened only in the version it was quoted
+                                  // from; with that version unknown, the text opens at the top.
+                                  summaryVersion
+                                    ? openText(summaryVersion, {
+                                        sectionId: citation.section_id,
+                                        sourceOrder: citation.section_order ?? null,
+                                      })
+                                    : openText(current, null)
                                 }
                               >
                                 <span>
@@ -311,12 +329,32 @@ export function Bill({ match }: { match: RouteMatch }) {
                   {actions.map((row) => {
                     const vote = voteForAction(row, voteList);
                     const href = vote ? voteLink(vote.id) : null;
+                    const committee = isBuilt('committee-members') ? row.committee : null;
                     return (
                       <li key={row.key} className="bl-action">
                         <span className="bl-action-date">{row.date ?? ''}</span>
                         <span className="bl-action-chamber">{row.chamber ?? ''}</span>
                         <span className="bl-action-text">
-                          {row.text}
+                          {committee ? (
+                            <>
+                              {row.text.slice(0, committee.offset)}
+                              <Link
+                                to={withFrom(
+                                  hrefFor('committee-members', {
+                                    id: committee.id,
+                                  }),
+                                  here,
+                                )}
+                                className="bl-inline-link"
+                                aria-label={`Members’ campaign accounts, ${committee.name}`}
+                              >
+                                {committee.name}
+                              </Link>
+                              {row.text.slice(committee.offset + committee.name.length)}
+                            </>
+                          ) : (
+                            row.text
+                          )}
                           {href && (
                             <>
                               {' '}
@@ -379,7 +417,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                 <>
                   <div className="bl-text-head">
                     <h2 className="f-card-title">
-                      Bill text · {versionPhrase(chosenVersion.label)} version
+                      Bill text · {versionInSentence(chosenVersion.label)}
                     </h2>
                     {chosenVersion.date && (
                       <span className="bl-meta-inline">Posted {chosenVersion.date}</span>
@@ -387,7 +425,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                   </div>
                   <BillText
                     read={text}
-                    versionLabel={versionPhrase(chosenVersion.label)}
+                    versionLabel={versionInSentence(chosenVersion.label)}
                     target={target}
                   />
                 </>
@@ -689,7 +727,7 @@ function BillText({
     );
   }
   if (read.notFound || sections.length === 0) {
-    return <div className="bl-missing">Text of the {versionLabel} version not held</div>;
+    return <div className="bl-missing">Text of the {versionLabel} not held</div>;
   }
   let article: string | null = null;
   return (

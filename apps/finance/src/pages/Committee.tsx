@@ -27,7 +27,7 @@ import { PAYMENT_FILE_LABELS, paymentCopyLines } from '@alethical/shared/payment
 import { apiPath, useRead } from '../api/read';
 import { useLocation } from '../router';
 import { returnTarget } from '../returnContext';
-import type { RouteMatch } from '../routes';
+import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { Dropdown, Empty, EvidencePanel, Refused, type Evidence } from '../ui/controls';
 import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
@@ -56,10 +56,12 @@ import {
   type SortKey,
   type TabKey,
 } from './committee/data';
+import { YearBlocks } from './committee/Breakdowns';
 import { Figures } from './committee/Figures';
 import { AlertIcon, Notices, type NoticeTarget } from './committee/Notices';
 import { PaymentTable } from './committee/PaymentTable';
 import type {
+  BlockState,
   CommitteeConfirmationAnswer,
   CommitteeFinance,
   IndependentPayment,
@@ -71,6 +73,12 @@ import type {
 import { Unlinked } from './committee/Unlinked';
 import { useYearPayments } from './committee/useYearPayments';
 import './committee.css';
+
+type OutgoingTab = Extract<TabKey, 'expenditures' | 'made'>;
+type OutgoingCounts = {
+  state: BlockState;
+  tab_counts?: Partial<Record<OutgoingTab, number>>;
+};
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 /** Names shown before "Show the other {n} names". */
@@ -129,7 +137,12 @@ function evidenceFor(
     rows: [
       { label: 'Saved source', value: file },
       ...(copiedAt
-        ? [{ label: 'Source version', value: `Copy of ${centralDateLabel(copiedAt)}` }]
+        ? [
+            {
+              label: 'Source version',
+              value: `Copy of ${centralDateLabel(copiedAt)}`,
+            },
+          ]
         : []),
       { label: 'Record number', value: String(recordNumber) },
     ],
@@ -151,7 +164,10 @@ function evidenceFor(
 export function Committee({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
+  // With no usable earlier page, the drawing's named parent: Campaign money.
+  const back =
+    returnTarget(location.search) ??
+    (isBuilt('campaign-money') ? { to: hrefFor('campaign-money'), name: 'Campaign money' } : null);
   const registration = registrationNumberFromSlug(match.params.id) ?? match.params.id;
   const id = encodeURIComponent(registration);
   const years = useMemo(() => campaignMoneyHistoryYears(), []);
@@ -169,11 +185,15 @@ export function Committee({ match }: { match: RouteMatch }) {
   const focusIndependent = address.tab === 'independent';
   const tab: TabKey = isTab(address.tab) ? address.tab : 'individuals';
   const sort: SortKey = isSort(address.sort) ? address.sort : 'total';
-  const isExp = tab === 'expenditures';
+  const isMade = tab === 'made';
+  const isExp = tab === 'expenditures' || isMade;
 
   // --- Reads -------------------------------------------------------------------------
   const finance = useRead<CommitteeFinance>(
-    apiPath(['committees', id, 'finance'], { year, include_confirmation: 'false' }),
+    apiPath(['committees', id, 'finance'], {
+      year,
+      include_confirmation: 'false',
+    }),
     { keepPrevious: true },
   );
   const record =
@@ -194,11 +214,19 @@ export function Committee({ match }: { match: RouteMatch }) {
     },
   );
   const received = useYearPayments<ReceivedPayment>(
-    apiPath(['committees', id, 'payments'], { direction: 'received', year, sort: 'date' }),
+    apiPath(['committees', id, 'payments'], {
+      direction: 'received',
+      year,
+      sort: 'date',
+    }),
   );
   const made = useYearPayments<MadePayment>(
     isExp
-      ? apiPath(['committees', id, 'payments'], { direction: 'made', year, sort: 'date' })
+      ? apiPath(['finance', 'committees', id, 'payments'], {
+          direction: 'made',
+          year,
+          sort: 'date',
+        })
       : null,
   );
   const independent = useRead<PaymentPage<IndependentPayment>>(
@@ -210,7 +238,19 @@ export function Committee({ match }: { match: RouteMatch }) {
     }),
   );
   const independentEver = useRead<PaymentPage<IndependentPayment>>(
-    apiPath(['committees', id, 'payments'], { direction: 'independent_by', limit: 1 }),
+    apiPath(['committees', id, 'payments'], {
+      direction: 'independent_by',
+      limit: 1,
+    }),
+  );
+  // The summary counts every held row without downloading every outgoing payment
+  // on a visit to an incoming tab. One group is the smallest allowed page.
+  const outgoing = useRead<OutgoingCounts>(
+    apiPath(['finance', 'committees', id, 'payment-groups'], {
+      direction: 'made',
+      year,
+      limit: 1,
+    }),
   );
 
   // --- In-page state ------------------------------------------------------------------
@@ -241,8 +281,17 @@ export function Committee({ match }: { match: RouteMatch }) {
     [made.data],
   );
 
+  const gifts = useMemo(
+    () => (made.data ? expenditureGroups(made.data.payments, made.data.linkable, 'made') : null),
+    [made.data],
+  );
+
   const list = isExp ? made : received;
-  const tabGroups: Group[] | null = isExp ? spent : (groups?.[tab as ContributionTab] ?? null);
+  const tabGroups: Group[] | null = isMade
+    ? gifts
+    : isExp
+      ? spent
+      : (groups?.[tab as ContributionTab] ?? null);
   const matched = tabGroups ? matchName(tabGroups, nameFilter) : [];
   const sorted = sortGroups(matched, sort);
   const visible = sorted.slice(0, shown);
@@ -270,7 +319,9 @@ export function Committee({ match }: { match: RouteMatch }) {
     if (!focusIndependent || !independentShown) return;
     const element = document.getElementById('committee-ie');
     if (!element) return;
-    window.scrollTo({ top: element.getBoundingClientRect().top + window.scrollY - 80 });
+    window.scrollTo({
+      top: element.getBoundingClientRect().top + window.scrollY - 80,
+    });
     element.focus({ preventScroll: true });
   }, [focusIndependent, independentShown]);
 
@@ -290,17 +341,26 @@ export function Committee({ match }: { match: RouteMatch }) {
   const view = useCallback(
     (group: Group, row: Row) => {
       const copied = (isExp ? made.data?.fetchedAt : received.data?.fetchedAt) ?? null;
-      setEvidence(
-        evidenceFor(
-          `${group.name} · ${row.amount === null ? AMOUNT_MISSING : (formatMoney(row.amount) ?? AMOUNT_MISSING)}`,
-          isExp ? PAYMENT_FILE_LABELS.expenditures : PAYMENT_FILE_LABELS.contributions,
-          copied,
-          row.recordNumber,
-          sourceHref,
-        ),
+      const source = evidenceFor(
+        `${group.name} · ${row.amount === null ? AMOUNT_MISSING : (formatMoney(row.amount) ?? AMOUNT_MISSING)}`,
+        isExp ? PAYMENT_FILE_LABELS.expenditures : PAYMENT_FILE_LABELS.contributions,
+        copied,
+        row.recordNumber,
+        sourceHref,
       );
+      if (isMade) {
+        source.rows.push({ label: 'Recipient type', value: row.kind });
+        if (row.recipientTypeSource) {
+          source.rows.push({
+            label: 'Recipient type source',
+            href: row.recipientTypeSource.source_url,
+            value: `${row.recipientTypeSource.retained ? 'Retained registration' : 'Committee register'} copied ${centralDateLabel(row.recipientTypeSource.copied_at)}`,
+          });
+        }
+      }
+      setEvidence(source);
     },
-    [isExp, made.data, received.data, sourceHref],
+    [isExp, isMade, made.data, received.data, sourceHref],
   );
 
   const parsedNotices = notices.data ? committeeNoticesFromPayload(notices.data) : null;
@@ -382,17 +442,34 @@ export function Committee({ match }: { match: RouteMatch }) {
   const ballot = isBallotQuestionFiler(record.entity_sub_type);
 
   const status = registrationStatus(record.register);
-  const tabs = TABS.map((item) => {
+  const tabs = TABS.map(({ value, label }) => {
+    // Badges count held payment rows, never a filed amount. An unavailable or
+    // incomplete read does not establish that a tab is empty.
     let count: number | null = null;
-    if (item.value === 'expenditures') {
-      if (made.data) count = made.data.state === 'reported' ? made.data.payments.length : null;
-      else if (current?.money_out.state === 'reported') count = current.money_out.itemized_payments;
-    } else if (received.data?.state === 'reported' && groups) {
-      count = recordCount(groups[item.value as ContributionTab]);
+    if (value === 'expenditures' || value === 'made') {
+      const rows = value === 'made' ? gifts : spent;
+      if (made.data) {
+        if ((made.data.state === 'reported' || made.data.state === 'not_reported') && rows)
+          count = recordCount(rows);
+      } else if (
+        (outgoing.data?.state === 'reported' || outgoing.data?.state === 'not_reported') &&
+        outgoing.data.tab_counts &&
+        typeof outgoing.data.tab_counts === 'object' &&
+        !Array.isArray(outgoing.data.tab_counts)
+      ) {
+        const held = outgoing.data.tab_counts[value];
+        if (held === undefined) count = 0;
+        else if (typeof held === 'number' && Number.isSafeInteger(held) && held >= 0) count = held;
+      }
+    } else if (
+      (received.data?.state === 'reported' || received.data?.state === 'not_reported') &&
+      groups
+    ) {
+      count = recordCount(groups[value]);
     }
     return {
-      value: item.value,
-      label: item.label,
+      value,
+      label,
       count: count === null ? null : count.toLocaleString('en-US'),
     };
   });
@@ -494,23 +571,25 @@ export function Committee({ match }: { match: RouteMatch }) {
                 <h2 id="cmt-money-h" className="f-section-title">
                   Campaign money
                 </h2>
-                <div role="group" aria-label="Year" className="cmt-years">
-                  <span className="cmt-years-label" aria-hidden="true">
+                <div role="group" aria-label="Year" className="f-labeled-chips cmt-years">
+                  <span className="f-labeled-chips-label" aria-hidden="true">
                     Year
                   </span>
-                  {years.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      aria-pressed={value === year}
-                      className="f-chip"
-                      onClick={() =>
-                        value !== year && setAddress({ year: String(value), report: '' })
-                      }
-                    >
-                      {value}
-                    </button>
-                  ))}
+                  <div className="f-chips">
+                    {years.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={value === year}
+                        className="f-chip"
+                        onClick={() =>
+                          value !== year && setAddress({ year: String(value), report: '' })
+                        }
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -552,10 +631,12 @@ export function Committee({ match }: { match: RouteMatch }) {
                     year={year}
                     report={address.report}
                     onReport={(value) => setAddress({ report: value })}
+                    byKind={current.stated_by_kind}
                   />
 
                   <div className="cmt-tab-row">
                     <ScrollingTabs
+                      scrollButtons
                       label="Contribution kinds and expenditures"
                       value={tab}
                       tabs={tabs}
@@ -565,6 +646,15 @@ export function Committee({ match }: { match: RouteMatch }) {
                       }}
                     />
                   </div>
+
+                  {isExp &&
+                    current.source_notices
+                      ?.filter((notice) => notice.dataset === 'expenditures')
+                      .map((notice) => (
+                        <p key={notice.key} className="cmt-tab-note">
+                          {notice.text}
+                        </p>
+                      ))}
 
                   <div className="cmt-controls">
                     <label className="cmt-search">
@@ -621,12 +711,29 @@ export function Committee({ match }: { match: RouteMatch }) {
                           <div className="cmt-summary">
                             <span>{countsLine(matched)}</span>
                             <span>
-                              {isExp ? 'Total itemized expenditures' : 'Itemized contributions'}{' '}
+                              {nameFilter.trim()
+                                ? isMade
+                                  ? 'Matching itemized contributions made'
+                                  : isExp
+                                    ? 'Matching itemized expenditures'
+                                    : 'Matching itemized contributions'
+                                : isMade
+                                  ? 'Itemized contributions made'
+                                  : isExp
+                                    ? 'Total itemized expenditures'
+                                    : 'Itemized contributions'}{' '}
                               <strong>{tableTotal(matched)}</strong>
                             </span>
                           </div>
                           <PaymentTable
-                            label={isExp ? 'Expenditures' : `Contributions, ${label}`}
+                            label={
+                              isMade
+                                ? 'Contributions made'
+                                : isExp
+                                  ? 'Expenditures'
+                                  : `Contributions, ${label}`
+                            }
+                            recipientTypes={isMade}
                             groups={visible}
                             open={open}
                             onToggle={toggle}
@@ -656,7 +763,7 @@ export function Committee({ match }: { match: RouteMatch }) {
                               </button>
                             </div>
                           )}
-                          <p className="cmt-tab-note">{tabNote}</p>
+                          {!isMade && <p className="cmt-tab-note">{tabNote}</p>}
                         </>
                       )}
                     </>
@@ -664,6 +771,18 @@ export function Committee({ match }: { match: RouteMatch }) {
                 </>
               )}
             </section>
+
+            {/* A year with no contribution records held shows neither card, as the
+                empty-year drawing does. */}
+            {current && current.money_in.state !== 'not_reported' && (
+              <YearBlocks
+                donorStates={current.donor_states}
+                nameConnections={current.name_connections}
+                candidate={registerKind === 'candidate_committee'}
+                year={year}
+                here={here}
+              />
+            )}
 
             {showNotices && (
               <Notices

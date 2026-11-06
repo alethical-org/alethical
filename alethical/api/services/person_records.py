@@ -330,6 +330,7 @@ def _valid_people(
     profile: dict,
     *,
     today: date,
+    connection_cache: dict[str, dict | None] | None = None,
 ) -> list[PublicPerson]:
     from alethical.api.services.candidate_legislators import confirmed_legislator
 
@@ -339,7 +340,18 @@ def _valid_people(
         if link.identity != identity:
             continue
         if person.legislator_id and link.evidence.get("legislator_slug"):
-            confirmed = confirmed_legislator(db, profile, today=today)
+            # A directory page can read one candidacy through both its person
+            # and candidate rows. Its held profile is immutable in the pinned
+            # view; share only that source validation, never the person-link test.
+            key = profile["candidate"]["id"]
+            if connection_cache is None:
+                confirmed = confirmed_legislator(db, profile, today=today)
+            else:
+                if key not in connection_cache:
+                    connection_cache[key] = confirmed_legislator(
+                        db, profile, today=today
+                    )
+                confirmed = connection_cache[key]
             if confirmed is None or confirmed["id"] != str(person.legislator_id):
                 continue
         result.append(person)
@@ -671,6 +683,58 @@ def research_records(
     }
 
 
+def _standing_service(payload: dict, today: date) -> dict:
+    """A held service record as it stands today, for the profile and the People note."""
+    item = copy.deepcopy(payload)
+    # An elapsed expected date never promotes elected-to into confirmed service.
+    if item["status"] == "elected":
+        expected = item.get("expectedStart", {}).get("value")
+        item["currentServiceConfirmed"] = False
+        item["expectedStartPassed"] = bool(
+            expected and today > _last_precision_date(expected)
+        )
+    # A retained current roster proves service at its check time. A term's
+    # end cannot silently extend that evidence into a later term.
+    term_end = item.get("expectedEnd", {}).get("value") or item.get("termEnd", {}).get(
+        "value"
+    )
+    if (
+        item["status"] == "current"
+        and term_end
+        and today > _last_precision_date(term_end)
+    ):
+        item["status"] = "unknown"
+        item["currentServiceConfirmed"] = False
+    return item
+
+
+def _connection_service(connection: dict) -> dict:
+    """The reviewed legislative service, shaped as a held service record."""
+    entry = {
+        "id": f"legislator:{connection['id']}",
+        "status": connection["serviceStatus"],
+        "office": connection["office"],
+        "votingArea": connection["votingArea"],
+        "profileUrl": connection["profileUrl"],
+    }
+    for field in ("source", "startDate", "endDate"):
+        if connection.get(field):
+            entry[field] = connection[field]
+    return entry
+
+
+_SERVICE_ORDER = {"current": 0, "elected": 1, "former": 2, "unknown": 3}
+
+
+def _service_order(item: dict) -> tuple:
+    """Current service first, then elected, former and unknown, newest first."""
+    return (
+        _SERVICE_ORDER[item["status"]],
+        -_service_sort_date(item).toordinal(),
+        item.get("office", ""),
+    )
+
+
 def load_person(
     db: Session, person_id: str, *, now: datetime | None = None
 ) -> dict | None:
@@ -681,51 +745,14 @@ def load_person(
     today = (now or datetime.now(UTC)).astimezone(MINNESOTA).date()
     elections, connection = _election_rows(db, person, today=today)
     service = [
-        copy.deepcopy(row.public_payload)
+        _standing_service(row.public_payload, today)
         for row in db.scalars(
             select(PersonServiceRecord).where(PersonServiceRecord.person_id == pid)
         ).all()
     ]
-    # An elapsed expected date never promotes elected-to into confirmed service.
-    for item in service:
-        if item["status"] == "elected":
-            expected = item.get("expectedStart", {}).get("value")
-            item["currentServiceConfirmed"] = False
-            item["expectedStartPassed"] = bool(
-                expected and today > _last_precision_date(expected)
-            )
-        # A retained current roster proves service at its check time. A term's
-        # end cannot silently extend that evidence into a later term.
-        term_end = item.get("expectedEnd", {}).get("value") or item.get(
-            "termEnd", {}
-        ).get("value")
-        if (
-            item["status"] == "current"
-            and term_end
-            and today > _last_precision_date(term_end)
-        ):
-            item["status"] = "unknown"
-            item["currentServiceConfirmed"] = False
     if connection and connection["serviceStatus"] in {"current", "former"}:
-        entry = {
-            "id": f"legislator:{connection['id']}",
-            "status": connection["serviceStatus"],
-            "office": connection["office"],
-            "votingArea": connection["votingArea"],
-            "profileUrl": connection["profileUrl"],
-        }
-        for field in ("source", "startDate", "endDate"):
-            if connection.get(field):
-                entry[field] = connection[field]
-        service.append(entry)
-    order = {"current": 0, "elected": 1, "former": 2, "unknown": 3}
-    service.sort(
-        key=lambda x: (
-            order[x["status"]],
-            -_service_sort_date(x).toordinal(),
-            x.get("office", ""),
-        )
-    )
+        service.append(_connection_service(connection))
+    service.sort(key=_service_order)
     response = {
         "id": str(person.id),
         "name": person.name,
@@ -774,3 +801,187 @@ def person_for_legislator(
         db, person, today=(now or datetime.now(UTC)).astimezone(MINNESOTA).date()
     )
     return _person_link(person) if confirmed else None
+
+
+def directory_record_cues(
+    db: Session,
+    *,
+    person_ids: list[uuid.UUID],
+    candidate_ids: list[str],
+    legislator_ids: list[uuid.UUID],
+    today: date,
+) -> tuple[dict, dict, dict, dict]:
+    """Linked profile records for this page, never payment coverage or name matches.
+
+    Use the same frozen-candidacy validation and active identifier confirmations
+    as the person profile. Queries select only this page's records and their
+    links; research records and private claims do not contribute to the count.
+    Each person's note breaks the same validated entries down: each distinct
+    candidacy election year, each service's office and voting area as held with
+    the status the profile shows today, in the profile's order, and whether an
+    active lobbyist record is confirmed. Nothing else contributes to it.
+    """
+    from sqlalchemy import or_
+    from alethical.db import models as m
+    from alethical.api.services import identity_confirmations
+
+    selected_people = (
+        list(
+            db.scalars(
+                select(PublicPerson).where(
+                    or_(
+                        PublicPerson.id.in_(person_ids),
+                        PublicPerson.legislator_id.in_(legislator_ids),
+                    )
+                )
+            )
+        )
+        if person_ids or legislator_ids
+        else []
+    )
+    pairs = (
+        db.execute(
+            select(PersonCandidacy, CandidateRecord, PublicPerson)
+            .join(CandidateRecord, CandidateRecord.id == PersonCandidacy.candidate_id)
+            .join(PublicPerson, PublicPerson.id == PersonCandidacy.person_id)
+            .where(
+                or_(
+                    PersonCandidacy.person_id.in_([p.id for p in selected_people]),
+                    PersonCandidacy.candidate_id.in_(candidate_ids),
+                )
+            )
+            .order_by(
+                PublicPerson.name,
+                PublicPerson.id,
+                CandidateRecord.election_date.desc(),
+                CandidateRecord.id,
+            )
+        ).all()
+        if selected_people or candidate_ids
+        else []
+    )
+    candidate_links = {key: [] for key in candidate_ids}
+    legislator_links = {str(key): [] for key in legislator_ids}
+    entries: dict[uuid.UUID, set[tuple[str, str]]] = {key: set() for key in person_ids}
+    years: dict[uuid.UUID, set[int]] = {key: set() for key in person_ids}
+    services: dict[uuid.UUID, dict[str, dict]] = {key: {} for key in person_ids}
+    service_connections = {}
+    connection_cache: dict[str, dict | None] = {}
+    for link, record, person in pairs:
+        profile = record.public_payload
+        if not _valid_people(
+            db,
+            [(link, person)],
+            profile,
+            today=today,
+            connection_cache=connection_cache,
+        ):
+            continue
+        target = {"id": str(person.id), "name": person.name}
+        if record.id in candidate_links:
+            candidate_links[record.id].append(target)
+        if person.id in entries:
+            entries[person.id].add(("candidate", record.id))
+            years[person.id].add(record.election_date.year)
+        # A person FK alone never establishes the reviewed legislative link.
+        if person.legislator_id and link.evidence.get("legislator_slug"):
+            connection = connection_cache.get(record.id)
+            if connection and connection["id"] == str(person.legislator_id):
+                if (
+                    str(person.legislator_id) in legislator_links
+                    and target not in legislator_links[str(person.legislator_id)]
+                ):
+                    legislator_links[str(person.legislator_id)].append(target)
+                service_connections[person.id] = connection
+    # Match load_person's one reviewed legislative-service entry and its choice
+    # of connection when several validated candidacies link the same person.
+    for person_id, connection in service_connections.items():
+        if person_id in entries and connection["serviceStatus"] in {
+            "current",
+            "former",
+        }:
+            key = f"legislator:{connection['id']}"
+            entries[person_id].add(("service", key))
+            services[person_id][key] = _connection_service(connection)
+    if person_ids:
+        for service in db.scalars(
+            select(PersonServiceRecord).where(
+                PersonServiceRecord.person_id.in_(person_ids)
+            )
+        ):
+            entries[service.person_id].add(("service", str(service.id)))
+            # The same standing status the person profile shows: a current
+            # record whose term has ended reads unknown.
+            services[service.person_id][str(service.id)] = _standing_service(
+                service.public_payload, today
+            )
+        # Identifier confirmations survive identity merges through the same
+        # standing/merged-in rules used by the profile's identity read.
+        anchors = list(
+            db.scalars(
+                select(m.IdentityConfirmation).where(
+                    m.IdentityConfirmation.record_kind == "public_person",
+                    m.IdentityConfirmation.record_key.in_(
+                        [str(key) for key in person_ids]
+                    ),
+                    m.IdentityConfirmation.active,
+                )
+            )
+        )
+        roots = {}
+        people_by_root: dict[uuid.UUID, list[uuid.UUID]] = {}
+        for anchor in anchors:
+            if anchor.entity_id not in roots:
+                roots[anchor.entity_id] = identity_confirmations._today(
+                    db, anchor.entity_id
+                )
+            standing = roots[anchor.entity_id]
+            if standing.status == "active":
+                people_by_root.setdefault(standing.id, []).append(
+                    uuid.UUID(anchor.record_key)
+                )
+        people_by_entity = {}
+        for root, people in people_by_root.items():
+            for entity_id in [root, *identity_confirmations._merged_in(db, root)]:
+                people_by_entity[entity_id] = people
+        if people_by_entity:
+            for confirmation in db.scalars(
+                select(m.IdentityConfirmation).where(
+                    m.IdentityConfirmation.entity_id.in_(people_by_entity),
+                    m.IdentityConfirmation.record_kind == "lobbyist",
+                    m.IdentityConfirmation.active,
+                )
+            ):
+                for person_id in people_by_entity[confirmation.entity_id]:
+                    entries[person_id].add(("lobbyist", confirmation.record_key))
+    notes = {
+        str(key): {
+            "candidacy_years": sorted(years[key], reverse=True),
+            "services": [
+                {
+                    "office": item.get("office"),
+                    "voting_area": item.get("votingArea"),
+                    "status": item["status"],
+                    **(
+                        {"current_service_confirmed": item["currentServiceConfirmed"]}
+                        if "currentServiceConfirmed" in item
+                        else {}
+                    ),
+                    **(
+                        {"expected_start_passed": item["expectedStartPassed"]}
+                        if "expectedStartPassed" in item
+                        else {}
+                    ),
+                }
+                for item in sorted(services[key].values(), key=_service_order)
+            ],
+            "lobbyist": any(kind == "lobbyist" for kind, _ in entries[key]),
+        }
+        for key in person_ids
+    }
+    return (
+        {str(key): len(value) for key, value in entries.items()},
+        candidate_links,
+        legislator_links,
+        notes,
+    )

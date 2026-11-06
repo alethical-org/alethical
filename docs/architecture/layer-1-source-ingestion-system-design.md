@@ -1,5 +1,7 @@
 # Layer 1 — Source Ingestion System Design
 
+<!-- describes: alethical/pipeline/bill_action_committee_backfill.py, alethical/pipeline/committee_recovery_batch.py, scripts/recover_bill_action_committee_links.py, scripts/run_committee_link_recovery.py -->
+
 Status: discussion draft
 
 *Layer 1 of two ingestion layers: official Minnesota sources → canonical records. Layer 2, `docs/architecture/layer-2-rag-ingestion-system-design.md`, turns those canonical records into retrieval chunks for chat. This layer feeds that one.*
@@ -668,6 +670,29 @@ Committee memberships come from the same member profile pages used by the live M
   interrupted rebuild still reads correctly (159 members in 45 committees on
   3 Nov 2026, cleared by that day's rebuild).
 
+Bill-action referrals use the literal `COMMITTEE_ID` in Revisor XML to resolve
+one held `committee.code` within the bill's own session and the action's chamber.
+The code is kept from the official committee URL's `comm`/`cmte_id` value.
+A matching name, another session or chamber, or duplicate held codes never creates
+a link. Each future ingestion also clears a prior action link when its current
+source ID is missing or unresolved; the printed committee name remains available.
+This does not backfill older actions or fetch historical sources.
+
+For a bounded read-only sample of older named actions without links, run:
+
+```bash
+uv run python scripts/report_bill_action_committee_links.py --target local --limit 20
+```
+
+`--target production` selects the production database explicitly. The command uses
+a read-only transaction and a 10-second statement timeout, reads at most 100 actions,
+and has no apply mode or network fetch. `--bill-key` narrows the sample. To check
+retained source evidence, supply `--xml-dir` with files named `<content_hash>.xml`;
+the exact digest, bill key, action number and chamber must agree before proposing
+a committee ID. Source-artifact storage markers alone do not prove XML bytes were
+retained: unavailable bodies are reported as such, never counted as verified links.
+The JSON output is a sample, not a total backlog or a backfill authorization.
+
 The reusable implementation lives in `alethical.pipeline.committee_memberships`; for focused debugging use:
 
 ```bash
@@ -853,3 +878,208 @@ uv run python -m alethical.pipeline.oban --target production enqueue ai-apply \
 
 uv run python -m alethical.pipeline.oban --target production drain ai_apply
 ```
+
+
+### Guarded historical action committee-link recovery
+
+`scripts/recover_bill_action_committee_links.py` prepares or repairs one explicitly
+named bill at a time. It does not start ingestion, alter identity records, replace
+source publications, or change any field except `bill_action.committee_id`.
+Historical source bytes may be unavailable even when artifact metadata survives.
+`capture` therefore fetches the single **held** official Revisor XML address,
+on `www.revisor.mn.gov/bills/status_result.php` or the held
+`api.revisor.mn.gov/bills/v1/<session>/<year>/<special>/<HF|SF>/<number>/` path,
+without redirects, retaining the body, address, fetch time and SHA-256 in a new
+private JSON file. A bounded fingerprint of the bill, action IDs and row versions,
+and referenced artifact row versions is read before HTTP and must still match
+after HTTP. It is retained with the body and rechecked at plan and apply. Any
+intervening ingestion or action edit requires a fresh capture, even if an older
+artifact hash is reused and its fetched_at timestamp stays unchanged. The CLI
+uses READ COMMITTED so its post-fetch read sees newly committed changes.
+More than one held address, an unheld bill, another host, an
+oversized response, or XML naming another bill fails closed. No paid extraction
+or model call is used.
+
+The default `plan` mode uses a read-only database transaction. It reads at most
+2,000 actions for the named bill (larger bills stop), checks bill, action chamber,
+action number, exact action text/date/printed committee name, and resolves the
+literal source committee code only within that bill's session and action chamber.
+It reports missing/ambiguous codes, missing or changed source rows, existing links,
+and conflicting values. Duplicate chamber blocks and repeated bill-identity/action scalar fields fail
+before the general XML parser can discard them; nonempty unparseable dates never equal an unknown stored
+date. Names never establish a link. Fresh XML may differ from
+the old whole-bill artifact hash; each selected action must still agree exactly
+on the stored fields above. The saved plan binds its exact new XML digest and
+keeps every selected row's before values plus bill, artifact and committee versions.
+No old action or source artifact is rewritten during this comparison.
+
+Run each step with unique evidence filenames in a private folder, first on local
+test data. Replace the example bill with the actual held bill under review:
+
+```bash
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode capture --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json --plan /private/tmp/action-plan.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode apply --bill-key 94-2025-HF6666 --source /private/tmp/action-source.json --plan /private/tmp/action-plan.json --receipt /private/tmp/action-applied.json
+uv run python scripts/recover_bill_action_committee_links.py --target local --mode rollback --bill-key 94-2025-HF6666 --receipt /private/tmp/action-applied.json --rollback-receipt /private/tmp/action-undone.json
+```
+
+Production execution belongs to the release owner under the current task's data
+holds. Preparation does not authorize a run. Before production apply, retain the
+source and plan outside the working folder, inspect all conflict counts and proposed
+links, and prove a local apply/rollback round trip. Start with one small bill and
+read back every changed row before any wider batch. A failed check stops the
+selected bill; do not infer names or silently select an ambiguous source.
+
+Apply re-creates the whole plan while holding write-excluding locks on the relevant
+tables, including committee inserts, so ingestion cannot change an identity between
+checking and writing. These table locks affect concurrent ingestion across bills;
+use a quiet window, not parallel apply workers. Lock acquisition times out after
+3 seconds; each statement times out after 15 seconds. All action versions,
+artifacts and committee matches are read in batches, and apply/rollback each use
+one bounded update. A 20-second monotonic deadline covers the locked operation;
+it is checked before and after each database statement, during row comparison,
+and after syncing evidence immediately before returning to the CLI commit. A
+statement already running when the deadline passes can consume its remaining
+15-second statement allowance. An idle transaction is terminated by PostgreSQL
+after 15 seconds, covering a process or evidence-write stall. These are abort
+bounds, not a claim that network or filesystem failure finishes exactly on time.
+The release owner must measure one small apply/rollback in a quiet window before
+any wider batch. A changed row/version, source,
+committee mapping or plan aborts the transaction. Raw SQL updates only committee_id,
+including preservation of updated_at. The exclusively created receipt records all
+before values and the resulting PostgreSQL row versions; its bytes and parent
+folder are synced to disk before database commit. Evidence files are never overwritten.
+A receipt is prepared evidence, not proof the commit succeeded: a crash or failed
+commit can leave a receipt for no visible changes. Read back the database to resolve
+that state before retrying with a new plan and new filenames.
+
+Rollback changes only rows whose entire content and row version still equal what
+apply wrote. Even a later writer assigning the same committee prevents undo; changed,
+missing, or already restored rows are counted and retained. It never replaces a
+later edit. The rollback receipt is also saved before commit. Receipts must stay
+private and retained with the exact database and bill until verification finishes;
+this is short-lived operational recovery, not a promise that PostgreSQL row-version
+identifiers stay unique forever. Re-run the dry plan after any source or database
+change, and keep the existing source/name-summary release holds intact.
+
+
+#### Bounded backlog turns
+
+`scripts/run_committee_link_recovery.py` wraps the same one-bill recovery helpers
+for a frozen inventory. It is not registered with recurring dispatch and does not
+loop until completion. The release owner first completes the measured one-bill
+pilot and rollback above, then reviews a small canary before any wider run.
+No new ingestion, paid processing, source publication or identity changes occur.
+
+The inventory captures existing named actions whose committee ID is missing,
+with bill IDs, keys and action IDs, database/target, implementation digest and an
+inventory digest. It never grows during a pass. A proposed fill outside those
+frozen action IDs is withheld for review. The inventory is limited to 20,000
+bills; the existing 2,000-action and 2 MB source bounds still apply per bill.
+Keep the evidence directory private and outside every working folder.
+
+```bash
+# Local examples only. Production execution belongs to the release owner.
+uv run python scripts/run_committee_link_recovery.py --target local --evidence /private/tmp/committee-recovery --inventory
+uv run python scripts/run_committee_link_recovery.py --target local --evidence /private/tmp/committee-recovery --max-bills 1
+uv run python scripts/run_committee_link_recovery.py --target local --evidence /private/tmp/committee-recovery --apply --max-bills 1
+```
+
+Every command owns an exclusive local evidence-directory lock. Each turn claims
+the existing legislative lane through `record_refresh`, using a dedicated
+`committee-links-recovery` job. It never clears another lease, modifies a normal
+collector schedule or starts the normal ingestion runner. Due held legislative
+schedules take priority, including when the local command lacks the server's
+family settings. The owner must separately establish whether legacy/manual
+writers are active: a free lane does not establish that all other work is idle.
+
+Requests use the existing shared Revisor budget, including its API/website key
+and 429/503 cooldowns. Every explicit attempt reserves a slot. No hidden transport
+retries or redirects are enabled. A source cooldown beyond the remaining request
+budget defers the turn without sleeping through it. Coordination tables change
+during capture/plan turns; product rows do not. Capture still verifies database
+generation on both sides of the network request and retains the exact source.
+
+Canary defaults are 10 bills and 120 seconds for one turn; callers may lower the limits
+within 1–10 bills and 60–120 seconds, never raise them. A 45-second reserve is
+required before apply, and both lease rows are checked and locked through its
+commit with enough lease life remaining. The same global product-table locks and
+per-statement abort bounds remain. An applied bill is committed and read back
+before a 1-second unlocked gap. Apply receives the remaining part of a 5-second
+cumulative lock budget. Each statement is capped to that remaining time, and a
+remaining idle timeout releases locks if receipt sync stalls. A deadline check
+after receipt sync aborts an overrun, and the server statement timeout is refreshed
+at the driver commit boundary rather than inherited from an earlier query. The existing
+one-bill command keeps its 20-second default when no narrower budget is supplied.
+Continuation releases the lane and waits at least 1 minute before another turn.
+The fixed one-minute gap is a canary setting, not an approved full-backlog rate.
+Before another bill is captured, a turn yields if its remaining apply budget is
+smaller than the largest completed apply in that turn. This is conservative
+admission, not a claim that different bills have equal cost. If a partial apply
+allowance still expires, it keeps a `budget_yield` outcome without spending a
+source-failure attempt. A prepared receipt must first be reconciled, even then;
+only a fully aborted partial-budget attempt gets that retry classification.
+Already reconciled prior commits do not consume the new turn's lock budget.
+
+Each attempt also saves `timings.json`: source-budget wait, network fetch,
+lease check, capture, plan, apply through commit, and read-back, including stages
+that failed. Capture includes source wait/fetch, so those numbers must not be
+added twice. On a busy-source response, fetch includes response handling and the
+separately timed shared cooldown write. Total stops before saving the timing file and excludes turn cleanup;
+it is not whole-command duration. Missing stages were not reached. The saved apply
+allowance and exhaustion flag distinguish partial-lock yield from overall turn
+expiry. Timings do not approve a faster rate.
+
+Inside a batch turn, its engine listener alone sets each statement's timeout,
+using the smaller of the helper and turn deadlines. Standalone one-bill calls
+still set their own timeout. The listener refreshes the commit timeout and the
+helper retains the receipt idle bound. Shared request reservations and cooldown
+writes narrow the listener to the existing source-request deadline too, so the
+turn cannot enlarge those database waits. No duplicate timeout setter is sent for
+the helper's statements; all source checks and locked re-planning remain.
+
+When the driver supports it, the exact recovery engine sends each timeout setter
+and its one query as a short psycopg pipeline pair, then drains the pair before
+SQLAlchemy reads any result. It never queues another application query, receipt
+write or commit in that pair. The receipt idle guard and separate commit-timeout
+refresh stay in place. Unsupported drivers and multi-parameter execution keep the
+serial timeout path; standalone helpers and other engines keep their own guards.
+Even engines sharing a pool/dialect do not inherit another engine's recovery
+scope. Protocol tests count local PostgreSQL synchronization boundaries, and error,
+rollback, short-deadline and receipt/commit tests cover the boundary. This reduces
+client/server waits without removing a checking query or changing any budget;
+production throughput still requires a measured canary. No transaction-wide
+server timeout replaces these guards.
+
+These conservative bounds do not substitute for the owner's measured lock cost
+and effect on normal collection. Network/filesystem failure is not promised an
+exact wall-clock completion time. The CLI supervises only its own worker, requests
+termination after the turn budget plus 10 seconds, then escalates to killing that
+worker if needed. Evidence stays for commit reconciliation. Inside the worker,
+all SQL, including inventory validation, claim, planning and cooldown persistence,
+uses the remaining deadline. Cleanup has a separate 5-second SQL budget; refused
+or failed cleanup is reported as a failure, never as a released lease.
+
+Plans with no fills never take the global product-table locks. Each bill/attempt
+retains source, plan, prepared receipt and outcome in separate, exclusively
+created files. Plan and apply have separate durable cursors; writes to the cursor
+index use a synced atomic replacement. Apply takes a fresh generation-bound
+capture, rather than silently using an old plan after a long plan-only pass.
+Before advancing past an interrupted attempt, the runner compares every receipt
+row's full before/after values and row versions. All-after proves a committed
+attempt; all-before permits a new attempt. Mixed evidence or a later writer stops
+the turn for review, without overwriting or undoing anything. A prepared receipt
+alone never counts as success. Per-bill rollback continues to use the original
+receipt-based tool and its exact later-writer guard.
+
+Each frozen action retains its own outcome, distinguishing a missing source ID,
+an unheld or ambiguous code, changed source, missing artifact, existing matching
+link and conflicting value. Every unresolved target requires review, including
+bills where other targets were filled successfully. Source ambiguity is retained
+as a review outcome while independent bills can continue. Transport failure or cooldown defers the turn at its current cursor.
+After 3 deferred, aborted or interrupted attempts, that bill is classified for
+review and the finite pass may advance. The runner does not reset those attempts
+or add retry passes on its own. `pass_finished` describes the chosen plan/apply
+pass, not a declaration that every historical source gap was repairable. Review
+outcomes remain explicit. Final acceptance requires the owner's remaining-gap
+recount and review of every unresolved outcome, not just cursor exhaustion.

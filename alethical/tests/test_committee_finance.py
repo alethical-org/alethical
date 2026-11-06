@@ -1376,3 +1376,131 @@ def test_a_comparable_total_is_served_beside_the_itemized_sum(db):
     assert finance.money_in.itemized_contribution_total == Decimal("5100.00")
     assert finance.money_in.reported_total == Decimal("8600.00")
     assert finance.money_in.reported_through == date(2025, 12, 31)
+
+
+COLEMAN = "18127"  # Coleman, Christopher B Gov Committee; its 2017 is noticed (#2831).
+REVIEWED_EXPENDITURES_HASH = (
+    "a1a35d6244c631c765cacfdb3bdcde46959db2e78e87069f2ca4b40601f96b33"
+)
+
+
+def _coleman_2017_as_reviewed(db, snapshot) -> None:
+    """Synthetic rows with the reviewed count and total, plus reviewed file metadata.
+
+    These are not copies of the Board's rows: 243 at $1,000 and 1 at $317,171.70
+    stand in for 244 reviewed records summing to $560,171.70.
+    """
+    snapshot.record_set_hash = REVIEWED_EXPENDITURES_HASH
+    for _ in range(243):
+        _payment(
+            db,
+            snapshot,
+            reg_num=COLEMAN,
+            amount="1000.00",
+            year=2017,
+            name="Coleman, Christopher B Gov Committee",
+        )
+    _payment(
+        db,
+        snapshot,
+        reg_num=COLEMAN,
+        amount="317171.70",
+        year=2017,
+        name="Coleman, Christopher B Gov Committee",
+    )
+
+
+def test_a_reviewed_committee_year_carries_its_source_notice(db, client):
+    """A known gap in the Board's own file is named beside that year's spending, in
+    the reviewed words, and only for that committee and year."""
+    published = Published(db)
+    _coleman_2017_as_reviewed(db, published.expenditures)
+    _payment(
+        db,
+        published.expenditures,
+        reg_num=COLEMAN,
+        amount="500.00",
+        year=2018,
+        name="Coleman, Christopher B Gov Committee",
+    )
+    db.commit()
+    body = client.get(
+        f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2017}
+    ).json()["data"]
+    assert [notice["key"] for notice in body["source_notices"]] == [
+        "coleman-2017-expenditures-partial"
+    ]
+    notice = body["source_notices"][0]
+    assert notice["dataset"] == "expenditures"
+    assert notice["text"].startswith(
+        "Minnesota’s Campaign Finance Board spending file lists only part of this "
+        "committee’s 2017 payments."
+    )
+    other_year = client.get(
+        f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2018}
+    ).json()["data"]
+    assert other_year["source_notices"] == []
+
+
+def test_a_source_notice_withdraws_once_the_boards_rows_change(db, client):
+    """A notice speaks for the rows it was reviewed against. One more row from the
+    Board means the file changed, and the sentence no longer describes it."""
+    published = Published(db)
+    _coleman_2017_as_reviewed(db, published.expenditures)
+    _payment(
+        db,
+        published.expenditures,
+        reg_num=COLEMAN,
+        amount="250.00",
+        year=2017,
+        name="Coleman, Christopher B Gov Committee",
+    )
+    db.commit()
+    body = client.get(
+        f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2017}
+    ).json()["data"]
+    assert body["source_notices"] == []
+
+
+@pytest.mark.parametrize("record_hash", ["f" * 64, None], ids=["changed", "unknown"])
+def test_source_notice_requires_reviewed_records_not_just_the_same_total(
+    db, client, record_hash
+):
+    """Changed payee/date fields can leave both the row count and total unchanged."""
+    published = Published(db)
+    _coleman_2017_as_reviewed(db, published.expenditures)
+    db.flush()
+    row = db.get(models.CampaignFinanceExpenditureRow, (published.expenditures.id, 1))
+    row.vendor_name = "A corrected payee"
+    published.expenditures.record_set_hash = record_hash
+    db.commit()
+
+    body = client.get(
+        f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2017}
+    ).json()["data"]
+    assert body["source_notices"] == []
+
+
+def test_source_notice_follows_reviewed_records_not_a_snapshot_id_or_byte_hash(
+    db, client
+):
+    """The same reviewed records remain noticed in a new saved copy."""
+    snapshots = []
+    byte_hashes = []
+    for _ in range(2):
+        published = Published(db)
+        _coleman_2017_as_reviewed(db, published.expenditures)
+        db.commit()
+        snapshots.append(published.expenditures.id)
+        byte_hashes.append(published.expenditures.content_hash)
+        body = client.get(
+            f"/api/v1/committees/{COLEMAN}/finance", params={"year": 2017}
+        ).json()["data"]
+        assert [notice["key"] for notice in body["source_notices"]] == [
+            "coleman-2017-expenditures-partial"
+        ]
+        # A file's record hash is unique in one database. Replace the fixture to
+        # represent the same content saved under a different snapshot identifier.
+        _clear(db)
+    assert snapshots[0] != snapshots[1]
+    assert byte_hashes[0] != byte_hashes[1]

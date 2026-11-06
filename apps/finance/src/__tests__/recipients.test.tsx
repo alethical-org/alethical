@@ -42,6 +42,7 @@ const row: Recipient = {
   fetched_at: '2026-10-29T12:00:00Z',
 };
 const data: RecipientsPage = {
+  version: 'aaaaaaaaaaaaaaaa',
   state: 'reported',
   rows: [
     row,

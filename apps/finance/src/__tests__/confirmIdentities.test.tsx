@@ -14,6 +14,8 @@ import {
   queueAmount,
   queuePeriod,
   refOf,
+  roleTitle,
+  printableKey,
   sumCounts,
 } from '../pages/identities/words';
 import { hasDraft } from '../ui/drafts';
@@ -347,6 +349,38 @@ describe('word and money rules', () => {
 });
 
 describe('history', () => {
+  it('loads a fully withdrawn owner for History without making it an active confirmation', async () => {
+    const requested: string[] = [];
+    serve((url) => {
+      requested.push(url.pathname);
+      if (url.pathname.endsWith('/records'))
+        return json(
+          recordsPage({
+            history_identities: [
+              { id: ORG, reference: 'ORG-0002', kind: 'organization', name: 'Example Media LLC' },
+            ],
+          }),
+        );
+      if (url.pathname.endsWith('/queue')) return json(queuePage([queueRow()]));
+      if (url.pathname.endsWith(`/${ORG}`))
+        return json(
+          identity(ORG, 'Example Media LLC', [
+            confirmation('old', ORG, [1], {
+              status: 'withdrawn',
+              withdrawn_at: '2026-11-03T12:00:00Z',
+              withdrawal_reason: 'Different registration number',
+              withdrawal_source: 'SOS record',
+            }),
+          ]),
+        );
+    });
+    await render(`/identities?kind=payee_name&name=${encodeURIComponent(NAME)}`);
+    expect(requested.some((path) => path.endsWith(`/${ORG}`))).toBe(true);
+    expect(text()).toContain('Confirmation as Example Media LLC (ORG-0002) withdrawn');
+    expect(text()).not.toContain('Confirmed for 1 of 2 records');
+    expect(button('Withdraw confirmation')).toBeUndefined();
+  });
+
   it('lists confirmations, withdrawals with earlier evidence and merges, newest first', () => {
     const withdrawn = confirmation('c-old', ORG, [3], {
       status: 'withdrawn',
@@ -375,7 +409,7 @@ describe('history', () => {
     ]);
     const rows = historyRows(reads, 'payee_name', NAME, 4);
     expect(rows.map((row) => row.text)).toEqual([
-      'Example Media LLC of Duluth (ORG-0043) merged into Example Media LLC (ORG-0002); 0 confirmed records moved with their own evidence and dates; ORG-0043 now opens ORG-0002',
+      'Example Media LLC of Duluth (ORG-0043) merged into Example Media LLC (ORG-0002); confirmed records moved to ORG-0002 with their own evidence and dates; ORG-0043 now opens ORG-0002',
       'Confirmation as Example Media LLC (ORG-0002) withdrawn for 1 record: Different registration number',
       'Confirmed as Example Media LLC (ORG-0002) for 2 of 4 records, Jan 1, 2026 to Feb 2, 2026',
       'Confirmed as Example Media LLC (ORG-0002) for 1 of 4 records, Mar 3, 2026',
@@ -456,11 +490,15 @@ describe('history of a split', () => {
     } as Identity;
     return new Map([
       [OLD, old],
+      [
+        STAY,
+        { ...identity(STAY, 'Example Media LLC', [], []), reference: SPLIT_REFS[STAY] } as Identity,
+      ],
       [MOVED, part],
     ]);
   }
 
-  it('names each active part with its served count, in the split order', () => {
+  it('names each active part in the split order without current counts', () => {
     const rows = historyRows(
       splitReads([
         active(STAY, 'Example Media LLC', 2, 'ORG-0091'),
@@ -471,7 +509,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
     expect(rows[0].evidence).toEqual(['Evidence: Two registrations', 'Source: SOS 1 and SOS 2']);
   });
@@ -487,7 +525,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co; 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to Example Media Buying Co; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
     expect(rows[0].text).not.toContain(MOVED);
   });
@@ -521,11 +559,11 @@ describe('history of a split', () => {
     );
     expect(rows.map((row) => row.text)).toEqual([
       'Confirmed as Example Media Buying Co (ORG-0092) for 2 of 4 records, Mar 3, 2026',
-      'Split: 2 records moved to Example Media Buying Co (ORG-0092); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
-  it('says "1 record stays with" for a part holding 1 record', () => {
+  it('does not present a current single-record count as a historical count', () => {
     const rows = historyRows(
       splitReads([
         active(STAY, 'Example Media LLC', 1, 'ORG-0091'),
@@ -536,7 +574,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 2 records moved to Example Media Buying Co (ORG-0092); 1 record stays with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
@@ -551,7 +589,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
@@ -583,8 +621,8 @@ describe('history of a split', () => {
     });
     const rows = historyRows(reads, 'payee_name', NAME, 3);
     expect(rows.map((row) => row.text)).toEqual([
-      'Example Media LLC (ORG-0091) merged into Example Media Buying Co (ORG-0092); 2 confirmed records moved with their own evidence and dates; ORG-0091 now opens ORG-0092',
-      'Split: 3 records moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Example Media LLC (ORG-0091) merged into Example Media Buying Co (ORG-0092); confirmed records moved to ORG-0092 with their own evidence and dates; ORG-0091 now opens ORG-0092',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
     expect(rows.some((row) => /\b0 records?\b/.test(row.text))).toBe(false);
     expect(rows.some((row) => row.text.includes(STAY) || row.text.includes(MOVED))).toBe(false);
@@ -599,7 +637,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
@@ -619,7 +657,7 @@ describe('history of a split', () => {
       },
     ];
     expect(historyRows(reads, 'payee_name', NAME, 6).map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); 3 records moved to Example Media Sales (ORG-0093); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of all 3',
+      'Split: records moved to ORG-0092; records moved to ORG-0093; records stay with ORG-0091; ORG-0090 now opens a choice of all 3',
     ]);
   });
 
@@ -668,7 +706,7 @@ describe('history of a split', () => {
     expect(text()).toContain('Example Media Buying Co');
     expect(container.querySelector('#hist-h')?.textContent).toBe('History');
     expect(text()).toContain(
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     );
     expect(text()).not.toContain('No confirmations or suggestions yet');
     expect(text()).not.toMatch(/\b0 records?\b/);
@@ -823,6 +861,31 @@ describe('counts whose file is not held', () => {
 });
 
 describe('Confirm identities page', () => {
+  it('offers employer names and shows the returned identity count', async () => {
+    serve((url) => {
+      if (url.pathname.endsWith('/queue'))
+        return json(queuePage([queueRow({ identity_count: 2, confirmed: 3 })]));
+      if (url.pathname.endsWith('/records'))
+        return json(recordsPage({ records: 0, fingerprints: [] }));
+    });
+    await render('/money/identities');
+    expect(text()).toContain('4 records · Confirmed for 3 of 4 · 2 identities');
+    await click(button('Employer names'));
+    expect(new URL(window.location.href).searchParams.get('record_type')).toBe('employer');
+  });
+
+  it('shows held source names without printing their internal ids', () => {
+    const source = {
+      record_kind: 'legislator',
+      record_key: ORG,
+      record_name: 'Jordan Example',
+    };
+    expect(printableKey(source)).toBe('Jordan Example');
+    expect(roleTitle(source)).toBe('Legislative service · Jordan Example');
+    expect(printableKey({ record_kind: 'public_person', record_key: ORG })).toBeNull();
+    expect(roleTitle({ record_kind: 'public_person', record_key: ORG })).not.toContain(ORG);
+  });
+
   it('lists names to review with the money rules and the shared period label', async () => {
     serve((url) => {
       if (url.pathname.endsWith('/queue'))

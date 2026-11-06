@@ -1,9 +1,9 @@
 """The 1 access check every Alethical Finance endpoint depends on.
 
-Finance has 1 access level: an account is in when its current confirmed address
-is an active entry on the access list, and out otherwise
-(docs/architecture/alethical-finance-architecture.md §3). The list is read on
-every request, so a revocation applies to the next one.
+Ordinary accounts use the current confirmed address and access list. Shared
+research accounts use separate, revocable Finance-only sessions and may only
+read. Both checks read current database state on every request, so a revocation
+applies to the next one (docs/architecture/alethical-finance-architecture.md §3).
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from alethical.api.services.finance_access import (
     confirmed_address_access,
     supabase_account_access,
 )
+from alethical.api.services import finance_research_access
 from alethical.db.session import get_db
 
 NO_ACCESS_DETAIL = "This account does not have access to Alethical Finance."
@@ -61,6 +62,24 @@ def require_finance_access(
     token = authorization.removeprefix("Bearer ").strip()
     if not token:
         raise _signed_out()
+    if token.startswith(finance_research_access.TOKEN_PREFIX):
+        try:
+            with Session(bind=db.get_bind()) as access_db:
+                account = finance_research_access.session_account(access_db, token)
+        except SQLAlchemyError:
+            raise _unavailable(request) from None
+        if account is None:
+            raise _signed_out("Sign in again to continue.")
+        # Central deny-by-default: adding a new Finance write route cannot
+        # accidentally grant a research account the right to change records.
+        if request.method not in {"GET", "HEAD"}:
+            raise problem_exception(
+                403,
+                "Forbidden",
+                "This account can only view and research records.",
+                type_slug="finance-read-only",
+            )
+        return account
     if auth_service is None:
         raise _unavailable(request)
     try:

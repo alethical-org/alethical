@@ -1,3 +1,4 @@
+import { RECORDS_CHANGED, useVersionedRead } from '../../api/versionedRead';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { apiPath, useRead } from '../../api/read';
@@ -182,7 +183,16 @@ export function Detail({
   const k = data?.confirmed ?? 0;
   const held = data?.identities ?? [];
   const [touched, setTouched] = useState<string[]>([]);
-  const ids = useMemo(() => [...held.map((i) => i.id), ...touched], [held, touched]);
+  const ids = useMemo(
+    () => [
+      ...new Set([
+        ...held.map((i) => i.id),
+        ...(data?.history_identities ?? []).map((i) => i.id),
+        ...touched,
+      ]),
+    ],
+    [held, data?.history_identities, touched],
+  );
   const reads = useIdentities(ids, version);
   const [ident, setIdent] = useState<string | null>(null);
   const conf = held.find((i) => i.id === ident) ?? held[0] ?? null;
@@ -244,11 +254,11 @@ export function Detail({
 
   // Merge: the current identities of the same kind, a page at a time.
   const [pickPage, setPickPage] = useState(1);
-  const entities = useRead<EntityPage>(
+  const entities = useVersionedRead<EntityPage>(
     form?.mode === 'merge' && conf
       ? apiPath(['finance', 'identities'], { kind: conf.kind, page: pickPage, page_size: 20 })
       : null,
-    { keepPrevious: true },
+    { page: pickPage, onRestart: () => setPickPage(1), refresh: version },
   );
   const pickRead = useRead<Identity>(
     form?.mode === 'merge' && form.pick ? apiPath(['finance', 'identities', form.pick]) : null,
@@ -693,7 +703,9 @@ export function Detail({
       <>
         {entities.failed && (
           <Refused onRetry={entities.retry} retrying={entities.pending}>
-            We couldn’t load the records to merge in
+            {entities.changed
+              ? RECORDS_CHANGED
+              : `We couldn’t load the records to merge in.${entities.data ? ' Previous results are shown.' : ''}`}
           </Refused>
         )}
         {entities.data && entities.data.pages > 1 && (

@@ -50,7 +50,10 @@ const COPIED = '2026-10-29T11:20:32Z';
 const SOURCES = { expenditures: null, lobbyists: null };
 
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 
 function json(data: unknown, status = 200) {
@@ -302,7 +305,9 @@ function lobbyist(overrides: Partial<LobbyingLobbyist> = {}): LobbyingLobbyist {
               linkable: true,
               payment_count: 4,
               payments: [
-                payment(605481, '100.0000', '2026-10-08', { contributor_name: 'Kozak, Andrew V' }),
+                payment(605481, '100.0000', '2026-10-08', {
+                  contributor_name: 'Kozak, Andrew V',
+                }),
                 payment(226423, '50.0000', '2026-09-17'),
                 payment(226424, null, null),
                 payment(226425, '75.0000', '2026-03-01', {
@@ -413,7 +418,7 @@ describe('Lobbying directory', () => {
     );
     expect(container.querySelector('h1')?.textContent).toBe('Lobbying');
     const list = requests.find((url) => url.includes('/lobbying/lobbyists?'));
-    expect(list).toBe(`${API}/api/v1/lobbying/lobbyists?sort=name&limit=50&offset=0`);
+    expect(list).toBe(`${API}/api/v1/finance/lobbying/lobbyists?sort=name&limit=50&offset=0`);
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
     expect(tabs).toEqual(['Lobbyists1,673', 'Principals3,448']);
     expect(text()).toContain('Showing 1–3 of 1,673 registered lobbyists');
@@ -526,7 +531,7 @@ describe('Lobbying directory', () => {
     await settle();
     expect(window.location.search).toBe('?sort=donations_desc');
     expect(requests.at(-1)).toBe(
-      `${API}/api/v1/lobbying/lobbyists?sort=donations_desc&limit=50&offset=0`,
+      `${API}/api/v1/finance/lobbying/lobbyists?sort=donations_desc&limit=50&offset=0`,
     );
     const yearButton = [...container.querySelectorAll('button')].find((b) =>
       b.textContent?.startsWith('Year:'),
@@ -572,7 +577,7 @@ describe('Lobbying directory', () => {
     await settle();
     expect(window.location.search).toBe('?tab=principals');
     expect(requests).toContain(
-      `${API}/api/v1/lobbying/principals?sort=spending_desc&limit=50&offset=0`,
+      `${API}/api/v1/finance/lobbying/principals?sort=spending_desc&limit=50&offset=0`,
     );
     expect(text()).toContain('Sort by: Spending: highest first');
     await act(async () => tab('Lobbyists').click());
@@ -590,7 +595,9 @@ describe('Lobbying directory', () => {
       ),
     );
     const list = requests.find((url) => url.includes('/lobbying/principals?sort='));
-    expect(list).toBe(`${API}/api/v1/lobbying/principals?sort=spending_desc&limit=50&offset=0`);
+    expect(list).toBe(
+      `${API}/api/v1/finance/lobbying/principals?sort=spending_desc&limit=50&offset=0`,
+    );
     expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain('Principals');
     expect(text()).toContain('Showing 1–2 of 3,448 principals');
     expect(text()).toContain(
@@ -672,7 +679,15 @@ describe('Lobbying directory', () => {
       '/lobbying?q=zzzz',
       (match) => <Lobbying match={match} />,
       directoryAnswer(
-        () => json(lobbyistsPage({ lobbyists: [], total: 0, has_more: false, q: 'zzzz' })),
+        () =>
+          json(
+            lobbyistsPage({
+              lobbyists: [],
+              total: 0,
+              has_more: false,
+              q: 'zzzz',
+            }),
+          ),
         () => json(principalsPage()),
       ),
     );
@@ -713,7 +728,14 @@ describe('Lobbying directory', () => {
       (match) => <Lobbying match={match} />,
       directoryAnswer(
         () => json(lobbyistsPage()),
-        () => json(principalsPage({ state: 'unavailable', total: null, principals: [] })),
+        () =>
+          json(
+            principalsPage({
+              state: 'unavailable',
+              total: null,
+              principals: [],
+            }),
+          ),
       ),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
@@ -737,19 +759,25 @@ describe('Lobbying directory', () => {
     expect(yearFromParam('principals', '2008')).toBe('');
     expect(yearFromParam('principals', '2009')).toBe('2009');
     expect(listPath('lobbyists', 'kozak', 2)).toBe(
-      'lobbying/lobbyists?q=kozak&sort=name&limit=50&offset=50',
+      'finance/lobbying/lobbyists?q=kozak&sort=name&limit=50&offset=50',
     );
     expect(listPath('lobbyists', '', 1, '2024', 'donations_asc')).toBe(
-      'lobbying/lobbyists?sort=donations_asc&year=2024&limit=50&offset=0',
+      'finance/lobbying/lobbyists?sort=donations_asc&year=2024&limit=50&offset=0',
     );
-    expect(listPath('principals', '', 1, '', 'name')).toBe('lobbying/principals?limit=50&offset=0');
-    expect(countPath('principals')).toBe('lobbying/principals?limit=1');
+    expect(listPath('principals', '', 1, '', 'name')).toBe(
+      'finance/lobbying/principals?limit=50&offset=0',
+    );
+    expect(countPath('principals')).toBe('finance/lobbying/principals?limit=1');
     expect(principalsNote(null, null)).toBe(
       'This directory includes organizations from different reporting years and the lobbyist list. Some organizations have no spending page because the Board’s spending file has no rows for them.',
     );
     const row = lobbyistsPage().lobbyists[0];
     expect(
-      lobbyistContributions({ ...row, donation_state: 'reported', donation_amount: '0' }),
+      lobbyistContributions({
+        ...row,
+        donation_state: 'reported',
+        donation_amount: '0',
+      }),
     ).toBe('$0');
     expect(lobbyistContributions({ ...row, donation_state: 'no_records' })).toBe(
       'No matching donation records',
@@ -881,7 +909,10 @@ describe('Lobbyist record', () => {
       '/lobbying/lobbyists/141',
       (match) => <Lobbyist match={match} />,
       ANSWER(lobbyist()),
-      { identity: { id: 'p-1', kind: 'person', name: 'Andrew Kozak' }, confirmation: {} },
+      {
+        identity: { id: 'p-1', kind: 'person', name: 'Andrew Kozak' },
+        confirmation: {},
+      },
     );
     expect(
       requests.some((url) =>
@@ -935,7 +966,11 @@ describe('Lobbyist record', () => {
   });
 
   it('keeps a registration off the copied list that still has contribution records', async () => {
-    const gone = lobbyist({ state: 'not_registered_today', name: null, formatted_name: null });
+    const gone = lobbyist({
+      state: 'not_registered_today',
+      name: null,
+      formatted_name: null,
+    });
     gone.principals = { state: 'not_registered_today', total: 0, rows: [] };
     await render('/lobbying/lobbyists/141', (match) => <Lobbyist match={match} />, ANSWER(gone));
     expect(container.querySelector('h1')?.textContent).toBe('Registration 141');
@@ -944,7 +979,11 @@ describe('Lobbyist record', () => {
   });
 
   it('answers not found for an unknown or malformed registration', async () => {
-    const unknown = lobbyist({ state: 'not_registered_today', name: null, formatted_name: null });
+    const unknown = lobbyist({
+      state: 'not_registered_today',
+      name: null,
+      formatted_name: null,
+    });
     unknown.principals = { state: 'not_registered_today', total: 0, rows: [] };
     unknown.contributions = {
       ...unknown.contributions,
@@ -1068,7 +1107,12 @@ describe('Principal record', () => {
     const record = principal();
     record.spending.rows = [
       record.spending.rows[0],
-      { ...record.spending.rows[1], year: 2022, total_spent: null, record_number: 1 },
+      {
+        ...record.spending.rows[1],
+        year: 2022,
+        total_spent: null,
+        record_number: 1,
+      },
     ];
     await render(
       '/lobbying/principals/8450',
@@ -1104,7 +1148,13 @@ describe('Principal record', () => {
       '/lobbying/principals/8450?spendView=table',
       (match) => <Principal match={match} />,
       ANSWER(principal()),
-      { identity: { id: 'org-1', kind: 'organization', name: 'Health Association' } },
+      {
+        identity: {
+          id: 'org-1',
+          kind: 'organization',
+          name: 'Health Association',
+        },
+      },
     );
     expect(requests).toContain(`${API}/api/v1/lobbying/principals/8450`);
     expect(container.querySelector('h1')?.textContent).toBe('Health Association');
@@ -1187,7 +1237,9 @@ describe('Principal record', () => {
   });
 
   it('says when no lobbyist is listed, and leaves the blank-value note out when none is blank', async () => {
-    const record = principal({ lobbyists: { state: 'not_reported', total: 0, rows: [] } });
+    const record = principal({
+      lobbyists: { state: 'not_reported', total: 0, rows: [] },
+    });
     record.spending.rows = [record.spending.rows[1]];
     await render(
       '/lobbying/principals/8450',
@@ -1255,7 +1307,12 @@ describe('Principal record', () => {
             exact_name_count: 0,
             files: [ROW],
             total: 1,
-            groups: [{ label: '', files: [{ ...ROW, role: 'Advertiser, as printed' }] }],
+            groups: [
+              {
+                label: '',
+                files: [{ ...ROW, role: 'Advertiser, as printed' }],
+              },
+            ],
           }),
         ),
       );
@@ -1279,7 +1336,13 @@ describe('Principal record', () => {
         '/lobbying/principals/8450',
         (match) => <Principal match={match} />,
         connections(() =>
-          json({ agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] }),
+          json({
+            agency_key: null,
+            exact_name_count: 0,
+            files: [],
+            total: 0,
+            groups: [],
+          }),
         ),
       );
       expect(card()?.textContent).toContain(

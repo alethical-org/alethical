@@ -1,3 +1,4 @@
+import { useFinanceSession } from '../auth/session';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
@@ -103,7 +104,7 @@ export function StationFile({ match }: { match: RouteMatch }) {
   const selected = data?.versions.find((v) => v.id === version);
   const versionText = versionLabel(selected);
   const isCurrent = !!data && version === data.current_source_version;
-  const checking = isBuilt('check-station-files');
+  const checking = useFinanceSession().canEdit !== false && isBuilt('check-station-files');
   const newIds = state.new ? state.new.split(',') : [];
   const facts = data
     ? [...data.facts, ...data.dates].filter(

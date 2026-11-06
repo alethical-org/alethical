@@ -29,17 +29,6 @@
   justify-content: space-between;
   gap: 10px 16px;
 }
-.cmm-years {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.cmm-years-label {
-  margin-right: 4px;
-  font-size: 13px;
-  color: var(--secondary);
-}
 .cmm-years .f-chips {
   gap: 6px;
 }
@@ -177,9 +166,6 @@ p.cmm-rule {
 }
 .cmm-value[data-missing] {
   color: var(--muted);
-}
-.cmm-figure-period {
-  grid-column: 1 / -1;
 }
 .cmm-report {
   font-size: 13px;

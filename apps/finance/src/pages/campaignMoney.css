@@ -336,3 +336,8 @@ a.cm-card:active {
   font-weight: 600;
   color: var(--ink);
 }
+
+.cm-status-copy {
+  display: block;
+  margin-top: 2px;
+}

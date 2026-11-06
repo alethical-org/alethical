@@ -126,10 +126,51 @@ class SourceRefreshAttempt(Base):
     finding: Mapped[Optional[dict]] = mapped_column(JSONB)
 
 
+class FinanceResearchAccount(Base):
+    """Shared research access, managed only through the operator command."""
+
+    __tablename__ = "finance_research_account"
+    __table_args__ = (
+        CheckConstraint(
+            "email = lower(btrim(email)) AND email LIKE '_%@_%'",
+            name="email_normalized",
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    password_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class FinanceResearchSession(Base):
+    """Only a digest is retained; the browser holds the opaque bearer token."""
+
+    __tablename__ = "finance_research_session"
+    token_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("finance_research_account.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class FinanceAccessEntry(Base):
     """1 address Alethical lets into Alethical Finance; never committed anywhere.
 
-    Every active entry has the same Finance access. ``is_alethical_team`` grants
+    Every active ordinary entry has the same Finance access. Research accounts
+    use separate tables. ``is_alethical_team`` grants
     nothing in Finance; it decides only which checks alethical.com may print
     (docs/architecture/alethical-finance-architecture.md §3 and §5).
     """
@@ -1265,8 +1306,9 @@ class BillAction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     action_description: Mapped[Optional[str]] = mapped_column(Text)
     # Committee named by the source on a referral/re-refer action (the raw
     # <COMMITTEE_NAME>, e.g. "Ways and Means"). Distinct from committee_id, which
-    # is our FK to the committee table; the source's COMMITTEE_ID is an opaque
-    # string, so we keep only the display name here (#599).
+    # is our FK to the committee table. Future ingestion links COMMITTEE_ID only
+    # to one exact held code in this bill's session and action chamber. Missing
+    # or ambiguous source IDs retain the display name without a guessed link.
     committee_name: Mapped[Optional[str]] = mapped_column(Text)
     action_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     journal_page: Mapped[Optional[str]] = mapped_column(String(50))
@@ -3046,6 +3088,12 @@ class CampaignFinanceContributionRow(Base):
             postgresql_using="gin",
             postgresql_ops={"contributor": "gin_trgm_ops"},
         ),
+        Index(
+            "ix_cf_contribution_row_employer_trgm",
+            "contrib_employer_name",
+            postgresql_using="gin",
+            postgresql_ops={"contrib_employer_name": "gin_trgm_ops"},
+        ),
         # The donor's own registration number, for a lobbyist's campaign donations
         # (migration 0055). Partial, because 497,451 of the live file's 583,222 rows
         # are individuals with no number and no lookup by number can match them.
@@ -3168,6 +3216,12 @@ class CampaignFinanceIndependentExpenditureRow(Base):
     __table_args__ = (
         Index("ix_cf_independent_expenditure_row_spender", "spender_reg_num", "year"),
         Index(
+            "ix_cf_independent_expenditure_row_vendor_trgm",
+            "vendor_name",
+            postgresql_using="gin",
+            postgresql_ops={"vendor_name": "gin_trgm_ops"},
+        ),
+        Index(
             "ix_cf_independent_expenditure_row_affected",
             "affected_committee_reg_num",
             "year",
@@ -3226,6 +3280,9 @@ class CampaignFinanceGraphMoneySummary(Base):
     payment_type: Mapped[Optional[str]] = mapped_column(Text)
     transfer_number: Mapped[Optional[str]] = mapped_column(Text)
     transfer_name: Mapped[Optional[str]] = mapped_column(Text)
+    # Independent spending's exact For /Against text. Null also covers summaries
+    # built before this field existed; it never proves no position was filed.
+    position: Mapped[Optional[str]] = mapped_column(Text)
     year: Mapped[Optional[int]] = mapped_column(Integer)
 
     record_count: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -3246,6 +3303,104 @@ class CampaignFinanceGraphMoneySummary(Base):
             "snapshot_id",
             "account_number",
         ),
+    )
+
+
+class CampaignFinanceIdentityNameSummary(Base):
+    """The Confirm identities queue's totals for 1 exact printed name in 1 saved file.
+
+    The queue (``alethical/api/services/finance_identity_directory.py``) lists each
+    exact spelling of a donor, employer or payee name with its records, signed
+    amount, missing amounts, undated records and period. Grouping the live files'
+    rows on every request took 2.0 to 8.3 seconds on production (measured 3 Nov
+    2026). These rows hold the same totals, built inside the publish transaction
+    (``alethical/pipeline/campaign_finance_name_summary.py``). They are read only
+    for a (file, kind) whose ``cf_identity_name_summary_build`` marker exists.
+
+    Keyed on the snapshot: the rows are a fact about those payment rows and go with
+    them when they are pruned. Nothing here records a confirmation or an identity;
+    those are read at request time. ``amount`` is the signed sum of the amounts
+    held and ``missing_amounts`` counts the rest (rule 12 of
+    ``.claude/rules/grounded-answers.md``).
+    """
+
+    __tablename__ = "cf_identity_name_summary"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), nullable=False
+    )
+    # donor_name, employer_name, payee_name or independent_payee_name.
+    record_kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    # The spelling exactly as printed, never trimmed or folded.
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    records: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric)
+    missing_amounts: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Records with neither a date nor a filing year.
+    undated_records: Mapped[int] = mapped_column(Integer, nullable=False)
+    # How many records carry a date, and a filing year: the period basis is dates
+    # when every record has one, else years when every record has one, else none.
+    dated_records: Mapped[int] = mapped_column(Integer, nullable=False)
+    yeared_records: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_year: Mapped[Optional[int]] = mapped_column(Integer)
+    last_year: Mapped[Optional[int]] = mapped_column(Integer)
+    first_date: Mapped[Optional[date]] = mapped_column(Date)
+    last_date: Mapped[Optional[date]] = mapped_column(Date)
+    # The amount the queue sorts by: held only when no amount is missing and the
+    # period is known, the same rule that decides whether the amount is shown.
+    sort_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric,
+        Computed(
+            "CASE WHEN missing_amounts = 0 AND "
+            "(dated_records = records OR yeared_records = records) THEN amount END",
+            persisted=True,
+        ),
+    )
+
+    __table_args__ = (
+        # The queue's default order, walked from the top for a page.
+        Index(
+            "ix_cf_identity_name_summary_order",
+            text("sort_amount DESC NULLS LAST"),
+            "name",
+            "record_kind",
+        ),
+        # Counting and filtering 1 file's kind.
+        Index(
+            "ix_cf_identity_name_summary_snapshot_kind", "snapshot_id", "record_kind"
+        ),
+        # The queue's name search (a contains match).
+        Index(
+            "ix_cf_identity_name_summary_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+    )
+
+
+class CampaignFinanceIdentityNameSummaryBuild(Base):
+    """1 complete build of ``cf_identity_name_summary`` for 1 file and 1 name kind.
+
+    Written in the same transaction as the rows, so its presence means the rows are
+    complete, including a build that found no names. Without it the queue reads the
+    raw rows. Each build gets a new ``revision``, which the queue's list version
+    covers, so pages read before and after a rebuild are never joined.
+    """
+
+    __tablename__ = "cf_identity_name_summary_build"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    record_kind: Mapped[str] = mapped_column(String(40), primary_key=True)
+    revision: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, default=uuid.uuid4
+    )
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    built_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
@@ -4197,6 +4352,25 @@ class FCCObservation(Base):
                 "kind = 'file' AND status IN ('stored', 'failed', 'unavailable') "
                 "AND (details ->> 'file_id') IS NOT NULL"
             ),
+        ),
+        # The collector's per-file reads of the files a scan listed: the newest
+        # download attempt, and the newest baseline and first listing (0086).
+        Index(
+            "ix_fcc_observation_file_attempt",
+            "facility_id",
+            text("(details ->> 'file_id')"),
+            text("observed_at DESC"),
+            postgresql_where=text(
+                "kind = 'file' AND status NOT IN ('unchanged', 'deferred')"
+            ),
+        ),
+        Index(
+            "ix_fcc_observation_file_history",
+            "facility_id",
+            text("(details ->> 'file_id')"),
+            text("observed_at DESC"),
+            text("scan_id DESC"),
+            postgresql_where=text("kind = 'file'"),
         ),
     )
 
@@ -5182,18 +5356,22 @@ def legislator_sponsored_bills_stmt(
     When ``role`` is given, restrict to sponsorships of that role (e.g.
     ``SponsorshipRole.chief_author`` for the chief-authored profile section).
     """
-    conditions = [
+    sponsorship_conditions = [
         Sponsorship.legislator_id == legislator_id,
-        Bill.session_id == session_id,
-        # Precomputed gate (#505) — identical to the semi-join it replaces.
-        Bill.has_current_summary.is_(True),
+        Sponsorship.bill_id == Bill.id,
     ]
     if role is not None:
-        conditions.append(Sponsorship.role == role)
+        sponsorship_conditions.append(Sponsorship.role == role)
     return (
         select(Bill)
-        .join(Sponsorship, Sponsorship.bill_id == Bill.id)
-        .where(*conditions)
+        .where(
+            Bill.session_id == session_id,
+            # Precomputed gate (#505) — identical to the semi-join it replaces.
+            Bill.has_current_summary.is_(True),
+            # One bill can name this member in both chambers' source lists or
+            # in multiple roles. It still occupies one result and one page slot.
+            select(Sponsorship.id).where(*sponsorship_conditions).exists(),
+        )
         .options(
             selectinload(Bill.stats),
             selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),

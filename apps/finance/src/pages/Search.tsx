@@ -19,7 +19,7 @@ import './search.css';
  * panel, uncapped, each loading and failing on its own.
  *
  * 2 reads, so the families do not share 1 failure: the shared API's money search
- * (`/campaign-finance/search`), whose 7 groups each carry their own state, for
+ * (`/finance/name-search`), whose 7 groups each carry their own state, for
  * People, Organizations, Committees and Payments under a name; and its bill search
  * (`/search?types=bills`) for Bills. Finance's `/finance/suggestions` joins both
  * into 1 request and caps each group at 10, so 1 failure would blank every family.
@@ -51,7 +51,6 @@ const MARKS: Partial<Record<FamilyId, RecordKind>> = {
   committees: 'committee',
   printed: 'printed',
 };
-const PRINTED_NOTE = 'A printed name is not a confirmed person or business';
 
 export interface MoneyResult {
   kind: string;
@@ -228,7 +227,7 @@ export function moneyFamilies(
       printed.push({
         key,
         name: result.name,
-        note: role === 'donor' ? 'Printed donor name' : 'Printed payee name',
+        note: role === 'donor' ? 'Donor name' : 'Payee name',
         href: linked('payments-under-name', { query: result.name }, { role }),
       });
     }
@@ -236,7 +235,10 @@ export function moneyFamilies(
   const payees = PAYEE_GROUPS.map(group);
   const payeesComplete = payees.every((item) => item && !item.has_more && item.total !== null);
   const payeeCount: Count = payeesComplete
-    ? { value: printed.filter((row) => row.key.startsWith('payee|')).length, exact: true }
+    ? {
+        value: printed.filter((row) => row.key.startsWith('payee|')).length,
+        exact: true,
+      }
     : {
         value: Math.max(...payees.map((item) => groupCount(item).value)),
         exact: false,
@@ -272,7 +274,11 @@ export function billFamily(bills: BillRow[]): FamilyState {
       href: linked('bill', { id: bill.id }),
     };
   });
-  return { state: 'rows', rows, count: { value: rows.length, exact: rows.length < BILL_LIMIT } };
+  return {
+    state: 'rows',
+    rows,
+    count: { value: rows.length, exact: rows.length < BILL_LIMIT },
+  };
 }
 
 type Shown = FamilyState | { state: 'loading' };
@@ -301,7 +307,7 @@ export function SearchResults(_props: { match: RouteMatch }) {
   const searchable = submitted.length >= MIN_QUERY_LENGTH ? submitted : null;
   const encoded = searchable ? encodeURIComponent(searchable) : null;
   const money = useRead<MoneySearch>(
-    encoded ? `campaign-finance/search?q=${encoded}&limit=${MONEY_LIMIT}` : null,
+    encoded ? `finance/name-search?q=${encoded}&limit=${MONEY_LIMIT}` : null,
     { keepPrevious: true },
   );
   const bills = useRead<{ bills: BillRow[] }>(
@@ -404,7 +410,9 @@ export function SearchResults(_props: { match: RouteMatch }) {
                   onExpand={() => {
                     const query = new URLSearchParams(location.search);
                     query.set('family', id);
-                    navigate(`${location.pathname}?${query.toString()}`, { replace: true });
+                    navigate(`${location.pathname}?${query.toString()}`, {
+                      replace: true,
+                    });
                   }}
                   onRetry={() => retry(id)}
                 />
@@ -533,7 +541,6 @@ function Family({
               );
             })}
           </ul>
-          {id === 'printed' && <p className="sr-family-note">{PRINTED_NOTE}</p>}
         </>
       )}
     </section>

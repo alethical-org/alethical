@@ -74,10 +74,12 @@ const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
 /** The whole Finance site while its signed-in screens are on. */
 export function App() {
   const location = useLocation();
-  const { status, accessToken } = useFinanceSession();
+  const { status, accessToken, canEdit, signInPath } = useFinanceSession();
   const found = matchRoute(location.pathname);
   // An address whose screen is not built answers exactly as an unknown one.
-  const match = found && isBuilt(found.route.name) ? found : null;
+  const editing = found?.route.name === 'identities' || found?.route.name === 'check-station-files';
+  const match =
+    found && isBuilt(found.route.name) && !(canEdit === false && editing) ? found : null;
   const signedOutRoute = match?.route.signedOut === true;
 
   // A page's own title only once the reader can see that page.
@@ -92,15 +94,17 @@ export function App() {
   useEffect(() => {
     if (!signedOutRoute && status === 'signed-out') {
       const next = location.pathname + location.search;
-      navigate(`/sign-in?next=${encodeURIComponent(next)}`, { replace: true });
+      navigate(`${signInPath}?next=${encodeURIComponent(next)}`, { replace: true });
     }
-  }, [location, signedOutRoute, status]);
+  }, [location, signedOutRoute, status, signInPath]);
 
   // When the screen changes after the first one, focus its heading so keyboard
   // and screen-reader users start at the new content. The first screen keeps
   // the browser's own starting point.
   const signInShowsUnavailable =
-    match?.route.name === 'sign-in' && accessToken !== null && status === 'unavailable';
+    (match?.route.name === 'sign-in' || match?.route.name === 'investor-access') &&
+    accessToken !== null &&
+    status === 'unavailable';
   const screen = signedOutRoute
     ? `${location.pathname}|${signInShowsUnavailable ? 'unavailable' : 'page'}`
     : `${location.pathname}|${status === 'granted' ? 'page' : status}`;
@@ -112,14 +116,20 @@ export function App() {
     }
     const back = cameByHistory() ? savedScroll() : null;
     window.scrollTo(0, back ?? 0);
-    document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+    document
+      .querySelector<HTMLElement>('main h1, main[tabindex="-1"]')
+      ?.focus({ preventScroll: true });
   }, [screen]);
 
   // The landing page is for everyone, signed in or not (Design decision D20).
   if (match?.route.name === 'landing') return status === 'no-access' ? <NoAccess /> : <Landing />;
-  if (match?.route.name === 'sign-in') {
+  if (match?.route.name === 'sign-in' || match?.route.name === 'investor-access') {
     // Signed in by code but access could not be checked: offer Try again here.
-    return accessToken && status === 'unavailable' ? <Unavailable /> : <SignIn />;
+    return accessToken && status === 'unavailable' ? (
+      <Unavailable />
+    ) : (
+      <SignIn key={match.route.name} investor={match.route.name === 'investor-access'} />
+    );
   }
   if (match?.route.name === 'auth-return') return <AuthReturn />;
   if (status === 'loading' || status === 'checking' || status === 'signed-out') return <Checking />;

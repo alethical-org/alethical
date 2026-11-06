@@ -742,6 +742,41 @@ export function resolveSectionAnchor<T extends SectionAnchor>(
   return sections.find((s) => s.sectionId === target.sectionId) ?? null;
 }
 
+/** The phone bill page's section for a `?tab=` value, or null. The desktop tab and
+ *  every shared Bill Text link (citation links, the Ask answer page) say `text`; the
+ *  phone page names that section `fulltext`, so `text` is read as it. */
+export function phoneBillSection<T extends string>(tab: unknown, sections: readonly T[]): T | null {
+  if (typeof tab !== 'string') return null;
+  const name = tab === 'text' ? 'fulltext' : tab;
+  return (sections as readonly string[]).includes(name) ? (name as T) : null;
+}
+
+/** The version the Bill Text tab renders: the bill's current one, else the first
+ *  served. The tab and every citation link read it here, so they agree. */
+export function renderedTextVersion<T extends { isCurrent: boolean }>(
+  versions: readonly T[],
+): T | undefined {
+  return versions.find((version) => version.isCurrent) ?? versions[0];
+}
+
+/**
+ * A summary citation's section position belongs to the version the summary was
+ * written from (`summary_source_version`, #2856). It badges a section and opens a
+ * jump only when that is the version the Bill Text tab renders; otherwise the
+ * position is dropped, so the chip keeps its label and quote with no link and no
+ * section claims the badge, never a guessed section (#2857). No linked version
+ * drops it too.
+ */
+export function citationsForRenderedText<T extends { sectionOrder?: number | null }>(
+  citations: T[],
+  summaryVersionCode: string | null | undefined,
+  renderedVersionCode: string | null | undefined,
+): T[] {
+  const linked = summaryVersionCode?.trim();
+  if (linked && linked === renderedVersionCode?.trim()) return citations;
+  return citations.map((citation) => ({ ...citation, sectionOrder: null }));
+}
+
 /** The anchor value for a citation's stored section identity. Exact public links
  *  use `citationSectionHref` instead, which refuses an id-only guess. This helper
  *  keeps the old bare-id shape readable for grouping and already-shared links. */

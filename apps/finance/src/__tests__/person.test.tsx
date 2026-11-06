@@ -290,6 +290,55 @@ it('says Running for while an upcoming election’s result is pending', () => {
     'General election · District 1A · Election results pending',
   );
 });
+it.each([
+  [undefined, 'Election results pending'],
+  [{ status: 'pending' }, 'Election results pending'],
+  [{ status: 'unofficial' }, 'Unofficial election results'],
+  [{ status: 'unofficial', outcome: 'elected' }, 'Unofficial election results'],
+  [{ status: 'recount' }, 'Election recount in progress'],
+  [{ status: 'tie' }, 'Election tie unresolved'],
+  [{ status: 'unavailable' }, 'Election results unavailable'],
+  [{ status: 'certified' }, 'Election results'],
+] as const)('prints a status used as the election heading only once: %j', (result, label) => {
+  const record: PersonRecord = {
+    ...profile,
+    elections: [{ ...profile.elections[0], result }],
+  };
+  const [row] = timelineRows(record, null, '2024-11-06');
+  expect(row.title).toBe(`${label} · State Representative`);
+  expect(row.detail).toBe('General election · District 1A');
+  expect(`${row.title} · ${row.detail}`.split(label)).toHaveLength(2);
+});
+it.each([undefined, { status: 'pending' }] as const)(
+  'keeps pending status beneath the distinct upcoming heading: %j',
+  (result) => {
+    const record: PersonRecord = {
+      ...profile,
+      elections: [{ ...profile.elections[0], result }],
+    };
+    for (const today of ['2024-11-04', '2024-11-05']) {
+      const [row] = timelineRows(record, null, today);
+      expect(row.title).toBe('Running for State Representative');
+      expect(row.detail).toBe('General election · District 1A · Election results pending');
+    }
+  },
+);
+it.each([
+  [{ status: 'certified', outcome: 'elected' }, 'Elected', 'Election results'],
+  [{ status: 'certified', outcome: 'not-elected' }, 'Not elected', 'Election results'],
+  [{ status: 'pending', outcome: 'withdrew' }, 'Withdrew', 'Election results pending'],
+] as const)(
+  'keeps the result status distinct from a final outcome: %j',
+  (result, outcome, label) => {
+    const record: PersonRecord = {
+      ...profile,
+      elections: [{ ...profile.elections[0], result }],
+    };
+    const [row] = timelineRows(record, null, '2024-11-06');
+    expect(row.title).toBe(`${outcome} · State Representative`);
+    expect(row.detail).toBe(`General election · District 1A · ${label}`);
+  },
+);
 it('names each seat fact once when the served office repeats the voting area', () => {
   // The live record's shape: the office carries the district, and the voting area
   // names it again with its chamber.
@@ -321,4 +370,22 @@ it('returns to People when opened with no earlier page', async () => {
   const back = container.querySelector<HTMLAnchorElement>('.f-back');
   expect(back?.textContent).toBe('Back to People');
   expect(back?.getAttribute('href')).toBe('/people');
+});
+
+it('reads checked station files for the exact person profile', async () => {
+  const paths: URL[] = [];
+  await render((url) => {
+    paths.push(url);
+    if (url.pathname.endsWith('/media-buys/connections'))
+      return json({ files: [], groups: [], total: 0 });
+    if (url.pathname.endsWith('/people/p')) return json(profile, false);
+    if (url.pathname.endsWith('/lookup')) return json(null);
+    return json({ link_state: 'unconfirmed', years: [] });
+  });
+  expect(container.textContent).toContain(
+    'No TV station files have a checked connection to Example Person',
+  );
+  const path = paths.find((url) => url.pathname.endsWith('/media-buys/connections'));
+  expect(path?.searchParams.get('kind')).toBe('person');
+  expect(path?.searchParams.get('target')).toBe('p');
 });

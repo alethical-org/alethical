@@ -76,8 +76,8 @@ function join(...parts: Array<string | null | undefined>): string {
 
 const ROLE_PARAM: Record<string, string> = { contributor: 'donor', vendor: 'payee' };
 const ROLE_CONTEXT: Record<string, string> = {
-  contributor: 'Printed donor name',
-  vendor: 'Printed payee name',
+  contributor: 'Donor name',
+  vendor: 'Payee name',
 };
 
 /** "2025–26" from a bill id such as `94-2026-SF4138`: the 2-year Legislature

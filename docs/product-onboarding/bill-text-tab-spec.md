@@ -161,6 +161,12 @@ Top to bottom inside a section card:
    on one section badges nothing at all — a badge is a claim about provenance, and there is nothing
    to ground it in (`.claude/rules/grounded-answers.md` rule 1, the same refusal
    [#853](https://github.com/alethical-org/alethical/pull/853) made for the chip's caption).
+   A citation's position belongs to the version the summary was written from
+   (`summary_source_version`), while this tab renders the current version, so the badge appears
+   only when the summary's version is the version this tab renders. Otherwise, or when the summary
+   is linked to no version, no section carries it (`citationsForRenderedText` in
+   `apps/frontend/src/lib/billText.ts` drops the position;
+   [#2857](https://github.com/alethical-org/alethical/issues/2857)).
 3. **Provenance** — "Minnesota Statutes 2024, section 62A.011 … is amended to read:" at
    `t.fontSizes.small` (14px, one step below body), regular weight, `t.colors.text.faint`
    (`#70776f`). This names which existing law the section rewrites. **It is not the
@@ -289,13 +295,17 @@ Splitting the two halves back apart is unambiguous: all 71,150 section ids in pr
 hyphen".
 
 **A citation chip carries the same anchor value.** The stored citation records only the section id, so
-the API resolves the position at request time and serves it as `section_order`
+the API resolves the position at request time and serves it as `section_order`, a position in
+the version the summary was written from (`summary_source_version`)
 (`_citation_section_orders` in `alethical/api/routers/public.py`, `resolve_cited_section` in
 `alethical/pipeline/ai_enrichment.py`) — recovered from the citation's own verbatim quote, with its
 label breaking a tie when a bill repeats one sentence section for section. Of the 95 affected
 citations in production it places 94. The one it cannot place keeps its label and quote but is not a
 link, because sending a reader to the first section carrying a repeated id would claim a passage the
-record has not identified. Exact citation links use the same anchor on the first response, the loaded
+record has not identified. A chip links by that position only when the summary's version is the
+version Bill Text renders; otherwise, or with no linked version, it is not a link either, on the
+first response, the desktop page and the phone page alike, since a position from another version
+can name a real, different section here. Exact citation links use the same anchor on the first response, the loaded
 desktop page, and the loaded phone-width page.
 
 Four more details, each of which was a real bug:

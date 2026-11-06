@@ -285,13 +285,15 @@
   font-size: 14px;
   color: var(--secondary);
 }
+.f-page-title.lb-title {
+  margin-top: var(--record-label-title-gap);
+}
 .lb-title {
-  margin-top: 8px;
   font-size: 28px;
   overflow-wrap: anywhere;
 }
 .lb-gloss {
-  margin: 6px 0 0;
+  margin: var(--record-title-detail-gap) 0 0;
   max-width: 760px;
   font-size: 14px;
   line-height: 1.5;

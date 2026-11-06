@@ -1,3 +1,4 @@
+import { RECORDS_CHANGED } from '../../api/versionedRead';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { formatDay } from '@alethical/shared/committeeMoneyShared';
 import { apiPath, type Read } from '../../api/read';
@@ -199,15 +200,9 @@ export function ReadState<T>({ read, noun = 'results' }: { read: Read<T>; noun?:
       {read.updating && <Updating />}
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          {/* Media buys draws this sentence for its results only; elsewhere the
-              failure names what failed (settled wording row 19). */}
-          We couldn’t load these {noun}
-          {noun === 'results' ? '. This is a problem on our side.' : ''}
-          {read.data
-            ? noun === 'results'
-              ? ' Previous results are shown.'
-              : '. Previous results are shown.'
-            : ''}
+          {read.changed
+            ? RECORDS_CHANGED
+            : `We couldn’t load these ${noun}${noun === 'results' ? '. This is a problem on our side.' : read.data ? '.' : ''}${read.data ? ' Previous results are shown.' : ''}`}
         </Refused>
       )}
       {read.notFound && <Empty title="This record is no longer available" />}
@@ -326,7 +321,7 @@ export function PageImage({
 }) {
   const { apiBaseUrl, accessToken } = useFinanceSession();
   const [attempt, setAttempt] = useState(0);
-  const key = `${accessToken}|${fileKey}|${version}|${page}|${attempt}`;
+  const key = `${apiBaseUrl}|${accessToken}|${fileKey}|${version}|${page}|${attempt}`;
   const [image, setImage] = useState<{ key: string; url: string | null; failed: boolean } | null>(
     null,
   );
@@ -385,7 +380,17 @@ export function PageImage({
   return (
     <div className="mb-image" role={current?.url ? undefined : 'img'} aria-label={alt}>
       {!current && <span className="f-visually-hidden">Loading page image</span>}
-      {current?.url && <img src={current.url} alt={alt} style={imageStyle} />}
+      {current?.url && (
+        <img
+          key={key}
+          src={current.url}
+          alt={alt}
+          style={imageStyle}
+          onError={() => {
+            setImage((value) => (value?.key === key ? { key, url: null, failed: true } : value));
+          }}
+        />
+      )}
     </div>
   );
 }

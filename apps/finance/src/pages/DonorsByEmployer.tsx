@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { UNNAMED_PAYMENT_PARTY } from '@alethical/shared/committeeMoneyShared';
 import { formatDay, formatMoney } from '../ui/money';
@@ -83,6 +83,8 @@ export interface EmployerDonors {
   page: Paging;
   release_id: string | null;
   fetched_at: string | null;
+  spellings?: string[];
+  donor_name_count?: number;
 }
 
 interface DonorPayments {
@@ -95,12 +97,9 @@ function n(value: number, one: string, many: string): string {
   return `${formatCount(value)} ${value === 1 ? one : many}`;
 }
 
-/** "{n} donor names · Confirmed for {k} of {m} records" (Design Rounds 29 and 42). */
+/** A source spelling's donor-name count, without an identity claim. */
 export function spellingMeta(row: EmployerSpelling): string {
-  const names = n(row.donor_name_count, 'donor name', 'donor names');
-  return row.confirmed_records > 0
-    ? `${names} · Confirmed for ${formatCount(row.confirmed_records)} of ${formatCount(row.record_count)} records`
-    : names;
+  return n(row.donor_name_count, 'donor name', 'donor names');
 }
 
 export interface EmployerIdentity {
@@ -174,27 +173,46 @@ function useMore<Row>(
   path: (offset: number) => string,
   rowsOf: (page: unknown) => Row[] | null,
 ) {
-  const { apiBaseUrl, accessToken } = useFinanceSession();
-  const [extra, setExtra] = useState<{ key: string | null; rows: Row[]; hasMore: boolean | null }>({
-    key,
+  const { apiBaseUrl, accessToken, retry: recheckAccess } = useFinanceSession();
+  const scopeKey = `${apiBaseUrl}|${accessToken}|${key}`;
+  const latest = useRef(0);
+  const controller = useRef<AbortController | null>(null);
+  const [extra, setExtra] = useState<{
+    key: string | null;
+    rows: Row[];
+    hasMore: boolean | null;
+  }>({
+    key: scopeKey,
     rows: [],
     hasMore: null,
   });
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   // The pinned copy of the Board's file is no longer the published one (409).
   const [changed, setChanged] = useState(false);
   const reset = useCallback(() => {
-    setExtra({ key, rows: [], hasMore: null });
+    latest.current += 1;
+    controller.current?.abort();
+    setExtra({ key: scopeKey, rows: [], hasMore: null });
     setFailed(false);
+    setAccessDenied(false);
     setChanged(false);
     setLoading(false);
-  }, [key]);
-  useEffect(reset, [reset]);
-  const own = extra.key === key ? extra : { key, rows: [] as Row[], hasMore: null };
+  }, [scopeKey]);
+  useEffect(() => {
+    reset();
+    return () => {
+      latest.current += 1;
+      controller.current?.abort();
+    };
+  }, [reset]);
+  const own = extra.key === scopeKey ? extra : { key: scopeKey, rows: [] as Row[], hasMore: null };
   const more = useCallback(
     (offset: number) => {
       if (loading) return;
+      const request = latest.current;
+      controller.current = new AbortController();
       setLoading(true);
       setFailed(false);
       let status = 0;
@@ -203,8 +221,22 @@ function useMore<Row>(
         status = response.status;
         return response;
       };
-      void apiGet<{ page: Paging }>(apiBaseUrl, path(offset), accessToken, seen).then((answer) => {
+      void apiGet<{ page: Paging }>(
+        apiBaseUrl,
+        path(offset),
+        accessToken,
+        seen,
+        controller.current.signal,
+      ).then((answer) => {
+        if (request !== latest.current) return;
         setLoading(false);
+        if (answer.state === 'failed' && answer.accessDenied) {
+          setExtra({ key: scopeKey, rows: [], hasMore: false });
+          setAccessDenied(true);
+          setFailed(true);
+          recheckAccess?.();
+          return;
+        }
         if (status === 409) {
           setChanged(true);
           return;
@@ -215,8 +247,12 @@ function useMore<Row>(
           return;
         }
         setExtra((previous) =>
-          previous.key === key
-            ? { key, rows: [...previous.rows, ...rows], hasMore: answer.data.page.has_more }
+          previous.key === scopeKey
+            ? {
+                key: scopeKey,
+                rows: [...previous.rows, ...rows],
+                hasMore: answer.data.page.has_more,
+              }
             : previous,
         );
       });
@@ -224,7 +260,16 @@ function useMore<Row>(
     // `path` and `rowsOf` are rebuilt each render; `key` carries their meaning.
     [apiBaseUrl, accessToken, key, loading],
   );
-  return { rows: own.rows, hasMore: own.hasMore, loading, failed, changed, more, reset };
+  return {
+    accessDenied,
+    rows: own.rows,
+    hasMore: own.hasMore,
+    loading,
+    failed,
+    changed,
+    more,
+    reset,
+  };
 }
 
 /** A later page was asked for against a Board file that has since changed (409). */
@@ -298,7 +343,8 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
     (offset) => apiPath(['finance', 'employers'], { q, limit: SPELLINGS_PAGE, offset }),
     (data) => (data as EmployerSpellings).rows ?? null,
   );
-  const spellings = list.data ? [...list.data.rows, ...moreSpellings.rows] : [];
+  const spellings =
+    list.data && !moreSpellings.accessDenied ? [...list.data.rows, ...moreSpellings.rows] : [];
   const spellingsHasMore = moreSpellings.hasMore ?? list.data?.page.has_more ?? false;
 
   // On a computer the first spelling opens beside the list until another is chosen.
@@ -506,6 +552,7 @@ function donorsPath(spelling: string, offset = 0, releaseId: string | null = nul
     limit: DONORS_PAGE,
     offset: offset || null,
     release_id: releaseId,
+    include_spellings: true,
   });
 }
 
@@ -525,6 +572,7 @@ function Detail({
   const read = useRead<EmployerDonors>(donorsPath(spelling));
   const identity = useIdentityRecords('employer_name', spelling);
   const data = read.data;
+  const [deniedData, setDeniedData] = useState<EmployerDonors | null>(null);
   const release = data?.release_id ?? null;
   const moreDonors = useMore<DonorGroup>(
     data ? `${spelling}|${release}` : null,
@@ -542,13 +590,17 @@ function Detail({
     read.retry();
   }
   const reveal = useRevealFocus<HTMLElement>();
-  const donors = data ? [...data.rows, ...moreDonors.rows] : [];
+  const denied = moreDonors.accessDenied || (data !== null && deniedData === data);
+  const donors = data && !denied ? [...data.rows, ...moreDonors.rows] : [];
+  useEffect(() => {
+    if (moreDonors.accessDenied) setDeniedData(data);
+  }, [moreDonors.accessDenied, data]);
   const donorsHasMore = moreDonors.hasMore ?? data?.page.has_more ?? false;
   const named = donors.filter((donor) => donor.name !== null).length;
   // The directory's count of printed donor names; without it, exact only once every
   // donor is loaded.
-  const donorCount = listRow?.donor_name_count ?? (donorsHasMore ? null : named);
-  const confirmation = employerConfirmation(identity.data, identity.failed || identity.notFound);
+  const donorCount = data?.donor_name_count ?? (donorsHasMore ? null : named);
+  const profiles = (identity.data?.identities ?? []).filter((item) => item.confirmed > 0);
 
   return (
     <section aria-labelledby="de-employer-h" className="de-results" ref={reveal.list}>
@@ -563,13 +615,28 @@ function Detail({
         <h2 id="de-employer-h" className="de-spelling">
           <PrintedName name={spelling} />
         </h2>
-        <ConfirmationLine
-          confirmation={confirmation}
-          spelling={spelling}
-          here={here}
-          retry={identity.retry}
-          retrying={identity.pending}
-        />
+        {profiles.map((profile) => {
+          const href = profileHref(
+            { id: profile.id, kind: profile.kind, line: profile.name },
+            here,
+          );
+          return (
+            <div key={profile.id} className="de-confirm">
+              <span>{profile.name}</span>
+              {href && (
+                <Link to={href} className="f-dest de-confirm-link">
+                  <WithArrow>Open profile</WithArrow>
+                  <span className="f-visually-hidden">: {profile.name}</span>
+                </Link>
+              )}
+            </div>
+          );
+        })}
+        {identity.failed && (
+          <Refused onRetry={identity.retry} retrying={identity.pending}>
+            We couldn’t load related profiles
+          </Refused>
+        )}
       </div>
       {read.loading && (
         <div role="status" aria-busy="true" className="pn-loading de-status">
@@ -577,8 +644,8 @@ function Detail({
           Loading…
         </div>
       )}
-      {read.failed && !data && (
-        <Refused onRetry={read.retry} retrying={read.pending}>
+      {((read.failed && !data) || denied) && (
+        <Refused onRetry={reload} retrying={read.pending}>
           {FAILED}
         </Refused>
       )}
@@ -614,6 +681,7 @@ function Detail({
               here={here}
               generation={generation}
               onChanged={() => setPaymentsChanged(true)}
+              onAccessDenied={() => setDeniedData(data)}
             />
           ))}
           {(moreDonors.changed || paymentsChanged) && (
@@ -659,6 +727,7 @@ function Donor({
   here,
   generation,
   onChanged,
+  onAccessDenied,
 }: {
   donor: DonorGroup;
   spelling: string;
@@ -668,6 +737,7 @@ function Donor({
   /** Bumped when the records reload, so added pages start over. */
   generation: number;
   onChanged: () => void;
+  onAccessDenied: () => void;
 }) {
   const more = useMore<DonorPaymentRow>(
     `${spelling}|${release}|${donor.key}|${generation}`,
@@ -679,13 +749,15 @@ function Donor({
         limit: PAYMENTS_PAGE,
         offset,
         release_id: release,
+        include_spellings: true,
       }),
     (page) => (page as DonorPayments).payments ?? null,
   );
   useEffect(() => {
     if (more.changed) onChanged();
+    if (more.accessDenied) onAccessDenied();
     // `onChanged` is rebuilt each render; the change itself is what matters.
-  }, [more.changed]);
+  }, [more.changed, more.accessDenied]);
   const reveal = useRevealFocus<HTMLElement>();
   const payments = [...donor.payments, ...more.rows];
   const hasMore = payments.length < donor.payment_count && more.hasMore !== false && !more.changed;
@@ -785,39 +857,6 @@ function Donor({
   );
 }
 
-function ConfirmedIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="#0E6A82" strokeWidth="2" />
-      <path
-        d="M8 12.5 L10.8 15.2 L16 9.5"
-        stroke="#0E6A82"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/** A check that could not run, never the "not confirmed" mark: the answer is unknown. */
-function CheckFailedIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="#5F6B76" strokeWidth="2" />
-      <path d="M12 7.5 V13 M12 16 V16.5" stroke="#5F6B76" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function UnconfirmedIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="#5F6B76" strokeWidth="2" strokeDasharray="3 3" />
-    </svg>
-  );
-}
-
 function profileHref(identity: EmployerIdentity, here: string): string | null {
   if (identity.kind === 'organization' && isBuilt('organization')) {
     return withFrom(hrefFor('organization', { id: identity.id }), here);
@@ -826,81 +865,4 @@ function profileHref(identity: EmployerIdentity, here: string): string | null {
     return withFrom(hrefFor('person', { id: identity.id }), here);
   }
   return null;
-}
-
-function ConfirmationLine({
-  confirmation,
-  spelling,
-  here,
-  retry,
-  retrying,
-}: {
-  confirmation: Confirmation;
-  spelling: string;
-  here: string;
-  retry: () => void;
-  retrying: boolean;
-}) {
-  if (confirmation.state === 'confirmed') {
-    return (
-      <>
-        {confirmation.identities.map((identity) => {
-          const href = profileHref(identity, here);
-          return (
-            <div key={identity.id} className="de-confirm">
-              <span className="de-confirm-text">
-                <ConfirmedIcon />
-                <span className="f-num">{identity.line}</span>
-              </span>
-              {href && (
-                <Link to={href} className="f-dest de-confirm-link">
-                  <span>
-                    <WithArrow>Open profile</WithArrow>
-                  </span>
-                </Link>
-              )}
-            </div>
-          );
-        })}
-      </>
-    );
-  }
-  if (confirmation.state === 'unconfirmed') {
-    return (
-      <div className="de-confirm">
-        <span className="de-confirm-text">
-          <UnconfirmedIcon />
-          <span>No organization record confirms this spelling</span>
-        </span>
-        {isBuilt('identities') && (
-          <Link
-            to={withFrom(hrefFor('identities', {}, { name: spelling, role: 'employer' }), here)}
-            className="f-dest de-confirm-link"
-          >
-            <span>
-              <WithArrow>Confirm this employer</WithArrow>
-            </span>
-          </Link>
-        )}
-      </div>
-    );
-  }
-  if (confirmation.state === 'loading') return null;
-  return (
-    <div className="de-confirm">
-      <span className="de-confirm-text">
-        <CheckFailedIcon />
-        <span>We couldn’t check whether an organization record confirms this spelling</span>
-      </span>
-      <button
-        type="button"
-        className="f-btn f-btn-secondary f-btn-small"
-        aria-disabled={retrying || undefined}
-        onClick={() => !retrying && retry()}
-      >
-        {retrying && <span className="f-spinner" aria-hidden="true" />}
-        {retrying ? 'Trying again…' : 'Try again'}
-      </button>
-    </div>
-  );
 }

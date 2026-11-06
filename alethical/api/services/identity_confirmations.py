@@ -239,6 +239,10 @@ def _kind(value: Any) -> str:
 def _key(kind: str, value: Any) -> str:
     """The record exactly as printed or held: never a second spelling of it."""
     key = _text(value, "Record", MAX_KEY)
+    if kind in _PRINTED:
+        # Validate text without normalizing a source spelling. Surrounding spaces
+        # distinguish held records just as letters do; evidence still must match.
+        return value
     if key != value:
         raise IdentityError("Give the record exactly as printed")
     if kind in _HELD_RECORDS:
@@ -880,6 +884,17 @@ def _payloads(db: Session, confirmations: list[Confirmation]) -> tuple[list, lis
             for record in held[confirmation.id]
         ]
 
+    # Show a held record's own name, never its internal id or the separately
+    # chosen identity name. Fetch each kind together for the returned page.
+    record_names = {}
+    for kind, model in _HELD_RECORDS.items():
+        keys = [UUID(c.record_key) for c in confirmations if c.record_kind == kind]
+        if keys:
+            name = model.full_name if kind == "legislator" else model.name
+            for key, label in db.execute(
+                select(model.id, name).where(model.id.in_(keys))
+            ):
+                record_names[kind, str(key)] = label
     payloads = []
     covered: dict[tuple[str, str], int] = defaultdict(int)
     for confirmation in confirmations:
@@ -888,6 +903,9 @@ def _payloads(db: Session, confirmations: list[Confirmation]) -> tuple[list, lis
             "identity_id": str(confirmation.entity_id),
             "record_kind": confirmation.record_kind,
             "record_key": confirmation.record_key,
+            "record_name": record_names.get(
+                (confirmation.record_kind, confirmation.record_key)
+            ),
             "relation": confirmation.relation,
             "status": "confirmed" if confirmation.active else "withdrawn",
             "checked_at": _iso(confirmation.checked_at),
@@ -1213,6 +1231,22 @@ def records(
                 }
             )
     standing = {identity.id: identity for identity in today.values()}
+    # A withdrawn claim is not active coverage, but its original identity owns
+    # history that must remain reachable even after the last claim is withdrawn.
+    # Keep original ids: following a merge/split here would lose the old events.
+    historical = db.scalars(
+        select(Entity)
+        .where(
+            Entity.id.in_(
+                select(Confirmation.entity_id).where(
+                    Confirmation.record_kind == kind,
+                    Confirmation.record_key == key,
+                    Confirmation.active.is_(False),
+                )
+            )
+        )
+        .order_by(Entity.created_at, Entity.id)
+    ).all()
     return {
         "record_kind": kind,
         "record_key": key,
@@ -1231,6 +1265,7 @@ def records(
             {**_summary(standing[identity_id]), "confirmed": count}
             for identity_id, count in covered.items()
         ],
+        "history_identities": [_summary(identity) for identity in historical],
         "fingerprints": list(listed.values()),
         "no_longer_in_board_file": gone,
     }

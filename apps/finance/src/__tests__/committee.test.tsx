@@ -18,6 +18,8 @@ import {
   tableTotal,
 } from '../pages/committee/data';
 import { clearYearPayments } from '../pages/committee/useYearPayments';
+import { unavailableFiguresReason } from '../pages/committee/Figures';
+import { kindView, stateRows } from '../pages/committee/Breakdowns';
 import * as routes from '../routes';
 import type { MadePayment, ReceivedPayment } from '../pages/committee/types';
 
@@ -26,11 +28,18 @@ import type { MadePayment, ReceivedPayment } from '../pages/committee/types';
 const API = 'https://api.example.test';
 
 function fakeSupabase() {
-  const session = { access_token: 'token-1', user: { id: 'u1', email: 'r@example.test' } };
+  const session = {
+    access_token: 'token-1',
+    user: { id: 'u1', email: 'r@example.test' },
+  };
   return {
     auth: {
-      getSession: async () => ({ data: { session: session as unknown as Session } }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      getSession: async () => ({
+        data: { session: session as unknown as Session },
+      }),
+      onAuthStateChange: () => ({
+        data: { subscription: { unsubscribe() {} } },
+      }),
       signOut: async () => ({ error: null }),
     },
   } as unknown as SupabaseClient;
@@ -177,7 +186,12 @@ function page<T>(state: string, payments: T[], extra: Record<string, unknown> = 
   return {
     state,
     payments,
-    page: { limit: 250, offset: 0, has_more: false, total_payments: payments.length },
+    page: {
+      limit: 250,
+      offset: 0,
+      has_more: false,
+      total_payments: payments.length,
+    },
     linkable_registration_numbers: ['20003'],
     release_id: 'r1',
     fetched_at: '2026-10-27T17:00:00Z',
@@ -204,7 +218,10 @@ const NOTICES = {
           contribution_date: '2026-06-23',
           received_on: '2026-06-24',
           status: 'matched',
-          matched_payment: { record_number: 15, contributor: 'Example State Central Committee' },
+          matched_payment: {
+            record_number: 15,
+            contributor: 'Example State Central Committee',
+          },
           pdf_url: 'https://cfb.mn.gov/notice.pdf',
         },
       ],
@@ -235,7 +252,10 @@ function loadedAnswers(overrides: Answers = {}): Answers {
   return {
     '/committees/90001/finance': { status: 200, body: FINANCE },
     '/committees/90001/filings': { status: 200, body: FILINGS },
-    '/finance/committees/90001/report-figures': { status: 200, body: reports() },
+    '/finance/committees/90001/report-figures': {
+      status: 200,
+      body: reports(),
+    },
     '/committees/90001/confirmation': {
       status: 200,
       body: {
@@ -269,7 +289,11 @@ function loadedAnswers(overrides: Answers = {}): Answers {
         statements_copied_on: '2026-10-27',
       }),
     },
-    '/committees/90001/payments?direction=made': {
+    '/finance/committees/90001/payment-groups?direction=made': {
+      status: 200,
+      body: { state: 'reported', tab_counts: { expenditures: 2 } },
+    },
+    '/finance/committees/90001/payments?direction=made': {
       status: 200,
       body: page('reported', [
         made('Example Printing Co', '8420.0000', '2026-04-22', 21),
@@ -291,7 +315,14 @@ function loadedAnswers(overrides: Answers = {}): Answers {
         gift_amount: '5000',
         pdf_url: 'https://cfb.mn.gov/s1.pdf',
         box: 3,
-        sources: [{ name: 'Example Builders Fund', city: 'Saint Paul', state: 'MN', amount: null }],
+        sources: [
+          {
+            name: 'Example Builders Fund',
+            city: 'Saint Paul',
+            state: 'MN',
+            amount: null,
+          },
+        ],
         line_a: '3000',
         line_b: null,
         line_c: null,
@@ -340,6 +371,86 @@ async function render(path: string, answers: Answers) {
 const text = () => container.textContent ?? '';
 const button = (words: string) =>
   [...container.querySelectorAll('button')].find((item) => item.textContent?.trim() === words);
+
+const SOURCE_NOTICE = {
+  key: 'coleman-2017-expenditures-partial',
+  dataset: 'expenditures',
+  text: 'Minnesota’s Campaign Finance Board spending file lists only part of this committee’s 2017 payments. Our copies of the same file up to October 3, 2026 listed more of them. The committee’s filed report for 2017 is offline while the Board removes street addresses from its reports, so the full list cannot be checked against it.',
+};
+
+function sourceNoticeAnswers(sourceNotices: unknown[] = [SOURCE_NOTICE]): Answers {
+  return Object.fromEntries(
+    Object.entries(loadedAnswers()).map(([path, answer]) => [
+      path.replaceAll('90001', '18127'),
+      path === '/committees/90001/finance'
+        ? {
+            status: 200,
+            body: {
+              ...FINANCE,
+              registration_number: '18127',
+              year: 2017,
+              source_notices: sourceNotices,
+            },
+          }
+        : answer,
+    ]),
+  );
+}
+
+describe('Committee source notices', () => {
+  it('prints the exact served expenditures notice beside the selected payments only', async () => {
+    await render('/money/committees/18127?year=2017&tab=expenditures', sourceNoticeAnswers());
+    const notice = [...container.querySelectorAll('p')].find(
+      (node) => node.textContent === SOURCE_NOTICE.text,
+    );
+    expect(notice).toBeDefined();
+    expect(notice?.closest('section')?.getAttribute('aria-labelledby')).toBe('cmt-money-h');
+    expect(text().split(SOURCE_NOTICE.text)).toHaveLength(2);
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+        .find((node) => node.textContent?.startsWith('Individuals'))!
+        .click(),
+    );
+    expect(text()).not.toContain(SOURCE_NOTICE.text);
+  });
+
+  it('withdraws the previous year’s notice while another year is loading', async () => {
+    await render('/money/committees/18127?year=2017&tab=expenditures', sourceNoticeAnswers());
+    expect(text()).toContain(SOURCE_NOTICE.text);
+    const original = fetch as ReturnType<typeof fetcherFor>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) =>
+        String(input).includes('/18127/finance?') && String(input).includes('year=2018')
+          ? new Promise<Response>(() => {})
+          : original(input),
+      ),
+    );
+    await act(async () => button('2018')!.click());
+    expect(text()).not.toContain(SOURCE_NOTICE.text);
+  });
+
+  it('withdraws a notice when navigation selects another committee', async () => {
+    await render('/money/committees/18127?year=2017&tab=expenditures', sourceNoticeAnswers());
+    expect(text()).toContain(SOURCE_NOTICE.text);
+    await act(async () => {
+      window.history.pushState(null, '', '/money/committees/90002?year=2017&tab=expenditures');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(text()).not.toContain(SOURCE_NOTICE.text);
+  });
+
+  it.each([{ notices: [] }, { notices: [{ ...SOURCE_NOTICE, dataset: 'contributions' }] }])(
+    'never invents an expenditures notice from a registration or year',
+    async ({ notices }) => {
+      await render(
+        '/money/committees/18127?year=2017&tab=expenditures',
+        sourceNoticeAnswers(notices),
+      );
+      expect(text()).not.toContain(SOURCE_NOTICE.text);
+    },
+  );
+});
 
 describe('Committee page', () => {
   it('says a missing official spending total in words, never as $0', async () => {
@@ -399,14 +510,17 @@ describe('Committee page', () => {
       loadedAnswers({
         '/committees/90001/finance': {
           status: 200,
-          body: { ...FINANCE, register: { ...FINANCE.register, termination_date: '2026-07-28' } },
+          body: {
+            ...FINANCE,
+            register: { ...FINANCE.register, termination_date: '2026-07-28' },
+          },
         },
       }),
     );
     expect(container.querySelector('.cmt-reg-status')?.textContent).toBe('Terminated Jul 28, 2026');
   });
 
-  it('shows the official figures, the 6 tabs with counts, and grouped names', async () => {
+  it('shows the official figures, the approved tabs with known counts, and grouped names', async () => {
     await render('/money/committees/90001', loadedAnswers());
     expect(container.querySelector('h1')?.textContent).toBe('Example Candidate Committee');
     expect(text()).toContain('Candidate committee');
@@ -429,7 +543,13 @@ describe('Committee page', () => {
       'Period Jan 1, 2026 to Jul 20, 2026. Figures are as filed in the selected report.',
     );
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
-    // The Miscellaneous receipt is no contribution and sits in no tab.
+    // The outgoing counts are known before opening either tab, without a full
+    // outgoing payment read. The miscellaneous receipt belongs to no tab.
+    const paths = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+    expect(
+      paths.some((url) => url.includes('/payment-groups?direction=made&year=2026&limit=1')),
+    ).toBe(true);
+    expect(paths.some((url) => url.includes('/payments?direction=made'))).toBe(false);
     expect(tabs).toEqual([
       'Individuals4',
       'Lobbyists0',
@@ -437,6 +557,7 @@ describe('Committee page', () => {
       'Party units1',
       'Other kinds0',
       'Expenditures2',
+      'Contributions made0',
     ]);
     expect(text()).toContain('2 names · 4 payment records');
     // One amount is missing, so neither the name's sum nor the table's total is shown.
@@ -460,6 +581,9 @@ describe('Committee page', () => {
     expect(text()).toContain('Example, Jordan A');
     expect(text()).not.toContain('EXAMPLE, PRIYA');
     expect(container.querySelector<HTMLInputElement>('.cmt-field')?.value).toBe('Jordan');
+    expect(container.querySelector('.cmt-summary')?.textContent).toContain(
+      'Matching itemized contributions $3,500',
+    );
     act(() => root.unmount());
     root = createRoot(container);
     clearReadCache();
@@ -532,22 +656,81 @@ describe('Committee page', () => {
     await render(
       '/money/committees/90001',
       loadedAnswers({
-        '/finance/committees/90001/report-figures': { status: 200, body: reports([]) },
+        '/finance/committees/90001/report-figures': {
+          status: 200,
+          body: reports([]),
+        },
         '/committees/90001/payments?direction=received': {
           status: 200,
           body: page('not_reported', []),
+        },
+        '/finance/committees/90001/payment-groups?direction=made': {
+          status: 200,
+          body: { state: 'not_reported', tab_counts: {} },
         },
       }),
     );
     expect(text()).toContain('No official report figures are held for 2026.');
     expect(text()).toContain('None held for 2026');
     expect(text()).not.toContain('$0');
+    expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual([
+      'Individuals0',
+      'Lobbyists0',
+      'Committees and funds0',
+      'Party units0',
+      'Other kinds0',
+      'Expenditures0',
+      'Contributions made0',
+    ]);
+  });
+
+  it('keeps unavailable or failed payment counts blank', async () => {
+    await render(
+      '/money/committees/90001?tab=expenditures',
+      loadedAnswers({
+        '/committees/90001/payments?direction=received': {
+          status: 200,
+          body: page('unavailable', []),
+        },
+        '/finance/committees/90001/payment-groups?direction=made': {
+          status: 500,
+        },
+        '/finance/committees/90001/payments?direction=made': { status: 500 },
+      }),
+    );
+    expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual([
+      'Individuals',
+      'Lobbyists',
+      'Committees and funds',
+      'Party units',
+      'Other kinds',
+      'Expenditures',
+      'Contributions made',
+    ]);
+    expect(button('Try again')).toBeTruthy();
+  });
+
+  it('does not show a malformed outgoing count as zero', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({
+        '/finance/committees/90001/payment-groups?direction=made': {
+          status: 200,
+          body: { state: 'reported', tab_counts: { expenditures: null } },
+        },
+      }),
+    );
+    const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
+    expect(tabs).toContain('Expenditures');
+    expect(tabs).toContain('Contributions made0');
   });
 
   it('offers Try again when the report figures cannot be read, keeping the payments', async () => {
     await render(
       '/money/committees/90001',
-      loadedAnswers({ '/finance/committees/90001/report-figures': { status: 500 } }),
+      loadedAnswers({
+        '/finance/committees/90001/report-figures': { status: 500 },
+      }),
     );
     expect(text()).toContain('We couldn’t load the report information');
     expect(text()).toContain('Example, Jordan A');
@@ -593,7 +776,9 @@ describe('Committee page', () => {
   it('shows the payments failure without inventing an empty list', async () => {
     await render(
       '/money/committees/90001',
-      loadedAnswers({ '/committees/90001/payments?direction=received': { status: 500 } }),
+      loadedAnswers({
+        '/committees/90001/payments?direction=received': { status: 500 },
+      }),
     );
     expect(text()).toContain('We couldn’t load these payments right now.');
     expect(text()).not.toContain('contribution records are held');
@@ -634,7 +819,12 @@ describe('Committee page, Media buys card', () => {
             exact_name_count: 0,
             files: [ROW],
             total: 1,
-            groups: [{ label: '', files: [{ ...ROW, role: 'Advertiser, as printed' }] }],
+            groups: [
+              {
+                label: '',
+                files: [{ ...ROW, role: 'Advertiser, as printed' }],
+              },
+            ],
           },
         },
       }),
@@ -661,7 +851,13 @@ describe('Committee page, Media buys card', () => {
       loadedAnswers({
         [CONNECTIONS]: {
           status: 200,
-          body: { agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] },
+          body: {
+            agency_key: null,
+            exact_name_count: 0,
+            files: [],
+            total: 0,
+            groups: [],
+          },
         },
       }),
     );
@@ -777,5 +973,498 @@ describe('Committee figures and labels', () => {
         effective_amendment_index: 0,
       }),
     ).toBe('2026 Pre-Primary Report · as filed');
+  });
+});
+
+const BY_KIND = {
+  state: 'reported',
+  reported_through: '2026-07-20',
+  lines: [
+    {
+      line_key: 'individuals_contributions',
+      label_as_filed: 'A1 - Individuals',
+      stated_total: '312450.0000',
+      itemized_cash_total: '298200.0000',
+      difference: '14250.0000',
+    },
+    {
+      line_key: 'lobbyist_contributions',
+      label_as_filed: 'A2 - Lobbyists',
+      stated_total: '2500.0000',
+      itemized_cash_total: '2500.0000',
+      difference: '0.0000',
+    },
+  ],
+};
+
+const DONOR_STATES = {
+  state: 'reported',
+  year: 2026,
+  rows: [
+    { names: 19, cash_total: '9800.00', state: 'WI' },
+    { names: 412, cash_total: '241300.00', state: 'MN' },
+    { names: 11, cash_total: '15150.00', state: 'IA' },
+    { names: 9, cash_total: '2200.00', state: 'unknown' },
+  ],
+  summary: {
+    minnesota: { names: 412, cash_total: '241300.00' },
+    other_states: { names: 30, cash_total: '24950.00' },
+    unknown: { names: 9, cash_total: '2200.00' },
+  },
+  reference: {
+    source_url: 'https://example.test/zips',
+    as_of: '2026-07-01',
+    copied_at: '2026-07-02',
+  },
+};
+
+const NAME_CONNECTIONS = {
+  state: 'reported',
+  year: 2026,
+  matching: 'exact_printed_name',
+  numerator: 61,
+  denominator: 455,
+  distribution: [
+    { other_committees: '0', names: 394 },
+    { other_committees: '1', names: 41 },
+    { other_committees: '2', names: 13 },
+    { other_committees: '3', names: 4 },
+    { other_committees: '4+', names: 3 },
+  ],
+  top_names: [
+    { name: 'Example, Avery', other_committees: 5 },
+    { name: 'Example, Wen', other_committees: 1 },
+  ],
+};
+
+function withBlocks(
+  blocks: Record<string, unknown>,
+  base: Record<string, unknown> = FINANCE,
+): Answers {
+  return loadedAnswers({
+    '/committees/90001/finance': { status: 200, body: { ...base, ...blocks } },
+  });
+}
+
+describe('Committee page, breakdowns', () => {
+  it('prints contributions by type as filed for the report they match, as chart and table', async () => {
+    await render('/money/committees/90001', withBlocks({ stated_by_kind: BY_KIND }));
+    const kind = container.querySelector('.cmt-bk-kind')!;
+    expect(kind.textContent).toContain('Contributions by type, as filed');
+    expect(kind.textContent).toContain('A1 - Individuals');
+    expect(kind.textContent).toContain('Filed total $312,450');
+    expect(kind.textContent).toContain('Itemized cash $298,200');
+    expect(kind.textContent).toContain('Difference $14,250');
+    expect(kind.textContent).toContain('Difference $0');
+    expect(kind.textContent).toContain(
+      'Filed totals and itemized cash through Jul\u00a020,\u00a02026',
+    );
+    // The breakdown sits inside the report card, before its period line.
+    expect(container.querySelector('.cmt-official .cmt-bk-kind')).not.toBeNull();
+    const table = [...kind.querySelectorAll('button')].find(
+      (item) => item.textContent === 'Table',
+    )!;
+    await act(async () => table.click());
+    expect(window.location.search).toContain('typeView=table');
+    const heads = [...kind.querySelectorAll('thead th')].map((item) => item.textContent);
+    expect(heads).toEqual(['TYPE', 'FILED TOTAL', 'ITEMIZED CASH', 'DIFFERENCE']);
+    expect(kind.querySelector('tbody tr')?.textContent).toBe(
+      'A1 - Individuals$312,450$298,200$14,250',
+    );
+  });
+
+  it('shows no type figures for another report, a disagreement or a missing block', async () => {
+    await render(
+      '/money/committees/90001?report=8',
+      loadedAnswers({
+        '/committees/90001/finance': {
+          status: 200,
+          body: { ...FINANCE, stated_by_kind: BY_KIND },
+        },
+        '/finance/committees/90001/report-figures': {
+          status: 200,
+          body: reports([
+            reportRow(),
+            reportRow({
+              record_number: 8,
+              report_name: '2026 Pre-General Report',
+              cut_off_date: '2026-10-19',
+            }),
+          ]),
+        },
+      }),
+    );
+    expect(container.querySelector('.cmt-bk-kind')?.textContent).toContain(
+      'A type breakdown isn’t available for this report',
+    );
+    expect(container.querySelector('.cmt-bk-kind')?.textContent).not.toContain('$312,450');
+    expect(kindView({ ...BY_KIND, state: 'sources_disagree', lines: [] }, '2026-07-20')).toEqual({
+      state: 'disagree',
+    });
+    expect(kindView(undefined, '2026-07-20')).toEqual({ state: 'unavailable' });
+    // A missing filed figure withholds the block rather than printing $0.
+    expect(
+      kindView({ ...BY_KIND, lines: [{ ...BY_KIND.lines[0], stated_total: null }] }, '2026-07-20'),
+    ).toEqual({ state: 'unavailable' });
+  });
+
+  it('says when the sources disagree', async () => {
+    await render(
+      '/money/committees/90001',
+      withBlocks({
+        stated_by_kind: {
+          state: 'sources_disagree',
+          reported_through: '2026-07-20',
+          lines: [],
+        },
+      }),
+    );
+    expect(container.querySelector('.cmt-bk-kind')?.textContent).toContain('The sources disagree');
+  });
+
+  it('lists individual cash by state, each other state when opened, and dates the ZIP reference', async () => {
+    await render('/money/committees/90001', withBlocks({ donor_states: DONOR_STATES }));
+    const card = container.querySelector('[aria-labelledby="cmt-states-h"]')!;
+    expect(card.querySelector('h2')?.textContent).toBe('Individual contributions by state, 2026');
+    const labels = () => [...card.querySelectorAll('.f-bar-label')].map((item) => item.textContent);
+    expect(labels()).toEqual(['Minnesota', 'Other states', 'Unknown']);
+    expect(card.textContent).toContain('$241,300 · Printed names 412');
+    expect(card.textContent).toContain('using the reference dated Jul 1, 2026, not proof');
+    const show = [...card.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Show each state',
+    )!;
+    expect(show.getAttribute('aria-expanded')).toBe('false');
+    await act(async () => show.click());
+    expect(labels()).toEqual(['Minnesota', 'Other states', 'Iowa', 'Wisconsin', 'Unknown']);
+    expect(card.querySelector('[data-sub]')).not.toBeNull();
+    expect(show.textContent).toBe('Hide each state');
+  });
+
+  it('says a state breakdown is not available rather than printing $0, and only for a candidate committee', async () => {
+    await render('/money/committees/90001', withBlocks({}));
+    const card = container.querySelector('[aria-labelledby="cmt-states-h"]')!;
+    expect(card.textContent).toContain('A state breakdown isn’t available for 2026');
+    expect(card.textContent).not.toContain('$0');
+    expect(
+      stateRows(
+        {
+          ...DONOR_STATES,
+          summary: {
+            ...DONOR_STATES.summary,
+            unknown: { names: 9, cash_total: null },
+          },
+        },
+        false,
+      ),
+    ).toBeNull();
+    act(() => root.unmount());
+    root = createRoot(container);
+    clearReadCache();
+    await render(
+      '/money/committees/90001',
+      withBlocks(
+        { donor_states: DONOR_STATES },
+        {
+          ...FINANCE,
+          entity_type: 'PCF',
+          register: {
+            ...FINANCE.register,
+            kind: 'political_committee_or_fund',
+          },
+        },
+      ),
+    );
+    expect(container.querySelector('[aria-labelledby="cmt-states-h"]')).toBeNull();
+    expect(container.querySelector('[aria-labelledby="cmt-names-h"]')).not.toBeNull();
+  });
+
+  it('counts printed donor names at other candidate committees and links each to its payments', async () => {
+    await render('/money/committees/90001', withBlocks({ name_connections: NAME_CONNECTIONS }));
+    const card = container.querySelector('[aria-labelledby="cmt-names-h"]')!;
+    expect(card.querySelector('h2')?.textContent).toBe(
+      'Donor names also at other candidate committees, 2026',
+    );
+    expect(card.textContent).toContain(
+      '455 printed individual donor names · 61 also appear at another candidate committee',
+    );
+    const buckets = [...card.querySelectorAll('tbody th')].map((item) => item.textContent);
+    expect(buckets).toEqual(['0', '1', '2', '3', '4 or more']);
+    const links = [...card.querySelectorAll('a')];
+    expect(links.map((link) => link.textContent)).toEqual([
+      'Example, Avery5 other committees',
+      'Example, Wen1 other committee',
+    ]);
+    expect(links[0].getAttribute('href')).toBe(
+      '/money/names/Example%2C%20Avery?role=donor&year=2026&from=%2Fmoney%2Fcommittees%2F90001',
+    );
+    expect(card.textContent).toContain('A shared name does not show the same person.');
+  });
+
+  it('shows neither year card in a year with no contribution records held', async () => {
+    await render(
+      '/money/committees/90001',
+      withBlocks({
+        money_in: { ...FINANCE.money_in, state: 'not_reported' },
+        name_connections: {
+          ...NAME_CONNECTIONS,
+          state: 'not_reported',
+          numerator: null,
+          denominator: null,
+        },
+      }),
+    );
+    expect(container.querySelector('[aria-labelledby="cmt-names-h"]')).toBeNull();
+    expect(container.querySelector('[aria-labelledby="cmt-states-h"]')).toBeNull();
+  });
+
+  it('says when no names are held, or the connections are unavailable', async () => {
+    await render(
+      '/money/committees/90001',
+      withBlocks({
+        name_connections: {
+          ...NAME_CONNECTIONS,
+          state: 'not_reported',
+          numerator: null,
+          denominator: null,
+        },
+      }),
+    );
+    expect(container.querySelector('[aria-labelledby="cmt-names-h"]')?.textContent).toContain(
+      'No individual contribution names are held for 2026',
+    );
+    act(() => root.unmount());
+    root = createRoot(container);
+    clearReadCache();
+    await render(
+      '/money/committees/90001',
+      withBlocks({
+        name_connections: {
+          ...NAME_CONNECTIONS,
+          state: 'unavailable',
+          numerator: null,
+          denominator: null,
+        },
+      }),
+    );
+    const card = container.querySelector('[aria-labelledby="cmt-names-h"]')!;
+    expect(card.textContent).toContain('Name connections are unavailable for 2026');
+    expect(card.querySelector('table')).toBeNull();
+  });
+});
+
+describe('Committee page, return link', () => {
+  it('falls back to Campaign money when opened with no usable earlier page', async () => {
+    await render('/money/committees/90001?from=https%3A%2F%2Fexample.test', loadedAnswers());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Campaign money');
+    expect(back?.getAttribute('href')).toBe('/money');
+  });
+
+  it('keeps the named fallback while loading, on failure and when the record is gone', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({ '/committees/90001/finance': { status: 500 } }),
+    );
+    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Campaign money');
+    act(() => root.unmount());
+    root = createRoot(container);
+    clearReadCache();
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({ '/committees/90001/finance': { status: 404 } }),
+    );
+    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Campaign money');
+  });
+
+  it('returns to the earlier page when the address names one', async () => {
+    await render('/money/committees/90001?from=%2Fmoney%2Fraces%2Fhouse-1a', loadedAnswers());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Money by race');
+    expect(back?.getAttribute('href')).toBe('/money/races/house-1a');
+  });
+});
+
+describe('Contributions made and report availability', () => {
+  const outgoing = [
+    made('Example Printing Co', '200.0000', '2026-04-22', 21),
+    {
+      ...made('State Party-like name', '100.0000', '2026-03-03', 22),
+      expenditure_type: 'Contribution',
+      affected_committee_name: 'Example Recipient',
+      affected_committee_registration_number: '30004',
+      recipient_type: 'political_committee_or_fund',
+      recipient_type_source: {
+        snapshot_id: 'source',
+        copied_at: '2026-10-27T17:00:00Z',
+        source_url: 'https://cfb.mn.gov/register',
+        retained: true,
+      },
+    },
+    {
+      ...made('Candidate-looking name', '50.0000', '2026-02-03', 23),
+      expenditure_type: 'Contribution',
+    },
+  ];
+  const answers = () =>
+    loadedAnswers({
+      '/finance/committees/90001/payments?direction=made': {
+        status: 200,
+        body: page('reported', outgoing),
+      },
+    });
+  it('lists outgoing contributions once in their own tab with source-backed recipient types', async () => {
+    await render('/money/committees/90001?tab=made', answers());
+    const table = container.querySelector('[role="table"]')!;
+    expect(table.getAttribute('aria-label')).toBe('Contributions made');
+    expect(table.textContent).toContain('RECIPIENT TYPE');
+    expect(table.textContent).toContain('Example Recipient');
+    expect(table.textContent).toContain('Political committee or fund');
+    expect(table.textContent).toContain('Type not given');
+    expect(table.textContent).not.toContain('Example Printing Co');
+    expect(text()).toContain('Itemized contributions made $150');
+    expect(text()).not.toContain('Minnesota makes a committee name a recipient only once');
+    const expand = table.querySelector<HTMLButtonElement>('button[aria-expanded]')!;
+    await act(async () => expand.click());
+    await act(async () => button('View source')!.click());
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Recipient type');
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      'Retained registration copied Oct 27, 2026',
+    );
+  });
+  it.each([
+    ['made', 'Recipient', 'Matching itemized contributions made $100'],
+    ['expenditures', 'Printing', 'Matching itemized expenditures $200'],
+  ])('labels a filtered %s subtotal as matching records', async (tab, name, expected) => {
+    await render(`/money/committees/90001?tab=${tab}&name=${name}`, answers());
+    expect(container.querySelector('.cmt-summary')?.textContent).toContain(expected);
+  });
+  it('excludes outgoing contributions from expenditures and never reuses the aggregate tab count', async () => {
+    await render('/money/committees/90001?tab=expenditures', answers());
+    const table = container.querySelector('[role="table"]')!;
+    expect(table.textContent).toContain('Example Printing Co');
+    expect(table.textContent).not.toContain('Example Recipient');
+    expect(table.textContent).not.toContain('Candidate-looking name');
+    expect(text()).toContain('Total itemized expenditures $200');
+    const tabs = [...container.querySelectorAll('[role="tab"]')].map((node) => node.textContent);
+    expect(tabs).toContain('Expenditures1');
+    expect(tabs).toContain('Contributions made2');
+  });
+  it('keeps an unavailable selected report distinct from another report’s held figures', async () => {
+    await render(
+      '/money/committees/90001?report=8',
+      loadedAnswers({
+        '/finance/committees/90001/report-figures': {
+          status: 200,
+          body: reports([
+            reportRow(),
+            reportRow({
+              record_number: 8,
+              report_name: '2026 Pre-General Report',
+              figures_state: 'unavailable',
+              figures_reason: 'cutoff_mismatch',
+            }),
+          ]),
+        },
+      }),
+    );
+    const official = container.querySelector('.cmt-official')!;
+    expect(official.textContent).toContain('2026 Pre-General Report');
+    expect(official.querySelector('.cmt-figures')).toBeNull();
+    expect(official.textContent).toContain(
+      'The filing’s reported-through date does not match this report’s cutoff date',
+    );
+    expect(official.textContent).not.toContain('$438,900');
+    expect(text()).toContain('Example, Jordan A');
+  });
+});
+
+it('explains each served report-match reason without claiming the committee failed to file', () => {
+  expect(unavailableFiguresReason('missing_filing')).toBe(
+    'No financial figures are held for this committee and year',
+  );
+  expect(unavailableFiguresReason('missing_reported_through')).toBe(
+    'The financial figures do not give a coverage end date',
+  );
+  expect(unavailableFiguresReason('special_election')).toBe(
+    'These financial figures cannot be matched to a special-election report',
+  );
+  expect(unavailableFiguresReason('missing_cutoff')).toBe(
+    'This report does not give a cutoff date',
+  );
+  expect(unavailableFiguresReason('ambiguous_cutoff')).toBe(
+    'More than one report has the same cutoff date',
+  );
+  expect(unavailableFiguresReason(null)).toBe(
+    'No matched financial figures are held for this report',
+  );
+});
+
+describe('Committee matching station invoices', () => {
+  const invoice = { key: 'a'.repeat(64), version: 'saved-version-2', page: 7 };
+  const invoiceLinks = (scope: ParentNode = container) =>
+    [...scope.querySelectorAll<HTMLAnchorElement>('a')].filter(
+      (link) => link.textContent === 'Matching station invoice',
+    );
+  const answers = (payments: unknown[]) =>
+    loadedAnswers({
+      '/finance/committees/90001/payments?direction=made': {
+        status: 200,
+        body: page('reported', payments),
+      },
+    });
+  it('links the exact checked row and its group to the saved invoice page with a return path', async () => {
+    await render(
+      '/money/committees/90001?year=2026&tab=expenditures',
+      answers([
+        {
+          ...made('Example Printing Co', '20.0000', '2026-04-22', 21),
+          matching_invoice: invoice,
+        },
+        made('Example Printing Co', '20.0000', '2026-04-22', 22),
+      ]),
+    );
+    expect(invoiceLinks()).toHaveLength(1);
+    const target = new URL(invoiceLinks()[0].href);
+    expect(target.pathname).toContain(invoice.key);
+    expect(target.searchParams.get('version')).toBe(invoice.version);
+    expect(target.searchParams.get('page')).toBe('7');
+    expect(target.searchParams.get('from')).toBe(
+      '/money/committees/90001?year=2026&tab=expenditures',
+    );
+    await act(async () => container.querySelector<HTMLButtonElement>('.cmt-toggle')!.click());
+    expect(invoiceLinks(container.querySelector('#cmt-pay-m0')!)).toHaveLength(1);
+    expect(invoiceLinks(container.querySelector('#cmt-pay-m1')!)).toHaveLength(0);
+  });
+  it('does not infer an invoice from an identical payment without a checked link', async () => {
+    await render(
+      '/money/committees/90001?tab=expenditures',
+      answers([made('Example Printing Co', '20.0000', '2026-04-22', 21)]),
+    );
+    expect(invoiceLinks()).toHaveLength(0);
+    await act(async () => container.querySelector<HTMLButtonElement>('.cmt-toggle')!.click());
+    expect(invoiceLinks()).toHaveLength(0);
+  });
+  it('keeps different invoices on their own rows rather than choosing a group invoice', async () => {
+    await render(
+      '/money/committees/90001?tab=expenditures',
+      answers([
+        {
+          ...made('Example Printing Co', '20.0000', '2026-04-22', 21),
+          matching_invoice: invoice,
+        },
+        {
+          ...made('Example Printing Co', '30.0000', '2026-04-23', 22),
+          matching_invoice: { ...invoice, page: 8 },
+        },
+      ]),
+    );
+    expect(invoiceLinks()).toHaveLength(0);
+    await act(async () => container.querySelector<HTMLButtonElement>('.cmt-toggle')!.click());
+    expect(invoiceLinks()).toHaveLength(2);
+    expect(
+      invoiceLinks()
+        .map((link) => new URL(link.href).searchParams.get('page'))
+        .sort(),
+    ).toEqual(['7', '8']);
   });
 });

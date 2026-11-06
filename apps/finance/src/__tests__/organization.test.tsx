@@ -510,7 +510,7 @@ describe('Organization profile', () => {
     }
     expect(container.querySelector('[aria-label="Roles"]')).toBeNull();
     expect(text()).not.toContain('Official identifiers');
-    expect(requests).toHaveLength(1);
+    expect(requests.filter((url) => !url.includes('/media-buys/connections'))).toHaveLength(1);
   });
 
   it('fails a section, not the page, when the file moved between reads', async () => {
@@ -718,4 +718,19 @@ describe('Organization derived labels', () => {
     expect(rolesOf(false, false, false)).toEqual([]);
     expect(rolesOf(true, false, true)).toEqual(['Lobbying principal', 'Payment recipient']);
   });
+});
+
+it('reads checked station files for the confirmed organization only', async () => {
+  const base = answering(PROFILE);
+  await render(`/organizations/${ORG}`, (url) =>
+    url.includes('/media-buys/connections') ? json({ files: [], groups: [], total: 0 }) : base(url),
+  );
+  expect(text()).toContain(
+    'No TV station files have a checked connection to Example Health Association',
+  );
+  const path = requests
+    .map((url) => new URL(url))
+    .find((url) => url.pathname.endsWith('/media-buys/connections'));
+  expect(path?.searchParams.get('kind')).toBe('organization');
+  expect(path?.searchParams.get('target')).toBe(ORG);
 });

@@ -1,3 +1,4 @@
+import { MediaBuysCard } from './media/MediaBuysCard';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDay, formatMoney } from '../ui/money';
 import { apiPath, useRead } from '../api/read';
@@ -109,6 +110,7 @@ export function timelineRows(
   const rows: TimelineRow[] = [];
   for (const e of record?.elections ?? []) {
     const outcome = finalOutcome(e.result);
+    const isUpcoming = upcoming(e, today);
     const status = e.result ? RESULT_LABELS[e.result.status] : RESULT_LABELS.pending;
     // Each seat fact once: the served office often repeats the district its voting
     // area names ("State Representative District 56A", "House District 56A").
@@ -116,7 +118,7 @@ export function timelineRows(
     const office = seat[0] || e.office;
     const title = outcome
       ? `${OUTCOME_LABELS[outcome]} · ${office}`
-      : upcoming(e, today)
+      : isUpcoming
         ? `Running for ${office}`
         : `${status} · ${office}`;
     const year = e.election.date.slice(0, 4);
@@ -125,7 +127,11 @@ export function timelineRows(
       date: e.election.date,
       kind: 'ELECTION',
       title,
-      detail: [electionKind(e.election), seat.slice(1).join(', ') || e.votingArea, status]
+      detail: [
+        electionKind(e.election),
+        seat.slice(1).join(', ') || e.votingArea,
+        outcome || isUpcoming ? status : null,
+      ]
         .filter(Boolean)
         .join(' · '),
       href: isBuilt('candidate') ? hrefFor('candidate', { id: e.candidateId }) : null,
@@ -421,6 +427,12 @@ export function Person({ match }: { match: RouteMatch }) {
                     from={here}
                   />
                 )}
+                <MediaBuysCard
+                  kind="person"
+                  target={id}
+                  name={record?.name ?? identity?.name ?? ''}
+                  personIsCandidate={isCandidate}
+                />
                 {identity && identity.status === 'active' && (
                   <PersonMoney identity={identity} here={here} onSources={setSourceItems} />
                 )}

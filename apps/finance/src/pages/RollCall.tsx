@@ -6,6 +6,7 @@ import { Link, useLocation } from '../router';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { Chips, Refused, type Option } from '../ui/controls';
+import { nameDiscoveryRank } from '../ui/nameDiscovery';
 import { BackLink, LoadingLine, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   billCode,
@@ -76,11 +77,19 @@ export function recordedFilters(records: VoteRecord[]): Option<string>[] {
 
 export function matchingMembers(records: VoteRecord[], recorded: string, query: string) {
   const q = query.trim().toLowerCase();
-  return records.filter(
-    (record) =>
-      (recorded === 'all' || record.vote_value === recorded) &&
-      (!q || (record.legislator_name ?? '').toLowerCase().includes(q)),
-  );
+  return records
+    .filter((record) => recorded === 'all' || record.vote_value === recorded)
+    .map((record, index) => {
+      const district = record.district?.trim().toLowerCase();
+      const rank =
+        !q || (district && (district.includes(q) || `district ${district}`.includes(q)))
+          ? 1
+          : nameDiscoveryRank(record.legislator_name ?? '', q);
+      return { record, index, rank };
+    })
+    .filter(({ rank }) => rank > 0)
+    .sort((left, right) => left.rank - right.rank || left.index - right.index)
+    .map(({ record }) => record);
 }
 
 /** "www.senate.mn" from the roll call's own record address. */
@@ -111,7 +120,10 @@ export function RollCall({ match }: { match: RouteMatch }) {
   const back =
     returnTarget(location.search) ??
     (billId && isBuilt('bill')
-      ? { to: hrefFor('bill', { id: billId }, { tab: 'votes' }), name: 'Bill votes' }
+      ? {
+          to: hrefFor('bill', { id: billId }, { tab: 'votes' }),
+          name: 'Bill votes',
+        }
       : isBuilt('legislation')
         ? { to: hrefFor('legislation'), name: 'Legislation' }
         : null);
@@ -275,6 +287,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
               <div role="table" aria-label="Members" className="rc-table">
                 <div role="row" className="rc-row rc-row-head">
                   <span role="columnheader">MEMBER</span>
+                  <span role="columnheader">DISTRICT</span>
                   <span role="columnheader">PARTY</span>
                   <span role="columnheader">RECORDED</span>
                 </div>
@@ -283,9 +296,9 @@ export function RollCall({ match }: { match: RouteMatch }) {
                 ))}
               </div>
               <p className="f-section-note lg-note">
-                Party is as recorded for this roll call. A member’s record here is a vote on one
-                motion, never a position or an opinion. Names link only where a legislator record is
-                confirmed.
+                District and party come from held service records for the vote date. A member’s
+                record here is a vote on one motion, never a position or an opinion. Names link only
+                where a legislator record is confirmed.
               </p>
             </>
           )}
@@ -311,6 +324,9 @@ function MemberRow({ member, here }: { member: VoteRecord; here: string }) {
         ) : (
           <span className={name ? 'bl-name' : 'bl-muted'}>{name ?? 'Not held in this copy'}</span>
         )}
+      </span>
+      <span role="cell" className={member.district ? 'rc-district' : 'rc-district bl-muted'}>
+        {member.district?.trim() ? `District ${member.district.trim()}` : 'District not recorded'}
       </span>
       <span role="cell" className={member.party ? 'rc-party' : 'rc-party bl-muted'}>
         {member.party?.trim() || 'Party not recorded'}

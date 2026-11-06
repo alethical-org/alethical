@@ -38,7 +38,11 @@ from alethical.api.services import (
     identity_confirmations as identities,
 )
 from alethical.api.services import lobbying, tv_ads as station_reader
-from alethical.api.services.campaign_finance_search import name_contains
+from alethical.api.services.finance_name_matching import (
+    configure_discovery,
+    indexed_discovery_match,
+    discovery_text,
+)
 from alethical.api.services.campaign_finance_payments import linkable_committees
 from alethical.db import models as m
 from alethical.pipeline import campaign_finance_graph_summary as summary
@@ -256,8 +260,7 @@ def _edge(
 
 def _matches(edge, query, focus):
     return (
-        not query
-        or any(query.casefold() in n["label"].casefold() for n in edge["_nodes"])
+        not query or any(discovery_text(query, n["label"]) for n in edge["_nodes"])
     ) and (not focus or focus in (edge["from"], edge["to"]))
 
 
@@ -311,6 +314,7 @@ INPUT_NAMES = (
     "first_date",
     "last_date",
     "undated",
+    "position",
 )
 KEY_INPUTS = INPUT_NAMES[:8]
 
@@ -328,6 +332,15 @@ def _aggregate_money_rows(rows, dataset, where=()):
         select(
             *(rows.c[name] for name in NODE_COLUMNS),
             literal(dataset).label("dataset"),
+            func.array_agg(rows.c.printed_name.distinct())
+            .filter(rows.c.printed_name.is_not(None))
+            .label("printed_names"),
+            func.array_agg(rows.c.position.distinct())
+            .filter(rows.c.position.is_not(None))
+            .label("positions"),
+            func.coalesce(
+                func.sum(rows.c.record_count).filter(rows.c.position.is_(None)), 0
+            ).label("position_missing_count"),
             records.label("count"),
             case(
                 (all_amounts & whole_period, func.sum(rows.c.amount_sum)),
@@ -386,6 +399,7 @@ def _graph_inputs(db, source, graph, *, entities, confirmed_names, summary_held,
             rows.first_date,
             rows.last_date,
             rows.undated_count,
+            rows.position,
         ).where(rows.snapshot_id == source.snapshot_id)
         if names:
             part = part.where(
@@ -419,6 +433,7 @@ def _graph_inputs(db, source, graph, *, entities, confirmed_names, summary_held,
             graph.date,
             graph.date,
             case((graph.date.is_(None), 1), else_=0),
+            _text_or_null(getattr(model, "for_against", None)),
         ).select_from(model)
         if entities:
             part = part.outerjoin(
@@ -611,6 +626,11 @@ def _money_groups(
     columns = [value.label(label) for value, label in zip(start + end, names)]
     base = select(
         *columns,
+        (
+            case((transfer, transfer_label), else_=inputs.c.name)
+            if kind == "payee_name"
+            else inputs.c.name
+        ).label("printed_name"),
         *(inputs.c[name] for name in INPUT_NAMES[8:]),
     ).select_from(inputs)
     rows = base.subquery()
@@ -618,8 +638,8 @@ def _money_groups(
     if query:
         where.append(
             or_(
-                name_contains(rows.c.from_label, query),
-                name_contains(rows.c.to_label, query),
+                indexed_discovery_match(rows.c.from_label, query),
+                indexed_discovery_match(rows.c.to_label, query),
             )
         )
     if focus:
@@ -709,6 +729,9 @@ def _money_page(db, release, groups, *, year, offset, limit, budget=False):
             )
             for side in ("from", "to")
         ]
+        printed_side = 0 if dataset == reader.Dataset.contributions else 1
+        if nodes[printed_side]["kind"] in {"person", "organization"}:
+            nodes[printed_side]["printed_names"] = sorted(data["printed_names"] or [])
         key = hashlib.sha256(
             json.dumps(
                 [source.dataset.value, year] + [data[n] for n in NODE_COLUMNS],
@@ -738,6 +761,9 @@ def _money_page(db, release, groups, *, year, offset, limit, budget=False):
                 period_basis=data["period_basis"],
             )
         )
+        if dataset == reader.Dataset.independent_expenditures:
+            result[-1]["positions"] = sorted(data["positions"] or [])
+            result[-1]["position_missing_count"] = data["position_missing_count"]
     return result, total
 
 
@@ -973,6 +999,7 @@ def _station_edges(db, identifiers, year):
             continue
         file_key = station_reader.file_key(document.facility_id, document.file_id)
         file = _node("file", file_key, document.name, version=document.content_hash)
+        file["saved_at"] = document.first_seen_at
         source = {
             "dataset": "station_file",
             "url": document.url,
@@ -1063,6 +1090,8 @@ def connections(
     offset=0,
 ):
     committee_finance.pin_to_one_view(db)
+    if query:
+        configure_discovery(db)
     entities, identifiers, confirmed_names = _identity_maps(db)
     groups, years, unavailable = [], set(), []
     release = None
@@ -1147,7 +1176,37 @@ def connections(
         edges.sort(key=_edge_order)
         selected = edges[local_offset : local_offset + limit]
     total = money_total + len(other)
-    nodes = {n["key"]: n for e in selected for n in e["_nodes"]}
+    nodes = {}
+    for edge in selected:
+        for node in edge["_nodes"]:
+            previous = nodes.get(node["key"], {})
+            names = set(previous.get("printed_names", [])) | set(
+                node.get("printed_names", [])
+            )
+            nodes[node["key"]] = {
+                **node,
+                **({"printed_names": sorted(names)} if names else {}),
+            }
+    numbers = [n["record_id"] for n in nodes.values() if n["kind"] == "committee"]
+    pointer = db.get(m.CampaignFinanceFilingCurrentSnapshot, True)
+    kinds = (
+        dict(
+            db.execute(
+                select(
+                    m.CampaignFinanceFiler.registration_number,
+                    m.CampaignFinanceFiler.kind,
+                ).where(
+                    m.CampaignFinanceFiler.snapshot_id == pointer.snapshot_id,
+                    m.CampaignFinanceFiler.registration_number.in_(numbers),
+                )
+            ).all()
+        )
+        if numbers and pointer and pointer.snapshot_id
+        else {}
+    )
+    for node in nodes.values():
+        if node["kind"] == "committee" and node["record_id"] in kinds:
+            node["register_kind"] = kinds[node["record_id"]].value
     # Identity nodes carry the identity's short reference (ORG-0042, PER-0042).
     identity_ids = {
         n["record_id"]

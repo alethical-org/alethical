@@ -10,10 +10,16 @@ import {
 } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
-import { checkAccess, type AccessState } from '../api/client';
+import { checkAccess, signOutResearch, type AccessState } from '../api/client';
 import { clearReadCache } from '../api/read';
 import { clearDrafts, setDraftAccount } from '../ui/drafts';
 import { STORAGE_KEY } from './supabase';
+import {
+  readResearchSession,
+  saveResearchSession,
+  RESEARCH_SESSION_KEY,
+  type ResearchSession,
+} from './researchSession';
 
 export type SessionStatus = 'loading' | 'checking' | AccessState;
 
@@ -24,6 +30,12 @@ interface Answer {
 
 export interface FinanceSession {
   status: SessionStatus;
+  canEdit: boolean;
+  /** Keeps expired research sessions on their own access-code entry path. */
+  signInPath: '/sign-in' | '/investor-access';
+  startResearchSession: (session: ResearchSession) => Promise<void>;
+  /** Explicit Google/code sign-in, distinct from automatic auth refresh events. */
+  beginOrdinarySignIn: () => void;
   email: string | null;
   accessToken: string | null;
   supabase: SupabaseClient;
@@ -70,29 +82,115 @@ export function SessionProvider({
   screens?: boolean;
   children: ReactNode;
 }) {
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [initial] = useState(() => {
+    const research = readResearchSession();
+    let hadResearch = research !== null;
+    try {
+      hadResearch ||= window.localStorage.getItem(RESEARCH_SESSION_KEY) !== null;
+    } catch {
+      /* Storage may be unavailable. */
+    }
+    return { research, hadResearch };
+  });
+  const [session, setSession] = useState<Session | null | undefined>(
+    initial.hadResearch ? null : undefined,
+  );
+  const [research, setResearch] = useState<ResearchSession | null>(initial.research);
+  const [signInPath, setSignInPath] = useState<'/sign-in' | '/investor-access'>(
+    initial.hadResearch ? '/investor-access' : '/sign-in',
+  );
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const latest = useRef(0);
+  // These refs change synchronously, before React renders or an auth promise settles.
+  const authGeneration = useRef(0);
+  const researchRef = useRef(research);
+  const ordinarySessionRef = useRef(session);
+  const ordinaryEventsEnabled = useRef(!initial.hadResearch);
+
+  const replaceResearch = useCallback((next: ResearchSession | null, persist = true) => {
+    authGeneration.current += 1;
+    latest.current += 1;
+    researchRef.current = next;
+    setSignInPath('/investor-access');
+    ordinaryEventsEnabled.current = false;
+    setResearch(next);
+    ordinarySessionRef.current = null;
+    setSession(null);
+    setAnswer(null);
+    setRetrying(false);
+    clearReadCache();
+    clearDrafts();
+    if (persist) saveResearchSession(next);
+    try {
+      // On a local start, let Supabase read its old session for local logout.
+      if (!next || !persist) window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // The in-memory ordinary session is already gone when storage is unavailable.
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) setSession(data.session);
-    });
+    if (initial.hadResearch && !initial.research) {
+      // Expired saved research must not reveal an ordinary account underneath it.
+      saveResearchSession(null);
+      clearReadCache();
+      clearDrafts();
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* no storage */
+      }
+    }
+    const generation = authGeneration.current;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (
+          active &&
+          generation === authGeneration.current &&
+          ordinaryEventsEnabled.current &&
+          !researchRef.current
+        ) {
+          ordinarySessionRef.current = data.session;
+          setSession(data.session);
+        }
+      })
+      .catch(() => {
+        if (
+          active &&
+          generation === authGeneration.current &&
+          ordinaryEventsEnabled.current &&
+          !researchRef.current
+        ) {
+          ordinarySessionRef.current = null;
+          setSession(null);
+        }
+      });
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
-      if (active) setSession(next);
+      // A Supabase refresh or initial event belongs to the ordinary account. It
+      // must never replace research, or sit behind it waiting to be restored.
+      if (!active || researchRef.current) return;
+      if (!ordinaryEventsEnabled.current) return;
+      authGeneration.current += 1;
+      const previous = ordinarySessionRef.current;
+      if (previous?.access_token !== next?.access_token || previous?.user.id !== next?.user.id)
+        latest.current += 1;
+      ordinarySessionRef.current = next;
+      setSession(next);
+      if (!next) setAnswer(null);
     });
     return () => {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, initial]);
 
-  const loaded = session !== undefined;
-  const token = session?.access_token ?? null;
-  const userId = session?.user.id ?? null;
+  const loaded = research !== null || session !== undefined;
+  const token = research?.access_token ?? session?.access_token ?? null;
+  const userId = research ? `research:${research.email}` : (session?.user.id ?? null);
   const [revoked, setRevoked] = useState(false);
 
   // Drafts and held answers belong to 1 account: signing in as another
@@ -120,11 +218,20 @@ export function SessionProvider({
     checkAccess(apiBaseUrl, token).then((result) => {
       if (request !== latest.current) return;
       setRetrying(false);
+      if (research && (result === 'signed-out' || result === 'no-access')) {
+        replaceResearch(null);
+        setRevoked(true);
+        return;
+      }
       setAnswer((previous) => {
         const sameAccount = previous !== null && previous.userId === userId;
         // Access held in this session and now refused: results kept from this
         // account are no longer shown, and its unfinished entries are gone.
-        if (result === 'no-access' && sameAccount && previous.status === 'granted') {
+        if (
+          (result === 'no-access' || result === 'signed-out') &&
+          sameAccount &&
+          previous.status === 'granted'
+        ) {
           clearReadCache();
           clearDrafts();
           setRevoked(true);
@@ -141,7 +248,81 @@ export function SessionProvider({
         return { userId, status: result };
       });
     });
-  }, [apiBaseUrl, attempt, loaded, token, userId]);
+  }, [apiBaseUrl, attempt, loaded, token, userId, research, replaceResearch]);
+
+  useEffect(() => {
+    function changed(event: StorageEvent) {
+      if (event.key === RESEARCH_SESSION_KEY || event.key === null) {
+        replaceResearch(readResearchSession(), false);
+      }
+    }
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, [replaceResearch]);
+
+  useEffect(() => {
+    if (!research) return;
+    const recheck = () => setAttempt((value) => value + 1);
+    const visible = () => {
+      if (document.visibilityState === 'visible') recheck();
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', visible);
+    // Bound the timer below the browser's maximum delay, rechecking long sessions daily.
+    const timer = window.setTimeout(
+      () => {
+        if (Date.parse(research.expires_at) <= Date.now()) {
+          replaceResearch(null);
+        } else recheck();
+      },
+      Math.min(86400000, Math.max(0, Date.parse(research.expires_at) - Date.now())),
+    );
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, [research, attempt, replaceResearch]);
+
+  const startResearchSession = useCallback(
+    async (next: ResearchSession) => {
+      // End the old identity before awaiting Supabase: a deferred initial read
+      // or auth callback can arrive while local sign-out is still in flight.
+      replaceResearch(next);
+      const generation = authGeneration.current;
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // Both returned auth errors and rejected requests leave research usable.
+        // replaceResearch already cleared the ordinary state.
+      } finally {
+        if (generation === authGeneration.current) {
+          try {
+            window.localStorage.removeItem(STORAGE_KEY);
+          } catch {
+            /* no storage */
+          }
+        }
+      }
+    },
+    [supabase, replaceResearch],
+  );
+
+  const beginOrdinarySignIn = useCallback(() => {
+    if (researchRef.current) {
+      const oldToken = researchRef.current.access_token;
+      replaceResearch(null);
+      void signOutResearch(apiBaseUrl, oldToken);
+    }
+    authGeneration.current += 1;
+    latest.current += 1;
+    ordinaryEventsEnabled.current = true;
+    setSignInPath('/sign-in');
+    ordinarySessionRef.current = null;
+    setSession(null);
+    setAnswer(null);
+    clearReadCache();
+  }, [apiBaseUrl, replaceResearch]);
 
   const status: SessionStatus = !loaded
     ? 'loading'
@@ -156,23 +337,43 @@ export function SessionProvider({
     setAttempt((value) => value + 1);
   }, []);
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) {
-      // Signing out locally can fail offline with an expired token; the saved
-      // session must still leave this browser.
-      try {
-        window.localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // Storage can be unavailable; the session below is cleared either way.
-      }
-      setSession(null);
+    if (researchRef.current) {
+      const oldToken = researchRef.current.access_token;
+      replaceResearch(null);
+      await signOutResearch(apiBaseUrl, oldToken);
+      return;
     }
-  }, [supabase]);
+    // Clear synchronously even when the provider throws or reports an error.
+    const generation = ++authGeneration.current;
+    latest.current += 1;
+    ordinaryEventsEnabled.current = false;
+    ordinarySessionRef.current = null;
+    setSession(null);
+    setAnswer(null);
+    clearReadCache();
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Offline sign-out still leaves this browser signed out.
+    } finally {
+      if (generation === authGeneration.current) {
+        try {
+          window.localStorage.removeItem(STORAGE_KEY);
+        } catch {
+          /* no storage */
+        }
+      }
+    }
+  }, [supabase, apiBaseUrl, replaceResearch]);
 
   const value = useMemo<FinanceSession>(
     () => ({
       status,
-      email: session?.user.email ?? null,
+      canEdit: status === 'granted' && research === null,
+      signInPath,
+      startResearchSession,
+      beginOrdinarySignIn,
+      email: research?.email ?? session?.user.email ?? null,
       accessToken: token,
       supabase,
       apiBaseUrl,
@@ -186,6 +387,9 @@ export function SessionProvider({
     }),
     [
       apiBaseUrl,
+      research,
+      startResearchSession,
+      beginOrdinarySignIn,
       emailSignIn,
       googleSignIn,
       retry,
@@ -194,6 +398,7 @@ export function SessionProvider({
       screens,
       session,
       signOut,
+      signInPath,
       status,
       supabase,
       token,

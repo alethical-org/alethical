@@ -1,8 +1,9 @@
+import { RECORDS_CHANGED, useVersionedRead } from '../api/versionedRead';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { formatMoney } from '../ui/money';
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
-import { apiPath, useRead } from '../api/read';
+import { apiPath } from '../api/read';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
@@ -41,6 +42,7 @@ export interface Recipient {
 }
 
 export interface RecipientsPage {
+  version?: string;
   state: string;
   rows: Recipient[];
   total: number | null;
@@ -264,7 +266,7 @@ export function Recipients(_props: { match: RouteMatch }) {
     if (!a.ok || !b.ok || !boundsInOrder(a.value, b.value)) return;
     setState({ min: a.value ?? '', max: b.value ?? '', page: '1' });
   }
-  const read = useRead<RecipientsPage>(
+  const read = useVersionedRead<RecipientsPage>(
     apiPath(['finance', 'payees'], {
       q: state.q.trim().slice(0, 200),
       tab,
@@ -276,7 +278,11 @@ export function Recipients(_props: { match: RouteMatch }) {
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
     }),
-    { keepPrevious: true, acceptData: (data) => data.state !== 'unavailable' },
+    {
+      page,
+      onRestart: () => setState({ page: '1' }),
+      acceptData: (data) => data.state !== 'unavailable',
+    },
   );
   const data = read.data?.state === 'unavailable' ? null : read.data,
     rows = data?.rows ?? [],
@@ -426,7 +432,11 @@ export function Recipients(_props: { match: RouteMatch }) {
           {(read.failed || read.data?.state === 'unavailable') && (
             <div className="vp-notice">
               <Refused onRetry={read.retry} retrying={read.pending}>
-                {data ? 'We couldn’t update these results' : 'We couldn’t load these results'}
+                {read.changed
+                  ? RECORDS_CHANGED
+                  : data
+                    ? 'We couldn’t update these results. Previous results are shown.'
+                    : 'We couldn’t load these results'}
               </Refused>
             </div>
           )}

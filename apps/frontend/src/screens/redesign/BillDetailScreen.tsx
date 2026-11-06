@@ -27,6 +27,8 @@ import { ReturnToast } from '../../components/search/ReturnToast';
 import { shouldAnnounceTrack, trackReturnAction } from '../../lib/trackReturn';
 import { useBill, usePrefetchSuggestedAnswer } from '../../hooks/useAppQueries';
 import { useBillTracking } from '../../hooks/useBillTracking';
+import { useInitialBillSectionJump } from '../../hooks/useInitialBillSectionJump';
+import { useActiveBillChip } from '../../hooks/useActiveBillChip';
 import { isNotFoundError } from '../../data/api';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
@@ -76,7 +78,7 @@ import {
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
-import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
+import { citationSectionAnchor, citationSectionHref, phoneBillSection } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
@@ -380,7 +382,12 @@ function BillDetailMobileScreen() {
   const billId = typeof params.billId === 'string' ? params.billId : '';
   // Deep link: /bills/:id?tab=votes lands on that section (grounded-answers rule 5
   // — the section is URL-addressable). Applied once, when that section lays out.
-  const initialTab = SECTIONS.some((s) => s.id === params.tab) ? (params.tab as SectionId) : null;
+  // A Bill Text link says ?tab=text; a #ft- section in it is then reached by
+  // Bill Text's own jump, which lands after this one.
+  const initialTab = phoneBillSection(
+    params.tab,
+    SECTIONS.map((s) => s.id),
+  );
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
@@ -456,9 +463,10 @@ function BillDetailMobileScreen() {
     fulltext: 0,
   });
   const [active, setActive] = useState<SectionId>('summary');
+  const chipStripRef = useRef<ScrollView>(null);
+  const revealActiveChip = useActiveBillChip(chipStripRef, active);
   // Section a cited-section chip asked to jump to; consumed by FullTextTab.
   const [ftAnchor, setFtAnchor] = useState<string | null>(null);
-  const didInitialJump = useRef(false);
 
   const onSectionLayout = useCallback((id: SectionId, y: number) => {
     offsets.current[id] = y;
@@ -489,24 +497,13 @@ function BillDetailMobileScreen() {
     }
   }, []);
 
-  // Initial ?tab= deep link: jump once the bill has loaded and painted. Deferred
-  // to after paint (layout settles async) rather than fired during onLayout,
-  // which scrolls too early and gets reset when content above finishes laying out.
-  useEffect(() => {
-    if (!bill || !initialTab || didInitialJump.current) return;
-    didInitialJump.current = true;
-    if (isWeb && typeof document !== 'undefined') {
-      const id = window.setTimeout(() => {
-        document
-          .getElementById(`sec-${initialTab}`)
-          ?.scrollIntoView({ behavior: 'auto', block: 'start' });
-        setActive(initialTab);
-      }, 180);
-      return () => window.clearTimeout(id);
-    }
-    scrollRef.current?.scrollTo({ y: Math.max(0, offsets.current[initialTab] - STICKY_OFFSET) });
-    setActive(initialTab);
-  }, [bill, initialTab]);
+  // The loading branch stays up until the separate votes request settles too.
+  // A bill ID alone does not mean the destination sections are on the page.
+  useInitialBillSectionJump(
+    !billQuery.isLoading && !billQuery.isError ? bill?.id : undefined,
+    initialTab,
+    jumpTo,
+  );
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -840,8 +837,11 @@ function BillDetailMobileScreen() {
               <View style={styles.chipBar}>
                 <View style={styles.chipBarCenter}>
                   <ScrollView
+                    ref={chipStripRef}
                     horizontal
                     showsHorizontalScrollIndicator={false}
+                    onLayout={revealActiveChip}
+                    onContentSizeChange={revealActiveChip}
                     contentContainerStyle={styles.chipBarInner}
                   >
                     {SECTIONS.map((s) => (

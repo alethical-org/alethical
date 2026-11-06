@@ -97,6 +97,7 @@ const loaded = (url: string) => {
   const filtered = ROWS.filter((row) => row.name.includes(q));
   return json({
     state: 'reported',
+    version: 'aaaaaaaaaaaaaaaa',
     rows: filtered.slice(offset, offset + 10),
     total: filtered.length,
     counts: { person: 0, candidate: 0, legislator: filtered.length },
@@ -114,6 +115,128 @@ const button = (label: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent === label)!;
 
 describe('People', () => {
+  it('prints confirmed source-record counts including zero without inventing a missing count', async () => {
+    await render('/people', async (url) => {
+      const body = await loaded(url).json();
+      return json({
+        ...body.data,
+        rows: [
+          { kind: 'person', id: 'one', name: 'One source', confirmed_record_count: 1 },
+          { kind: 'person', id: 'several', name: 'Several sources', confirmed_record_count: 4 },
+          { kind: 'person', id: 'zero', name: 'No source links', confirmed_record_count: 0 },
+          { kind: 'person', id: 'older', name: 'Older reply' },
+        ],
+      });
+    });
+    const rows = [...container.querySelectorAll<HTMLAnchorElement>('.pp-row')];
+    expect(rows[0].textContent).toContain('1 confirmed record');
+    expect(rows[1].textContent).toContain('4 confirmed records');
+    expect(rows[2].textContent).toContain('0 confirmed records');
+    expect(rows[3].textContent).not.toContain('confirmed record');
+    expect(rows[0].getAttribute('href')).toBe('/people/one?from=%2Fpeople');
+  });
+
+  it('shows validated person-link presence while keeping candidacy and service navigation distinct', async () => {
+    const links = [
+      { id: 'person-a', name: 'Held person A' },
+      { id: 'person-b', name: 'Held person B' },
+    ];
+    await render('/people', async (url) => {
+      const body = await loaded(url).json();
+      return json({
+        ...body.data,
+        rows: [
+          { kind: 'candidate', id: 'candidate-a', name: 'Linked candidate', person_links: links },
+          { ...legislator(1), person_links: links },
+          { kind: 'candidate', id: 'candidate-b', name: 'Unlinked candidate', person_links: [] },
+          { ...legislator(2), person_links: [] },
+        ],
+      });
+    });
+    const rows = [...container.querySelectorAll<HTMLAnchorElement>('.pp-row')];
+    expect(rows[0].textContent).toContain('Linked to person profile');
+    expect(rows[1].textContent).toContain('Linked to person profile');
+    expect(rows[2].textContent).toContain('Minnesota Secretary of State');
+    expect(rows[3].textContent).toContain('Minnesota Legislature');
+    expect(rows[0].getAttribute('href')).toBe('/candidates/candidate-a?from=%2Fpeople');
+    expect(rows[1].getAttribute('href')).toBe('/legislators/member-01?from=%2Fpeople');
+    expect(container.querySelector('a[href^="/people/person-a"]')).toBeNull();
+    expect(container.querySelector('a[href^="/people/person-b"]')).toBeNull();
+    expect(rows[0].textContent).not.toContain('Held person A');
+  });
+
+  it.each([
+    [
+      'candidates',
+      'party=DFL&office=County%20Sheriff',
+      ['Party (as filed): DFL', 'Office: County Sheriff'],
+    ],
+    [
+      'legislators',
+      'party=DFL&chamber=house',
+      ['Chamber: House', 'Party (Legislature record): DFL'],
+    ],
+  ])(
+    'uses held source filters for %s and clears them when changing type',
+    async (type, filters, labels) => {
+      await render(`/people?type=${type}&${filters}&page=2`, async (url) => {
+        const response = await loaded(url).json();
+        return json({
+          ...response.data,
+          parties: ['DFL', 'Republican'],
+          offices: ['County Sheriff'],
+          chambers: ['house', 'senate'],
+        });
+      });
+      const request = new URL(requests.find((url) => url.includes('/finance/people?'))!);
+      expect(request.searchParams.get('party')).toBe('DFL');
+      expect(request.searchParams.get(type === 'candidates' ? 'office' : 'chamber')).toBe(
+        type === 'candidates' ? 'County Sheriff' : 'house',
+      );
+      for (const label of labels) expect(text()).toContain(label);
+      await act(async () => button(labels[0]).click());
+      await act(async () => button(type === 'candidates' ? 'Republican' : 'Senate').click());
+      await settle();
+      const latest = new URL(requests.filter((url) => url.includes('/finance/people?')).at(-1)!);
+      expect(latest.searchParams.get('offset')).toBe('0');
+      expect(latest.searchParams.has('version')).toBe(false);
+      await act(async () => button('All records').click());
+      await settle();
+      expect(window.location.search).toBe('');
+      expect(text()).not.toContain('Party (');
+    },
+  );
+
+  it('shows the service term that matched a past district without calling it current service', async () => {
+    const current = legislator(1);
+    const matching = {
+      ...current.periods[0],
+      chamber: 'house',
+      district: '32A',
+      party: 'DFL',
+      start_date: '2019-01-08',
+      end_date: '2021-01-04',
+      session: '2019-2020',
+    };
+    await render('/people?type=legislators&q=32A', async (url) => {
+      const response = await loaded(url).json();
+      return json({
+        ...response.data,
+        total: 1,
+        rows: [{ ...current, matching_periods: [matching] }],
+      });
+    });
+    const row = container.querySelector('.pp-row')!;
+    expect(row.textContent).toContain('House District 32A');
+    expect(row.textContent).toContain('Jan 8, 2019');
+    expect(row.textContent).toContain('Jan 4, 2021');
+    expect(row.textContent).not.toContain('Senate District 1A');
+    expect(row.textContent).not.toContain('Serving');
+    expect(container.querySelector('label[for="people-name"]')?.textContent).toBe(
+      'Search by name or district',
+    );
+  });
+
   it('lists service records 10 a page, each with its mark, kind and return context', async () => {
     await render('/people?type=legislators&service=current', loaded);
     expect(
@@ -148,6 +271,34 @@ describe('People', () => {
     expect(text()).toContain('Page 2 of 3');
     expect(container.querySelector('.pp-row')?.textContent).toContain('Member 11');
     expect(button('Previous').getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('pins later pages and reloads the whole list after the source changes', async () => {
+    let changed = false;
+    await render('/people', (url) => {
+      const query = new URL(url).searchParams;
+      if (query.get('offset') === '10' && !changed) {
+        changed = true;
+        return new Response(
+          JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+          { status: 409 },
+        );
+      }
+      return loaded(url);
+    });
+    await act(async () => button('Next').click());
+    await settle();
+    const next = requests.find((url) => new URL(url).searchParams.get('offset') === '10')!;
+    expect(new URL(next).searchParams.get('version')).toBe('aaaaaaaaaaaaaaaa');
+    expect(text()).toContain('These records changed. Reload the list');
+    expect(text()).toContain('Member 01');
+    await act(async () => button('Try again').click());
+    await settle();
+    expect(text()).toContain('Page 1 of 3');
+    expect(text()).not.toContain('These records changed');
+    const last = requests.filter((url) => url.includes('/finance/people?')).at(-1)!;
+    expect(new URL(last).searchParams.get('offset')).toBe('0');
+    expect(new URL(last).searchParams.has('version')).toBe(false);
   });
 
   it('searches by name on Search and says when nothing matches', async () => {
@@ -431,5 +582,72 @@ describe('People wording', () => {
         periods: [{ ...period, party: null }],
       }),
     ).toBe('House District 45B · Serving');
+  });
+});
+
+describe('People person record notes', () => {
+  const person = { kind: 'person' as const, id: 'person', name: 'Held person' };
+  const notes = {
+    candidacy_years: [2026, 2024],
+    services: [
+      { office: 'State Representative', voting_area: 'House District 45B', status: 'current' },
+    ],
+    lobbyist: true,
+  };
+  it('prints the newest candidacy, first held service and lobbyist cue without inventing a count', () => {
+    expect(rowNote({ ...person, record_notes: notes })).toBe(
+      'Candidate 2026 · Legislator, District 45B · Lobbyist',
+    );
+    expect(
+      rowNote({ ...person, record_notes: { candidacy_years: [], services: [], lobbyist: false } }),
+    ).toBe('');
+    expect(rowNote({ ...person, confirmed_record_count: 7 })).toBe('');
+  });
+  it.each([
+    ['former', undefined, undefined, 'Formerly served as State Representative, District 45B'],
+    ['elected', undefined, undefined, 'Elected to State Representative, District 45B'],
+    ['unknown', false, true, 'State Representative, District 45B · Current service not confirmed'],
+    [
+      'current',
+      false,
+      undefined,
+      'State Representative, District 45B · Current service not confirmed',
+    ],
+    [
+      'elected',
+      false,
+      true,
+      'Elected to State Representative, District 45B · Current service not confirmed',
+    ],
+  ])(
+    'keeps %s service evidence qualified',
+    (status, current_service_confirmed, expected_start_passed, expected) => {
+      expect(
+        rowNote({
+          ...person,
+          record_notes: {
+            ...notes,
+            candidacy_years: [],
+            lobbyist: false,
+            services: [
+              { ...notes.services[0], status, current_service_confirmed, expected_start_passed },
+            ],
+          },
+        }),
+      ).toBe(expected);
+    },
+  );
+  it('keeps nonlegislative offices literal and never calls their holder a legislator', () => {
+    expect(
+      rowNote({
+        ...person,
+        record_notes: {
+          ...notes,
+          candidacy_years: [],
+          lobbyist: false,
+          services: [{ office: 'Mayor', voting_area: 'Saint Paul', status: 'current' }],
+        },
+      }),
+    ).toBe('Serving as Mayor, Saint Paul');
   });
 });

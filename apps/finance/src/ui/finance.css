@@ -30,6 +30,8 @@
   --code-fill: #fbf1e2;
   --code-line: #f0d6a8;
   --refused: #8f2a20;
+  --record-label-title-gap: 14px;
+  --record-title-detail-gap: 8px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   min-height: 100vh;
   background: var(--ground);
@@ -883,58 +885,6 @@
 .f-nav-spacer {
   flex: 1;
 }
-.f-nav-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 1 332px;
-  min-width: 0;
-}
-.f-nav-field {
-  height: 36px;
-  flex: 1 1 260px;
-  width: 260px;
-  min-width: 150px;
-  padding: 0 12px;
-  box-sizing: border-box;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  outline: none;
-}
-.f-nav-field::placeholder {
-  color: var(--chrome-muted);
-}
-.f-app .f-nav-field:focus,
-.f-app .f-nav-field:focus-visible {
-  border-color: #9b7dff;
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.35);
-  outline: none;
-}
-.f-nav-submit {
-  flex: none;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 6px;
-  border: 1px solid var(--accent-on-chrome);
-  background: var(--accent-on-chrome);
-  color: var(--chrome);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.f-nav-submit:active {
-  background: #48b0cb;
-  border-color: #48b0cb;
-}
-.f-app .f-nav-submit:focus-visible {
-  outline-color: #9b7dff;
-}
 .f-nav-icon,
 .f-nav-account-button {
   height: 44px;
@@ -1014,25 +964,6 @@
 .f-app .f-nav-menuitem:focus-visible {
   outline-offset: -2px;
 }
-.f-nav-search-row {
-  position: relative;
-  display: flex;
-  gap: 8px;
-  padding: 8px 16px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-.f-nav-search-row .f-nav-field {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: 0;
-  height: 44px;
-  font-size: 16px;
-}
-.f-nav-search-row .f-nav-submit {
-  height: 44px;
-  padding: 0 16px;
-  font-size: 15px;
-}
 .f-nav-phone-menu {
   position: absolute;
   z-index: 1;
@@ -1104,10 +1035,6 @@
     color: #fff;
     background: rgba(255, 255, 255, 0.08);
   }
-  .f-nav-submit:hover {
-    background: #7fd2e6;
-    border-color: #7fd2e6;
-  }
   .f-nav-menuitem:hover {
     background: #eef2f5;
   }
@@ -1133,19 +1060,6 @@
 }
 
 /* ---------- Search suggestions panel ---------- */
-.f-sg-anchor {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: min(460px, calc(100vw - 32px));
-  z-index: 1;
-}
-.f-nav-search-row .f-sg-anchor {
-  top: calc(100% - 4px);
-  left: 16px;
-  right: 16px;
-  width: auto;
-}
 .f-sg-panel {
   display: flex;
   flex-direction: column;
@@ -1547,8 +1461,26 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.f-chip {
+.f-labeled-chips {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.f-labeled-chips .f-chips {
+  min-width: 0;
+}
+.f-labeled-chips-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.f-chip,
+.f-labeled-chips-label {
   min-height: 36px;
+}
+.f-chip {
   min-width: 44px;
   padding: 0 14px;
   border-radius: 6px;
@@ -1573,7 +1505,8 @@
   }
 }
 @media (max-width: 767px) {
-  .f-chip {
+  .f-chip,
+  .f-labeled-chips-label {
     min-height: 44px;
   }
 }
@@ -1914,7 +1847,62 @@
   justify-content: flex-end;
   padding-right: 2px;
   background: linear-gradient(to right, rgba(243, 245, 247, 0), var(--ground) 60%);
+  color: var(--secondary);
   pointer-events: none;
+}
+.f-scroll-tabs-arrow {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: var(--ground);
+  color: var(--secondary);
+  cursor: pointer;
+}
+.f-scroll-tabs-arrow-left {
+  left: 0;
+}
+.f-scroll-tabs-arrow-left svg {
+  transform: scaleX(-1);
+}
+.f-scroll-tabs-arrow-right {
+  right: 0;
+}
+.f-scroll-tabs-arrow::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  content: '';
+  pointer-events: none;
+}
+.f-scroll-tabs-arrow-left::after {
+  left: 100%;
+  background: linear-gradient(to right, var(--ground), transparent);
+}
+.f-scroll-tabs-arrow-right::after {
+  right: 100%;
+  background: linear-gradient(to left, var(--ground), transparent);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .f-scroll-tabs-arrow:hover {
+    background: #e3e8ec;
+    color: var(--ink);
+  }
+}
+.f-scroll-tabs-arrow:active {
+  background: #d3dae0;
+  color: var(--ink);
+}
+.f-app .f-scroll-tabs-arrow:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 @media (min-width: 1100px) {
   .f-scroll-tabs .f-tab {

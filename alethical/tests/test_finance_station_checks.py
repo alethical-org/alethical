@@ -1239,3 +1239,97 @@ def test_finance_withdrawal_removes_a_copy_facts_history_only_in_finance(origina
     )
     assert standing["history"] == []
     assert db.get(m.TVAdFact, old.id).value == "Example Media"
+
+
+def test_agency_rows_carry_the_date_of_their_own_check(
+    finance_api, original, monkeypatch
+):
+    """A file row names when its own shown agency check was made; a similar
+    spelling names 1 Minnesota day only when every file printing it is checked and
+    every check was made that day."""
+    from datetime import UTC, datetime
+
+    db = original.db
+    # 11:30 pm in Minnesota is already the next day in UTC.
+    evening = datetime(2026, 10, 14, 4, 30, tzinfo=UTC)
+    monkeypatch.setattr(review, "now", lambda: evening)
+    text = PAGE_1 + " Agency: Exmaple Media."
+    db.scalar(
+        select(m.FCCPage).where(
+            m.FCCPage.content_hash == original.version,
+            m.FCCPage.version == EXTRACTOR_VERSION,
+            m.FCCPage.page == 1,
+        )
+    ).text = text
+
+    def another():
+        document = _file(db, original.store)
+        _read(db, document, {1: text, 2: PAGE_2})
+        db.commit()
+        return document
+
+    def check(document):
+        checks.add_fact(
+            db,
+            CLIENT,
+            _key(document),
+            document.content_hash,
+            _fact(value="Exmaple Media", quote="Agency: Exmaple Media."),
+        )
+        db.commit()
+
+    def get(path):
+        response = finance_api.get(BASE + path)
+        assert response.status_code == 200, (path, response.text)
+        return response.json()["data"]
+
+    def similar():
+        (row,) = [
+            r
+            for r in get(
+                f"/agencies/{reader.agency_key('Example Media')}/similar-names"
+            )["rows"]
+            if r["label"] == "Exmaple Media"
+        ]
+        return (row["file_count"], row["unchecked"], row["checked_on"])
+
+    def file_rows():
+        key = reader.agency_key("Exmaple Media")
+        return {
+            row["version_id"]: row["agency_checked_at"]
+            for group in get(f"/agencies/{key}")["groups"]
+            for row in group["files"]
+        }
+
+    checks.add_fact(db, CLIENT, original.key, original.version, _fact())
+    second = another()
+    check(original.document)
+    check(second)
+    # Each file row serves its own check's time.
+    assert file_rows() == {
+        original.version: evening.isoformat(),
+        second.content_hash: evening.isoformat(),
+    }
+    # Both checks fall on Minnesota's 13 October, not UTC's 14th.
+    assert similar() == (2, False, "2026-10-13")
+
+    # A second check of the name on 1 file, minutes later: that file row has no
+    # single time, while the spelling keeps the day both checks share.
+    monkeypatch.setattr(review, "now", lambda: evening + timedelta(minutes=5))
+    check(second)
+    assert file_rows()[second.content_hash] is None
+    assert similar() == (2, False, "2026-10-13")
+
+    # A file that only machine-reads the spelling leaves it unchecked: no date.
+    unread = another()
+    extraction = db.get(m.FCCExtraction, (unread.content_hash, EXTRACTOR_VERSION))
+    extraction.facts = [{"field": "agency_name", "value": "Exmaple Media", "page": 1}]
+    db.commit()
+    assert similar() == (3, True, None)
+    check(unread)
+    assert similar() == (3, False, "2026-10-13")
+
+    # A file checked 3 days later: no single day stands for every file.
+    monkeypatch.setattr(review, "now", lambda: evening + timedelta(days=3))
+    check(another())
+    assert similar() == (4, False, None)

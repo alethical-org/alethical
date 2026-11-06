@@ -115,7 +115,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 126 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 132 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -129,9 +129,13 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Purpose | Files |
 | --- | --- |
 | Run and observe saved public-record deadlines | `refresh_public_records.py`, `report_source_refresh_health.py`, `discover_campaign_records.py`, `check_campaign_money_completion.py` (keeps filed campaign reports owed until totals and legislators' pages catch up), `discover_legislative_records.py`, `discover_reference_records.py` (roster, map and lobbying release signals), `clear_source_record_pages.py` (retries owed saved-page clearing without collecting), `refresh_fcc_records.py`, `run_scheduled_bill_refresh.py`, `refresh_legislative_records.py`, `refresh_lobbying_records.py` |
+| Recover exact historical action committee links | `recover_bill_action_committee_links.py` (one bill; retained official XML and read-only plan required; guarded apply and receipt-based rollback; never run ingestion) |
+| Continue a finite committee-link recovery pass | `run_committee_link_recovery.py` (explicit inventory or one leased, paced turn; plan-only by default; retained per-bill evidence; no automatic scheduling or ingestion) |
+| Supervise a reviewed finite recovery window | `supervise_committee_link_recovery.py` (explicit launch only; pinned clean release, schema and frozen inventory; existing turn limits plus local 60-second quiet floor; durable stop/resume and tested owner return route) |
+| Inspect missing action links without changing data | `report_bill_action_committee_links.py` (bounded read-only sample; saved XML hash required for a proposed link) |
 | Detect official sources needing a reviewed mapping | `check_legislative_sessions.py`, `check_supporting_sources.py` |
 | Prepare private donor evidence and recover reviewed campaign totals | `prepare_lobbyist_donor_evidence.py`, `rollback_campaign_finance_filings.py` |
-| Import official records or test data | `build_legislative_district_boundaries.py`, `build_zip_state_reference.py`, `load_campaign_finance.py`, `build_finance_graph_summary.py` (one-time catch-up of the Finance money graph's summary for the live release; every later publish writes its own), `collect_campaign_finance_notices.py`, `collect_campaign_finance_statements.py`, `load_campaign_finance_filings.py`, `refresh_campaign_finance.py` (the daily campaign-money refresh, all steps in order), `load_lobbying.py` (paired current lobbyists and spending), `load_lobbying_expenditures.py` (spending-only compatibility command), `load_minnesota_data.py`, `load_refund_summaries.py`, `load_sample_data.py` |
+| Import official records or test data | `build_legislative_district_boundaries.py`, `build_zip_state_reference.py`, `load_campaign_finance.py`, `build_finance_graph_summary.py` (one-time catch-up of the Finance money graph's summary for the live release; optional `--dataset` selects 1 saved file, default all 3; `--rebuild` includes existing summaries and `--dry-run` previews without writing; every later publish writes its own), `build_finance_name_summary.py` (one-time catch-up of the Confirm identities queue's per-name totals for the live release; `--dry-run` counts the names each build would write, `--rebuild` replaces complete builds, `--remove` is the rollback; every later publish writes its own), `collect_campaign_finance_notices.py`, `collect_campaign_finance_statements.py`, `load_campaign_finance_filings.py`, `refresh_campaign_finance.py` (the daily campaign-money refresh, all steps in order), `load_lobbying.py` (paired current lobbyists and spending), `load_lobbying_expenditures.py` (spending-only compatibility command), `load_minnesota_data.py`, `load_refund_summaries.py`, `load_sample_data.py` |
 | Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_structure.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_jobs_and_scripts_inventory.py`, `check_local_env.py`, `check_lobbyist_donor_evidence.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_production_release_reached_readers.py`, `check_public_search_health.py`, `check_page_failure_coverage.py`, `check_pillow_advisory.py`, `check_pillow_exception.py`, `check_pillow_runtime.py`, `pillow_runtime_claim.py`, `pillow_runtime_evidence.py`, `pillow_source_guard.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_site_metrics_health.py`, `check_site_metrics_privacy.py`, `check_technology_health.py`, `check_timeless_docs.py` |
 | Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_filed_dates.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py`, `enrich_refund_source_metadata.py` |
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
@@ -139,6 +143,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Test reader comments with a disposable database and all outgoing mail disabled | `comments_local_qa.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `record_disclosure_statement_readings.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Add, revoke or read 1 address on Alethical Finance's access list; the address comes only from the command's arguments | `finance_access.py` |
+| Create, rotate or revoke a shared Finance research login without placing passwords in command arguments | `finance_research_access.py` |
 | Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |
 | Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
 | Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |
@@ -322,3 +327,81 @@ embedding work is API-only.
   account pays for each AI path and how the measured costs were calculated.
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md) § "Keeping the workflow actions current"
   explains why borrowed GitHub Action steps need periodic updates.
+
+
+## Finite committee-link recovery supervisor
+
+`supervise_committee_link_recovery.py` repeats the existing one-turn runner only
+inside an explicitly reviewed window of at most 7 days. It installs no schedule,
+launch agent or automatic restart. Release, live canary, resource allowance and
+normal-writer checks remain the execution owner's gates. Source/data holds still
+apply. No supervisor command is permission to run ingestion, publication, paid
+extraction, identity changes or a refused summary build.
+
+The caller supplies `--target`, `--evidence`, `--revision` (full reviewed Git SHA),
+`--schema` (exact Alembic revision), `--manifest` (frozen inventory SHA), `--thread`
+(owner chat UUID), `--return-proof` and `--until` (timezone-aware deadline). Evidence
+stays outside the reviewed checkout. Use the existing target credential route;
+never put credentials in arguments, reports or source control. A clean checkout
+at the exact SHA is checked before work and while an owned child runs. Schema,
+held normal legislative deadlines, active leases and Revisor cooldown are checked
+before each turn. Existing job rows count even when local enabled-family flags
+are empty. The child still owns final lease admission and source coordination.
+
+Each turn keeps the existing limits: 10 bills, 120 seconds, 5-second aggregate
+apply allowance, shared request spacing/cooldown, receipt and commit guards. After
+**every** continuing/deferred exit (75/76), a local monotonic clock imposes at least
+60 seconds without starting another turn, including when database eligibility is
+stale or a deferred child never obtained a lease. A reviewed resume also waits a
+fresh 60 seconds. This is the existing conservative cadence, not evidence of a
+safe faster sustained rate. Both wall and monotonic clocks bound the window.
+
+A deadline reached only in the read-only eligibility check starts no child and
+clears the saved eligibility. Retry on a fresh connection after 60 seconds, then
+120 seconds; a third consecutive deadline stops for owner review. Each failure
+is retained in the run state. A successful fresh check resets that count but must
+still pass all normal-job, lease, schema and source gates. STOP, checkout drift
+and the finite window remain effective during the wait. No write, receipt,
+initial database validation, or other eligibility error uses this retry path.
+
+The owner first sends one uniquely identified `codex queue --thread ... --message
+...` test, waits for actual receipt in that chat, and saves a private JSON proof
+with `thread`, `event_id` and `received_at`. A successful queue command is not
+receipt. A busy owner may receive it only after yielding its current turn; never
+fabricate proof or send repeated tests to force delivery. Runtime notification
+is one persisted attempt per run, marked `queued_not_received` or
+`delivery_unverified`. A notification failure leaves the terminal checkpoint
+intact and requires owner review; it never restarts work.
+
+`supervisor.json` points to the latest run state. Each unique event retains
+`supervisor-runs/<event>/state.json`, per-turn stdout/stderr and result, receipt
+reconciliation and notification records. Files and parent directories are synced
+before proceeding. The supervisor never rewrites batch `progress.json`. An
+exclusive supervisor lock prevents two supervisors; the child's evidence-owner
+lock and shared database lease prevent competing turns. On STOP file, SIGTERM,
+keyboard interrupt, code/manifest drift, timeout or errors, only the process group
+created for the current child is interrupted. Its logs and private receipts stay;
+no normal worker or unrelated process is signalled. Database engines are disposed
+on all exits. A machine/process crash can leave a `running` checkpoint; it is not
+proof a child stopped or a transaction committed.
+
+There is no implicit restart. After the owner checks that the old process is gone
+and reviews its checkpoint, logs, pending receipts and current release, resume with
+`--resume-event <old-event>` and `--resume-review <private-review.json>`, keeping the
+same target, manifest and owner chat. The review JSON contains `event_id`,
+`checkpoint_sha256` (the existing batch `digest()` of the saved supervisor JSON),
+`revision`, `schema`, `manifest`, `target`, `thread`, `reviewer`, `reviewed_at` and
+`reason`. It binds the exact old checkpoint and reviewed new release. Review is an
+execution-owner decision, not a request for another human approval. Preserve the
+old run; a resume gets a new event and notification. Remove STOP only as part of
+that deliberate resume. A finished or review-required pass cannot resume as if it
+were unfinished.
+
+Before a new run's first child, unresolved precommit receipts are classified by
+full rows and transaction versions through the existing read-only reconciler.
+Mixed/later-writer evidence stops for review. The child retains the existing
+reconciliation and retry rules, so a committed receipt is not applied twice and
+an uncertain write is never automatically repeated. `pass_finished` means every
+frozen target has a saved pass outcome; `review_required` means unresolved target
+reasons remain. Neither is final product acceptance or proof the whole historical
+backlog was recovered. The execution owner verifies actual rows and final coverage.

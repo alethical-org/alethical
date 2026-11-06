@@ -98,6 +98,7 @@ from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
 from alethical.pipeline import campaign_finance_graph_summary as graph_summary
+from alethical.pipeline import campaign_finance_name_summary as name_summary
 from alethical.pipeline.campaign_finance_filings import (
     filings_context,
     pause_before_retry,
@@ -2721,6 +2722,11 @@ def publish(
         # existed gets it here.
         if not loaded or snapshot.id not in graph_summary.held(db, [snapshot.id]):
             graph_summary.rebuild(db, spec.dataset, snapshot.id)
+        # The identity queue's per-name totals, under the same rule.
+        if not loaded or snapshot.id not in name_summary.held(
+            db, spec.dataset, [snapshot.id]
+        ):
+            name_summary.rebuild(db, spec.dataset, snapshot.id)
         snapshot.status = SnapshotStatus.loaded
         snapshot.row_count = measured.row_count
         snapshot.column_names = measured.column_names
@@ -2889,6 +2895,8 @@ def rollback_release(db: Session, release_id: uuid.UUID) -> None:
         snapshot_id = getattr(target, RELEASE_SNAPSHOT_COLUMN[spec.dataset])
         if snapshot_id not in graph_summary.held(db, [snapshot_id]):
             graph_summary.rebuild(db, spec.dataset, snapshot_id)
+        if snapshot_id not in name_summary.held(db, spec.dataset, [snapshot_id]):
+            name_summary.rebuild(db, spec.dataset, snapshot_id)
     if current is not None:
         current.status = ReleaseStatus.superseded
         current.superseded_at = datetime.now(UTC)
@@ -2969,6 +2977,7 @@ def prune(db: Session) -> tuple[int, int]:
                 delete(spec.table).where(spec.table.snapshot_id == snapshot.id)
             ).rowcount
             graph_summary.remove(db, snapshot.id)
+            name_summary.remove(db, snapshot.id)
             snapshot.status = SnapshotStatus.pruned
             snapshots += 1
             rows += deleted or 0

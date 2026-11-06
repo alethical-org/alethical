@@ -65,6 +65,15 @@ export interface ServedVersion {
   is_current?: boolean | null;
 }
 
+/** The saved version the Alethical summary was written from, named only when the
+ * summary is explicitly linked to it (`summary_source_version` on `/bills/{id}`). */
+export interface SummarySourceVersion {
+  version_code: string;
+  version_name?: string | null;
+  document_date?: string | null;
+  html_url?: string | null;
+}
+
 export interface ServedCitation {
   id: string;
   label: string;
@@ -95,6 +104,7 @@ export interface BillDetail {
   } | null;
   actions?: ServedAction[] | null;
   versions?: ServedVersion[] | null;
+  summary_source_version?: SummarySourceVersion | null;
 }
 
 export interface VoteRecord {
@@ -102,6 +112,7 @@ export interface VoteRecord {
   legislator_name?: string | null;
   slug?: string | null;
   party?: string | null;
+  district?: string | null;
   vote_value: string;
 }
 
@@ -269,6 +280,7 @@ export interface ActionRow {
   text: string;
   tally: string | null;
   at: string | null;
+  committee: { name: string; id: string; offset: number } | null;
 }
 
 /** 1 action as a line: the source's label, completed where it stops on a
@@ -280,11 +292,20 @@ export function actionRow(action: ServedAction): ActionRow | null {
   const detail = (action.action_description ?? '').trim();
   const tally = (action.roll_call_text ?? '').trim() || null;
   const parts = [completeDanglingTitle(label, committee), detail, tally].filter(Boolean);
+  const text = parts.join(' · ');
+  const committeeId = action.committee_id?.trim();
+  // The id belongs to this exact action. Locate only its printed name, never
+  // resolve a destination from a name or borrow the newest action's committee.
+  const committeeOffset = committee ? text.indexOf(committee) : -1;
   return {
     key: String(action.action_number) + '|' + (action.action_at ?? '') + '|' + label,
     date: dayLabel(action.action_at),
     chamber: chamberName(action.chamber),
-    text: parts.join(' · '),
+    text,
+    committee:
+      committeeId && committeeOffset >= 0
+        ? { name: committee, id: committeeId, offset: committeeOffset }
+        : null,
     tally,
     at: action.action_at ?? null,
   };
@@ -399,10 +420,27 @@ export function versionPhrase(label: string): string {
   return label.charAt(0).toLowerCase() + label.slice(1);
 }
 
+const ENDS_IN_VERSION = /\bversion$/i;
+
+/** The name with "version" for a sentence ("the introduced version"), never doubled
+ * when the name already says it ("the current version"). */
+export function versionInSentence(label: string): string {
+  const phrase = versionPhrase(label);
+  return ENDS_IN_VERSION.test(phrase) ? phrase : `${phrase} version`;
+}
+
+/** The name with "version" as a label, as drawn ("Introduced version", "3rd
+ * engrossment version"), never doubled. */
+export function versionTitle(label: string): string {
+  const name = /^as introduced$/i.test(label) ? 'Introduced' : label;
+  return ENDS_IN_VERSION.test(name) ? name : `${name} version`;
+}
+
 /**
  * Newest first, 1 row per name. The "current" alias row loses to the real
- * record of the same name, and among equals the earliest date (the real
- * posting date) wins. "As introduced" carries the bill's introduction date,
+ * record of the same name, the version the record marks current wins over
+ * another of its name (2 conference committee reports), and among equals the
+ * earliest date (the real posting date) wins. "As introduced" carries the bill's introduction date,
  * because the source sometimes stamps that version with a later revision date.
  */
 export function orderVersions(versions: ServedVersion[], actions: ServedAction[]): VersionRow[] {
@@ -434,7 +472,10 @@ export function orderVersions(versions: ServedVersion[], actions: ServedAction[]
     if (
       !incumbent ||
       (incumbent.pointer && !candidate.pointer) ||
-      (incumbent.pointer === candidate.pointer && candidate.time < incumbent.time)
+      (incumbent.pointer === candidate.pointer &&
+        (candidate.row.isCurrent !== incumbent.row.isCurrent
+          ? candidate.row.isCurrent
+          : candidate.time < incumbent.time))
     ) {
       best.set(key, candidate);
     }
@@ -448,9 +489,54 @@ export function orderVersions(versions: ServedVersion[], actions: ServedAction[]
     .map((entry) => entry.row);
 }
 
-/** The version Bill Text opens by default: the one the record marks current,
- * else the newest that is not the session law. */
-export function defaultTextVersion(rows: VersionRow[]): VersionRow | null {
+/**
+ * The version the summary and its citations were written from, or null when it
+ * cannot be named: no link, a version the record no longer lists, the moving
+ * "current" pointer (its text changes with the bill) or the session law (no
+ * readable text). Never the current version by default.
+ */
+export function summaryVersionRow(
+  source: SummarySourceVersion | null | undefined,
+  served: ServedVersion[],
+  rows: VersionRow[],
+): VersionRow | null {
+  const code = source?.version_code?.trim();
+  if (!code || code === 'current' || code === 'session-law') return null;
+  const held = served.find((version) => version.version_code === code);
+  if (!held) return null;
+  // A row the list folded into another of the same name (2 conference reports)
+  // is opened by its own code, never by the default current text.
+  return rows.find((row) => row.code === code) ?? heldRow(held, source?.version_name, false);
+}
+
+/** A served version as a row, for one the list folded into another of the same name. */
+function heldRow(held: ServedVersion, name: string | null | undefined, isCurrent: boolean) {
+  return {
+    code: held.version_code,
+    label: versionLabel(held.version_code, held.version_name ?? name),
+    date: dayLabel(held.document_date ?? null),
+    url: held.html_url ?? null,
+    isLaw: false,
+    isCurrent,
+  };
+}
+
+/** The version Bill Text opens by default: the one the record marks current, by
+ * its exact code even when the list folded it into another of the same name (2
+ * conference committee reports), else the newest that is not the session law. */
+export function defaultTextVersion(
+  rows: VersionRow[],
+  served: ServedVersion[] = [],
+): VersionRow | null {
+  const marked = served.find(
+    (version) =>
+      version.is_current === true &&
+      version.version_code !== 'current' &&
+      version.version_code !== 'session-law',
+  );
+  if (marked) {
+    return rows.find((row) => row.code === marked.version_code) ?? heldRow(marked, null, true);
+  }
   const readable = rows.filter((row) => !row.isLaw);
   return readable.find((row) => row.isCurrent) ?? readable[0] ?? null;
 }

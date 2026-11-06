@@ -175,8 +175,10 @@ dd[data-missing] {
   font-variant-numeric: tabular-nums;
   color: var(--secondary);
 }
+.f-page-title.cmt-title {
+  margin-top: var(--record-label-title-gap);
+}
 .cmt-title {
-  margin-top: 8px;
   font-size: 28px;
   overflow-wrap: anywhere;
 }
@@ -228,16 +230,8 @@ dd[data-missing] {
   justify-content: space-between;
   gap: 10px 16px;
 }
-.cmt-years {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+.cmt-years .f-chips {
   gap: 6px;
-}
-.cmt-years-label {
-  margin-right: 4px;
-  font-size: 13px;
-  color: var(--secondary);
 }
 .cmt-years .f-chip {
   padding: 0 12px;
@@ -912,6 +906,268 @@ dd[data-missing] {
     font-size: 18px;
   }
   .cmt-inline-retry {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Breakdowns (Rounds 30 and 31) ----------
+ * Contributions by type inside the Official report figures card; by state and
+ * name connections as their own cards under the payments, side by side at computer
+ * for a candidate committee. Bars reuse the shared chart parts (ui/view.tsx). */
+.cmt-bk-kind {
+  margin-top: 18px;
+}
+.cmt-bk-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.cmt-bk-kind-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.cmt-bk-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cmt-bk-legend {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.cmt-bk-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cmt-bk-swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--fill);
+}
+.cmt-bk-tick {
+  width: 3px;
+  height: 14px;
+  background: var(--ink);
+}
+.cmt-bk-bars {
+  margin-top: 8px;
+}
+.cmt-bk-bars .f-bar-row {
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+}
+.cmt-bk-bars .f-bar-note {
+  grid-column: 2;
+}
+.cmt-bk-label {
+  font-weight: 600;
+}
+.cmt-bk-marker {
+  width: 3px;
+  margin-left: -2px;
+  box-shadow: 0 0 0 1px #fff;
+}
+.cmt-bk-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  font-size: 13px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.cmt-bk-value {
+  white-space: nowrap;
+}
+.cmt-bk-values strong,
+.cmt-bk-strong {
+  color: var(--ink);
+}
+.cmt-bk-stacked {
+  margin-top: 12px;
+}
+.cmt-bk-stacked .f-bar-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cmt-bk-stacked .f-bar-note {
+  grid-column: 1;
+}
+.cmt-bk-stacked .f-bar-label {
+  font-weight: 500;
+}
+.cmt-bk-stacked [data-sub] {
+  padding-left: 16px;
+}
+.cmt-bk-stacked [data-sub] .f-bar-label {
+  font-weight: 400;
+}
+.cmt-bk-table {
+  width: 100%;
+  margin-top: 6px;
+  border-collapse: collapse;
+}
+.cmt-bk-kind .cmt-bk-table {
+  margin-top: 4px;
+}
+.cmt-bk-table thead th {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: right;
+}
+.cmt-bk-table thead th:first-child {
+  text-align: left;
+}
+.cmt-bk-table tbody th,
+.cmt-bk-table tbody td {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+  font-size: 14px;
+}
+.cmt-bk-table tbody th {
+  text-align: left;
+  font-weight: 500;
+}
+.cmt-bk-table tbody td {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cmt-bk-table td.cmt-bk-muted {
+  color: var(--secondary);
+}
+.cmt-bk-states tbody tr[data-sub] th {
+  padding-left: 16px;
+  font-weight: 400;
+}
+.cmt-bk-dist tbody th {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cmt-bk-list {
+  margin: 4px 0 0;
+  display: grid;
+}
+.cmt-bk-list > div {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.cmt-bk-list dt {
+  font-size: 14px;
+  font-weight: 600;
+}
+.cmt-bk-list dd {
+  margin: 2px 0 0;
+}
+.cmt-bk-toggle {
+  margin-top: 10px;
+}
+.cmt-bk-end {
+  margin: 0;
+  padding-top: 24px;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cmt-bk-summary {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.cmt-bk-sub {
+  margin: 16px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.cmt-bk-ranked {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+.cmt-bk-rank {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.cmt-bk-rank-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cmt-bk-rank-n {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--secondary);
+}
+@media (hover: hover) and (min-width: 768px) {
+  a.cmt-bk-rank:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+.cmt-bk-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .cmt-bk-grid[data-pair] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+}
+@media (max-width: 767px) {
+  .cmt-bk-bars .f-bar-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cmt-bk-bars .f-bar-note {
+    grid-column: 1;
+  }
+}
+
+/* The Committee drawing places the checked invoice beneath its payee name. */
+.cmt-invoice-link {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .cmt-invoice-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 767px) {
+  .cmt-invoice-link {
     min-height: 44px;
   }
 }

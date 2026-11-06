@@ -804,9 +804,10 @@ whole files and replaces whole sets.
    [#1346](https://github.com/alethical-org/alethical/issues/1346).
 3. **Validate** (§4.3). A snapshot that fails is kept for diagnosis and never published.
 4. **Publish** by replacing the previous published set entirely. The same transaction
-   writes each loaded file's money-graph summary (`cf_graph_money_summary`, §11), so the
-   pointer never names a file whose summary is half-built; pruning a file's rows removes
-   its summary with them.
+   writes each loaded file's money-graph summary (`cf_graph_money_summary`, §11) and the
+   Confirm identities queue's per-name totals (`cf_identity_name_summary`, with a
+   completion marker per file and kind), so the pointer never names a file whose
+   summary is half-built; pruning a file's rows removes its summaries with them.
 
    **The reader's half of that contract, in one place.** A request resolves one release id and uses
    it for all 3 datasets, because re-resolving per query can hand back a mixed set: each statement
@@ -1080,8 +1081,18 @@ captured it, copied forward, so `cf_filing.archive_line` still points into the a
 the response; it is also the one fact that marks a row as retained. Its termination date is the
 one we held, else the Board's recent-terminations list (§9.7), else none, and a page with none
 says the committee is no longer on the register as of the register's copy date and nothing
-about why. The current-register count and the `/money/committees` list exclude retained
-filers; the committee's own page, search and every link to it keep working. Retention survives
+about why. The current-register count and the default `/money/committees` list exclude
+retained filers; the committee's own page, search and every link to it keep working.
+The shared `/api/v1/campaign-finance/committees` read offers explicit `status=not_listed`
+and `status=all` filters for Finance's held-record directory; `open` and `terminated`
+select listed rows without or with a termination date. An omitted status keeps the
+current-register default. The filtered page total includes exactly its selected rows;
+`register_total` and `by_kind` always describe the current register. Rows carry
+`registration_status`, `registration_date`, `party`, `retained`, `captured_at` and
+`retained_from_snapshot_id`. Missing source values stay null, a name never establishes
+party, and a retained row is `not_listed` regardless of whether a termination date is
+held. Directory `q` matches literal name or registration-number substrings; the general
+money name search keeps its name-only contract. Neither read invents dates or amounts. Retention survives
 any number of refreshes, because the copy always carries the original date and source. A
 published filer-year whose filer left the register is therefore not "lost figures" to the
 check in §4.3; a filer still listed whose figures vanished still is.
@@ -3407,6 +3418,17 @@ keep their filed sign. Expenditure and independent-expenditure files remain
 separate rows and amounts because a payment can appear in both. A confirmed
 person or organization covers only active matching fingerprints, follows identity merges,
 and loses withdrawn claims; new records under the same spelling stay unconfirmed.
+`min_amount` and `max_amount` bound each row's itemized total, inclusive and signed (a
+negative bound reaches refunds), and apply with the other filters before counting and
+paging, tab counts included. A withheld total cannot be placed in a range, so while
+either bound is set those rows are left out and counted in exactly 1 of
+`range_excluded.incomplete_amount` (any missing amount) or
+`range_excluded.incomplete_period`, over the selected tab's filtered set; with no bound
+`range_excluded` is null. A bound must be a plain number (no currency sign or thousands
+separator) within ±1 trillion with at most 4 decimal places; a minimum above the maximum,
+a non-finite value or anything else answers 422. Bounds echo back as plain numbers. `sort=amount` is largest total first and
+`sort=amount_smallest` smallest first; withheld totals sort last either way.
+
 ## 11. Finance money connections
 
 `GET /api/v1/finance/connections` returns a paged set of direct relations, with

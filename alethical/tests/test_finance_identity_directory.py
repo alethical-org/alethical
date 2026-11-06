@@ -5,17 +5,21 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import text
+from sqlalchemy import select, text
+
+from alethical.db import models as m
 
 from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F401
 from alethical.tests.test_identity_confirmations import (  # noqa: F401
     BASE,
     DONOR,
+    EMPLOYER,
     VENDOR,
     board,
     create,
     donor,
     gift,
+    held_link,
     prints,
 )
 
@@ -29,7 +33,7 @@ def queue(api, **params):
 
 def test_queue_keeps_names_and_payment_sources_distinct(finance_api, board):
     data = queue(finance_api, status="all", page_size=2)
-    assert (data["total"], data["pages"]) == (4, 2)
+    assert (data["total"], data["pages"]) == (5, 3)
     assert [(r["record_kind"], r["name"]) for r in data["rows"]] == [
         ("payee_name", VENDOR),
         ("independent_payee_name", VENDOR),
@@ -43,8 +47,8 @@ def test_queue_keeps_names_and_payment_sources_distinct(finance_api, board):
         for row in data["rows"]
     )
     second = queue(finance_api, status="all", page_size=2, page=2)
-    assert second["rows"][0]["record_key"] == DONOR
-    row = second["rows"][0]
+    assert second["rows"][1]["record_key"] == DONOR
+    row = second["rows"][1]
     assert (
         row["records"],
         row["first_year"],
@@ -191,7 +195,7 @@ def test_entity_search_hides_merged_and_split_parents(finance_api, board):
 
 def test_identity_directory_rejects_unsupported_filters(finance_api, board):
     for params in (
-        {"record_type": "employer"},
+        {"record_type": "unknown"},
         {"status": "suggested"},
         {"page": 0},
         {"page_size": 101},
@@ -286,3 +290,62 @@ def test_queue_requires_one_complete_period_basis(finance_api, finance_db, board
         conflicting["last_year"],
     ) == ("years", 2024, 2025)
     assert conflicting["first_date"] == "2026-04-01"
+
+
+def test_queue_includes_exact_employer_spellings(finance_api, board):
+    row = queue(finance_api, record_type="employer", status="all")["rows"][0]
+    assert (row["record_kind"], row["name"], row["records"]) == (
+        "employer_name",
+        EMPLOYER,
+        4,
+    )
+    assert row["first_date"] == "2025-05-01"
+    assert row["identity_count"] == 0
+    assert any(r["record_kind"] == "employer_name" for r in queue(finance_api)["rows"])
+
+
+def test_queue_identity_count_follows_current_merge_and_split(finance_api, board):
+    selected = prints(finance_api)
+    one = create(finance_api, "person", "First", donor(board, [selected[31]]))
+    two = create(finance_api, "person", "Second", donor(board, [selected[32]]))
+
+    def count():
+        return queue(finance_api, q=DONOR, status="all")["rows"][0]["identity_count"]
+
+    assert count() == 2
+    merged = finance_api.post(
+        BASE + "/" + one["id"] + "/merge",
+        json={"into": two["id"], "reason": "Evidence establishes the same person"},
+    )
+    assert merged.status_code == 200
+    assert count() == 1
+    confirmations = merged.json()["data"]["confirmations"]
+    split = finance_api.post(
+        BASE + "/" + two["id"] + "/split",
+        json={
+            "reason": "Separate source records",
+            "parts": [
+                {"name": "First", "confirmations": [confirmations[0]["id"]]},
+                {"name": "Second", "confirmations": [confirmations[1]["id"]]},
+            ],
+        },
+    )
+    assert split.status_code == 200
+    assert count() == 2
+    withdrawn = finance_api.post(
+        BASE
+        + "/confirmations/"
+        + split.json()["data"]["confirmations"][0]["replaced_by"]
+        + "/withdraw",
+        json={"reason": "Wrong person"},
+    )
+    assert withdrawn.status_code == 200
+    assert count() == 1
+
+
+def test_held_identifier_confirmation_has_source_name(finance_api, finance_db, board):
+    legislator = finance_db.scalar(select(m.Legislator))
+    entity = create(finance_api, "person", "Saved identity name", held_link(legislator))
+    confirmation = entity["confirmations"][0]
+    assert confirmation["record_name"] == legislator.full_name
+    assert confirmation["record_key"] == str(legislator.id)

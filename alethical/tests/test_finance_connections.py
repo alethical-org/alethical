@@ -677,6 +677,7 @@ def test_graph_resolves_only_confirmed_fingerprints(finance_api, finance_db, boa
     assert data["total"] == 3
     identified = next(n for n in data["nodes"] if n["kind"] == "organization")
     assert identified["record_id"] == entity["id"]
+    assert identified["printed_names"] == [VENDOR]
     assert identified["target"] == {"kind": "identity", "id": entity["id"]}
     edge = next(e for e in data["edges"] if e["to"] == identified["key"])
     assert edge["amount"] == "1200.5000"
@@ -703,6 +704,8 @@ def test_station_graph_has_exact_source_checks_and_never_file_money(
     assert row["source"]["file_key"] == held["key"]
     assert row["source"]["version_id"] == held["document"].content_hash
     assert row["source"]["page"] == 1 and row["source"]["quote"]
+    file_node = next(n for n in data["nodes"] if n["kind"] == "file")
+    assert file_node["saved_at"] == row["source"]["copied_at"]
     assert not problems(data)
     fact = listed.scalar(select(m.TVAdFact).where(m.TVAdFact.field == "agency_name"))
     listed.add(
@@ -825,3 +828,49 @@ def test_campaign_account_year_choices_cover_only_reviewed_intervals(
     filtered = get(finance_api, relationship="campaign_account", year=2019)
     assert filtered["years"] == data["years"] and filtered["total"] == 1
     assert get(finance_api, relationship="campaign_account", year=2026)["total"] == 0
+
+
+@pytest.mark.parametrize("summarized", [False, True])
+def test_graph_positions_keep_each_filed_value_without_changing_totals(
+    finance_api, finance_db, board, summarized
+):
+    row = finance_db.scalar(
+        select(m.CampaignFinanceIndependentExpenditureRow).where(
+            m.CampaignFinanceIndependentExpenditureRow.snapshot_id
+            == board.independent_expenditures_snapshot_id
+        )
+    )
+    row.for_against = "For"
+    finance_db.add_all(
+        [
+            m.CampaignFinanceIndependentExpenditureRow(
+                snapshot_id=board.independent_expenditures_snapshot_id,
+                row_number=n,
+                spender_reg_num=row.spender_reg_num,
+                vendor_name=row.vendor_name,
+                transaction_date=row.transaction_date,
+                year=row.year,
+                amount=Decimal("25"),
+                for_against=position,
+            )
+            for n, position in [(801, "Against"), (802, None)]
+        ]
+    )
+    finance_db.commit()
+    if summarized:
+        from alethical.pipeline import campaign_finance_graph_summary as summary
+
+        summary.rebuild(
+            finance_db,
+            m.CampaignFinanceDataset.independent_expenditures,
+            board.independent_expenditures_snapshot_id,
+        )
+        finance_db.commit()
+    data = get(finance_api, relationship="payments", year=2026)
+    edge = next(
+        e for e in data["edges"] if e["source"]["dataset"] == "independent_expenditures"
+    )
+    assert edge["positions"] == ["Against", "For"]
+    assert edge["position_missing_count"] == 1
+    assert edge["record_count"] == 3
+    assert Decimal(edge["amount"]) == Decimal("950")

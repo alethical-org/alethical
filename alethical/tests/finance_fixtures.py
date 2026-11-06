@@ -37,7 +37,13 @@ class _ListedAccount:
 
 @pytest.fixture()
 def finance_db(seed_database):
-    with get_engine().connect() as connection:
+    # Mirror the stable snapshot Finance list readers require. The outer
+    # transaction still keeps every test write private and rolls it all back.
+    with (
+        get_engine()
+        .connect()
+        .execution_options(isolation_level="REPEATABLE READ") as connection
+    ):
         transaction = connection.begin()
         with Session(
             bind=connection, join_transaction_mode="create_savepoint"

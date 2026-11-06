@@ -15,9 +15,15 @@ from sqlalchemy.orm import Session
 from alethical.api.services import (
     campaign_finance_payments as payments,
     committee_finance,
+    finance_versions,
     identity_confirmations as identities,
 )
+from alethical.api.services.finance_name_matching import (
+    configure_discovery,
+    indexed_discovery_match,
+)
 from alethical.db import models as m
+from alethical.pipeline import campaign_finance_name_summary as name_summary
 from alethical.pipeline import campaign_finance_reader as reader
 
 CONTRIBUTIONS = m.CampaignFinanceContributionRow
@@ -91,9 +97,40 @@ def _organization_claim_ids(db):
 def employers(db: Session, *, q: str, limit: int, offset: int) -> dict:
     try:
         release = _release(db)
+        configure_discovery(db)
         if release is None:
             return _unavailable(limit=limit, offset=offset, q=q)
         row = CONTRIBUTIONS
+        snapshot_id = release.contributions.snapshot_id
+        matched_name = indexed_discovery_match(row.contrib_employer_name, q)
+        total = None
+        page_offset = offset
+        if (snapshot_id, "employer_name") in name_summary.complete(
+            db, [(snapshot_id, "employer_name")]
+        ):
+            held = db.scalar(
+                select(func.count())
+                .select_from(row)
+                .where(row.snapshot_id == snapshot_id)
+            )
+            if held != release.contributions.row_count:
+                raise reader.ReleaseNoLongerHeld(
+                    "The published payment file is not fully held"
+                )
+            summary = name_summary.Summary
+            names = select(summary.name).where(
+                summary.snapshot_id == snapshot_id,
+                summary.record_kind == "employer_name",
+                indexed_discovery_match(summary.name, q),
+            )
+            total = db.scalar(select(func.count()).select_from(names.subquery()))
+            # Resolve this page's exact names first. A joined predicate lets the
+            # planner walk the full payment index before satisfying LIMIT.
+            selected_names = list(
+                db.scalars(names.order_by(summary.name).limit(limit).offset(offset))
+            )
+            matched_name = row.contrib_employer_name.in_(selected_names)
+            page_offset = 0
         claimed = (
             select(m.IdentityConfirmedRecord.fingerprint)
             .join(
@@ -120,15 +157,16 @@ def employers(db: Session, *, q: str, limit: int, offset: int) -> dict:
                 func.count().filter(claimed).label("confirmed_records"),
             )
             .where(
-                row.snapshot_id == release.contributions.snapshot_id,
-                row.contrib_employer_name.icontains(q, autoescape=True),
+                row.snapshot_id == snapshot_id,
+                matched_name,
             )
             .group_by(row.contrib_employer_name)
             .subquery()
         )
-        total = db.scalar(select(func.count()).select_from(groups))
+        if total is None:
+            total = db.scalar(select(func.count()).select_from(groups))
         rows = db.execute(
-            select(groups).order_by(groups.c.name).limit(limit).offset(offset)
+            select(groups).order_by(groups.c.name).limit(limit).offset(page_offset)
         ).all()
         return {
             "state": "reported" if total else "not_reported",
@@ -156,11 +194,32 @@ def _donor_key():
     )
 
 
-def _donor_rows(db, release, *, name, donor, record_number, limit, offset):
+def _employer_spellings(db, release, name, include_spellings):
+    if not include_spellings:
+        return [name]
+    from alethical.api.services.finance_similar_names import read
+
+    variants = read(
+        db,
+        name=name,
+        role="employer",
+        year=None,
+        limit=50,
+        offset=0,
+        version=None,
+        strong_only=True,
+        release_id=release.id,
+    )
+    return [name, *variants["names"]]
+
+
+def _donor_rows(
+    db, release, *, name, donor, record_number, limit, offset, spellings=None
+):
     row = CONTRIBUTIONS
     where = [
         row.snapshot_id == release.contributions.snapshot_id,
-        row.contrib_employer_name == name,
+        row.contrib_employer_name.in_(spellings or [name]),
     ]
     where.append(
         row.contributor == donor if donor is not None else row.contributor.is_(None)
@@ -191,7 +250,7 @@ def _donor_rows(db, release, *, name, donor, record_number, limit, offset):
     }
 
 
-def _donor_previews(db, release, *, name, keys):
+def _donor_previews(db, release, *, name, keys, spellings=None):
     """Read the first 50 payments of every selected group in one bounded query."""
     if not keys:
         return {}
@@ -214,7 +273,7 @@ def _donor_previews(db, release, *, name, keys):
         )
         .where(
             row.snapshot_id == release.contributions.snapshot_id,
-            row.contrib_employer_name == name,
+            row.contrib_employer_name.in_(spellings or [name]),
             _donor_key().in_(keys),
         )
         .subquery()
@@ -232,13 +291,20 @@ def _donor_previews(db, release, *, name, keys):
 
 
 def employer_donors(
-    db: Session, *, name: str, limit: int, offset: int, release_id: UUID | None = None
+    db: Session,
+    *,
+    name: str,
+    limit: int,
+    offset: int,
+    release_id: UUID | None = None,
+    include_spellings: bool = False,
 ) -> dict:
     try:
         release = _release(db, release_id)
         if release is None:
             return _unavailable(limit=limit, offset=offset, name=name)
         row = CONTRIBUTIONS
+        spellings = _employer_spellings(db, release, name, include_spellings)
         key = _donor_key()
         groups = (
             select(
@@ -252,7 +318,7 @@ def employer_donors(
             )
             .where(
                 row.snapshot_id == release.contributions.snapshot_id,
-                row.contrib_employer_name == name,
+                row.contrib_employer_name.in_(spellings),
             )
             .group_by(
                 key,
@@ -261,9 +327,11 @@ def employer_donors(
             )
             .subquery()
         )
-        total, total_payments = db.execute(
+        total, total_payments, donor_name_count = db.execute(
             select(
-                func.count(), func.coalesce(func.sum(groups.c.payment_count), 0)
+                func.count(),
+                func.coalesce(func.sum(groups.c.payment_count), 0),
+                func.count(groups.c.name),
             ).select_from(groups)
         ).one()
         selected = db.execute(
@@ -273,11 +341,16 @@ def employer_donors(
             .offset(offset)
         ).all()
         previews = _donor_previews(
-            db, release, name=name, keys=[group.key for group in selected]
+            db,
+            release,
+            name=name,
+            keys=[group.key for group in selected],
+            spellings=spellings,
         )
         return {
             "state": "reported" if total else "not_reported",
             "name": name,
+            "spellings": spellings,
             "rows": [
                 {
                     **dict(group._mapping),
@@ -290,6 +363,7 @@ def employer_donors(
                 for group in selected
             ],
             "total": total,
+            "donor_name_count": donor_name_count,
             "total_payments": int(total_payments),
             "page": _page(limit, offset, total),
             **_source(release),
@@ -307,6 +381,7 @@ def employer_donor_payments(
     limit: int,
     offset: int,
     release_id: UUID | None = None,
+    include_spellings: bool = False,
 ) -> dict:
     if (donor is None) == (record_number is None):
         raise HTTPException(422, "Choose a printed donor name or one unnamed record")
@@ -325,6 +400,7 @@ def employer_donor_payments(
             record_number=record_number,
             limit=limit,
             offset=offset,
+            spellings=_employer_spellings(db, release, name, include_spellings),
         )
         return {
             "state": "reported" if result["payment_count"] else "not_reported",
@@ -339,8 +415,6 @@ def employer_donor_payments(
 
 
 def _committee_rows(release, registration, year, direction):
-    from sqlalchemy import literal
-
     if direction == "received":
         model, download = CONTRIBUTIONS, payments._CONTRIBUTIONS
         name = model.contributor
@@ -374,7 +448,7 @@ def _committee_rows(release, registration, year, direction):
             (transfer, func.nullif(model.affected_committee_reg_num, "0")), else_=None
         )
         kind = model.type
-        tab = literal("expenditures")
+        tab = case((transfer, "made"), else_="expenditures")
         where = [model.committee_reg_num == registration]
     key = cast(
         func.jsonb_build_array(
@@ -480,6 +554,110 @@ def _statement_fields(db, release, registration, year, found):
     }
 
 
+def _recipient_types(db, numbers):
+    """Current held register metadata, never a type inferred for the payment year."""
+    from alethical.pipeline import campaign_finance_filings as filings
+    from alethical.api.services.campaign_finance_register import filer_copied_at
+
+    if not numbers:
+        return {}
+    snapshot = filings.live_filings_snapshot(db)
+    if snapshot is None:
+        return {}
+    rows = db.scalars(
+        select(m.CampaignFinanceFiler).where(
+            m.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            m.CampaignFinanceFiler.registration_number.in_(numbers),
+        )
+    ).all()
+    return {
+        row.registration_number: {
+            "recipient_type": row.kind.value,
+            "recipient_type_source": {
+                "snapshot_id": str(snapshot.id),
+                "copied_at": filer_copied_at(snapshot, row),
+                "source_url": filings.directory_url(),
+                "retained": row.retained_from_snapshot_id is not None,
+            },
+        }
+        for row in rows
+    }
+
+
+def _recipient_fields(kinds, number):
+    return kinds.get(number, {"recipient_type": None, "recipient_type_source": None})
+
+
+def committee_payments(
+    db, *, registration, direction, year, sort, limit, offset, request, version=None
+):
+    # Reuse the complete existing read/formatter, including statement attachments,
+    # missing-release states and source paging. Only Finance gets these extra fields.
+    from fastapi import Response
+    from alethical.api.routers.public import committee_payments as read_payments
+
+    marks = (
+        ("money", "filing_register", "invoice_links")
+        if direction == "made"
+        else ("money", "filing_register")
+    )
+    token = finance_versions.check(db, version, *marks)
+    data = read_payments(
+        registration_number=registration,
+        direction=direction,
+        request=request,
+        response=Response(),
+        year=year,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+        db=db,
+    ).data
+    data["version"] = token
+    if direction == "made":
+        from alethical.api.services.finance_payment_invoices import matching_invoices
+
+        release = committee_finance.current_release(db)
+        invoices = matching_invoices(
+            db,
+            snapshot_id=release.expenditures.snapshot_id
+            if release and str(release.id) == data.get("release_id")
+            else None,
+            row_numbers=[
+                row["record_number"]
+                for row in data["payments"]
+                if row["expenditure_type"] != "Contribution"
+            ],
+        )
+        kinds = _recipient_types(
+            db,
+            {
+                row["affected_committee_registration_number"]
+                for row in data["payments"]
+                if row["expenditure_type"] == "Contribution"
+                and row["affected_committee_registration_number"]
+            },
+        )
+        data["payments"] = [
+            {
+                **row,
+                **(
+                    {"matching_invoice": invoices[row["record_number"]]}
+                    if row["record_number"] in invoices
+                    else {}
+                ),
+                **_recipient_fields(
+                    kinds,
+                    row["affected_committee_registration_number"]
+                    if row["expenditure_type"] == "Contribution"
+                    else None,
+                ),
+            }
+            for row in data["payments"]
+        ]
+    return data
+
+
 def committee_groups(
     db: Session,
     *,
@@ -493,8 +671,11 @@ def committee_groups(
     offset: int,
     release_id: UUID | None = None,
     record_number: int | None = None,
+    version: str | None = None,
 ):
+    token = finance_versions.check(db, version, "money", "filing_register")
     scope = {
+        "version": token,
         "registration_number": registration,
         "year": year,
         "direction": direction,
@@ -558,7 +739,8 @@ def committee_groups(
         if tab:
             where.append(grouped.c.tab == tab)
         if q:
-            where.append(grouped.c.name.icontains(q, autoescape=True))
+            configure_discovery(db)
+            where.append(indexed_discovery_match(grouped.c.name, q))
         if record_number is not None:
             # Locate the whole group, not just the notice-matched row inside it.
             where.append(
@@ -635,6 +817,14 @@ def committee_groups(
             release,
             [row.registration_number for row in selected if row.registration_number],
         )
+        recipient_types = _recipient_types(
+            db,
+            {
+                row.registration_number
+                for row in selected
+                if row.tab == "made" and row.registration_number
+            },
+        )
         state = (
             "reported"
             if total
@@ -659,6 +849,10 @@ def committee_groups(
             "rows": [
                 {
                     **dict(row._mapping),
+                    **_recipient_fields(
+                        recipient_types,
+                        row.registration_number if row.tab == "made" else None,
+                    ),
                     "amount": str(row.amount) if row.amount is not None else None,
                     "kinds": sorted(kind for kind in row.kinds if kind is not None),
                     "first_year": year,
@@ -831,6 +1025,20 @@ def report_figures(db: Session, *, registration: str, year: int):
     rows = []
     for item in catalogued:
         matched = len(matches) == 1 and matches[0].row_number == item.row_number
+        reason = None
+        if not matched:
+            if filing is None:
+                reason = "missing_filing"
+            elif filing.reported_through is None:
+                reason = "missing_reported_through"
+            elif item.special_election:
+                reason = "special_election"
+            elif item.cut_off_date is None:
+                reason = "missing_cutoff"
+            elif item.cut_off_date != filing.reported_through:
+                reason = "cutoff_mismatch"
+            else:
+                reason = "ambiguous_cutoff"
         start = (
             printed_period_start_for_end(item.cut_off_date)
             if matched and item.cut_off_date is not None
@@ -864,6 +1072,7 @@ def report_figures(db: Session, *, registration: str, year: int):
                 if matched and ending_as_of
                 else None,
                 "figures_state": "reported" if matched else "unavailable",
+                "figures_reason": reason,
                 "figures_copied_at": (filing.captured_at or snapshot.fetch_completed_at)
                 if matched and filing is not None
                 else None,
@@ -908,6 +1117,7 @@ def _candidate_accounts(db: Session, candidate_id: str):
         "candidate_id": candidate_id,
         "election_year": election_year,
         "link_state": "unconfirmed",
+        "register_contest": None,
     }
     snapshot = filings.live_filings_snapshot(db)
     if connection is None or election_year is None or snapshot is None:
@@ -939,6 +1149,21 @@ def _candidate_accounts(db: Session, candidate_id: str):
         )
     }
     scope["link_state"] = "confirmed" if numbers else "unconfirmed"
+    seats = {
+        (filer.office, filer.district)
+        for filer in filers
+        if filer.registration_number in numbers
+    }
+    if len(seats) == 1:
+        from alethical.api.services.campaign_finance_races import contest_anchor
+
+        office, district = seats.pop()
+        scope["register_contest"] = {
+            "office": office,
+            "district": district,
+            "year": election_year,
+            "anchor": contest_anchor(office, district),
+        }
     return scope, connection["id"], numbers
 
 

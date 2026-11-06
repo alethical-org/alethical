@@ -246,11 +246,13 @@ export function Tabs<T extends string>({
   value,
   tabs,
   onChange,
+  preventFocusScroll = false,
 }: {
   label: string;
   value: T;
   tabs: ReadonlyArray<Tab<T>>;
   onChange: (value: T) => void;
+  preventFocusScroll?: boolean;
 }) {
   const row = useRef<HTMLDivElement>(null);
   function onKey(event: KeyboardEvent<HTMLDivElement>) {
@@ -263,7 +265,9 @@ export function Tabs<T extends string>({
     if (next < 0) return;
     event.preventDefault();
     onChange(tabs[next].value);
-    row.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+    row.current
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      [next]?.focus({ preventScroll: preventFocusScroll });
   }
   return (
     <div ref={row} role="tablist" aria-label={label} className="f-tabs" onKeyDown={onKey}>

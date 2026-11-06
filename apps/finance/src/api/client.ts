@@ -98,7 +98,9 @@ export async function requestSignInCode(
       signal: timeout(),
     });
     if (response.status === 202) {
-      const body = (await response.json()) as { data?: { challenge?: unknown } };
+      const body = (await response.json()) as {
+        data?: { challenge?: unknown };
+      };
       const challenge = body.data?.challenge;
       return typeof challenge === 'string' && challenge
         ? { kind: 'accepted', challenge }
@@ -109,5 +111,57 @@ export async function requestSignInCode(
     return { kind: 'unavailable' };
   } catch {
     return { kind: 'unavailable' };
+  }
+}
+
+export type ResearchSignInResult =
+  | {
+      kind: 'session';
+      session: import('../auth/researchSession').ResearchSession;
+    }
+  | { kind: 'refused' | 'rate-limited' | 'unavailable' };
+
+export async function signInResearch(
+  apiBaseUrl: string,
+  password: string,
+  fetcher: Fetch = fetch,
+): Promise<ResearchSignInResult> {
+  try {
+    const response = await fetcher(`${apiBaseUrl}/api/v1/finance/sign-in/research`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+      cache: 'no-store',
+      signal: timeout(),
+    });
+    if (response.status === 401) return { kind: 'refused' };
+    if (response.status === 429) return { kind: 'rate-limited' };
+    if (!response.ok) return { kind: 'unavailable' };
+    const { data } = await response.json();
+    if (
+      !data ||
+      typeof data.access_token !== 'string' ||
+      !/^finance_research_[A-Za-z0-9_-]{40,100}$/.test(data.access_token) ||
+      typeof data.email !== 'string' ||
+      typeof data.expires_at !== 'string' ||
+      !(Date.parse(data.expires_at) > Date.now())
+    )
+      return { kind: 'unavailable' };
+    return { kind: 'session', session: data };
+  } catch {
+    return { kind: 'unavailable' };
+  }
+}
+
+export async function signOutResearch(apiBaseUrl: string, accessToken: string) {
+  try {
+    await fetch(`${apiBaseUrl}/api/v1/finance/sign-in/research/sign-out`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: timeout(),
+    });
+  } catch {
+    /* Local sign-out still clears the browser when offline. */
   }
 }

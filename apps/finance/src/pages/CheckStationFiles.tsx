@@ -1,5 +1,5 @@
+import { useVersionedRead } from '../api/versionedRead';
 import { useState } from 'react';
-import { useRead } from '../api/read';
 import { useLocation } from '../router';
 import { returnTarget } from '../returnContext';
 import { hrefFor } from '../routes';
@@ -55,9 +55,9 @@ export function CheckStationFiles() {
   });
   const sort = state.sort === 'newest' ? 'newest' : 'suggested';
   const queuePage = Math.max(1, Math.trunc(Number(state.queue_page)) || 1);
-  const queue = useRead<Queue>(
+  const queue = useVersionedRead<Queue>(
     mediaPath(['queue'], { sort, limit: PAGE_SIZE, offset: (queuePage - 1) * PAGE_SIZE }),
-    { keepPrevious: true },
+    { page: queuePage, onRestart: () => setState({ queue_page: '1' }) },
   );
   const rows = queue.data?.rows ?? [];
   const file = state.file || rows[0]?.key || '';

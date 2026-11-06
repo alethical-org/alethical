@@ -2,7 +2,7 @@
 
 from uuid import UUID
 from typing import Literal
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Request
 from sqlalchemy.orm import Session
 from alethical.api.schemas import DetailResponse
 from alethical.api.services import finance_money_reads as money
@@ -28,11 +28,17 @@ def employer_donors(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0, le=2147483647),
     release_id: UUID | None = None,
+    include_spellings: bool = False,
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
         data=money.employer_donors(
-            db, name=name, limit=limit, offset=offset, release_id=release_id
+            db,
+            name=name,
+            limit=limit,
+            offset=offset,
+            release_id=release_id,
+            include_spellings=include_spellings,
         )
     )
 
@@ -45,6 +51,7 @@ def employer_donor_payments(
     limit: int = Query(50, ge=1, le=250),
     offset: int = Query(0, ge=0, le=2147483647),
     release_id: UUID | None = None,
+    include_spellings: bool = False,
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
@@ -56,6 +63,7 @@ def employer_donor_payments(
             limit=limit,
             offset=offset,
             release_id=release_id,
+            include_spellings=include_spellings,
         )
     )
 
@@ -66,7 +74,13 @@ def committee_groups(
     year: int = Query(ge=2015, le=2100),
     direction: Literal["received", "made"] = "received",
     tab: Literal[
-        "individuals", "lobbyists", "committees", "party", "other", "expenditures"
+        "individuals",
+        "lobbyists",
+        "committees",
+        "party",
+        "other",
+        "expenditures",
+        "made",
     ]
     | None = None,
     q: str = Query("", max_length=200, pattern=TEXT),
@@ -75,6 +89,7 @@ def committee_groups(
     offset: int = Query(0, ge=0, le=2147483647),
     release_id: UUID | None = None,
     record_number: int | None = Query(None, ge=1, le=2147483647),
+    version: str | None = Query(None, pattern=r"^[0-9a-f]{16}$"),
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
@@ -90,6 +105,7 @@ def committee_groups(
             offset=offset,
             release_id=release_id,
             record_number=record_number,
+            version=version,
         )
     )
 
@@ -155,5 +171,34 @@ def candidate_campaign_finance_years(
     return DetailResponse(
         data=money.candidate_campaign_finance_years(
             db, candidate_id=candidate_id, from_year=from_year, to_year=to_year
+        )
+    )
+
+
+@router.get("/committees/{registration}/payments", response_model=DetailResponse)
+def committee_payments(
+    request: Request,
+    registration: str = Path(min_length=1, max_length=20, pattern=TEXT),
+    direction: Literal[
+        "received", "made", "independent", "independent_by"
+    ] = "received",
+    year: int | None = Query(None, ge=2015, le=2100),
+    sort: Literal["date", "amount"] = "date",
+    limit: int = Query(50, ge=1, le=250),
+    offset: int = Query(0, ge=0, le=2147483647),
+    version: str | None = Query(None, pattern=r"^[0-9a-f]{16}$"),
+    db: Session = Depends(get_db),
+):
+    return DetailResponse(
+        data=money.committee_payments(
+            db,
+            registration=registration,
+            direction=direction,
+            year=year,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+            request=request,
+            version=version,
         )
     )

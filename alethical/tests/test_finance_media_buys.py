@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 import pytest
@@ -533,3 +534,206 @@ def test_unknown_files_and_kinds_are_refused(finance_api, listed):
 
 def test_media_buys_need_finance_access(client):
     assert client.get(f"{BASE}/counts").status_code == 401
+
+
+def test_finance_browse_serves_tab_totals_and_station_years(finance_api, held):
+    data = finance_api.get(BASE + "/browse?tab=stations").json()["data"]
+    assert data["tab_counts"] == {
+        "folders": 1,
+        "agencies": 1,
+        "stations": 3,
+        "years": 1,
+    }
+    station = next(row for row in data["rows"] if row["label"] == "KSTP-TV")
+    assert station["years"] == [held["document"].year]
+
+
+@pytest.mark.parametrize(
+    ("tab", "word", "label"),
+    [
+        ("folders", "sample", "Sample Committee"),
+        ("agencies", "example", "Example Media"),
+        ("stations", "kstp", "KSTP-TV"),
+        ("years", "2026", "2026"),
+    ],
+)
+def test_finance_tab_search_returns_groups_not_file_rows(
+    finance_api, held, tab, word, label
+):
+    data = finance_api.get(
+        BASE + f"/browse?tab={tab}&q={word}&search_scope=tab"
+    ).json()["data"]
+    assert [row["label"] for row in data["rows"]] == [label]
+    assert "version_id" not in data["rows"][0]
+    empty = finance_api.get(
+        BASE + f"/browse?tab={tab}&q=nevermatches&search_scope=tab"
+    ).json()["data"]
+    assert empty["rows"] == []
+    assert empty["total"] == 0
+    assert empty["tab_counts"] == data["tab_counts"]
+
+
+def test_finance_rows_keep_saved_date_address_quote_and_connection_page(
+    finance_api, held
+):
+    folder = finance_api.get(f"{BASE}/folders/{held['folder']}").json()["data"]
+    row = next(row for row in folder["files"] if row["key"] == held["key"])
+    assert row["first_saved_at"] == reader.iso(held["document"].first_seen_at)
+    agency = finance_api.get(
+        f"{BASE}/agencies/{reader.agency_key('Example Media')}"
+    ).json()["data"]
+    evidence = agency["addresses"][0]["evidence"][0]
+    assert evidence["quote"] == "Synthetic organization_address quote."
+    assert evidence["checked_at"]
+    connections = finance_api.get(
+        BASE + "/connections?kind=committee&target=19002"
+    ).json()["data"]
+    assert connections["files"][0]["page"] == 1
+    assert connections["groups"][0]["kind"] == "committee"
+    assert connections["groups"][0]["files"][0]["page"] == 1
+    named = finance_api.get(
+        BASE + "/connections?kind=name&target=Example%20Media"
+    ).json()["data"]
+    assert named["groups"][0]["kind"] == "named"
+    assert named["files"][0]["page"] == 1
+
+
+def test_station_year_counts_use_source_years_and_keep_unknown_failures(
+    finance_api, held, listed
+):
+    document = held["document"]
+    scan = m.FCCScan(status="complete", stations=["28010"], counts={})
+    listed.add(scan)
+    listed.flush()
+    for key, kind, path in [
+        ("missing-file", "file", "political-files/2025/State/Committee"),
+        ("missing-folder", "folder", "political-files/2025/State/Committee"),
+        ("unknown-folder", "folder", "political-files/State/Committee"),
+    ]:
+        listed.add(
+            m.FCCObservation(
+                scan_id=scan.id,
+                url="https://example.invalid/" + key,
+                facility_id="28010",
+                kind=kind,
+                status="failed",
+                details={"file_id": key, "folder_path": path}
+                if kind == "file"
+                else {"path": path},
+            )
+        )
+    # A folder that failed once and listed later counts by its newest status.
+    later = m.FCCScan(status="complete", stations=["28010"], counts={})
+    listed.add(later)
+    listed.flush()
+    for each, status, when in [
+        (scan, "failed", datetime(2026, 10, 1, tzinfo=timezone.utc)),
+        (later, "stored", datetime(2026, 10, 2, tzinfo=timezone.utc)),
+    ]:
+        listed.add(
+            m.FCCObservation(
+                scan_id=each.id,
+                url="https://example.invalid/recovered-folder",
+                facility_id="28010",
+                kind="folder",
+                status=status,
+                observed_at=when,
+                details={"path": "political-files/2025/State/Recovered"},
+            )
+        )
+    extraction = listed.get(m.FCCExtraction, (document.content_hash, EXTRACTOR_VERSION))
+    extraction.status = "partial"
+    listed.flush()
+    data = finance_api.get(BASE + "/stations/kstp-tv").json()["data"]
+    years = {row["year"]: row for row in data["years"]}
+    assert years[2026]["counts"] == {
+        "station_files_held": 2,
+        "unique_file_contents": 2,
+        "text_read_failures": 1,
+        "download_failures": 0,
+        "folder_failures": 0,
+    }
+    assert years[2025]["counts"]["download_failures"] == 1
+    assert years[2025]["counts"]["folder_failures"] == 1
+    assert years[None]["counts"]["folder_failures"] == 1
+    assert years[None]["counts"]["station_files_held"] == 0
+    assert years[2026]["latest_check_at"] == data["latest_check_at"]
+    assert data["latest_check_at"] is not None
+
+
+def test_finance_agency_discovery_keeps_original_name_key_and_versions(
+    finance_api, held
+):
+    data = finance_api.get(
+        BASE + "/browse",
+        params={"tab": "agencies", "q": "exmaple media", "search_scope": "tab"},
+    ).json()["data"]
+    assert [(row["label"], row["key"]) for row in data["rows"]] == [
+        ("Example Media", reader.agency_key("Example Media"))
+    ]
+    files = finance_api.get(
+        BASE + "/browse", params={"q": "exmaple media", "search_scope": "files"}
+    ).json()["data"]
+    assert files["rows"]
+    assert all(row["version_id"] for row in files["rows"])
+    assert all(
+        row["match_label"] in {"Matched a checked fact", "Matched an agency name"}
+        for row in files["rows"]
+    )
+    # File names, folder labels, years and station names are not typo-expanded.
+    assert (
+        finance_api.get(
+            BASE + "/browse",
+            params={"tab": "folders", "q": "smaple", "search_scope": "tab"},
+        ).json()["data"]["rows"]
+        == []
+    )
+    assert (
+        finance_api.get(
+            BASE + "/browse",
+            params={"tab": "years", "q": "2025", "search_scope": "tab"},
+        ).json()["data"]["rows"]
+        == []
+    )
+    missing_station = finance_api.get(
+        BASE + "/browse",
+        params={"q": "exmaple media", "station": "WCCO-TV", "year": 2026},
+    ).json()["data"]
+    assert missing_station["rows"] == []
+
+
+def test_file_search_orders_direct_agency_before_typo_match(
+    finance_api, finance_db, held
+):
+    from sqlalchemy import select
+
+    direct = held["document"]
+    direct.name = "Z exact agency file"
+    other = finance_db.scalar(
+        select(m.FCCDocument).where(
+            m.FCCDocument.content_hash == held["second_version"]
+        )
+    )
+    other.name = "A variant agency file"
+    finance_db.add(
+        m.FCCExtraction(
+            content_hash=other.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="unknown",
+            status="readable",
+            errors=[],
+            facts=[{"field": "agency_name", "value": "Exmaple Media", "page": 1}],
+        )
+    )
+    finance_db.commit()
+    response = finance_api.get(
+        BASE + "/browse", params={"q": "example media", "search_scope": "files"}
+    )
+    assert response.status_code == 200, response.text
+    rows = response.json()["data"]["rows"]
+    assert [row["key"] for row in rows] == [held["key"], held["second"]]
+    assert [row["version_id"] for row in rows] == [
+        direct.content_hash,
+        held["second_version"],
+    ]
+    assert all("_discovery_rank" not in row for row in rows)

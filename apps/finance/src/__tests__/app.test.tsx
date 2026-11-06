@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App';
+import { rememberCodeRequest } from '../auth/codeRequest';
 import { SessionProvider } from '../auth/session';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -60,9 +61,14 @@ async function renderAt(
           { status: 200 },
         )
       : url.endsWith('/sign-in/code')
-        ? new Response(JSON.stringify({ data: { status: 'accepted', challenge: 'challenge-1' } }), {
-            status: 202,
-          })
+        ? new Response(
+            JSON.stringify({
+              data: { status: 'accepted', challenge: 'challenge-1' },
+            }),
+            {
+              status: 202,
+            },
+          )
         : new Response(null, { status: accessStatus }),
   );
   vi.stubGlobal('fetch', fetcher);
@@ -95,15 +101,16 @@ describe('the Finance shell', () => {
     expect(new URLSearchParams(window.location.search).get('next')).toBe(
       '/money/committees/12?year=2026',
     );
-    expect(container.textContent).toContain('Sign in to Alethical Finance');
+    expect(container.textContent).toContain('Sign in');
   });
 
-  it('offers Google and email, and never a password or account creation', async () => {
+  it('keeps ordinary sign-in separate from investor access without account creation', async () => {
     await renderAt('/sign-in', fakeSupabase(null));
     const text = container.textContent ?? '';
     expect(text).toContain('Continue with Google');
     expect(text).toContain('Sign in with email');
-    expect(text).not.toMatch(/password|create account/i);
+    expect(text).not.toContain('Investor access');
+    expect(text).not.toMatch(/create account/i);
     expect(container.querySelector('input[type="password"]')).toBeNull();
   });
 
@@ -113,16 +120,21 @@ describe('the Finance shell', () => {
     expect(container.textContent).toContain('Sign in with email');
   });
 
-  it('offers no email sign-in until its server route ships', async () => {
+  it('hides email sign-in and its saved challenge when email access is off', async () => {
+    rememberCodeRequest('reader@example.test', 'previous-challenge');
     await renderAt('/sign-in', fakeSupabase(null), 200, true, false);
     expect(container.textContent).toContain('Continue with Google');
     expect(container.textContent).not.toContain('Sign in with email');
+    expect(container.querySelector('#code')).toBeNull();
+    expect(
+      container.querySelector('a[aria-label="Alethical Finance home"]')?.getAttribute('href'),
+    ).toBe('/');
   });
 
-  it('says sign-in is not open when neither way is on', async () => {
-    await renderAt('/sign-in', fakeSupabase(null), 200, false, false);
-    expect(container.textContent).toContain('Sign-in to Alethical Finance is not open yet.');
-    expect(container.querySelectorAll('button')).toHaveLength(0);
+  it('keeps shared-password access when ordinary sign-in methods are off', async () => {
+    await renderAt('/investor-access', fakeSupabase(null), 200, false, false);
+    expect(container.textContent).toContain('Investor');
+    expect(container.querySelectorAll('button')).toHaveLength(1);
   });
 
   it('asks the server for a code, then proves it to Supabase', async () => {
@@ -170,6 +182,8 @@ describe('the Finance shell', () => {
   it('shows Finance Home in the shell to a listed account', async () => {
     await renderAt('/home', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('header.f-nav')).not.toBeNull();
+    expect(container.querySelector('header [role="search"]')).toBeNull();
+    expect(container.querySelectorAll('main [role="search"]')).toHaveLength(1);
     expect(container.querySelector('h1')?.textContent).toBe('Research public records');
     expect(document.title).toBe('Finance Home · Alethical Finance');
   });

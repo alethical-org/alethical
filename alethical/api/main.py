@@ -33,6 +33,12 @@ from alethical.api.routers.finance_identities import router as finance_identitie
 from alethical.api.routers.finance_media_buys import router as finance_media_router
 from alethical.api.routers.finance_landing import router as finance_landing_router
 from alethical.api.routers.finance_sign_in import router as finance_sign_in_router
+from alethical.api.routers.finance_similar_agencies import (
+    router as finance_similar_agencies_router,
+)
+from alethical.api.routers.finance_similar_names import (
+    router as finance_similar_names_router,
+)
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.candidates import router as candidates_router
@@ -341,6 +347,10 @@ def create_app() -> FastAPI:
     app.include_router(finance_media_router, prefix="/api/v1", tags=["finance"])
     app.include_router(finance_landing_router, prefix="/api/v1", tags=["finance"])
     app.include_router(finance_sign_in_router, prefix="/api/v1", tags=["finance"])
+    app.include_router(finance_similar_names_router, prefix="/api/v1", tags=["finance"])
+    app.include_router(
+        finance_similar_agencies_router, prefix="/api/v1", tags=["finance"]
+    )
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(lobbying_router, prefix="/api/v1", tags=["lobbying"])
     app.include_router(site_metrics_router, prefix="/api/v1", tags=["site-metrics"])

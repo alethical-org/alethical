@@ -372,6 +372,10 @@ unrepaired bundle builds 32,768 and takes seconds. In every form a lower
 and ordinary patterns must still match. `check-glob-security.mjs` fingerprints
 the bundles.
 The raw audit warning stays visible under the same exact-match classification.
+The current advisory covers `>=7.0.0 <11.0.1`; classification requires that exact
+range, the installed 10.2.5 version and its recorded Expo path. The earlier
+`<11.0.1` range is rejected as stale, as are other changed findings. This does not
+relax the installed-code fingerprints or the hostile-pattern behavior checks.
 Replace the backport with the released fix through
 [issue #2812](https://github.com/alethical-org/alethical/issues/2812).
 

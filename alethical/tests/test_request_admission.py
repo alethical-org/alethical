@@ -75,7 +75,7 @@ async def test_busy_database_requests_cannot_starve_response_cleanup(monkeypatch
     def query(db: Session = Depends(database.get_db)):
         db.execute(text("SELECT 1"))
         queries_finished.append(True)
-        release_queries.wait(timeout=2)
+        release_queries.wait(timeout=SETTLE)
         return DetailResponse(data={"ok": True})
 
     workers = anyio.to_thread.current_default_thread_limiter()
@@ -89,7 +89,7 @@ async def test_busy_database_requests_cannot_starve_response_cleanup(monkeypatch
                 for _ in range(2)
             ]
             pending.extend(admitted)
-            async with asyncio.timeout(1):
+            async with asyncio.timeout(SETTLE):
                 while len(queries_finished) != 2:
                     await asyncio.sleep(0.001)
             overflow = [

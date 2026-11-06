@@ -27,10 +27,12 @@ a {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
-/* A heading takes focus only when the screen changes, so screen readers land
- * on it; Tab never reaches it, so it draws no ring (Access drawing). */
+/* The heading or heading-free access page takes focus on navigation. Neither
+ * is a Tab stop or control, so it draws no ring (Access drawing). */
 h1[tabindex='-1']:focus,
-h1[tabindex='-1']:focus-visible {
+h1[tabindex='-1']:focus-visible,
+.access--sign-in[tabindex='-1']:focus,
+.access--sign-in[tabindex='-1']:focus-visible {
   outline: none;
 }
 .skip {
@@ -128,6 +130,12 @@ a.lockup:hover {
 }
 .access {
   max-width: 440px;
+}
+.access--sign-in {
+  padding-top: clamp(64px, 12vh, 112px);
+}
+.investor-access-form {
+  margin-top: 24px;
 }
 .stack {
   display: flex;

@@ -22,13 +22,15 @@ import {
   ownAuthors,
   seatLabel,
   sessionShortLabel,
+  versionInSentence,
   versionLabel,
   versionPhrase,
+  versionTitle,
   voteForAction,
   type BillDetail,
   type ServedVote,
 } from '../pages/legislationRecords';
-import { RollCall, recordedFilters, rollTallies } from '../pages/RollCall';
+import { RollCall, matchingMembers, recordedFilters, rollTallies } from '../pages/RollCall';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -36,7 +38,10 @@ import { matchRoute } from '../routes';
 const API = 'https://api.example.test';
 
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 
 function json(data: unknown, status = 200, page?: unknown) {
@@ -85,7 +90,9 @@ const LIST_ROW = {
   current_status: 'Chapter number',
   status_key: 'signed_into_law',
   latest_action_at: '2026-05-17T00:00:00Z',
-  ai_analysis: { short_title: 'New Council and Fund to Modernize Human Services IT' },
+  ai_analysis: {
+    short_title: 'New Council and Fund to Modernize Human Services IT',
+  },
 };
 
 const STATUTORY = 'A bill for an act relating to state government; creating a council';
@@ -190,6 +197,12 @@ const DETAIL: BillDetail = {
       is_current: false,
     },
   ],
+  summary_source_version: {
+    version_code: '3',
+    version_name: '2025.0-SF0334-3',
+    document_date: '2026-05-19T12:26:09Z',
+    html_url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/3/',
+  },
 };
 
 const VOTE_ID = '0b0a4d2e-5c7f-4e1a-9b3d-8f2c6a1e7d90';
@@ -211,6 +224,7 @@ const VOTE: ServedVote = {
       legislator_id: 'leg-jim',
       legislator_name: 'Jim Abeler',
       party: 'R',
+      district: '35',
       vote_value: 'yes',
     },
     {
@@ -237,9 +251,15 @@ const AUTHORS = {
         ],
       },
     },
-    { ...DETAIL.all_sponsors![1], campaign_accounts: { link_state: 'unconfirmed', confirmed: [] } },
+    {
+      ...DETAIL.all_sponsors![1],
+      campaign_accounts: { link_state: 'unconfirmed', confirmed: [] },
+    },
     // A companion bill's author, named in the House file: not this bill's author.
-    { ...DETAIL.all_sponsors![0], campaign_accounts: { link_state: 'confirmed', confirmed: [] } },
+    {
+      ...DETAIL.all_sponsors![0],
+      campaign_accounts: { link_state: 'confirmed', confirmed: [] },
+    },
   ],
 };
 
@@ -319,6 +339,13 @@ describe('legislation records', () => {
     expect(versionLabel('3', '2025.0-SF0334-3')).toBe('3rd engrossment');
     expect(versionLabel('x', '2026.0-CCRHF1141A')).toBe('Conference committee report');
     expect(versionPhrase('As introduced')).toBe('introduced');
+    // "version" is added once, never to a name that already says it.
+    expect(versionTitle('As introduced')).toBe('Introduced version');
+    expect(versionTitle('3rd engrossment')).toBe('3rd engrossment version');
+    expect(versionTitle('Current version')).toBe('Current version');
+    expect(versionInSentence('As introduced')).toBe('introduced version');
+    expect(versionInSentence('Current version')).toBe('current version');
+    expect(versionInSentence('Bill version')).toBe('bill version');
     const rows = orderVersions(DETAIL.versions!, DETAIL.actions!);
     expect(rows.map((row) => row.label)).toEqual([
       'Session Law — Chapter 120',
@@ -404,7 +431,13 @@ describe('Legislation', () => {
       json(
         [
           LIST_ROW,
-          { ...LIST_ROW, id: '94-2025-HF9', file_type: 'HF', file_number: 9, ai_analysis: null },
+          {
+            ...LIST_ROW,
+            id: '94-2025-HF9',
+            file_type: 'HF',
+            file_number: 9,
+            ai_analysis: null,
+          },
         ],
         200,
         {
@@ -635,6 +668,89 @@ describe('Bill', () => {
     expect(container.querySelector('h1')?.textContent).toContain('New Council');
   });
 
+  const readCitation = async () => {
+    const read = container.querySelector<HTMLButtonElement>('.bl-citation .bl-text-button');
+    await act(async () => read!.click());
+    await settle();
+  };
+
+  it('names the version the summary was written from and opens its quoted section', async () => {
+    const detail = {
+      ...DETAIL,
+      summary_source_version: {
+        version_code: '0',
+        version_name: '2025.0-SF0334-0',
+        document_date: '2025-01-16T14:02:47Z',
+      },
+    };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    // A newer current version exists (3rd engrossment); the summary still names its own.
+    expect(text()).toContain('Alethical summary of the introduced version');
+    expect(container.querySelector('.bl-citation-version')?.textContent).toBe('Introduced version');
+    expect(text()).not.toContain('3rd engrossment version');
+    await readCitation();
+    expect(new URLSearchParams(window.location.search).get('version')).toBe('0');
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/0/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/3/text`);
+    expect(document.activeElement?.id).toBe('ft-laws.0.2.0-2');
+  });
+
+  it('opens the current version’s quoted section when the summary was written from it', async () => {
+    await renderBill('/bills/94-2025-SF334', billAnswer());
+    expect(text()).toContain('Alethical summary of the 3rd engrossment version');
+    await readCitation();
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/3/text`);
+    expect(document.activeElement?.id).toBe('ft-laws.0.2.0-2');
+  });
+
+  it('opens the very conference report the summary quotes when 2 share a name', async () => {
+    const report = (code: string, date: string, current: boolean) => ({
+      version_code: code,
+      version_name: `2026.0-CCRSF0334${code === 'ccr-1' ? 'A' : ''}`,
+      document_date: date,
+      html_url: `https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/${code}/`,
+      is_current: current,
+    });
+    const detail = {
+      ...DETAIL,
+      versions: [
+        DETAIL.versions![0],
+        report('ccr-0', '2026-05-10T00:00:00Z', false),
+        report('ccr-1', '2026-05-15T00:00:00Z', true),
+      ],
+      summary_source_version: {
+        version_code: 'ccr-0',
+        version_name: '2026.0-CCRSF0334',
+      },
+    };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    expect(text()).toContain('Alethical summary of the conference committee report version');
+    await readCitation();
+    // The list keeps the current report under that name; the earlier one the summary
+    // quotes is still opened by its own code.
+    expect(new URLSearchParams(window.location.search).get('version')).toBe('ccr-0');
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
+  });
+
+  it.each([
+    ['no linked version', null],
+    ['a version the record no longer lists', { version_code: '7', version_name: 'gone' }],
+    ['the moving current pointer', { version_code: 'current', version_name: 'Current' }],
+    ['the session law', { version_code: 'session-law', version_name: 'Session Law' }],
+  ])('never names the current version when the summary has %s', async (_, source) => {
+    const detail = { ...DETAIL, summary_source_version: source };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    const meta = [...container.querySelectorAll('.bl-summary .bl-meta')].map((p) => p.textContent);
+    expect(meta).toContain('Alethical summary');
+    expect(text()).not.toContain('Alethical summary of the');
+    expect(container.querySelector('.bl-citation-version')).toBeNull();
+    // The text opens at the top: a quoted section is never looked up in another version.
+    await readCitation();
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/3/text`);
+    expect(document.activeElement?.id).not.toBe('ft-laws.0.2.0-2');
+  });
+
   it('shows the official description when no Alethical summary exists', async () => {
     const detail = { ...DETAIL, ai_analysis: null };
     await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
@@ -674,6 +790,66 @@ describe('Bill', () => {
     );
   });
 
+  it('opens the current conference report by its exact code when 2 share a name', async () => {
+    const report = (code: string, date: string, current: boolean) => ({
+      version_code: code,
+      version_name: `2026.0-CCRSF0334${code === 'ccr-1' ? 'A' : ''}`,
+      document_date: date,
+      html_url: `https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/${code}/`,
+      is_current: current,
+    });
+    const detail = {
+      ...DETAIL,
+      versions: [
+        DETAIL.versions![0],
+        report('ccr-0', '2026-05-10T00:00:00Z', false),
+        report('ccr-1', '2026-05-15T00:00:00Z', true),
+      ],
+      summary_source_version: null,
+    };
+    await renderBill('/bills/94-2025-SF334?tab=text', billAnswer({ detail: () => json(detail) }));
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+    expect(text()).toContain('Bill text · conference committee report version');
+  });
+
+  it('lists the current conference report and opens it from Versions and the summary', async () => {
+    const report = (code: string, date: string, current: boolean) => ({
+      version_code: code,
+      version_name: `2026.0-CCRSF0334${code === 'ccr-1' ? 'A' : ''}`,
+      document_date: date,
+      html_url: `https://www.revisor.mn.gov/bills/94/2025/0/SF/334/versions/${code}/`,
+      is_current: current,
+    });
+    const versions = [
+      DETAIL.versions![0],
+      report('ccr-0', '2026-05-10T00:00:00Z', false),
+      report('ccr-1', '2026-05-15T00:00:00Z', true),
+    ];
+    const rows = orderVersions(versions, DETAIL.actions!);
+    expect(rows.map((row) => row.code)).toEqual(['ccr-1', '0']);
+    const detail = { ...DETAIL, versions, summary_source_version: null };
+    await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
+    await readCitation();
+    expect(new URLSearchParams(window.location.search).get('version')).toBeNull();
+    expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-1/text`);
+    expect(requests).not.toContain(`${API}/api/v1/bills/94-2025-SF334/versions/ccr-0/text`);
+  });
+
+  it('never prints "version" twice for a version named only by the current pointer', async () => {
+    const detail = {
+      ...DETAIL,
+      versions: [{ version_code: 'current', version_name: null, is_current: true }],
+      summary_source_version: null,
+    };
+    await renderBill(
+      '/bills/94-2025-SF334?tab=text',
+      billAnswer({ detail: () => json(detail), text: missing }),
+    );
+    expect(text()).toContain('Text of the current version not held');
+    expect(text()).not.toContain('version version');
+  });
+
   it('says when a version’s text is not held', async () => {
     await renderBill('/bills/94-2025-SF334?tab=text&version=0', billAnswer({ text: missing }));
     expect(requests).toContain(`${API}/api/v1/bills/94-2025-SF334/versions/0/text`);
@@ -693,7 +869,10 @@ describe('Bill', () => {
   it('says no roll call is recorded when the record holds none', async () => {
     const detail = {
       ...DETAIL,
-      actions: DETAIL.actions!.map((action) => ({ ...action, roll_call_text: null })),
+      actions: DETAIL.actions!.map((action) => ({
+        ...action,
+        roll_call_text: null,
+      })),
     };
     await renderBill(
       '/bills/94-2025-SF334?tab=votes',
@@ -725,10 +904,98 @@ describe('Bill', () => {
     );
   });
 
+  it('links each action’s printed committee to its own held id and preserves the Actions return', async () => {
+    const firstId = 'c0a8e1d2-1111-4222-8333-444455556666';
+    const secondId = 'd0a8e1d2-1111-4222-8333-444455556666';
+    const detail = {
+      ...DETAIL,
+      actions: [
+        {
+          action_number: 1,
+          action_text: 'Referred to',
+          committee_name: 'State and Local Government',
+          committee_id: firstId,
+          action_at: '2025-01-21T00:00:00Z',
+        },
+        {
+          action_number: 2,
+          action_text: 'Re-referred to State and Local Government',
+          committee_name: 'State and Local Government',
+          committee_id: secondId,
+          action_description: 'As amended',
+          roll_call_text: '12-0',
+          action_at: '2025-01-22T00:00:00Z',
+        },
+      ],
+    };
+    const here = '/bills/94-2025-SF334?from=%2Fbills%3Fq%3DSF334&tab=actions';
+    await renderBill(here, billAnswer({ detail: () => json(detail) }));
+    const rows = [...container.querySelectorAll('.bl-action-text')];
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'Re-referred to State and Local Government · As amended · 12-0',
+      'Referred to State and Local Government',
+    ]);
+    const links = rows.map((row) => row.querySelector<HTMLAnchorElement>('a'));
+    expect(links.map((link) => link?.textContent)).toEqual([
+      'State and Local Government',
+      'State and Local Government',
+    ]);
+    expect(links.map((link) => link?.getAttribute('href'))).toEqual(
+      [secondId, firstId].map(
+        (id) => `/legislature/committees/${id}/members?from=${encodeURIComponent(here)}`,
+      ),
+    );
+    expect(links[0]?.getAttribute('aria-label')).toBe(
+      'Members’ campaign accounts, State and Local Government',
+    );
+  });
+
+  it('does not turn a committee name or an unnamed id into an action destination', async () => {
+    const detail = {
+      ...DETAIL,
+      actions: [
+        {
+          action_number: 1,
+          action_text: 'Referred to',
+          committee_name: 'Education',
+          committee_id: null,
+        },
+        {
+          action_number: 2,
+          action_text: 'Referred to',
+          committee_name: '  ',
+          committee_id: 'c0a8e1d2-1111-4222-8333-444455556666',
+        },
+        {
+          action_number: 3,
+          action_text: 'Referred to',
+          committee_name: 'Education',
+          committee_id: ' ',
+        },
+        {
+          action_number: 4,
+          action_text: 'First reading',
+          committee_name: 'Education',
+          committee_id: 'c0a8e1d2-1111-4222-8333-444455556666',
+        },
+      ],
+    };
+    await renderBill(
+      '/bills/94-2025-SF334?tab=actions',
+      billAnswer({ detail: () => json(detail) }),
+    );
+    expect(container.querySelectorAll('.bl-actions a')).toHaveLength(0);
+    expect(container.querySelector('.bl-actions')?.textContent).toContain('Referred to Education');
+    expect(container.querySelector('.bl-actions')?.textContent).toContain('First reading');
+  });
+
   it('prints the committee as text when the record carries no committee id', async () => {
     const detail = {
       ...DETAIL,
-      actions: DETAIL.actions!.map((action) => ({ ...action, committee_id: null })),
+      actions: DETAIL.actions!.map((action) => ({
+        ...action,
+        committee_id: null,
+      })),
     };
     await renderBill('/bills/94-2025-SF334', billAnswer({ detail: () => json(detail) }));
     expect(container.querySelector('.bl-facts a[aria-label]')).toBeNull();
@@ -757,6 +1024,177 @@ const renderVote = (path: string, answer: Answer) =>
   render(path, () => <RollCall match={matchRoute(path.split('?')[0])!} />, answer);
 
 describe('Roll call', () => {
+  it('finds likely member spellings within the held recorded filter, with direct names first', () => {
+    const records = [
+      {
+        legislator_id: 'typo',
+        legislator_name: 'Harper Example',
+        vote_value: 'yes',
+        district: '97A',
+      },
+      {
+        legislator_id: 'direct',
+        legislator_name: 'Harpr Exampel',
+        vote_value: 'yes',
+        district: '97B',
+      },
+      {
+        legislator_id: 'absent',
+        legislator_name: 'Dana Example',
+        vote_value: 'absent',
+        district: '96',
+      },
+      {
+        legislator_id: 'no',
+        legislator_name: 'Morgan Example',
+        vote_value: 'no',
+        district: '95',
+      },
+    ];
+    expect(matchingMembers(records, 'all', 'Exampel Harpr')).toEqual([records[1], records[0]]);
+    expect(matchingMembers(records, 'absent', 'Exampel Dana')).toEqual([records[2]]);
+    expect(matchingMembers(records, 'absent', 'Exampel Morgan')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'District 96')).toEqual([records[2]]);
+    expect(matchingMembers(records, 'all', '97C')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'Dnaa')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'Exampel Harper')).toEqual([records[0], records[1]]);
+  });
+
+  it('shows held vote choices only, in their defined order', () => {
+    const records = ['abstain', 'yes', 'present', 'no', 'yes', 'excused', 'absent'].map(
+      (vote_value, index) => ({
+        legislator_id: String(index),
+        vote_value,
+      }),
+    );
+    expect(recordedFilters(records).map((item) => item.label)).toEqual([
+      'All',
+      'Yes',
+      'No',
+      'Absent',
+      'Excused',
+      'Present',
+      'Abstain',
+    ]);
+    expect(recordedFilters([]).map((item) => item.label)).toEqual(['All']);
+  });
+
+  it('renders likely name matches only from the selected recorded value', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}?q=Exampel%20Dana&recorded=absent`,
+      billAnswer({
+        vote: () =>
+          json({
+            ...VOTE,
+            bill_id: DETAIL.id,
+            records: [
+              {
+                legislator_id: 'dana',
+                legislator_name: 'Dana Example',
+                vote_value: 'absent',
+                district: '96',
+                party: 'DFL',
+              },
+              {
+                legislator_id: 'other',
+                legislator_name: 'Dana Exampel',
+                vote_value: 'yes',
+                district: '97A',
+                party: 'R',
+              },
+            ],
+          }),
+      }),
+    );
+    const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toBe('Dana ExampleDistrict 96DFLAbsent');
+    expect(rows[0].querySelector('a')?.getAttribute('href')).toContain('/legislators/dana?');
+    expect(container.querySelector('.f-chip[aria-pressed="true"]')?.textContent).toBe('Absent');
+  });
+
+  it('keeps missing record values explicit and a known unlinked name plain', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}`,
+      billAnswer({
+        vote: () =>
+          json({
+            ...VOTE,
+            bill_id: DETAIL.id,
+            result_text: null,
+            records: [
+              {
+                legislator_id: 'missing',
+                legislator_name: null,
+                vote_value: 'yes',
+                district: null,
+                party: null,
+              },
+              {
+                legislator_id: '',
+                legislator_name: 'Known Member',
+                vote_value: 'no',
+                district: '97A',
+                party: 'R',
+              },
+            ],
+          }),
+      }),
+    );
+    const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
+    expect(text()).toContain('Recorded result · Not held in this copy');
+    expect(rows[0].textContent).toBe(
+      'Not held in this copyDistrict not recordedParty not recordedYes',
+    );
+    expect(rows[0].querySelector('a')).toBeNull();
+    expect(rows[1].textContent).toContain('Known Member');
+    expect(rows[1].querySelector('a')).toBeNull();
+  });
+
+  it('shows the held district in its own column and leaves missing district explicit', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}`,
+      billAnswer({
+        vote: () =>
+          json({
+            ...VOTE,
+            bill_id: DETAIL.id,
+            records: VOTE.records!.map((record, index) => ({
+              ...record,
+              district: index === 0 ? '35' : null,
+            })),
+          }),
+      }),
+    );
+    expect(
+      [...container.querySelectorAll('.rc-row-head [role="columnheader"]')].map(
+        (cell) => cell.textContent,
+      ),
+    ).toEqual(['MEMBER', 'DISTRICT', 'PARTY', 'RECORDED']);
+    expect([...container.querySelectorAll('.rc-district')].map((cell) => cell.textContent)).toEqual(
+      ['District 35', 'District not recorded'],
+    );
+  });
+
+  it('finds a member by the held district and keeps the recorded filter', async () => {
+    const records = VOTE.records!.map((record, index) => ({
+      ...record,
+      district: index === 0 ? '35A' : null,
+    }));
+    await renderVote(
+      `/votes/${VOTE_ID}?q=35a&recorded=yes`,
+      billAnswer({
+        vote: () => json({ ...VOTE, bill_id: DETAIL.id, records }),
+      }),
+    );
+    const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Jim AbelerDistrict 35A');
+    expect(matchingMembers(records, 'no', '35a')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'not recorded')).toEqual([]);
+    expect(matchingMembers(records, 'all', 'WIKLUND')).toEqual([records[1]]);
+  });
+
   it('reads the roll call by its own id and shows the motion, date, result and members', async () => {
     await renderVote(`/votes/${VOTE_ID}`, billAnswer());
     expect(requests).toContain(`${API}/api/v1/votes/${VOTE_ID}`);
@@ -776,7 +1214,7 @@ describe('Roll call', () => {
     );
     expect(text()).toContain('New Council and Fund to Modernize Human Services IT');
     const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
-    expect(rows[0].textContent).toBe('Jim AbelerRYes');
+    expect(rows[0].textContent).toBe('Jim AbelerDistrict 35RYes');
     expect(rows[1].textContent).toContain('Party not recorded');
     expect(rows[0].querySelector('a')?.getAttribute('href')).toBe(
       `/legislators/leg-jim?from=%2Fvotes%2F${VOTE_ID}`,
@@ -785,7 +1223,7 @@ describe('Roll call', () => {
       `/bills/94-2025-SF334?from=%2Fvotes%2F${VOTE_ID}`,
     );
     expect(container.querySelector('.lg-note')?.textContent).toBe(
-      'Party is as recorded for this roll call. A member’s record here is a vote on one motion, never a position or an opinion. Names link only where a legislator record is confirmed.',
+      'District and party come from held service records for the vote date. A member’s record here is a vote on one motion, never a position or an opinion. Names link only where a legislator record is confirmed.',
     );
     expect(
       container.querySelector<HTMLAnchorElement>('.f-sources-link')?.getAttribute('href'),

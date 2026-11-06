@@ -256,14 +256,19 @@ a.pp-row:active,
 .lg2-header {
   margin-top: 8px;
 }
+.f-page-title.lg2-title {
+  margin-top: var(--record-label-title-gap);
+}
 .lg2-title {
-  margin-top: 8px;
   font-size: 28px;
 }
 .lg2-line {
-  margin: 6px 0 0;
+  margin: var(--record-title-detail-gap) 0 0;
   font-size: 14px;
   color: var(--secondary);
+}
+.cd-record-line {
+  margin-top: 6px;
 }
 .lg2-layout {
   margin-top: 24px;
@@ -513,17 +518,8 @@ a.pp-row:active,
   min-height: 36px;
   font-size: 14px;
 }
-.cf-years {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.cf-years-label {
-  margin-right: 2px;
-  font-size: 13px;
+.cf-years .f-labeled-chips-label {
   font-weight: 600;
-  color: var(--secondary);
 }
 .cf-year {
   font-weight: 700;
@@ -697,6 +693,12 @@ a.pp-row:active,
   font-size: 13px;
   color: var(--secondary);
   text-align: right;
+}
+
+.cf-group-period {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--secondary);
 }
 
 /* ---------- Bands ---------- */

@@ -23,10 +23,13 @@ export interface FileRow {
   category: string;
   kind?: string | null;
   uploaded_at: string | null;
+  first_saved_at?: string | null;
+  page?: number | null;
   version_id: string;
   version_count: number;
   source_changed: boolean;
   agency_unchecked?: boolean;
+  agency_checked_at?: string | null;
   role?: string | null;
   match_label?: string | null;
   excerpt?: string | null;
@@ -41,9 +44,11 @@ export interface Group {
   year?: number | null;
   category?: string | null;
   folder_count?: number | null;
+  years?: number[] | null;
   unchecked?: boolean;
 }
 export interface Browse {
+  version?: string;
   tab: string;
   q: string;
   station: string;
@@ -53,6 +58,7 @@ export interface Browse {
   page_size: number;
   total: number;
   capped: boolean;
+  tab_counts?: Partial<Record<'folders' | 'agencies' | 'stations' | 'years', number>>;
   /** File rows while a search runs; folder, name, station or year groups otherwise. */
   rows: Array<Group | FileRow>;
   years: number[];
@@ -134,14 +140,20 @@ export interface AddressEvidence {
   page: number;
   uploaded_at?: string | null;
   checked_at: string;
+  quote?: string | null;
   role?: string | null;
 }
 export interface Agency {
+  version?: string | null;
   key: string;
   name: string;
   unchecked: boolean;
   groups: { station: string; year: number | null; files: FileRow[] }[];
-  addresses: { address: string; role?: string | null; evidence: AddressEvidence[] }[];
+  addresses: {
+    address: string;
+    role?: string | null;
+    evidence: AddressEvidence[];
+  }[];
 }
 export interface Counts {
   station_files_held: number;
@@ -154,18 +166,30 @@ export interface Station extends Source {
   counts: Counts;
   folder_count: number;
   folder_failures: number;
+  latest_check_at?: string | null;
   years: {
     year: number | null;
     categories: { name: string; count: number }[];
     file_count: number;
+    counts?: Partial<
+      Pick<
+        Counts,
+        'station_files_held' | 'unique_file_contents' | 'text_read_failures' | 'download_failures'
+      > & { folder_failures: number }
+    >;
+    latest_check_at?: string | null;
   }[];
 }
 export interface QueueRow extends FileRow {
   saved_at: string;
   suggestion_count: number;
-  reasons: Array<{ kind: 'agency_checked_elsewhere' | 'folder_committee_checked'; label: string }>;
+  reasons: Array<{
+    kind: 'agency_checked_elsewhere' | 'folder_committee_checked';
+    label: string;
+  }>;
 }
 export interface Queue {
+  version?: string;
   rows: QueueRow[];
   total: number;
   limit: number;
@@ -202,10 +226,18 @@ export interface TargetPreview {
   source_date?: string | null;
 }
 export interface Connected {
-  committee?: { name: string; office: string | null; district: string | null } | null;
+  committee?: {
+    name: string;
+    office: string | null;
+    district: string | null;
+  } | null;
   agency_key: string | null;
   exact_name_count: number;
   files: FileRow[];
   total: number;
-  groups: { label: string; files: FileRow[] }[];
+  groups: {
+    label: string;
+    kind?: 'committee' | 'named' | null;
+    files: FileRow[];
+  }[];
 }
