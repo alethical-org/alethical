@@ -128,7 +128,7 @@ function json(data: unknown, status = 200) {
     headers: { 'content-type': 'application/json' },
   });
 }
-function serve(answer: (url: URL) => Response) {
+function serve(answer: (url: URL) => Response | Promise<Response>) {
   const fetcher = vi.fn(async (input: string) => {
     const url = new URL(input);
     if (url.pathname.endsWith('/pages/1') || url.pathname.endsWith('/pages/2'))
@@ -182,6 +182,158 @@ afterEach(() => {
 });
 
 describe('Media buys', () => {
+  function browseAnswer(url: URL) {
+    const q = url.searchParams.get('q') ?? '';
+    return json({
+      tab: url.searchParams.get('tab') ?? 'folders',
+      q,
+      page: Number(url.searchParams.get('page') ?? 1),
+      page_size: 12,
+      total: 1,
+      years: [2026],
+      categories: ['State'],
+      rows: [{ key: q || 'all', label: q || 'All held records', file_count: 1 }],
+    });
+  }
+
+  async function typeSearch(value: string) {
+    const input = container.querySelector<HTMLInputElement>('#tv-search')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  async function settleSearch() {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    await flush();
+  }
+
+  it.each(['folders', 'agencies', 'stations', 'years'])(
+    'updates and clears the %s search without submitting, retaining filters and context',
+    async (tab) => {
+      const fetcher = serve(browseAnswer);
+      await render(
+        `/media-buys?tab=${tab}&q=demuth&page=2&station=KARE&year=2026&category=State&from=%2Fhome`,
+        () => <MediaBuys />,
+      );
+      const count = fetcher.mock.calls.length;
+      await typeSearch('d');
+      await typeSearch('de');
+      await typeSearch(' dem ');
+      expect(fetcher).toHaveBeenCalledTimes(count);
+      await settleSearch();
+      expect(fetcher).toHaveBeenCalledTimes(count + 1);
+      expect(container.querySelector('.mb-count')?.textContent).toContain('matching “dem”');
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('q')).toBe('dem');
+      expect(params.has('page')).toBe(false);
+      expect(params.get('tab')).toBe(tab);
+      expect(params.get('station')).toBe('KARE');
+      expect(params.get('year')).toBe('2026');
+      expect(params.get('category')).toBe('State');
+      expect(params.get('from')).toBe('/home');
+      await typeSearch('');
+      await settleSearch();
+      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+      expect(container.querySelector('.mb-count')?.textContent).not.toContain('matching');
+      expect(text()).toContain('All held records');
+    },
+  );
+
+  it('still submits immediately and does not repeat the request after the typing delay', async () => {
+    const fetcher = serve(browseAnswer);
+    await render('/media-buys', () => <MediaBuys />);
+    await typeSearch('demuth');
+    await act(async () => {
+      container
+        .querySelector('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    await flush();
+    expect(container.querySelector('.mb-count')?.textContent).toContain('matching “demuth”');
+    const count = fetcher.mock.calls.length;
+    await settleSearch();
+    expect(fetcher).toHaveBeenCalledTimes(count);
+  });
+
+  it('preserves a word separator when typing pauses before the next word', async () => {
+    serve(browseAnswer);
+    await render('/media-buys', () => <MediaBuys />);
+    await typeSearch('lisa ');
+    await settleSearch();
+    const input = container.querySelector<HTMLInputElement>('#tv-search')!;
+    expect(input.value).toBe('lisa ');
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('lisa');
+    await typeSearch(input.value + 'demuth');
+    await settleSearch();
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('lisa demuth');
+    expect(container.querySelector('.mb-count')?.textContent).toContain('matching “lisa demuth”');
+  });
+
+  it('keeps earlier results during typing requests and failures, and ignores late answers', async () => {
+    let finishOld!: (response: Response) => void;
+    serve((url) => {
+      if (url.searchParams.get('q') === 'dem')
+        return new Promise<Response>((resolve) => {
+          finishOld = resolve;
+        });
+      if (url.searchParams.get('q') === 'failed') return json(null, 503);
+      return browseAnswer(url);
+    });
+    await render('/media-buys?q=demuth', () => <MediaBuys />);
+    await typeSearch('dem');
+    await settleSearch();
+    expect(container.querySelector('.mb-count')?.textContent).toContain('matching “demuth”');
+    expect(text()).toContain('Updating');
+    await typeSearch('');
+    await settleSearch();
+    expect(text()).toContain('All held records');
+    finishOld(browseAnswer(new URL('https://api.example.test/browse?q=dem')));
+    await flush();
+    expect(text()).toContain('All held records');
+    expect(container.querySelector('.mb-count')?.textContent).not.toContain('matching');
+    await typeSearch('failed');
+    await settleSearch();
+    expect(text()).toContain('All held records');
+    expect(text()).toContain('Try again');
+    expect(text()).not.toContain('No TV station folders match');
+  });
+
+  it('cancels pending typing when browser history restores another query', async () => {
+    const fetcher = serve(browseAnswer);
+    await render('/media-buys?q=demuth', () => <MediaBuys />);
+    await typeSearch('unfinished');
+    await act(async () => {
+      window.history.replaceState(null, '', '/media-buys?q=restored');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await settleSearch();
+    expect(container.querySelector<HTMLInputElement>('#tv-search')?.value).toBe('restored');
+    expect(window.location.search).toBe('?q=restored');
+    expect(fetcher.mock.calls.some(([url]) => url.includes('unfinished'))).toBe(false);
+    await typeSearch('leaving');
+    await act(async () => root.render(null));
+    await settleSearch();
+    expect(window.location.search).toBe('?q=restored');
+  });
+
+  it('cancels a draft when history returns to another tab with the same applied query', async () => {
+    const fetcher = serve(browseAnswer);
+    await render('/media-buys?year=2026', () => <MediaBuys />);
+    await typeSearch('unfinished');
+    await act(async () => {
+      window.history.replaceState(null, '', '/media-buys?tab=years');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await settleSearch();
+    expect(container.querySelector<HTMLInputElement>('#tv-search')?.value).toBe('');
+    expect(window.location.search).toBe('?tab=years');
+    expect(fetcher.mock.calls.some(([url]) => url.includes('unfinished'))).toBe(false);
+  });
+
   it('returns a station-filtered list to its safe earlier station with query intact', async () => {
     const fetcher = serve(() =>
       json({

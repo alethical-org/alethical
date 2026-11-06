@@ -596,7 +596,12 @@ one names its exact saved version and page.
 
 - **Media buys (`/media-buys`)**: TV political-ad files from KSTP-TV, KARE and KMSP-TV,
   browsed by TV station folders (Station, Year and Category menus), agency names, stations
-  and years, with served totals on each tab. Word search filters the chosen tab; station
+  and years, with served totals on each tab. Word search filters the chosen tab as the
+  reader types or deletes letters, after a 250 ms pause, using the public bills search's
+  shared helper. Clearing the field removes the word filter; Enter or
+  Search applies the words immediately. A changed query returns to page 1 while keeping
+  the chosen tab, filters and return context. Previous results keep their own labels
+  while updating or after a failure; late replies never replace newer results. Station
   rows name the years held. The tab,
   filters, words and page stay in the address. A safe earlier page adds its named return
   link; the top-level list has no invented return. Nested returns keep the nearest 3
