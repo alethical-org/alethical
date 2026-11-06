@@ -24,6 +24,17 @@
 > **Build-truth pin for the rules added 14 Aug 2026:** code and the rendered production site were
 > checked at commit [`67db903a`](https://github.com/alethical-org/alethical/commit/67db903a9300340c8b8a35cc53a8db55b4435a05).
 
+## Design project destinations
+
+Finance design work uses the existing [Alethical B2B project](https://claude.ai/design/p/a1600a8d-c0bd-4aa2-b9ea-8538d22ed672).
+Public civic-site design work uses the existing [Alethical UX project](https://claude.ai/design/p/e592f874-1b47-4dda-a8d9-2e9f086f2bac).
+Use the conversation Eugene names, or a fresh conversation for distinct work, within
+the correct project. Keep each page's existing drawing and the project's saved rules;
+do not create a duplicate project or move the work into a general chat. A fresh
+conversation does not make shared drawings safe to edit while another task uses them.
+Finish and review the active Design work before starting dependent work. Design
+authorization does not lift a build, import or publication hold.
+
 ## 1. What Alethical should feel like
 
 Alethical shows people the public record of their own government. The design has one job: make
