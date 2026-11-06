@@ -1,195 +1,105 @@
 # AGENTS.md — start here
 
-Minnesota publishes everything its legislature does, in a format almost no one can
-read. **Alethical** turns that record — bills, votes, legislators, campaign money —
-into plain language, so anyone can see what their government is doing and check
-every word against the official source.
-
-This file orients every coding agent working in this repository. **It is the canonical
-copy; `CLAUDE.md` is a symlink to it**, so every tool reads the same words. It is a
-**map, not a copy**: everything below points at the document that owns the subject.
-
-**Read [`docs/philosophy.md`](docs/philosophy.md) before you build anything.** It is
-the *why* beneath Alethical: the problem the product solves (legibility, not secrecy),
-who we assume is reading, and the ten principles every screen and sentence answers to.
-The rules below are *how* we work; that file is *what we are working toward*, and it is
-the tie-breaker when a tactic and an intent disagree.
+Alethical turns Minnesota's public bills, votes, legislators and campaign money
+into plain language, with every claim checkable against its official source.
+`AGENTS.md` is canonical; `CLAUDE.md` is its symlink. Keep one owner per rule.
 
 ## Read before you change anything
 
-- [`.claude/rules/grounded-answers.md`](.claude/rules/grounded-answers.md) — the
-  product invariants for anything that generates, displays, or advertises an answer.
-  **Cite or refuse** is the one that governs everything else.
-- [`.claude/rules/workflow.md`](.claude/rules/workflow.md) — the single home of how
-  work moves: a ten-bullet shape up top, then the numbered rules — branch and PR
-  conventions, where decisions get recorded, the checks a change must clear, the git
-  commands that destroy other agents' work (rule 10), and how to write a change with
-  discipline (rule 14).
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, the CI reference and what makes a test count.
-- [`docs/design/design-principles.md`](docs/design/design-principles.md) governs UI work
-  and every Design handoff, including the **Type** rule and its Alethical Finance exception:
-  use the product's approved face with equal-width digits for numbers, without another approval.
-  Its [contextual page-return links](docs/design/design-principles.md#contextual-page-return-links)
-  requirement also takes precedence over conflicting Design or peer handoffs; apply settled
-  corrections during authorized builds and keep Design's record aligned.
-- [Eugene's shared working rules](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md)
-  — how to write replies to the maintainer and how work is delegated and approved. Read
-  it first. The file lives in the private `tool-settings` repository; an agent that cannot
-  open it says so in its first reply, and a cloud brief pastes the rules it needs.
-- For outside-reader documents, load the shared `document-presentation` skill and
-  [`docs/design/document-presentation.md`](docs/design/document-presentation.md); reports also
-  load `report-layout` and [`docs/design/report-layout.md`](docs/design/report-layout.md).
-  [Brand assets and identity](docs/design/brand-identity.md) live here, not in global skills.
-  UI audits use [`docs/design/web-interface-audit.md`](docs/design/web-interface-audit.md)
-  with the shared `design-audit` skill. Production refresh work uses
-  [`docs/operations/production-ingestion-refresh.md`](docs/operations/production-ingestion-refresh.md)
-  with the shared `production-data-refresh` skill; that guide distinguishes historical recovery
-  examples from current operating instructions. Keep shared methods project-neutral and save
-  Alethical choices in their owning guide here; link rather than duplicate.
-- [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
-  **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
-  in prose as a reason work is off-limits.
-- For article, event, recording, caption, transcript or YouTube work, including media production, use
-  [`docs/operations/blog-publishing.md`](docs/operations/blog-publishing.md) for the
-  upfront brief, media handoff and acceptance matrix; its links lead to owning product decisions.
-  Social writing and account work also starts with
-  [`docs/operations/social-publishing.md`](docs/operations/social-publishing.md); video editing
-  starts with [`docs/operations/video/README.md`](docs/operations/video/README.md). Read the
-  linked universal guides in tool settings too. Alethical-specific guides, rules and production
-  records live in this repo and may be public; universal platform guidance stays in tool settings.
-  Save new reusable lessons in their owning document during the task, update both repos when
-  both scopes change, and link rather than duplicate rules. Credentials and private access data
-  never belong in public records; documentation does not approve posting unfinished media.
+- Read [shared personal rules](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md)
+  first. The local owner is `~/Code/tool-settings/shared/PERSONAL_RULES.md`.
+  If inaccessible, say so in the first reply; cloud briefs include the rules they need.
+- Read [workflow](.claude/rules/workflow.md), [grounded answers](.claude/rules/grounded-answers.md)
+  and [CONTRIBUTING.md](CONTRIBUTING.md). Workflow owns how changes move through review
+  and release. Grounded answers owns the product rules for generating, displaying or
+  advertising an answer. If a required guide cannot be read, hold the dependent action
+  and continue independent work.
+- Before building, read [philosophy](docs/philosophy.md) for who we serve and why.
+  It settles conflicts between a tactic and the product’s intent. Use
+  [docs/README.md](docs/README.md) to find the specs. Issues and the Roadmap board own
+  sequencing; a milestone in prose never makes work off-limits.
+- At work start, run `just maintenance-status` and register the task through the
+  installed lifecycle hook or [owner command](docs/operations/worktree-lifecycle.md).
+  Check the host's live task list too: a saved owner is not proof of current activity.
+  Record a hold when its reason changes, not after every reply. Native Codex hooks
+  run only after supported user trust review; prepared does not mean active.
 
-Tool note: Claude Code loads this file and everything in `.claude/rules/` into every
-session automatically; every other agent must open them itself.
+Claude Code loads this file and the unscoped `.claude/rules/` files automatically.
+Other agents must open those files themselves. Read other linked owners when their
+triggers apply; a link is not evidence that its contents were loaded.
 
-## Layout
+## Read for the task
 
-- `alethical/` — Python backend: API, database models, migrations, ingestion, tests.
-- `apps/frontend/` — Expo React Native app. The shipped target is **web**.
-- `scripts/` — repo-level Python utilities.
-- `docs/` — product, design, architecture, and validation notes.
+| Task | Required owner and skill |
+| --- | --- |
+| UI or any Design handoff | [Design principles](docs/design/design-principles.md), including Type and its Finance exception: the approved face with equal-width digits needs no new approval. [Contextual page-return links](docs/design/design-principles.md#contextual-page-return-links) override contrary handoffs; apply settled corrections in authorized builds and align Design's record. |
+| Outside-reader documents | Shared `document-presentation` skill and [project guide](docs/design/document-presentation.md); reports also use `report-layout` and [report guide](docs/design/report-layout.md). [Brand assets](docs/design/brand-identity.md) belong here. |
+| UI audit | Shared `design-audit` and [web-interface audit guide](docs/design/web-interface-audit.md). |
+| Production refresh | Shared `production-data-refresh` and [operating guide](docs/operations/production-ingestion-refresh.md); historical recovery examples are not current commands. |
+| Article, event, recording, caption, transcript or YouTube, including media production | [Blog publishing](docs/operations/blog-publishing.md): upfront brief, media handoff, acceptance and linked product decisions. |
+| Social writing or account work | [Social publishing](docs/operations/social-publishing.md) and its linked universal guides. |
+| Video editing | [Video operations](docs/operations/video/README.md). |
+| Local/cloud setup or tests | [CONTRIBUTING.md](CONTRIBUTING.md#local-and-cloud-startup-details), including Docker, Linux compilation, log permissions, keyless development and sample data. |
 
-## Commands
-
-Setup and the full command list live in [`CONTRIBUTING.md`](CONTRIBUTING.md). The four
-you will reach for:
-
-```bash
-just up        # Postgres + backend (:8000) + web frontend (:19006)
-just format
-just lint
-just migrate
-```
-
-Frontend tests are Vitest, run from `apps/frontend`. Backend tests are pytest and
-start their own temporary Postgres. Docker and its cached test image must be ready;
-see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-postgres).
+Keep universal methods in tool settings and project choices, assets and production
+records here. Save new approved lessons in the owning guide during the task; update
+both repos when both scopes change and link instead of copying. Project records may
+be public: never include credentials or private access data. Documentation does not
+approve publishing unfinished media.
 
 ## Hard lines
 
-- **Never invent a fact about a bill, vote, or legislator.** If it is not in the
-  database or an official source, the honest answer is that we do not have it. See
-  [`.claude/rules/grounded-answers.md`](.claude/rules/grounded-answers.md) rule 1.
-- **Keep live verification scoped and authorized.** Controlled test emails to an
-  authorized maintainer or test mailbox are allowed; follow
-  [workflow rule 10](.claude/rules/workflow.md) for recipient, sending and verification
-  limits. Unapproved sends, spending and destructive production changes remain barred.
-- **Any write into the shared checkout is the danger, not only a git command.** Several
-  agents work in this repository at once, in separate worktrees under `.claude/worktrees/`
-  and elsewhere. `cd` into the shared checkout (`/Users/eug/Code/Alethical`, the main
-  worktree that `git worktree list` prints first) followed by `cat >> file`, `> file`,
-  `sed -i`, `rm` or a formatter writes into everyone's tree, and nothing guards it. Check
-  where you are before any write, prefer absolute paths into your own worktree, and never
-  run destructive or branch-switching git on a shared checkout (`git reset --hard`,
-  `git clean -fd`, `git checkout .`, switching branches). Five more commands silently
-  destroy other agents' work without looking destructive: `git stash`, `git update-ref` on
-  a branch you do not own, `git checkout --ignore-other-worktrees -B <branch>`,
-  `git worktree remove --force <path>`, and creating a branch in the shared checkout;
-  `/usr/bin/git` is Apple's older git without the guard the newer one has. The mechanics,
-  the hook that locks worktrees, and the recovery steps live in
-  [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 10. To compare
-  against another revision, read it from git's object store (`git show origin/main:<path>`);
-  to write, make your own worktree (`just worktree <branch>`). Scan open PRs and issues
-  before starting so you do not duplicate work already in flight.
-- **`.claude/worktrees/` holds other agents' live branches, and it is gitignored**, so
-  it is invisible to `git status` and to any check that looks only at tracked files. It
-  is inside this folder, but it is not scratch space and it is not yours: treat every
-  path under it as another agent's working tree. Do not edit, delete, reformat, or run a
-  project-wide replace across it, and exclude it from any sweep of ignored or
-  "temporary" files. A prose rule is not a mechanism: if your tool can exclude a path from
-  its file access, exclude this one.
+- **Never invent a fact about a bill, vote or legislator.** Use the database or an
+  official source, or say the fact is unavailable. Generated answers cite or refuse;
+  [grounded answers](.claude/rules/grounded-answers.md) defines the product contract.
+- **Keep live verification scoped and authorized.** Unapproved sends, spending and
+  destructive production changes remain barred. Controlled test emails may use a
+  verified authorized maintainer/test mailbox under [workflow rule 10](.claude/rules/workflow.md).
+- **Check your directory before every write.** `/Users/eug/Code/Alethical`, the shared
+  checkout, is other tasks' live state. Do not edit, format, delete or switch its branch.
+  Never `git reset --hard`, `git clean -fd`, `git checkout .`, `git stash`, `git update-ref`
+  on a branch you do not own, `git checkout --ignore-other-worktrees -B <branch>`,
+  `git worktree remove --force <path>`, or create a branch in the shared checkout.
+  `/usr/bin/git` lacks the newer Git branch guard. Read other revisions with
+  `git show origin/main:<path>`; write with absolute paths into your own worktree.
+  Scan open PRs/issues before starting; follow [workflow rule 10](.claude/rules/workflow.md) for safe Git and recovery.
+- **`.claude/worktrees/` is ignored but holds other agents' live branches.** Never
+  treat it as scratch, edit/delete/reformat it, or include it in replacements or sweeps
+  of ignored/temporary files. Exclude it through file-access controls when supported.
+- **Install all 3 local Git hooks before any `git worktree add`: `just install-hooks`.**
+  A clone does not inherit `core.hooksPath`; hooks protect new working folders only
+  after installation. See [setup](CONTRIBUTING.md#first-time-setup) for limits.
+- **No linked-intent development (LID) in Alethical.** Do not invoke `linked-intent-dev`
+  or `update-lid`, create LID plans or add its instructions. This project exclusion
+  overrides a global skill description; use existing design docs, focused tests and rules.
 
 ## Keep working folders available for follow-up
 
-The chat, working folder and local branch stay after delivery, live checks and
-acceptance, with no automatic expiry; the full policy, holds and cleanup route are
-[`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 1 and
-[working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md). At work
-start, inspect the current folder report (`just maintenance-status`) and register the
-task through the installed lifecycle hook or the explicit owner command; recorded owners
-do not establish live chat activity, so use the host's live task list for that. Record
-a hold when its reason changes, not after every reply. Never infer completion from age,
-silence, clean files or a merged change. Native Codex hooks require the user's supported
-trust review before they run; a prepared hook is not an active hook.
+Keep the chat, folder and local branch after delivery with no expiry. Age, silence,
+clean files and merged changes never establish completion or authorize cleanup.
+[Workflow rule 1](.claude/rules/workflow.md) and
+[working-folder lifecycle](docs/operations/worktree-lifecycle.md) own retention and cleanup.
+When the user requests cleanup:
 
-- External terminal and Claude folders: when cleanup is requested, use the owner
-  release command in the lifecycle doc above. The free Mac helper preserves recovery,
-  waits for programs to release the folder, and removes it without force. New Claude
-  work revokes prior releases.
-- Codex-managed folders: when cleanup is requested, preserve needed ignored files
-  privately outside the folder, attach this task's own managed checkout with
-  `attach_worktree` if it is not attached, then use `list_artifacts` and
-  `archive_worktree`. Never attach or archive another chat's checkout. Archive the folder
-  while keeping the chat open. Keep routine recovery results and holds in the local
-  record; report them when cleanup is the requested task or a problem needs the user.
-  If the app protects the folder or a requested review remains, retain it with that
-  specific reason. Never delete native app folders with Git or rewrite the app's saved
-  state.
+- External terminal/Claude folders use the owner's release command. The free Mac
+  helper preserves recovery, waits for programs to release the folder and never forces
+  removal. New Claude work revokes a prior release.
+- Codex-managed folders preserve needed ignored files privately outside the folder;
+  attach only this task's checkout with `attach_worktree` if needed, then use
+  `list_artifacts` and `archive_worktree`. Archive the folder while keeping the chat
+  open. Never attach/archive another chat's folder, delete a native folder through Git
+  or rewrite app state. An app protection or pending review retains it with that reason.
+  Keep routine recovery/hold results in the local record; report them for requested
+  cleanup or a problem needing the user.
 
-## Fresh environment facts
+## Layout and commands
 
-Setup and readiness checks (`just doctor`, `just install-hooks`, the pinned `ruff` and
-`ty` versions) are in [first-time setup](CONTRIBUTING.md#first-time-setup) and
-[everyday commands](CONTRIBUTING.md#everyday-commands). What a fresh machine or cloud
-VM also needs to know:
+`alethical/` holds the Python backend, API, models, migrations, ingestion and tests;
+`apps/frontend/` is Expo React Native, shipped on the web; `scripts/` holds utilities;
+`docs/` holds intent and operating guides.
 
-- **Install the 3 local Git hooks before any `git worktree add`.** `just install-hooks`
-  registers the tracked `.githooks/post-checkout` hook that locks new worktrees; git
-  cannot carry `core.hooksPath` in a clone, so until it runs worktrees are unprotected.
-- **Docker may not be running at session start.** On a VM, start it once before
-  `just up` or `just migrate`: `sudo bash -c 'nohup dockerd >/var/log/dockerd.log 2>&1 &'`,
-  then `sudo chmod 666 /var/run/docker.sock` if the socket is not group-accessible. The
-  first `just up` builds the image and installs dependencies inside the containers; watch
-  `docker compose ps` for `healthy`. Health check:
-  `curl http://localhost:8000/healthz` → `{"status":"ok"}`. `just up` applies pending
-  Alembic migrations to the dev database (port 54329) as the backend starts, unless
-  `ALETHICAL_SKIP_MIGRATIONS=1`.
-- **On Linux, `uv sync` compiles `erlpack` from source.** It has no wheel (it comes in
-  through `oban`). If its C++ build fails because the uv-managed Python's compiler cannot
-  find `libstdc++`, make GCC the default `c++` and `cc` and leave it that way.
-- **On a VM with rootful Docker, host `uv run pytest` needs its own log dir.** The
-  Dockerized backend runs as root and
-  writes the bind-mounted `logs/alethical-backend.log` as root, so host pytest cannot
-  open it: run `ALETHICAL_LOG_DIR=/tmp/alethical-logs uv run pytest`. Pytest seeds
-  `scripts/load_sample_data.py` into its own temporary Postgres, not the running app's
-  database.
-- **Keep `OPENAI_API_KEY` unset in `.env` for keyless local dev.** The `.env.example`
-  placeholder `sk-xxx` makes the code hit the real OpenAI API, so a RAG test fails with
-  401 and AI features fail at run time; unset, it falls back to hash embeddings (matches
-  CI). The AI summaries and Ask surface need a real key;
-  browsing and search do not.
-- **The app database starts empty; full ingestion is not required to see content.** With
-  `DATABASE_URL` unset, `uv run python scripts/load_sample_data.py` loads the sample
-  records (e.g. bill `SF 1832`) into the dev database on port 54329, which is what the
-  web app renders for a quick end-to-end check.
-
-## Workflow exclusions
-
-- **Do not use linked-intent development (LID) in Alethical.** Do not invoke the
-  `linked-intent-dev` or `update-lid` skills, create LID planning files, or add LID
-  instructions here. Those workflows belong to CommercialDeals, not this project.
-- This project rule overrides a general skill that says it applies to every code
-  change. Alethical uses its existing design documents, focused tests, and the rules
-  in `.claude/rules/` instead.
+Use `just up` (Postgres, backend `:8000`, frontend `:19006`), `just format`, `just lint`
+and `just migrate`; [CONTRIBUTING.md](CONTRIBUTING.md) owns the full commands and setup.
+Frontend tests use Vitest from `apps/frontend`; backend pytest starts its own temporary
+Postgres and needs Docker plus its cached image. Follow
+[manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-postgres).
