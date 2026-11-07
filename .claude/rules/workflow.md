@@ -1,8 +1,14 @@
 # Session workflow rules
 
-How work moves in this repository, for every coding agent and every person. This file is
-the single home of the working conventions. `CONTRIBUTING.md` covers setup, commands and the
-CI reference; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
+How work moves in this repository, for every coding agent and every person. This file
+is the full owner of the working conventions and loads automatically in Claude Code;
+other agents read it through [AGENTS.md](../../AGENTS.md#read-before-you-change-anything).
+`CONTRIBUTING.md` covers setup, commands and the CI reference. The
+[grounded-answer invariants](grounded-answers.md) own neutrality and route the other
+product policies. Update owning rules and their active callers together.
+Required linked procedures must be read before dependent action. If a required
+source is unavailable, hold that action and continue independent work. These rules
+do not widen the user's scope, spending approval or explicit holds.
 
 ## How we work — the shape
 
@@ -18,7 +24,7 @@ CI reference; `.claude/rules/grounded-answers.md` carries the product-behavior r
    including merge, deploy and verified data runs. The one hard stop is an unverified
    irreversible external effect: make it safe by engineering, never by asking. (Rule 10.)
 5. **Route knowledge at birth**: decisions into `docs/`, tasks into categorized GitHub
-   issues at the moment of discovery, product invariants into `.claude/rules/`. Chat is
+   issues at the moment of discovery, product invariants into their full owning policy. Chat is
    never a system of record. (Rule 4.)
 6. **Keep every written claim current**: when a change alters what a user sees or can do,
    find and fix every sentence that still describes the old behaviour, in the same PR.
@@ -53,6 +59,8 @@ static guard does not prove the words match the destination. Review the final De
 updates and independently inspect the live behaviour before reporting completion.
 
 ## The rules
+
+<a id="rule-1"></a>
 
 1. **Target branch first.** Establish at the start which branch or PR the work belongs
    to; work in your own worktree off `origin/main` for it, never in the shared checkout
@@ -89,6 +97,8 @@ updates and independently inspect the live behaviour before reporting completion
    an open issue can carry a decision no PR scan sees; a session-start "N commits behind"
    snapshot goes stale the moment another session merges.
 
+<a id="rule-2"></a>
+
 2. **Commit and push at milestones, not at session end.** Uncommitted work is invisible:
    not in the PR, not reviewable, not recoverable by anyone outside the conversation. When
    a coherent chunk lands, commit it. Register each authorized job before substantive
@@ -103,6 +113,8 @@ updates and independently inspect the live behaviour before reporting completion
    using [agent-job-outcomes.md, Record help and retries while working](../../docs/operations/agent-job-outcomes.md#record-help-and-retries-while-working);
    do not reconstruct whole-job counts from host event totals.
 
+<a id="rule-3"></a>
+
 3. **Share branches, not file copies.** A loose copy of a repo file (Downloads, an
    attachment) is diffed against the branches before anything is built on it. Land
    durable content on a branch promptly, point people at branches and PRs rather than
@@ -110,12 +122,16 @@ updates and independently inspect the live behaviour before reporting completion
    loose copy in the same session it lands: a kept copy trails the branch and resurfaces
    as a stale shadow of main.
 
+<a id="rule-4"></a>
+
 4. **Route knowledge at birth.** Decisions go to the relevant spec in `docs/`. Tasks and
    deferred work go to GitHub issues, filed at the moment of discovery with what it is,
    what exists today, why deferred, what unblocks it, **a milestone, an issue type, a topic
    label, and its board fields (Epic, Priority, LOE, Status)**, then cross-linked back into
-   the doc that spawned it. Product invariants go to `.claude/rules/`; working-process
-   norms to this file. Chat is a scratchpad, never a system of record.
+   the doc that spawned it. Product invariants go to their owning section, found
+   through `.claude/rules/grounded-answers.md`; keep each full rule in 1 place and
+   link to it. Working-process norms go to this file.
+   Chat is a scratchpad, never a system of record.
 
    **A decision reached in conversation, with no file changed, still ships a doc edit in
    the same session.** Nothing automated fires on it. If a chat reply just taught the
@@ -165,6 +181,8 @@ updates and independently inspect the live behaviour before reporting completion
    To defer or recategorize, change the item's field value or move it to a
    higher-numbered milestone, never the option itself.
 
+<a id="rule-5"></a>
+
 5. **Verify cheap repo facts before deciding on them.** A claim one `diff`, `git log` or
    `grep` away from certain (which version is newer, does the model have that field, is
    the file gitignored) is checked before building work or advice on it. Scope and timing
@@ -204,6 +222,8 @@ updates and independently inspect the live behaviour before reporting completion
    reason was wrong" and "the thing is wrong" are different sentences, and only the second
    retracts; "the code was wrong" and "a reader was misled" are different sentences, and
    only the second is a harm.
+
+<a id="rule-6"></a>
 
 6. **After changing what a user sees or can do, search for everything that still
    describes the old behaviour.** Rule 4 covers artifacts you already know are affected;
@@ -255,12 +275,16 @@ updates and independently inspect the live behaviour before reporting completion
    faithfully with `qlmanage -t -s <px> -o <outdir> file.svg`, so never defer the refresh
    to a follow-up.
 
+<a id="rule-7"></a>
+
 7. **Name things so a newcomer can guess what they are.** Branch names, PR titles,
    filenames, headings and rule names describe the thing literally, in plain words:
    `docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`. No metaphors,
    coined terms or conversation-only shorthand. Name for what the change does or decides,
    not where it lands. A coined term that earns its keep is defined in plain words at
    first use in the doc that owns it.
+
+<a id="rule-8"></a>
 
 8. **Spell out spec references: file name plus section topic.** In any artifact (docs,
    issues, PR bodies and comments, chat), write the full spec file name and what the
@@ -269,6 +293,8 @@ updates and independently inspect the live behaviour before reporting completion
    referred to without opening anything. Once the full form has appeared in an artifact,
    later mentions there may shorten. The same principle applies to every pointer: issues
    and PRs get markdown links with their titles or a gloss, never a bare number.
+
+<a id="rule-9"></a>
 
 9. **Resolve factual claims from the primary source, yourself.** When a fact shown to
    users or baked into product content can be confirmed from a primary source (a bill's
@@ -279,6 +305,9 @@ updates and independently inspect the live behaviour before reporting completion
    primary text wins; state the discrepancy and which source you trusted. A
    confident-but-wrong cited fact is the worst failure
    (`.claude/rules/grounded-answers.md`).
+
+<a id="shared-files-and-irreversible-effects"></a>
+<a id="rule-10"></a>
 
 10. **Just do safe, reversible work: act, then report; never propose-and-offer.** The test
     is **blast radius, reversibility and verifiability**, never who thought of it, how big
@@ -330,8 +359,10 @@ updates and independently inspect the live behaviour before reporting completion
       auto-merge.
 
     - **Paid production runs are authorized** once you have established that no
-      zero-cost path suffices. **Cost alone never gates**: wherever any clause lists money
-      as a reason to pause, this grant governs. Applying `workflow-overhead-audit`
+      zero-cost path suffices, the run is verified and its budget is authorized under
+      [when-to-act-without-approval, Paid production runs](../../.claude/skills/when-to-act-without-approval/SKILL.md).
+      **Cost alone never gates** when no sufficient free path exists; explicit spending
+      limits and the shared comparative cost/speed stop still apply. Applying `workflow-overhead-audit`
       verdicts is in this lane,
       including meaning-preserving rewrites of a rule or skill file.
 
@@ -462,14 +493,12 @@ updates and independently inspect the live behaviour before reporting completion
     and reversible **is** the handback this forbids; your recommendation is the go. On a
     real blocker, say so in 1 line and switch to the next-best unblocked work.
 
-    **External account identity and routine setup choices are implementation details.**
-    Create and use Alethical developer and vendor accounts through Google sign-in with
-    `alethicaldev@gmail.com`; never a maintainer's personal Google or GitHub account. Use
-    `Alethical` as the organization name, decline optional marketing and data sharing,
-    choose the lowest-cost plan that meets the established need, and the data region that
-    matches Alethical's operating location (United States). A setting being permanent does
-    not make an obvious fact-based choice a toss-up. Stop only when established facts
-    point to competing legal or operating needs, or when the hard line applies.
+    **External account access and setup use the private project owner.** Before
+    creating, signing in to or using a vendor account, read the private account
+    instructions linked from [AGENTS.md](../../AGENTS.md#read-for-the-task).
+    They own the approved identity, Google-only route and routine setup choices.
+    Missing access holds only that step; never substitute another account or a password.
+
 
     **The danger category is writes into a shared checkout, not git commands.** `cd` into
     the shared checkout followed by `cat >> file`, `> file`, `sed -i`, `rm` or a formatter
@@ -555,8 +584,11 @@ updates and independently inspect the live behaviour before reporting completion
     unreachable-code removal, sweep-the-pattern scope, concurrent-session commit and merge
     mechanics) and the incident history behind each grant: skill
     **`when-to-act-without-approval`**. The skill carries what to verify; the authority is
-    resident here, so a change is never held for approval merely because the skill was
-    not loaded.
+    resident here. Load the required
+    verification procedure before the action; its absence never creates a new approval
+    gate or waives a check.
+
+<a id="rule-11"></a>
 
 11. **Lead issues, PRs and substantive comments with a plain-language "Net:" line.**
     Every GitHub issue, PR body and substantive comment opens with a 1 to 2 sentence
@@ -583,12 +615,16 @@ updates and independently inspect the live behaviour before reporting completion
     10's hard line), a genuine ambiguity about intent, or an explicit request to review a
     checkpoint.
 
+<a id="rule-12"></a>
+
 12. **Expensive background research is checkpoint-and-resume; never let it run into paid
     overage.** Multi-agent research runs are the costliest thing a session does, and any
     usage meter can run out mid-run. Checkpoint at launch, stop the run before a meter hits
     its limit rather than burning into overage, and resume from the journal cache. **Never
     promise a threshold stop without arming a mechanism**: the agent cannot see the meters
     and does not run between turns. Full mechanics: skill **`resume-research-workflow`**.
+
+<a id="rule-13"></a>
 
 13. **Staff every goal-supporting issue; delegate the ones you are not doing yourself;
     milestone never gates this.** When a goal touches more than 1 outstanding issue,
@@ -620,6 +656,8 @@ updates and independently inspect the live behaviour before reporting completion
     a defer signal. If an issue supports the goal at hand, staff it now regardless of its
     bucket, and re-milestone it if the bucket no longer reflects reality. Catching
     yourself parking a supporting issue as "it's v2" is the trigger to give it an owner.
+
+<a id="rule-14"></a>
 
 14. **Write the change with discipline: think, minimum, surgical, goal-driven.** (Bias
     toward caution over raw speed; for trivial changes, use judgment.)
@@ -677,6 +715,8 @@ updates and independently inspect the live behaviour before reporting completion
       Preserve a focused browser regression check for a shared visual failure, and run it
       before release.
 
+<a id="rule-15"></a>
+
 15. **Two independent reviews of the same artifact end with a side-by-side merge, not a
     verdict pick.** When 2 reviewers (human, Claude, Codex, Design, any mix) produce
     overlapping lists (blocking criteria, findings, checklists, harm categories), lay the
@@ -694,6 +734,8 @@ updates and independently inspect the live behaviour before reporting completion
       a bare commit hash: the pin makes it durable, the file and function make it
       checkable. A right conclusion under a wrong citation is record drift waiting to be
       believed.
+
+<a id="rule-16"></a>
 
 16. **State each rule once, in the present tense, in one place.** A doc says what is true
     now. It does not narrate how we changed our minds, and it does not restate a rule

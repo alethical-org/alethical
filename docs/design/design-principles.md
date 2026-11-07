@@ -510,6 +510,9 @@ names wrap inside their available width instead of creating a horizontal scrollb
   inside. Do not add a second tab stop for the arrow. Where another disclosure uses
   a ring around its whole row, leave at least 12px of horizontal interior space
   between its text and ring. This rule does not request a sweep of unrelated controls.
+  Keep the [approved contribution-arrow pointer exception](unconcealed-keyboard-design-prompt.md)
+  when applying keyboard-only focus changes to email controls; that owner defines the
+  control, trigger and limits.
 - **Browser-filled values keep the field's own appearance.** Browser-filled auth email, password,
   and code fields; the signed-in account proof code; both legislator address fields; and Contact us
   name, email, and phone fields keep a white interior with the normal dark value and caret while
