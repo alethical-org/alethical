@@ -6383,3 +6383,114 @@ class TVAdFolderApproval(UUIDPrimaryKeyMixin, Base):
             postgresql_where=text("status = 'approved'"),
         ),
     )
+
+
+class MailUploadQuota(Base):
+    """One locked counter bounds the entire restricted demo across API replicas."""
+
+    __tablename__ = "mail_upload_quota"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    reserved_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    storage_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class MailUploadInvitation(Base):
+    __tablename__ = "mail_upload_invitation"
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    token_digest: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    max_sessions: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
+    max_bytes: Mapped[int] = mapped_column(
+        BigInteger, default=536870912, nullable=False
+    )
+    reserved_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    storage_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class MailUploadSession(Base):
+    __tablename__ = "mail_upload_session"
+    __table_args__ = (UniqueConstraint("invitation_id", "client_id"),)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    invitation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("mail_upload_invitation.id"), nullable=False
+    )
+    client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    client_secret_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    token_digest: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class MailUploadSubmission(Base):
+    __tablename__ = "mail_upload_submission"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("mail_upload_session.id"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    saved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    likes_ad: Mapped[Optional[bool]] = mapped_column(Boolean)
+    comment: Mapped[Optional[str]] = mapped_column(Text)
+    __table_args__ = (
+        CheckConstraint(
+            "comment IS NULL OR length(comment) <= 4000", name="comment_length"
+        ),
+        CheckConstraint(
+            "saved_at IS NULL OR likes_ad IS NOT NULL", name="saved_reaction"
+        ),
+    )
+
+
+class MailUploadImage(Base):
+    """Immutable originals; only a verified version can become the selected side."""
+
+    __tablename__ = "mail_upload_image"
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    submission_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("mail_upload_submission.id"), nullable=False
+    )
+    side: Mapped[str] = mapped_column(String(5), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    selected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    __table_args__ = (
+        UniqueConstraint("submission_id", "side", "sha256"),
+        CheckConstraint("side IN ('front', 'back')", name="side"),
+        CheckConstraint("byte_count > 0 AND byte_count <= 15728640", name="byte_limit"),
+        CheckConstraint(
+            "NOT selected OR verified_at IS NOT NULL", name="selected_verified"
+        ),
+        Index(
+            "uq_mail_upload_selected_side",
+            "submission_id",
+            "side",
+            unique=True,
+            postgresql_where=text("selected"),
+        ),
+    )
