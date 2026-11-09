@@ -21,6 +21,7 @@ const css = `
 .mail-upload fieldset{border:0;padding:0;margin:0 0 28px;min-width:0}.mail-upload legend{margin-bottom:12px;padding:0}
 .mail-upload .choices{display:flex;gap:12px}.mail-upload .choices label{position:relative;flex:1}.mail-upload .choices input{position:absolute;opacity:0;width:1px;height:1px}
 .mail-upload .choices label>span{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border:1px solid rgba(17,21,15,.18);border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;background:white}
+.mail-upload .choice-text{position:relative}.mail-upload .choice-mark{position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%)}
 .mail-upload .choices input:checked+span{background:#11332a;color:white;border-color:#11332a}.mail-upload .choices input:not(:disabled)+span:hover{box-shadow:inset 0 0 0 1px #658370}.mail-upload .choices input:disabled+span{cursor:default}
 .mail-upload .label-row{display:flex;justify-content:space-between;align-items:baseline;gap:4px 16px;flex-wrap:wrap}.mail-upload .optional{font-size:15px;color:#656c66}.mail-upload .helper{margin:6px 0 10px;font-size:15px;line-height:1.5;color:#4f5651}
 .mail-upload textarea{display:block;width:100%;min-height:104px;resize:vertical;border:1px solid rgba(17,21,15,.18);border-radius:12px;padding:14px 16px;font:17px/1.5 'Libre Franklin',sans-serif;color:#11150f;background:white}
@@ -272,22 +273,18 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
                             h(
                               'span',
                               null,
-                              form.likes === value
-                                ? h(
-                                    'span',
-                                    {
-                                      'aria-hidden': true,
-                                      style: {
-                                        border: 0,
-                                        minHeight: 0,
-                                        background: 'transparent',
-                                        color: 'inherit',
-                                      },
-                                    },
-                                    '✓',
-                                  )
-                                : null,
-                              value ? 'Yes' : 'No',
+                              h(
+                                'span',
+                                { className: 'choice-text' },
+                                form.likes === value
+                                  ? h(
+                                      'span',
+                                      { className: 'choice-mark', 'aria-hidden': true },
+                                      '✓',
+                                    )
+                                  : null,
+                                value ? 'Yes' : 'No',
+                              ),
                             ),
                           ),
                         ),
