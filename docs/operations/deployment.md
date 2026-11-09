@@ -65,6 +65,19 @@ Adding an optional setting to production also requires adding its intended live 
 
 Use the repository `railway.json` config from the repo root. It configures a service named `alethical-api` using the RAILPACK builder. Railway runs Alembic before starting the new API, then checks `/readyz`; that endpoint returns success only when the database is reachable and is at the migration version the code expects. A failed migration or readiness check leaves the previous API serving.
 
+### Restricted political mail activation
+
+The no-login mail demo is off unless `ALETHICAL_MAIL_UPLOAD_ENABLED=true`.
+Migration `0090_mail_upload` is additive and runs through the normal Railway
+before-deploy command. Its dedicated Supabase and R2 buckets must be private;
+they must not reuse the permanent public-source archive or its mirror.
+[Political mail upload](political-mail-upload.md#before-enabling) owns the exact
+settings, invitation commands, synthetic save/read-back checks and rollback.
+Check bucket privacy before enabling synthetic uploads, then verify the saved
+bytes in both stores. Real recipient mail remains held
+until retention and the related provider disclosure are settled. Reverting code
+or revoking an invitation does not erase stored originals or their backups.
+
 ### Preventing request pileups
 
 The API admits at most 12 database-bound requests per process, including `/readyz`.

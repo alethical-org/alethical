@@ -46,7 +46,9 @@ So the work list is every mapped table carrying all 3 of ``object_key``,
 covered the day its table ships, with no edit here, and
 ``test_raw_file_mirror.py`` fails if a table gains an ``object_key`` without the
 other two columns -- which is the one way this discovery could silently miss
-something.
+something. A table explicitly assigned to another object store is excluded even
+if its columns match. Private mail originals have their own dedicated buckets
+and synchronous hash verification; they must never enter this archive job.
 """
 
 from __future__ import annotations
@@ -86,7 +88,9 @@ def body_tables() -> list[Any]:
     found = [
         mapper.class_
         for mapper in schema.Base.registry.mappers
-        if all(column in mapper.class_.__table__.columns for column in BODY_COLUMNS)
+        if mapper.class_.__table__.info.get("object_store", "raw_source")
+        == "raw_source"
+        and all(column in mapper.class_.__table__.columns for column in BODY_COLUMNS)
     ]
     return sorted(found, key=lambda model: model.__tablename__)
 

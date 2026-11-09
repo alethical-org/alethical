@@ -28,6 +28,13 @@ export function candidateFeaturesPageMetadata(
 
 /** Pages whose wording never varies. */
 export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
+  '/mail-upload': pageMetadata({
+    title: titleFor('Upload political mail'),
+    socialTitle: 'Upload political mail',
+    description: 'Private political mail demo',
+    canonicalPath: '/mail-upload',
+    noindex: true,
+  }),
   // The campaign money landing (public, no sign-in gate). The description may
   // say these records are searchable now that the field on it works and the
   // committees list exists (issue #1696) — until they shipped it deliberately

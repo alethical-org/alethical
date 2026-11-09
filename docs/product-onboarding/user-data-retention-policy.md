@@ -372,6 +372,32 @@ The profile actions and notifications are described in
 
 ---
 
+### 2.11 Restricted political mail demo
+
+The no-login demo stores private originals and feedback. Its five tables are
+`mail_upload_invitation`, `mail_upload_session`, `mail_upload_submission`,
+`mail_upload_image` and `mail_upload_quota`. They hold credential digests, tab and
+submission identifiers, timestamps, the Yes/No reaction, optional message, file
+hashes and storage references, and quota counters. No account or party affiliation
+is inferred. Anonymous sessions are not verified distinct contributors.
+
+Supabase holds these rows and a private original copy; a separate private
+Cloudflare R2 bucket holds the verified backup. Originals preserve all bytes,
+including any recipient address, barcode or photo metadata. Neither copy is part
+of the permanent public-source archive. Only the existing administrator access
+can inspect submitted originals; campaigns and the public receive no submissions.
+The approved uploader copy is “Your photos and comments stay private to Alethical”.
+
+There is no automatic expiry or purge for these records or objects in this build.
+Session/invitation expiry and revocation stop access, not retention. Account deletion
+does not erase these anonymous records. Supabase's database backups exclude Storage
+objects; full recovery needs the database and file copies. A future deletion rule
+must cover both buckets, unfinished/replaced images, database rows and retained
+backups; no period is approved here. Live verification is limited to synthetic
+images until retention and provider disclosures are settled before real recipient
+collection. [Political mail upload](../operations/political-mail-upload.md) owns
+current storage, access and operating checks.
+
 ## 3. Given, generated, or just written down
 
 The distinction between deliberate input, generated content and incidental records
@@ -403,7 +429,9 @@ no.
 
 ## 4. What leaves our systems
 
-The published Privacy Policy names the recipients and purposes in this table.
+The table records recipients, purposes and public Privacy Policy coverage.
+The restricted mail demo remains synthetic-only until its additional storage
+disclosure and retention decision are settled.
 
 | Who gets it                                 | What they get                                                                                                         | When                                                                                                 | Named in our Privacy Policy? |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
@@ -417,6 +445,7 @@ The published Privacy Policy names the recipients and purposes in this table.
 | **Minnesota Secretary of State**            | **The ZIP code and the official ballot-range number, which can identify 1 building or apartment; for a building divided by apartment number, also the official street, city and ZIP. Never the typed address, house number or unit** | Every **Find my candidates** address search; the street only when the source marks the house range as needing a unit | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)                                                    | Every page load                                                                                      | Yes                          |
 | Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details                 | Every API call; every website visit after the script loads                                           | Yes                          |
+| Cloudflare R2, restricted mail demo | Exact private original photo bytes; no public object access | Photo uploads, including unfinished attempts (§2.11); synthetic-only until real-mail activation | Additional mail-backup disclosure must be checked before real recipient collection |
 | Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the private Site Metrics totals refresh                                                          | Yes                          |
 | Bing Webmaster Tools                        | The same sitewide search totals and the same private limits                                                           | When the private Site Metrics totals refresh                                                          | Yes                          |
 | Checkly                                     | The 3 public Alethical addresses it tests                                                                             | Every 2 minutes from North Virginia                                                                  | Yes                          |

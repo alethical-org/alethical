@@ -114,6 +114,7 @@ describe('sitemap endpoint', () => {
       '/reset',
       '/email-preferences',
       '/unsubscribe',
+      '/mail-upload',
       '/comment-emails',
       `/candidates/${'a'.repeat(64)}/claim`,
       `/candidates/${'a'.repeat(64)}/manage`,

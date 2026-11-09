@@ -1131,3 +1131,11 @@ describe('Blog rename preserves old public links', () => {
     expect(targetFromPathname('/readers').kind).toBe('notFound');
   });
 });
+
+it('opens the private mail demo without a login route or invitation in route state', () => {
+  expect(targetFromPathname('/mail-upload?invite=private')).toEqual({ kind: 'mailUpload' });
+  expect(pathForRoute({ name: 'MailUpload' })).toBe('/mail-upload');
+  const state = stateFromPathname('/mail-upload?invite=private');
+  expect(state.routes.at(-1)).toEqual({ name: 'MailUpload' });
+  expect(JSON.stringify(state)).not.toContain('private');
+});

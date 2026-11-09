@@ -429,13 +429,58 @@ def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None
     }
 
 
+def test_private_objects_never_join_source_archive_even_with_matching_columns(
+    monkeypatch,
+) -> None:
+    """Column names alone must not send private originals into the source archive."""
+    from types import SimpleNamespace
+
+    from sqlalchemy import Column, MetaData, Table, Text
+
+    metadata = MetaData()
+    source = SimpleNamespace(
+        __tablename__="new_source_body",
+        __table__=Table(
+            "new_source_body",
+            metadata,
+            *[Column(c, Text) for c in mirror_module.BODY_COLUMNS],
+        ),
+    )
+    private = SimpleNamespace(
+        __tablename__="private_body",
+        __table__=Table(
+            "private_body",
+            metadata,
+            *[Column(c, Text) for c in mirror_module.BODY_COLUMNS],
+            info={"object_store": "private_mail"},
+        ),
+    )
+    monkeypatch.setattr(
+        mirror_module,
+        "schema",
+        SimpleNamespace(
+            Base=SimpleNamespace(
+                registry=SimpleNamespace(
+                    mappers=[
+                        SimpleNamespace(class_=source),
+                        SimpleNamespace(class_=private),
+                    ]
+                )
+            )
+        ),
+    )
+    assert body_tables() == [source]
+
+
 def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None:
     """The one way the schema walk could silently miss a body: a differently-named column.
 
     Discovery covers a future table for free, and only while its columns are named the
     same. A table that gains an ``object_key`` and no ``mirrored_at`` would be invisible
     to the copy job and to every count it prints, which is precisely the failure that
-    reads as success. So the guard is here rather than in a comment.
+    reads as success. Private mail names its separate store explicitly and must
+    carry its own hash/verification proof instead. Unknown storage policies fail;
+    new source bodies still require the original mirror columns by default.
     """
     from alethical.db import models as models_module
 
@@ -444,11 +489,19 @@ def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None
         table = mapper.class_.__table__
         if "object_key" not in table.columns:
             continue
-        missing = [
-            column
-            for column in mirror_module.BODY_COLUMNS
-            if column not in table.columns
-        ]
+        policy = table.info.get("object_store", "raw_source")
+        assert policy in {"raw_source", "private_mail"}, (
+            f"{table.name}: unknown object store"
+        )
+        if policy == "private_mail":
+            assert table.name == "mail_upload_image", (
+                "New private storage needs its own verified backup path"
+            )
+            columns = ("object_key", "sha256", "verified_at", "selected")
+            assert mapper.class_ not in body_tables()
+        else:
+            columns = mirror_module.BODY_COLUMNS
+        missing = [column for column in columns if column not in table.columns]
         if missing:
             incomplete.append(f"{table.name} is missing {', '.join(missing)}")
 

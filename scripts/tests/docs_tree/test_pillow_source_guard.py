@@ -20,7 +20,11 @@ class SourceBoundaryTests(unittest.TestCase):
     def setUpClass(cls):
         cls.repo = ROOT
         cls.seed = {
-            relative: (cls.repo / relative).read_bytes()
+            relative: (
+                (cls.repo / "scripts/tests/fixtures/pillow-reviewed" / relative)
+                if relative in {"uv.lock", "pyproject.toml"}
+                else (cls.repo / relative)
+            ).read_bytes()
             for relative in {
                 "uv.lock",
                 "pyproject.toml",
@@ -252,3 +256,15 @@ class SourceBoundaryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_current_mail_decoder_dependencies_are_outside_historical_exception():
+    """The new upload surface must not silently inherit the retired exception."""
+    import tomllib
+
+    lock = tomllib.loads((ROOT / "uv.lock").read_text())
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    assert any(
+        "dependency path changed" in error
+        for error in guard.dependency_errors(lock, project)
+    )

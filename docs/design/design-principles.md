@@ -275,34 +275,40 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   inactive items and black active/hover treatment. Supporting-text gray is not the default for
   ordinary action labels. Green remains available for brand fills, selected-state indicators,
   and destination links; it is not an exclusive signal for navigation across the whole interface.
-- **Optical centering for icon + label buttons.** Our icons are drawn on a 24-unit viewBox with the
-  marks inset to roughly the middle 50% (the ✕ runs 6,6 → 18,18; chevrons 6 → 18; the plus 5 → 19), so
-  at our 13–17px sizes an icon carries ~3px of empty box on its outer side. Symmetric padding then
-  renders the content ~3px off-centre, because the eye reads that empty box as extra padding while the
-  text label sits flush against its own box. Correct the **container, never the glyph** — tightening
-  the viewBox (e.g. to `5 5 14 14`) fixes the geometry but renders the mark ~40% larger, so it reads
-  heavier than the label. The rule, by icon position:
-  - **Leading icon + label** → trim 3px off the **left** (`padding: 8px 14px 8px 11px`).
-  - **Label + trailing icon** → trim 3px off the **right** (`padding: 11px 15px 11px 18px`).
-  - **Both a leading and a trailing icon** (icon + label + chevron) → **no change**; the insets cancel.
-  - **Icon-only controls** (close ✕, hamburger, social glyphs, bare chevrons) → **no change**;
-    symmetric padding is correct with no label.
+- **Optical centering for icon + label buttons.** Judge both the visible label and the
+  whole icon-label group within the control. A mathematically centred group can still
+  make its label look pushed aside, especially when a check appears only after selection.
+  Exact label centering is not a universal answer either. Design chooses the smallest
+  placement adjustment that makes the label and icon feel balanced together.
 
-  Three cases the rule deliberately does **not** reach, found while sweeping:
-  - **A button with no horizontal padding at all** (breadcrumbs, bare text+chevron rows) — there is
-    nothing to trim, and adding a negative margin would pull the glyph outside the content column.
-  - **A full-width button that centres its content** (`justifyContent: 'center'`, no side padding) —
-    the group is centred as a block, so the error is half as large (~1.5px) and the correction would
-    be padding on the side _away_ from the icon rather than a trim. Left alone until it's measured.
-  - **An icon inside its own tile** (the mega-menu rows' 40×40 icon square, the capability cards'
-    48×48 tile, the version rows' 38×38 box) — the tile already centres the glyph, so the inset
-    never reaches the button's edge.
+  Correct the container, spacing or icon placement, never the glyph's viewBox or scale
+  just to compensate for alignment. Preserve approved type, glyph weight, button size,
+  hit area and focus treatment. Review the actual rendered marks, not only their boxes.
+  Our 24-unit icons often have inset marks (the ✕ runs 6,6 → 18,18; chevrons 6 → 18;
+  the plus 5 → 19). At 13–17px, that can leave about 3px of empty outer box. For those
+  matching glyphs and padded controls, these are starting examples, not universal offsets:
+  - **Leading icon + label:** trim 3px off the left (`padding: 8px 14px 8px 11px`).
+  - **Label + trailing icon:** trim 3px off the right (`padding: 11px 15px 11px 18px`).
+  - **Leading and trailing icons:** symmetric spacing can balance their insets; inspect
+    the actual pair rather than assuming different glyphs cancel.
+  - **Icon-only controls and icons in their own tiles:** keep the glyph centred in its
+    own box; label-padding corrections do not apply.
 
-  A control whose icon appears in **only one state** (the share popover's Copy → Copied) trims in
-  that state only, via a sibling style, so the text-only state stays centred.
+  Full-width centred controls and rows without horizontal padding still need visual
+  review. Do not exempt them because a formula centres the group, or pull a glyph outside
+  the content area to compensate. When an icon appears in only one state, compare that
+  state with the text-only state and neighbouring choices. Avoid a distracting label jump;
+  reserve room or adjust placement as the approved treatment requires.
 
-  Build new buttons this way. It applies to auth-gated controls (account nav, Sign out,
-  Track/Tracking, Continue with Google).
+  Every affected Design review and build review checks leading, trailing and state-only
+  icons explicitly. Compare selected and unselected states, Yes and No or other sibling
+  labels, and applicable busy, retry and success states at the product's layout bands,
+  narrow widths and enlarged text. Inspect visible balance, edge clearance, wrapping and
+  transitions in the render. A passing centre-coordinate measurement alone is not a pass.
+  Record uninspected cases and resolve visible imbalance with Design before accepting it.
+  Apply this to new or changed controls, including account navigation, Sign out,
+  Track/Tracking and Continue with Google; this does not authorize an unrelated sitewide
+  retrofit. Keep Design's saved rule, drawings and build notes aligned with the decision.
 
 - **A corner close control is inset by its own button box, never by the ✕ inside it.** Give the
   button at least 16px of clear space from every nearby surface edge, and use the same inset from

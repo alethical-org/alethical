@@ -95,6 +95,7 @@ export const routePath = {
   terms: () => pathForRoute({ name: 'Terms' }),
   aboutUs: () => pathForRoute({ name: 'AboutUs' }),
   services: () => pathForRoute({ name: 'Services' }),
+  mailUpload: () => pathForRoute({ name: 'MailUpload' }),
   contactUs: (params?: RootStackParamList['ContactUs']) =>
     pathForRoute({ name: 'ContactUs', params }),
 };

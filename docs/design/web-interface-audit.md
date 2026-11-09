@@ -9,6 +9,9 @@ Before each review, reconcile the latest user-approved Design decisions through
 For Finance, check the [Finance visual decisions](design-principles.md#finance-visual-decisions)
 against the affected rendered pages and states. Record drift and verify its correction;
 neither saved rules nor Design's completion claim proves that the screen follows them.
+Include the **Optical centering for icon + label buttons** review in
+[design principles, the green visual system](design-principles.md#2-the-green-visual-system)
+for every affected control and state; record rendered coverage, not only coordinate checks.
 
 Alethical's frontend is **React Native + Expo, shipped to web via `react-native-web`**. Source is
 `.tsx` using RN primitives (`<View>`, `<Text>`, `<Pressable>`, `<Image>`), **not** DOM/CSS/Tailwind.

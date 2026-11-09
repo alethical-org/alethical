@@ -19,6 +19,7 @@ export function TrafficAnalytics() {
   const sessionReady =
     !isLoading && (isSignedIn ? Boolean(userId && accessToken) : !userId && !accessToken);
   const collect =
+    !isPrivateMetricLocation() &&
     sessionReady &&
     (!isSignedIn ||
       (decision?.userId === userId &&

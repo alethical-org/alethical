@@ -135,6 +135,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # reuse, never indexed. ``default_public_cache`` in ``alethical/api/main.py``
 # stamps them on normal answers and the handler below on unexpected failures.
 PRIVATE_API_PREFIXES = (
+    "/api/v1/mail-upload/",
     "/api/v1/admin/",
     "/api/v1/ads/",
     "/api/v1/finance/",
@@ -163,7 +164,15 @@ def is_private_api_path(path: str) -> bool:
 
 
 async def unexpected_exception_handler(request: Request, exc: Exception):
-    _report_server_error(request, exc, 500)
+    # Database exceptions can contain private upload values and SQL parameters.
+    safe_error = (
+        OperationalHTTPError("Private mail upload failed")
+        if request.url.path.startswith(
+            ("/api/v1/mail-upload/", "/api/v1/admin/mail-upload/")
+        )
+        else exc
+    )
+    _report_server_error(request, safe_error, 500)
     payload = problem_payload(
         type_slug="unexpected-error",
         title="Unexpected Error",

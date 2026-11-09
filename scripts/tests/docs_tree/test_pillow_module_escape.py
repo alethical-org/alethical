@@ -109,7 +109,12 @@ def test_full_source_check_rejects_cross_module_renderer_escape(tmp_path):
     ):
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((ROOT / relative).read_bytes())
+        source = (
+            ROOT / "scripts/tests/fixtures/pillow-reviewed" / relative
+            if relative in {"uv.lock", "pyproject.toml"}
+            else ROOT / relative
+        )
+        target.write_bytes(source.read_bytes())
     service = tmp_path / guard.SERVICE
     service.write_text(
         service.read_text() + "\ndef expose_renderer():\n    return tv_ad_redaction\n"
@@ -127,5 +132,13 @@ def test_full_source_check_rejects_cross_module_renderer_escape(tmp_path):
     assert any("module escape" in finding for finding in guard.validate(tmp_path))
 
 
-def test_current_source_boundary_remains_valid():
-    assert guard.validate(ROOT) == []
+def test_mail_upload_cannot_reuse_historical_exception():
+    # The current security scan accepts the upstream-fixed Pillow release.
+    # If the old exception is ever considered, the new decoder must close it.
+    findings = guard.validate(ROOT)
+    assert any(
+        "alethical/api/services/mail_upload.py" in finding
+        and "import boundary changed" in finding
+        for finding in findings
+    )
+    assert any("dependency path changed" in finding for finding in findings)

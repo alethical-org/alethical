@@ -4932,3 +4932,24 @@ describe('bill action and vote first responses', () => {
     );
   });
 });
+
+it('serves the mail demo as a private blank shell with early invitation capture', async () => {
+  const network = vi.fn();
+  vi.stubGlobal('fetch', network);
+  const { body, headers, status } = await serve({
+    path: '/mail-upload',
+    invite: 'accidental-secret',
+  });
+  expect(status).toBe(200);
+  expect(headers.get('Cache-Control')).toBe('private, no-store');
+  expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+  expect(headers.get('Referrer-Policy')).toBe('no-referrer');
+  expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
+  expect(body).toContain('Upload political mail | Alethical');
+  expect(body).toContain('<script src="/mail-upload-bootstrap.js"></script>');
+  expect(body.indexOf('/mail-upload-bootstrap.js')).toBeLessThan(body.indexOf('/fonts.css'));
+  expect(body).not.toContain('accidental-secret');
+  expect(body).not.toContain('Home snapshot');
+  expect(body).not.toContain('cloudflareinsights');
+  expect(network).not.toHaveBeenCalled();
+});

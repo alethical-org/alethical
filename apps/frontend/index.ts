@@ -22,7 +22,14 @@ if (typeof document === 'undefined') {
   // one screen and the same path with no query string is the not-found page, so
   // reading the pathname alone fetched the wrong screen's file and then made the
   // right one wait behind React's 300 ms marker (measured 17 Sep 2026).
-  void preloadScreenForPath(`${window.location.pathname}${window.location.search}`).then(() =>
-    registerRootComponent(App),
-  );
+  // Load private upload credentials only on their route. The production HTML
+  // already stripped the invitation before outside resources; this also covers
+  // local entry before React or its analytics can mount.
+  const prepare =
+    window.location.pathname.replace(/\/$/, '') === '/mail-upload'
+      ? import('./src/data/mailUpload').then(({ captureMailInvitation }) => captureMailInvitation())
+      : Promise.resolve();
+  void prepare
+    .then(() => preloadScreenForPath(`${window.location.pathname}${window.location.search}`))
+    .then(() => registerRootComponent(App));
 }

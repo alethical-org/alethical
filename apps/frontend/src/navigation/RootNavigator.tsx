@@ -97,6 +97,7 @@ const AdminCandidateClaimsScreen = loadOnDemand(screenChunks.AdminCandidateClaim
 const SearchBillsScreen = loadOnDemand(screenChunks.Bills, { kind: 'screen' });
 const SearchLegislatorsScreen = loadOnDemand(screenChunks.Legislators, { kind: 'screen' });
 const TrackedScreen = loadOnDemand(screenChunks.Tracked, { kind: 'screen' });
+const MailUploadScreen = loadOnDemand(screenChunks.MailUpload, { kind: 'screen' });
 const ContactUsScreen = loadOnDemand(screenChunks.ContactUs, { kind: 'screen' });
 type RailRouteName =
   | keyof MainTabParamList
@@ -645,6 +646,11 @@ export function RootNavigator() {
                 name="Services"
                 component={ServicesScreen}
                 options={{ headerShown: false, title: 'Services' }}
+              />
+              <Stack.Screen
+                name="MailUpload"
+                component={MailUploadScreen}
+                options={{ headerShown: false, title: 'Upload political mail' }}
               />
               <Stack.Screen
                 name="ContactUs"

@@ -39,6 +39,7 @@ type TitledRoute = {
 
 /** A tab only needs titles; full search/share descriptions stay in the server response. */
 export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
+  '/mail-upload': 'Upload political mail',
   '/money': 'Money in politics in Minnesota',
   '/money/committees': 'Committees — Minnesota campaign money',
   '/money/races': 'Money by race: Minnesota candidates by office and district',
