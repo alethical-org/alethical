@@ -1,7 +1,6 @@
 import { registerRootComponent } from 'expo';
 
 import App from './App';
-import { captureMailInvitation } from './src/data/mailUpload';
 import { preloadScreenForPath } from './src/navigation/screenPreload';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
@@ -16,10 +15,6 @@ import { preloadScreenForPath } from './src/navigation/screenPreload';
 // where there is no server-written text and no separate download.
 // Direct-entry video events retain their article outside that mount point;
 // EventScreen adds navigation and comments without replacing the playing frame.
-// The production HTML also captures before any resource or application code.
-// This call covers local development and consumes that one-use in-memory value.
-captureMailInvitation();
-
 if (typeof document === 'undefined') {
   registerRootComponent(App);
 } else {
@@ -27,7 +22,14 @@ if (typeof document === 'undefined') {
   // one screen and the same path with no query string is the not-found page, so
   // reading the pathname alone fetched the wrong screen's file and then made the
   // right one wait behind React's 300 ms marker (measured 17 Sep 2026).
-  void preloadScreenForPath(`${window.location.pathname}${window.location.search}`).then(() =>
-    registerRootComponent(App),
-  );
+  // Load private upload credentials only on their route. The production HTML
+  // already stripped the invitation before outside resources; this also covers
+  // local entry before React or its analytics can mount.
+  const prepare =
+    window.location.pathname.replace(/\/$/, '') === '/mail-upload'
+      ? import('./src/data/mailUpload').then(({ captureMailInvitation }) => captureMailInvitation())
+      : Promise.resolve();
+  void prepare
+    .then(() => preloadScreenForPath(`${window.location.pathname}${window.location.search}`))
+    .then(() => registerRootComponent(App));
 }
