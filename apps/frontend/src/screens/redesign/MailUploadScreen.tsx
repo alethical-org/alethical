@@ -20,9 +20,9 @@ const css = `
 .mail-upload button:disabled{cursor:default;opacity:.6}.mail-upload .photo button{width:100%;font-size:16px;line-height:1.3;padding:11px 12px}.mail-upload .photo button+button{margin-top:8px}
 .mail-upload fieldset{border:0;padding:0;margin:0 0 28px;min-width:0}.mail-upload legend{margin-bottom:12px;padding:0}
 .mail-upload .choices{display:flex;gap:12px}.mail-upload .choices label{position:relative;flex:1}.mail-upload .choices input{position:absolute;opacity:0;width:1px;height:1px}
-.mail-upload .choices label>span{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border:1px solid rgba(17,21,15,.18);border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;background:white}
-.mail-upload .choice-text{position:relative}.mail-upload .choice-mark{position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%)}
-.mail-upload .choices input:checked+span{background:#11332a;color:white;border-color:#11332a}.mail-upload .choices input:not(:disabled)+span:hover{box-shadow:inset 0 0 0 1px #658370}.mail-upload .choices input:disabled+span{cursor:default}
+.mail-upload .choices label>span{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:10px 12px;border:1px solid rgba(17,21,15,.18);border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;background:white}
+.mail-upload .choice-mark{flex:none}
+.mail-upload .choices input:checked+span{padding-right:26px;background:#11332a;color:white;border-color:#11332a}.mail-upload .choices input:not(:disabled)+span:hover{box-shadow:inset 0 0 0 1px #658370}.mail-upload .choices input:disabled+span{cursor:default}
 .mail-upload .label-row{display:flex;justify-content:space-between;align-items:baseline;gap:4px 16px;flex-wrap:wrap}.mail-upload .optional{font-size:15px;color:#656c66}.mail-upload .helper{margin:6px 0 10px;font-size:15px;line-height:1.5;color:#4f5651}
 .mail-upload textarea{display:block;width:100%;min-height:104px;resize:vertical;border:1px solid rgba(17,21,15,.18);border-radius:12px;padding:14px 16px;font:17px/1.5 'Libre Franklin',sans-serif;color:#11150f;background:white}
 .mail-upload textarea:focus{outline:0;border-color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,.22)}.mail-upload textarea:disabled{opacity:.8}
@@ -273,18 +273,27 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
                             h(
                               'span',
                               null,
-                              h(
-                                'span',
-                                { className: 'choice-text' },
-                                form.likes === value
-                                  ? h(
-                                      'span',
-                                      { className: 'choice-mark', 'aria-hidden': true },
-                                      '✓',
-                                    )
-                                  : null,
-                                value ? 'Yes' : 'No',
-                              ),
+                              form.likes === value
+                                ? h(
+                                    'svg',
+                                    {
+                                      className: 'choice-mark',
+                                      width: 18,
+                                      height: 18,
+                                      viewBox: '0 0 24 24',
+                                      fill: 'none',
+                                      'aria-hidden': true,
+                                    },
+                                    h('path', {
+                                      d: 'M5 12.5 L10 17.5 L19 7',
+                                      stroke: 'currentColor',
+                                      strokeWidth: 2.6,
+                                      strokeLinecap: 'round',
+                                      strokeLinejoin: 'round',
+                                    }),
+                                  )
+                                : null,
+                              h('span', { className: 'choice-text' }, value ? 'Yes' : 'No'),
                             ),
                           ),
                         ),
