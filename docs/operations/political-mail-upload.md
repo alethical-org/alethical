@@ -65,3 +65,11 @@ Anonymous invitation sessions cannot use these routes. All five tables have row-
 ## Build checks
 
 `uv run pytest alethical/tests/test_mail_upload.py` uses the repository's disposable PostgreSQL database, fake independent object stores, real API request handling and real image decoding. It covers byte identity, failed-copy recovery, retry conflicts, unauthorized access, revoked/expired invitations, quotas, raw-image bounds, HEIC, RLS, administrator access and save during replacement. Live S3 permissions and frontend device behavior require the deployment checks above.
+
+## Demo screen
+
+The approved Design source is `Mail upload.dc.html` in Alethical UX, with the November 9, 2026 handoff. The page stays outside navigation and search. It uses the shared header and footer, Front/Back photo controls, a required Yes/No reaction, and one optional message. The helper stays visible above the field: “e.g. how you feel about this mail or how our tool could be more helpful”. The compact confirmation says “Saved”, with “Upload another”. Large green checks appear only after the server verifies both private copies; replacement failures preserve the previous accepted image and block final submission until resolved.
+
+The approved value description is “See who paid for this mail and what public records show about them”. This describes the complete demo after Part 2. The initial upload test has no payer or funding result; its live-test invitation must state that limit. Do not present collection as successful analysis. Part 2 remains dependent on Angel's samples.
+
+The browser keeps images and comments in memory, so reload loses an unfinished form. Credentials alone persist in tab storage. Invalid photos, transfer failures, and uncertain final responses preserve the current form for retry. While a transfer is running, Submit and that side's replacement are disabled; the other side and feedback remain available. Final-submit retries retain the same identifier and answers, preventing duplicate saved submissions after a lost response. The first release uses the native image picker; camera/library options still need real iPhone and Android checks. There is no custom fallback menu until those checks demonstrate a need.
