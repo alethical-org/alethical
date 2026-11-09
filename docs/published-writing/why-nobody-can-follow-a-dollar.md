@@ -60,8 +60,8 @@
         Report (registration 20010), also 5 versions, also identical in all 5.
 
      3. $875,000.00 from The PAC for Minnesota's Future to the DFL House Caucus on
-        20 September 2024, and $3,000.00 from the DFL House Caucus to Wolgamott, Dan
-        House Committee on 30 October 2024. Both read row by row out of the Board's
+        20 September 2024, and $3,000.00 from the DFL House Caucus to a state House
+        campaign committee on 30 October 2024. Both read row by row out of the Board's
         "Itemized general expenditures and contributions made of over $200 - All"
         download, resolved from its campaign finance data downloads page and served on
         27 Aug 2026. Both are cash rather than in-kind.
@@ -143,6 +143,8 @@
 
 # Why nobody can follow a dollar
 
+**November 9, 2026:** Personal names in the guide were replaced with role descriptions.
+
 *How the Money Works*
 
 Minnesota’s records tell you what one political account paid another, on which day, down to
@@ -165,7 +167,7 @@ Here are 2 of them, both real, both from the same year:
 
 - 20 September 2024. The PAC for Minnesota’s Future gave $875,000.00 to the DFL House
   Caucus.
-- 30 October 2024. The DFL House Caucus gave $3,000.00 to Wolgamott, Dan House Committee.
+- 30 October 2024. The DFL House Caucus gave $3,000.00 to a state House campaign committee.
 
 Read together they look like a route: money arrives, money leaves, so the first paid for the
 second. That reading is not in either record, and no record anywhere supports it. Pick any 2

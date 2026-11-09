@@ -71,10 +71,9 @@
         categories where the other 2 datasets have 8, the missing one being candidates.
 
      4. Renew Minnesota's 2 payments. Read row by row out of the same file:
-        registration 41337; 19 Mar 2026, $61,687.00, For, affected committee "Dippel,
-        Tom Senate Committee" (19246), purpose "Advertising - general: Ad Placement",
+        registration 41337; 19 Mar 2026, $61,687.00, For, affected committee 19246, purpose "Advertising - general: Ad Placement",
         vendor Arena LLC of Salt Lake City; 7 Jul 2026, $63,940.00, Against, affected
-        committee "Janigo, Kristy Senate Committee" (19214), same purpose wording, same
+        committee 19214, same purpose wording, same
         vendor. **Chosen because 1 spender on both sides is the only balanced worked
         example available**: any pair drawn from 2 different groups makes the piece
         look like it picked a side, and this pair shows the direction marker doing its
@@ -216,6 +215,8 @@
 
 # Money spent without a campaign’s say
 
+**November 9, 2026:** Personal names in the guide were replaced with role descriptions.
+
 *How the Money Works*
 
 Everything in this set so far has been money that went into a campaign’s account and out of
@@ -264,9 +265,9 @@ the amounts are in the same file for anyone who wants the second answer.
 Each row also names what the money bought and who was paid. One group, 2 payments, the same
 year:
 
-- 19 March 2026, $61,687.00, marked **For**, about Dippel, Tom Senate Committee, for
+- 19 March 2026, $61,687.00, marked **For**, about a state Senate campaign, for
   “Advertising - general: Ad Placement”, paid to Arena LLC of Salt Lake City.
-- 7 July 2026, $63,940.00, marked **Against**, about Janigo, Kristy Senate Committee, same
+- 7 July 2026, $63,940.00, marked **Against**, about a different state Senate campaign, same
   wording, same company.
 
 Both were filed by Renew Minnesota, registration 41337. Neither payment went through either
