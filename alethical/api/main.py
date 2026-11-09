@@ -26,6 +26,10 @@ from alethical.api.rate_limit import (
     DEFAULT_PENDING_ACTION_PER_MINUTE,
     limiter_from_env,
 )
+from alethical.api.routers.mail_upload import (
+    router as mail_upload_router,
+    admin_router as mail_upload_admin_router,
+)
 from alethical.api.routers.tv_ads import router as tv_ads_router
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.finance import router as finance_router
@@ -252,21 +256,34 @@ def create_app() -> FastAPI:
         DEFAULT_PENDING_ACTION_PER_MINUTE,
     )
 
+    app.state.mail_upload_limiter = limiter_from_env(
+        "ALETHICAL_MAIL_UPLOAD_RATE_PER_MIN", 60
+    )
+    app.state.mail_upload_image_gate = asyncio.Semaphore(1)
+
     @app.middleware("http")
     async def bound_comment_request_size(request: Request, call_next):
         # This is a transport limit, not a public-name length rule. Bound JSON
         # before parsing, including requests without a Content-Length header.
-        if request.method in {"POST", "PUT", "DELETE"} and request.url.path.startswith(
-            (
-                "/api/v1/comments/",
-                "/api/v1/me/comments/",
-                "/api/v1/candidates/",
-                "/api/v1/candidate-claims",
-                "/api/v1/candidate-statements/",
-                "/api/v1/admin/political-ads",
-                "/api/v1/admin/candidate-claims",
-                "/api/v1/admin/candidate-statement-reports",
-                "/api/v1/finance/",
+        if (
+            request.method in {"POST", "PUT", "DELETE"}
+            and not re.fullmatch(
+                r"/api/v1/mail-upload/submissions/[0-9a-fA-F-]{36}/images/(front|back)",
+                request.url.path,
+            )
+            and request.url.path.startswith(
+                (
+                    "/api/v1/mail-upload/",
+                    "/api/v1/comments/",
+                    "/api/v1/me/comments/",
+                    "/api/v1/candidates/",
+                    "/api/v1/candidate-claims",
+                    "/api/v1/candidate-statements/",
+                    "/api/v1/admin/political-ads",
+                    "/api/v1/admin/candidate-claims",
+                    "/api/v1/admin/candidate-statement-reports",
+                    "/api/v1/finance/",
+                )
             )
         ):
             # A large printed name can select fingerprints across every page.
@@ -340,6 +357,8 @@ def create_app() -> FastAPI:
             return JSONResponse(status_code=503, content={"status": "not_ready"})
         return JSONResponse(content={"status": "ready"})
 
+    app.include_router(mail_upload_router, prefix="/api/v1")
+    app.include_router(mail_upload_admin_router, prefix="/api/v1")
     app.include_router(tv_ads_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(finance_router, prefix="/api/v1", tags=["finance"])
