@@ -6493,4 +6493,7 @@ class MailUploadImage(Base):
             unique=True,
             postgresql_where=text("selected"),
         ),
+        # These originals use dedicated private buckets and synchronous verification
+        # in api/services/mail_upload.py, never the source archive mirror job.
+        {"info": {"object_store": "private_mail"}},
     )
