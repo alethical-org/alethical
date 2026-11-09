@@ -45,8 +45,8 @@ interface SessionRecord {
   invitation?: string;
   session?: MailUploadSession;
 }
-const STORAGE_KEY = 'alethical.mailUpload.session.v1';
-let memoryRecord: SessionRecord | null | undefined;
+const LEGACY_STORAGE_KEY = 'alethical.mailUpload.session.v1';
+let memoryRecord: SessionRecord | null = null;
 let exchange: { record: SessionRecord; promise: Promise<MailUploadSession> } | null = null;
 
 declare global {
@@ -55,36 +55,23 @@ declare global {
   }
 }
 
-function saveRecord(record: SessionRecord | null) {
-  memoryRecord = record;
+// Credentials live only in this module. Remove earlier versions' tab record
+// without reading it, including on a page reload or a visit to another route.
+function clearLegacySession(): void {
   if (typeof window === 'undefined') return;
   try {
-    if (record) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(record));
-    else window.sessionStorage.removeItem(STORAGE_KEY);
+    window.sessionStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
-    /* The tab can still work when browser storage is disabled. */
+    /* Storage may be disabled; the in-memory session does not depend on it. */
   }
 }
+clearLegacySession();
+
+function saveRecord(record: SessionRecord | null): void {
+  memoryRecord = record;
+}
 function readRecord(): SessionRecord | null {
-  if (memoryRecord !== undefined) return memoryRecord;
-  if (typeof window === 'undefined') return null;
-  try {
-    const value = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? 'null');
-    if (
-      value &&
-      typeof value.clientId === 'string' &&
-      /^[0-9a-f]{64}$/.test(value.clientSecret) &&
-      (typeof value.invitation === 'string' ||
-        (typeof value.session?.token === 'string' && typeof value.session?.expires_at === 'string'))
-    ) {
-      memoryRecord = value;
-      return value;
-    }
-  } catch {
-    /* A corrupt or unavailable record is not an authenticated session. */
-  }
-  saveRecord(null);
-  return null;
+  return memoryRecord;
 }
 
 /** Consume the fragment once, before React starts. A new link replaces this tab's access. */
@@ -111,6 +98,7 @@ export function captureMailInvitation(): void {
 }
 
 export function clearMailUploadSession(): void {
+  clearLegacySession();
   exchange = null;
   saveRecord(null);
 }
@@ -198,7 +186,7 @@ export async function getMailUploadSession(
 ): Promise<MailUploadSession> {
   captureMailInvitation();
   const record = readRecord();
-  if (!record) throw new MailUploadError(401, 'This demo link is no longer available');
+  if (!record) throw new MailUploadError(401, 'Open your invitation link to continue');
   if (record.session) {
     if (Date.parse(record.session.expires_at) > Date.now()) return record.session;
     clearMailUploadSession();

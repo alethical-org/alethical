@@ -27,6 +27,7 @@ beforeEach(async () => {
   api = await import('../mailUpload');
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.useRealTimers();
@@ -53,12 +54,11 @@ describe('private mail sessions', () => {
     expect(init.credentials).toBe('omit');
     expect(init.referrerPolicy).toBe('no-referrer');
     expect(init.cache).toBe('no-store');
-    expect(sessionStorage.getItem('alethical.mailUpload.session.v1')).not.toContain(
-      'private-invitation',
-    );
+    expect(sessionStorage.getItem('alethical.mailUpload.session.v1')).toBeNull();
   });
 
-  it('retains the same exchange proof across a failed reply and page reload', async () => {
+  it('keeps retry proof only in memory and never writes credentials to browser storage', async () => {
+    const storageWrite = vi.spyOn(Object.getPrototypeOf(window.sessionStorage), 'setItem');
     invite();
     fetcher.mockRejectedValueOnce(new Error('network private-invitation'));
     await expect(api.getMailUploadSession()).rejects.toMatchObject({
@@ -66,15 +66,53 @@ describe('private mail sessions', () => {
       detail: 'Could not connect',
     });
     const firstProof = fetcher.mock.calls[0][1].body;
-    vi.resetModules();
-    api = await import('../mailUpload');
     fetcher.mockResolvedValueOnce(reply(session));
     await expect(api.getMailUploadSession()).resolves.toEqual(session);
     expect(fetcher.mock.calls[1][1].body).toBe(firstProof);
-    vi.resetModules();
-    api = await import('../mailUpload');
     await expect(api.getMailUploadSession()).resolves.toEqual(session);
     expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(storageWrite).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it.each(['pending', 'exchanged'] as const)(
+    'requires reopening the invitation after a reload of %s access',
+    async (state) => {
+      invite();
+      if (state === 'exchanged') {
+        fetcher.mockResolvedValueOnce(reply(session));
+        await api.getMailUploadSession();
+      }
+      const requestsBeforeReload = fetcher.mock.calls.length;
+      vi.resetModules();
+      api = await import('../mailUpload');
+      await expect(api.getMailUploadSession()).rejects.toMatchObject({
+        status: 401,
+        detail: 'Open your invitation link to continue',
+      });
+      expect(fetcher).toHaveBeenCalledTimes(requestsBeforeReload);
+      invite();
+      fetcher.mockResolvedValueOnce(reply(session));
+      await expect(api.getMailUploadSession()).resolves.toEqual(session);
+    },
+  );
+
+  it('removes legacy tab credentials without reading or restoring them', async () => {
+    sessionStorage.setItem(
+      'alethical.mailUpload.session.v1',
+      JSON.stringify({
+        clientId: id,
+        clientSecret: 'a'.repeat(64),
+        session,
+      }),
+    );
+    const storageRead = vi.spyOn(Object.getPrototypeOf(window.sessionStorage), 'getItem');
+    vi.resetModules();
+    api = await import('../mailUpload');
+    await expect(api.getMailUploadSession()).rejects.toMatchObject({ status: 401 });
+    expect(storageRead).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('shares an in-flight exchange and never lets an old invitation overwrite a new one', async () => {
@@ -119,7 +157,7 @@ describe('private mail sessions', () => {
 
 describe('mail submission requests', () => {
   it('uses the same caller ID for create/recovery and sends raw image bytes', async () => {
-    const storageWrite = vi.spyOn(Storage.prototype, 'setItem');
+    const storageWrite = vi.spyOn(Object.getPrototypeOf(window.sessionStorage), 'setItem');
     fetcher.mockImplementation(() => Promise.resolve(reply(draft)));
     await api.createMailSubmission(session.token, id);
     await api.getMailSubmission(session.token, id);
