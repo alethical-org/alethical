@@ -212,10 +212,9 @@
      same cycle reason the piece before this one does, and a test asserts it equals piece
      5's real path.
 -->
+<!-- November 9, 2026: Personal names in the guide were replaced with role descriptions. -->
 
 # Money spent without a campaign’s say
-
-**November 9, 2026:** Personal names in the guide were replaced with role descriptions.
 
 *How the Money Works*
 

@@ -140,10 +140,9 @@
      shipped piece carries no section headed "Next" and never says "the next piece in
      this set", so a hand-off cannot be added without a sixth piece to point at.
 -->
+<!-- November 9, 2026: Personal names in the guide were replaced with role descriptions. -->
 
 # Why nobody can follow a dollar
-
-**November 9, 2026:** Personal names in the guide were replaced with role descriptions.
 
 *How the Money Works*
 
