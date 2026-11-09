@@ -59,8 +59,8 @@ admin_router = APIRouter(
 
 class Exchange(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    invitation_token: str = Field(
-        min_length=32, max_length=128, pattern=r"^[A-Za-z0-9_-]+$"
+    invitation_token: str | None = Field(
+        default=None, min_length=32, max_length=128, pattern=r"^[A-Za-z0-9_-]+$"
     )
     client_id: uuid.UUID
     client_secret: str = Field(pattern=r"^[0-9a-f]{64}$")

@@ -26,9 +26,7 @@ const emptyPhotos = (): Record<MailImageSide, PhotoState> => ({
 
 /** Private form state stays in memory; retries keep the original submission identity. */
 export function useMailUpload() {
-  const [access, setAccess] = useState<'loading' | 'ready' | 'missing' | 'expired' | 'failed'>(
-    'loading',
-  );
+  const [access, setAccess] = useState<'loading' | 'ready' | 'expired' | 'failed'>('loading');
   const [photos, setPhotos] = useState(emptyPhotos);
   const photoRef = useRef(photos);
   const [likes, setLikes] = useState<boolean | null>(null);
@@ -75,13 +73,7 @@ export function useMailUpload() {
       setAccess('ready');
     } catch (error) {
       if (mounted.current && generation.current === current)
-        setAccess(
-          error instanceof MailUploadError && error.status === 401
-            ? error.detail === 'Open your invitation link to continue'
-              ? 'missing'
-              : 'expired'
-            : 'failed',
-        );
+        setAccess(error instanceof MailUploadError && error.status === 401 ? 'expired' : 'failed');
     }
   };
   useEffect(() => {

@@ -16,6 +16,7 @@ from functools import lru_cache
 from PIL import Image, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -36,6 +37,10 @@ GLOBAL_ATTEMPT_LIMIT = 2000
 INVITATION_ATTEMPT_LIMIT = 400
 MAX_SUBMISSIONS_PER_SESSION = 25
 CONTENT_TYPES = ("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif")
+# Reuse the existing quota and revocation record for sessions from the plain URL.
+# This ID is reserved for the service and never sent to a browser.
+OPEN_POOL_ID = uuid.UUID("b37da61e-8ec5-4d42-bec3-8a24dc9b3159")
+OPEN_SESSION_LIMIT = 1000
 register_heif_opener(thumbnails=False)
 
 
@@ -131,28 +136,43 @@ def create_invitation(
 
 
 def exchange(
-    db: Session, invitation_token: str, client_id: uuid.UUID, client_secret: str
+    db: Session, invitation_token: str | None, client_id: uuid.UUID, client_secret: str
 ):
     enabled()
-    row = db.scalar(
-        select(Invitation)
-        .where(Invitation.token_digest == digest(invitation_token))
-        .with_for_update()
-    )
+    if invitation_token is None:
+        if db.get(Invitation, OPEN_POOL_ID) is None:
+            db.execute(
+                insert(Invitation)
+                .values(
+                    id=OPEN_POOL_ID,
+                    token_digest=secrets.token_hex(32),
+                    expires_at=datetime(9999, 1, 1, tzinfo=timezone.utc),
+                    max_sessions=OPEN_SESSION_LIMIT,
+                    max_bytes=536870912,
+                )
+                .on_conflict_do_nothing(index_elements=[Invitation.id])
+            )
+        scope = Invitation.id == OPEN_POOL_ID
+        # The browser secret alone is sufficient for this tab's retry. The
+        # domain label separates these tokens from the legacy invite exchange.
+        key = bytes.fromhex(client_secret)
+        message = f"mail-upload:open:{client_id}".encode()
+    else:
+        scope = Invitation.token_digest == digest(invitation_token)
+        key = invitation_token.encode()
+        message = f"{client_id}:{client_secret}".encode()
+    row = db.scalar(select(Invitation).where(scope).with_for_update())
     if row is None or row.revoked_at is not None or row.expires_at <= now():
-        raise fail(401, "This demo link is no longer available", "mail-upload-access")
+        raise fail(
+            401, "This demo session is no longer available", "mail-upload-access"
+        )
     session = db.scalar(
         select(UploadSession).where(
             UploadSession.invitation_id == row.id, UploadSession.client_id == client_id
         )
     )
     secret_digest = digest(client_secret)
-    # Reproducible only with BOTH invitation proof and the tab's private secret.
-    token = hmac.new(
-        invitation_token.encode(),
-        f"{client_id}:{client_secret}".encode(),
-        hashlib.sha256,
-    ).hexdigest()
+    token = hmac.new(key, message, hashlib.sha256).hexdigest()
     if session is not None:
         if (
             not hmac.compare_digest(session.client_secret_digest, secret_digest)
@@ -171,7 +191,9 @@ def exchange(
             or 0
         )
         if count >= row.max_sessions:
-            raise fail(429, "This demo link has reached its limit", "mail-upload-limit")
+            raise fail(
+                429, "This demo has reached its session limit", "mail-upload-limit"
+            )
         session = UploadSession(
             invitation_id=row.id,
             client_id=client_id,

@@ -90,6 +90,41 @@ def upload(client, path, headers, side="front", body=None):
     )
 
 
+def test_plain_url_sessions_are_private_retryable_and_bounded(
+    client, storage, monkeypatch
+):
+    monkeypatch.setattr(service, "OPEN_SESSION_LIMIT", 2)
+
+    def proof():
+        return {"client_id": str(uuid.uuid4()), "client_secret": secrets.token_hex(32)}
+
+    def exchange(body):
+        return client.post(BASE + "/sessions", json=body)
+
+    first = proof()
+    opened = exchange(first)
+    assert opened.status_code == 200, opened.text
+    assert opened.headers["cache-control"] == "private, no-store"
+    headers = {"Authorization": "Bearer " + opened.json()["data"]["token"]}
+    path = draft(client, headers)
+    assert upload(client, path, headers).status_code == 200
+
+    second = exchange(proof())
+    assert second.status_code == 200, second.text
+    other = {"Authorization": "Bearer " + second.json()["data"]["token"]}
+    assert client.get(path, headers=other).status_code == 404
+    assert upload(client, path, other, "back").status_code == 404
+    assert (
+        exchange({**first, "client_secret": secrets.token_hex(32)}).status_code == 401
+    )
+    assert exchange({**first, "invitation_token": "x" * 43}).status_code == 401
+    assert exchange(proof()).status_code == 429
+    assert exchange(first).json() == opened.json()
+    assert upload(client, path, headers, "back").status_code == 200
+    saved = client.post(path + "/submit", headers=headers, json={"likes_ad": True})
+    assert saved.status_code == 200 and saved.json()["data"]["status"] == "saved"
+
+
 def test_complete_retry_and_private_bytes(client, storage):
     headers, request, _ = session(client)
     again = client.post(BASE + "/sessions", json=request)

@@ -1,4 +1,4 @@
-/** Private invitation-based upload API. Never send these values to site telemetry. */
+/** Private upload sessions. Never send these values to site telemetry. */
 export const MAX_MAIL_IMAGE_BYTES = 15 * 1024 * 1024;
 export const MAIL_IMAGE_TYPES = [
   'image/jpeg',
@@ -74,7 +74,16 @@ function readRecord(): SessionRecord | null {
   return memoryRecord;
 }
 
-/** Consume the fragment once, before React starts. A new link replaces this tab's access. */
+function newRecord(invitation?: string): SessionRecord {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return {
+    invitation,
+    clientId: crypto.randomUUID(),
+    clientSecret: Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(''),
+  };
+}
+
+/** Consume old invitation links once. The plain URL starts its own session. */
 export function captureMailInvitation(): void {
   if (
     typeof window === 'undefined' ||
@@ -88,13 +97,7 @@ export function captureMailInvitation(): void {
   window.history.replaceState(window.history.state, '', window.location.pathname);
   if (invitation === null || invitation === undefined) return;
   clearMailUploadSession();
-  if (!invitation) return;
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  saveRecord({
-    invitation,
-    clientId: crypto.randomUUID(),
-    clientSecret: Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(''),
-  });
+  if (invitation) saveRecord(newRecord(invitation));
 }
 
 export function clearMailUploadSession(): void {
@@ -185,12 +188,11 @@ export async function getMailUploadSession(
   options: MailRequestOptions = {},
 ): Promise<MailUploadSession> {
   captureMailInvitation();
-  const record = readRecord();
-  if (!record) throw new MailUploadError(401, 'Open your invitation link to continue');
+  const record = (memoryRecord ??= newRecord());
   if (record.session) {
     if (Date.parse(record.session.expires_at) > Date.now()) return record.session;
     clearMailUploadSession();
-    throw new MailUploadError(401, 'This demo link is no longer available');
+    throw new MailUploadError(401, 'This demo session is no longer available');
   }
   if (exchange?.record === record) return exchange.promise;
   const promise = request<MailUploadSession>(

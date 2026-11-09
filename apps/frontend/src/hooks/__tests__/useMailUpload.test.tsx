@@ -403,11 +403,10 @@ it('ignores saved recovery from an earlier session', async () => {
   expect(hook.photos.front.receipt).toBeUndefined();
 });
 
-it.each([
-  ['Open your invitation link to continue', 'missing'],
-  ['This demo link is no longer available', 'expired'],
-])('distinguishes missing access from expired access: %s', async (detail, expected) => {
-  calls.session.mockRejectedValueOnce(new MailUploadError(401, detail));
+it('can start again after an expired session', async () => {
+  calls.session.mockRejectedValueOnce(new MailUploadError(401, 'Session expired'));
   await mount();
-  expect(hook.access).toBe(expected);
+  expect(hook.access).toBe('expired');
+  await act(async () => hook.checkAccess());
+  expect(hook.access).toBe('ready');
 });

@@ -189,9 +189,8 @@ related records or **Review TV ad records** in the account menu.
 [tv-ad-records-guide.md](tv-ad-records-guide.md) owns these private routes.
 
 The private `/mail-upload` demo keeps the shared header and footer but adds no menu
-entry. An invitation opens the upload flow without account sign-in; the header’s
-Sign in action remains optional. Invitation access is separate from an Alethical
-account. [Private political mail upload](../operations/political-mail-upload.md)
+entry. The plain URL opens the upload flow without an invitation or account sign-in. The
+header’s Sign in action remains optional. [Private political mail upload](../operations/political-mail-upload.md)
 owns its access, saved-photo and retry behavior.
 
 ## Look and feel

@@ -85,11 +85,10 @@ them to FastAPI. One Uvicorn process runs per container.
   ceiling is that number multiplied by how many are running. That is on purpose as a first
   step against runaway clients, and it is not a security boundary. A shared counter is the
   follow-up (`alethical/api/rate_limit.py`). The private mail demo adds this same
-  per-process throttle plus hard byte, attempt and invitation limits locked in
+  per-process throttle plus hard byte, attempt and session limits locked in
   Postgres across replicas; it admits one image decode/storage operation per process.
 
-The restricted mail demo uses revocable invitation sessions rather than account
-sign-in. Its five private tables keep credentials as digests, submission metadata,
+The mail demo starts a private session from the plain URL without account sign-in. Its five private tables keep credentials as digests, submission metadata,
 reaction, optional message and original-file references. Copies are accepted only
 after Supabase and R2 read-back hashes agree. No queue or analysis service is added;
 [the mail guide](../operations/political-mail-upload.md) owns activation and limits.

@@ -169,16 +169,16 @@ Health and readiness:
   readers ([issue 2046](https://github.com/alethical-org/alethical/issues/2046)).
   Never cached, and it needs neither the database nor a worker thread.
 
-## Restricted political mail demo
+## Political mail sample demo
 
-The invitation-only demo adds `/api/v1/mail-upload`; no account sign-in is required.
-Invitation proof creates an isolated tab session, and its bearer token is required
+The demo opens at `/mail-upload` without an invitation or account sign-in and uses
+`/api/v1/mail-upload` to create an isolated tab session. Its bearer token is required
 on every submission request. These are private routes with `private, no-store`,
 including failures. Administrator inspection uses the existing administrator check.
 
 | Method and path | Access and behavior |
 | --- | --- |
-| `POST /mail-upload/sessions` | Invitation plus tab secret; create or recover an isolated session |
+| `POST /mail-upload/sessions` | Tab ID and secret create or recover an isolated session; older invitation links can also supply their token |
 | `PUT /mail-upload/submissions/{id}` | Session; create or recover its draft |
 | `GET /mail-upload/submissions/{id}` | Session; read only its own saved or unfinished submission |
 | `PUT /mail-upload/submissions/{id}/images/{front\|back}` | Session; bounded raw image body, accepted after both private copies pass read-back checks |
