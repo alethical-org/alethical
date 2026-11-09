@@ -153,6 +153,7 @@ function Photo({
             type: 'button',
             disabled: locked || photo.busy,
             onClick: () => void upload(side, photo.file!),
+            id: `${side}-retry`,
             'aria-label': `Try ${side} photo again`,
           },
           'Try again',
@@ -191,7 +192,12 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
         : form.errors.likes
           ? 'mail-yes'
           : null;
-    if (first) document.getElementById(first)?.focus();
+    if (first) {
+      const retry = first.endsWith('-photo')
+        ? document.getElementById(first.replace('-photo', '-retry'))
+        : null;
+      (retry ?? document.getElementById(first))?.focus();
+    }
   }, [form.errors]);
   const content =
     form.access === 'loading'
