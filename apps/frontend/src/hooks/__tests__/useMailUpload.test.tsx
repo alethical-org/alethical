@@ -176,6 +176,56 @@ describe('mail photo confirmation', () => {
     });
     expect(calls.submit).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [422, 'We couldn’t open this photo'],
+    [413, 'Choose a photo smaller than 15 MB'],
+  ])('photo recovery: rejected %s replacement requires another file', async (status, message) => {
+    await mount();
+    await addBoth();
+    const accepted = hook.photos.front.confirmedFile;
+    const acceptedReceipt = hook.photos.front.receipt;
+    calls.upload.mockRejectedValueOnce(new MailUploadError(status as number, 'Rejected'));
+    await act(async () => {
+      await hook.upload('front', file('rejected.jpg'));
+    });
+    expect(hook.photos.front.file).toBeUndefined();
+    expect(hook.photos.front.confirmedFile).toBe(accepted);
+    expect(hook.photos.front.receipt).toBe(acceptedReceipt);
+    expect(hook.photos.front.error).toBe(message);
+    expect(hook.photos.front.busy).toBe(false);
+    await act(async () => {
+      await hook.submit();
+    });
+    expect(calls.submit).not.toHaveBeenCalled();
+    const replacement = file('valid.jpg');
+    await act(async () => {
+      await hook.upload('front', replacement);
+    });
+    expect(hook.photos.front.confirmedFile).toBe(replacement);
+    expect(hook.photos.front.error).toBeUndefined();
+    await act(async () => {
+      await hook.submit();
+    });
+    expect(hook.status).toBe('saved');
+  });
+
+  it('photo recovery: network failure keeps the same file for retry', async () => {
+    await mount();
+    const pending = file();
+    calls.upload.mockRejectedValueOnce(new MailUploadError(0, 'Network failed'));
+    await act(async () => {
+      await hook.upload('front', pending);
+    });
+    expect(hook.photos.front.file).toBe(pending);
+    expect(hook.photos.front.error).toBe('Upload failed');
+    await act(async () => {
+      await hook.upload('front', hook.photos.front.file!);
+    });
+    expect(hook.photos.front.confirmedFile).toBe(pending);
+    expect(hook.photos.front.file).toBeUndefined();
+    expect(hook.photos.front.error).toBeUndefined();
+  });
 });
 
 describe('retry-safe mail submission', () => {

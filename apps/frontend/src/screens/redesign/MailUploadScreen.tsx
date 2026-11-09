@@ -92,6 +92,8 @@ function Photo({
   const [previewFailed, setPreviewFailed] = useState(false);
   const file = photo.busy ? photo.file : (photo.confirmedFile ?? photo.file);
   const confirmed = !!photo.receipt && !photo.busy && !photo.error && !photo.file;
+  const photoAction =
+    photo.error && !photo.file ? 'Choose another' : file || photo.receipt ? 'Replace' : 'Add';
   const label = side === 'front' ? 'Front' : 'Back';
   useEffect(() => {
     setPreviewFailed(false);
@@ -166,10 +168,10 @@ function Photo({
         type: 'button',
         disabled: locked || photo.busy,
         onClick: () => input.current?.click(),
-        'aria-label': `${file || photo.receipt ? 'Replace' : 'Add'} ${side} photo`,
+        'aria-label': `${photoAction} ${side} photo`,
         'aria-describedby': photo.error ? `${side}-error` : error ? `${side}-required` : undefined,
       },
-      file || photo.receipt ? 'Replace photo' : 'Add photo',
+      `${photoAction} photo`,
     ),
     error && !photo.error ? h('p', { className: 'error', id: `${side}-required` }, error) : null,
   );

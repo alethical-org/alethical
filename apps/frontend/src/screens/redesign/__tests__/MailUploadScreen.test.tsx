@@ -99,6 +99,27 @@ it('retries the retained failed replacement without reopening the picker', async
   expect(button('Replace photo')).toBeTruthy();
 });
 
+it.each(['We couldn’t open this photo', 'Choose a photo smaller than 15 MB'])(
+  'photo recovery: %s offers a focused chooser, never retries rejected bytes',
+  async (error) => {
+    form.photos.front = { busy: false, receipt, confirmedFile: photo, error };
+    form.errors = { front: 'Add a front photo' };
+    await render();
+    expect(button('Try again')).toBeUndefined();
+    const chooser = button('Choose another photo');
+    expect(chooser).toBeTruthy();
+    expect(chooser.getAttribute('aria-label')).toBe('Choose another front photo');
+    expect(document.activeElement).toBe(chooser);
+    expect(container.querySelector('.image.confirmed')).toBeNull();
+    expect(container.querySelector('.photo-failure')).toBeNull();
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const openPicker = vi.spyOn(input, 'click');
+    await act(async () => chooser.click());
+    expect(openPicker).toHaveBeenCalledTimes(1);
+    expect(form.upload).not.toHaveBeenCalled();
+  },
+);
+
 it('locks edits during an uncertain save while leaving its safe retry available', async () => {
   form.status = 'retry';
   form.failure = 'We couldn’t confirm your upload';
