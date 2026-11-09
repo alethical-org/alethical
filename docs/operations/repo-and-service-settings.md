@@ -207,6 +207,11 @@ build or deployment change.
 
 The live check reads names only with Railway's `decryptVariables: false` option.
 
+The mail demo is staged off while its dedicated R2 bucket and credentials are
+pending. Its rows below are activation targets, not evidence of completed setup.
+[Political mail activation](political-mail-upload.md#before-enabling) owns the
+private-store checks, synthetic save and real-recipient collection hold.
+
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
 | `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` | Present; intended accepted-production value `true` | Answers suggestions from the shared public address copy after [deployment.md § Address suggestion copy activation](deployment.md#address-suggestion-copy-activation) passes; missing, expired or unusable copies use Minnesota's live service. | Live: presence only; value and activation gates are checked during release |
@@ -214,6 +219,13 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `ALETHICAL_ADMIN_ACCOUNT_IDS` | Present | Binds private account visibility to explicitly approved Supabase identities; current confirmed email and active status are also required. An approved email needs an existing confirmed account and a listed identifier before access activates. | Live |
 | `ALETHICAL_COMMENT_EMAIL_ENABLED` | Present | Enables durable reader and administrator comment alerts after the release privacy checks; local and test environments keep it false. | Live |
 | `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` | Present; intended accepted-production value `true` | Staged absent/off until the profile-claim release checks pass, then enables saved request and decision notifications through the existing Resend service; local and test environments keep it false. | Live: presence only; value and activation gates are checked during release |
+| `ALETHICAL_MAIL_UPLOAD_ENABLED` | Present; `true` only after private storage checks, with synthetic uploads first | Opens the invitation demo; absence or `false` rejects access. Real recipient mail remains held for retention and disclosure decisions. | Live: presence only; value and activation gates are checked during release |
+| `MAIL_UPLOAD_SUPABASE_BUCKET` | Present | Names the dedicated private original-photo bucket, separate from the source archive. | Live: presence only; bucket privacy is checked during release |
+| `MAIL_UPLOAD_R2_BUCKET` | Present | Names the dedicated private backup bucket, separate from the source-archive mirror. | Live: presence only; public routes must be off at release |
+| `MAIL_UPLOAD_R2_ENDPOINT` | Present | Reaches that private backup store. | Live: presence only |
+| `MAIL_UPLOAD_R2_ACCESS_KEY_ID` | Present | Identifies server-side access scoped to the mail backup bucket. | Live: presence only; key scope is checked during release |
+| `MAIL_UPLOAD_R2_SECRET_ACCESS_KEY` | Present | Authenticates private backup writes and read-back checks; never exposed to the browser. | Live: presence only |
+| `ALETHICAL_MAIL_UPLOAD_RATE_PER_MIN` | Absent | Uses the built-in 60-request/minute throttle; shared database quotas remain separate hard limits. | Live |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
 | `ALETHICAL_SOURCE_REFRESH_APP_ID` | Present | Identifies the dedicated `alethical-record-updater` GitHub App, limited to Actions write and metadata read on this repository, that queues due public-record work ([source-refresh-dispatch.md](source-refresh-dispatch.md)). | Live: presence only |
 | `ALETHICAL_SOURCE_REFRESH_INSTALLATION_ID` | Present | Names that App's single-repository installation. | Live: presence only |
@@ -240,10 +252,10 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `SUPABASE_PUBLISHABLE_KEY` | Present | Lets the API make public Supabase requests. | Live |
 | `SUPABASE_PROJECT_REF` | Present | Names the Supabase database user for production maintenance commands. | Live |
 | `SUPABASE_PROJECT_URL` | Present | Targets the production Supabase project for maintenance commands. | Live |
-| `SUPABASE_STORAGE_S3_ACCESS_KEY_ID` | Present | Identifies production source-file storage requests. | Live: presence only |
-| `SUPABASE_STORAGE_S3_ENDPOINT` | Present | Reaches the primary source-file store used by production collection commands. | Live: presence only |
-| `SUPABASE_STORAGE_S3_REGION` | Present | Names the primary source-file store region for production collection commands. | Live: presence only |
-| `SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY` | Present | Authenticates production source-file storage requests. | Live: presence only |
+| `SUPABASE_STORAGE_S3_ACCESS_KEY_ID` | Present | Identifies production source-file and private mail-photo storage requests. | Live: presence only |
+| `SUPABASE_STORAGE_S3_ENDPOINT` | Present | Reaches the primary object store used by source collection and private mail uploads. | Live: presence only |
+| `SUPABASE_STORAGE_S3_REGION` | Present | Names the primary object-store region for source collection and private mail uploads. | Live: presence only |
+| `SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY` | Present | Authenticates source-file and private mail-photo storage requests. | Live: presence only |
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
 | `TRAFFIC_EXCLUDED_ACCOUNT_IDS` | Present | Discards confirmed team actions and removes confirmed team readers and watches from public totals. | Live |
 | `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |

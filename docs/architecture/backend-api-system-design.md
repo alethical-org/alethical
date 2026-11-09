@@ -169,6 +169,28 @@ Health and readiness:
   readers ([issue 2046](https://github.com/alethical-org/alethical/issues/2046)).
   Never cached, and it needs neither the database nor a worker thread.
 
+## Restricted political mail demo
+
+The invitation-only demo adds `/api/v1/mail-upload`; no account sign-in is required.
+Invitation proof creates an isolated tab session, and its bearer token is required
+on every submission request. These are private routes with `private, no-store`,
+including failures. Administrator inspection uses the existing administrator check.
+
+| Method and path | Access and behavior |
+| --- | --- |
+| `POST /mail-upload/sessions` | Invitation plus tab secret; create or recover an isolated session |
+| `PUT /mail-upload/submissions/{id}` | Session; create or recover its draft |
+| `GET /mail-upload/submissions/{id}` | Session; read only its own saved or unfinished submission |
+| `PUT /mail-upload/submissions/{id}/images/{front\|back}` | Session; bounded raw image body, accepted after both private copies pass read-back checks |
+| `POST /mail-upload/submissions/{id}/submit` | Session; save both photos, required reaction and optional message; identical retries reuse the result |
+| `GET /admin/mail-upload/submissions` | Administrator; latest 100 records |
+| `GET /admin/mail-upload/submissions/{id}/images/{front\|back}` | Administrator; private original attachment with a hash check |
+
+All paths above follow `/api/v1`. The [political mail operations guide](../operations/political-mail-upload.md)
+owns request fields, byte and attempt limits, retry behavior, private storage and
+activation. This build collects uploads and feedback; extraction and record matching
+wait for sample mail. Real recipient collection waits for the retention decision.
+
 ## Editorial comments
 
 The routes below live under `/api/v1`. Only article identifiers in the generated
@@ -224,7 +246,7 @@ Why this split:
 
 ### Media Type
 
-- JSON only
+- JSON for structured requests and responses; the restricted mail image routes accept raw image bytes and return private original attachments to authorized administrators
 
 ### Casing
 

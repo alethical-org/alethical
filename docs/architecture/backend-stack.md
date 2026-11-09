@@ -3,7 +3,7 @@
 <!-- describes: pyproject.toml, Dockerfile.backend, docker-compose.yml, railway.json, oban.toml, alethical/api/main.py, alethical/api/finance_access.py, alethical/api/routers/finance.py, alethical/api/services/finance_access.py, alethical/db/session.py, alethical/api/rate_limit.py, railpack.json, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
 
 **Net:** The backend is one Python web service that answers requests, one Postgres database
-that stores everything, and a set of jobs that pull the Minnesota legislative record in.
+that stores structured records, private object stores for files, and a set of jobs that pull the Minnesota legislative record in.
 The web service is FastAPI on Uvicorn, hosted on Railway. The database is Postgres with the
 `pgvector` add-on, hosted by Supabase in production and in a container locally. Supabase also
 handles sign-in. Routine source jobs run on GitHub with saved deadlines and ownership in Postgres.
@@ -28,6 +28,7 @@ first and follow the link for the part you need.
 | Changing database structure safely | Alembic | `alethical/alembic/versions/` |
 | Storing data | Postgres 17 with the `pgvector` add-on | `docker-compose.yml` (local), Supabase (production) |
 | Keeping the exact files we downloaded | Supabase Storage, reached over the S3 protocol (`boto3`) | `alethical/pipeline/raw_file_store.py` |
+| Accepting private political mail | Pillow and `pillow-heif` validate originals; dedicated private Supabase/R2 buckets hold matching bytes | `alethical/api/services/mail_upload.py`; [political mail guide](../operations/political-mail-upload.md) |
 | Reading a committee's filed money report | `pypdf`, pure Python with no system libraries behind it | `alethical/pipeline/campaign_finance_report_documents.py` |
 | Preparing permanently redacted TV pages | Poppler (`pdftoppm`), Pillow and bundled Libre Franklin; PNG pages and an image-only PDF go to private source-file storage | `alethical/pipeline/tv_ad_redaction.py`, `railpack.json`, `Dockerfile.backend` |
 | Preparing the manual ZIP-to-state reference | `openpyxl` reads the official HUD workbook; web requests use the prepared JSON | `scripts/build_zip_state_reference.py`, `alethical/api/services/zip_state_reference.py` |
@@ -83,7 +84,15 @@ them to FastAPI. One Uvicorn process runs per container.
   is kept in the memory of a single process**, so with several processes or replicas the real
   ceiling is that number multiplied by how many are running. That is on purpose as a first
   step against runaway clients, and it is not a security boundary. A shared counter is the
-  follow-up (`alethical/api/rate_limit.py`).
+  follow-up (`alethical/api/rate_limit.py`). The private mail demo adds this same
+  per-process throttle plus hard byte, attempt and invitation limits locked in
+  Postgres across replicas; it admits one image decode/storage operation per process.
+
+The restricted mail demo uses revocable invitation sessions rather than account
+sign-in. Its five private tables keep credentials as digests, submission metadata,
+reaction, optional message and original-file references. Copies are accepted only
+after Supabase and R2 read-back hashes agree. No queue or analysis service is added;
+[the mail guide](../operations/political-mail-upload.md) owns activation and limits.
 
 ## 3. The database
 
