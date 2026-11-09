@@ -23,7 +23,7 @@ const css = `
 .mail-upload .choices label>span{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:10px 12px;border:1px solid rgba(17,21,15,.18);border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;background:white}
 .mail-upload .choice-mark{flex:none}
 .mail-upload .choices input:checked+span{padding-right:26px;background:#11332a;color:white;border-color:#11332a}.mail-upload .choices input:not(:disabled)+span:hover{box-shadow:inset 0 0 0 1px #658370}.mail-upload .choices input:disabled+span{cursor:default}
-.mail-upload .label-row{display:block}.mail-upload .optional{display:block;margin-top:4px;font-size:15px;color:#656c66}.mail-upload .helper{margin:6px 0 10px;font-size:15px;line-height:1.5;color:#4f5651}
+.mail-upload .label-row{display:block}.mail-upload .optional{display:block;margin-top:2px;font-size:15px;color:#656c66}.mail-upload .helper{margin:8px 0 10px;font-size:15px;line-height:1.5;color:#4f5651}
 .mail-upload textarea{display:block;width:100%;min-height:104px;resize:vertical;border:1px solid rgba(17,21,15,.18);border-radius:12px;padding:14px 16px;font:17px/1.5 'Libre Franklin',sans-serif;color:#11150f;background:white}
 .mail-upload textarea:focus{outline:0;border-color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,.22)}.mail-upload textarea:disabled{opacity:.8}
 .mail-upload .submit-area{margin-top:28px}.mail-upload button.primary{width:240px;background:#2ed47e;border-color:transparent;min-height:52px}.mail-upload button.primary:hover:not(:disabled){background:#20bd6e}.mail-upload button.primary:active:not(:disabled){background:#1aab61}
