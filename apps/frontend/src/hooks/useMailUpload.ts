@@ -139,12 +139,17 @@ export function useMailUpload() {
     } catch (error) {
       if (!active()) return;
       if (error instanceof MailUploadError && error.status === 401) setAccess('expired');
+      const rejectedPhoto =
+        error instanceof MailUploadError && (error.status === 422 || error.status === 413);
       updatePhoto(side, {
         busy: false,
-        error:
-          error instanceof MailUploadError && error.status === 422
-            ? 'We couldn’t open this photo'
-            : 'Upload failed',
+        // Rejected bytes need a new selection; transport failures can retry the same file.
+        file: rejectedPhoto ? undefined : file,
+        error: rejectedPhoto
+          ? error.status === 413
+            ? 'Choose a photo smaller than 15 MB'
+            : 'We couldn’t open this photo'
+          : 'Upload failed',
       });
     }
   };
