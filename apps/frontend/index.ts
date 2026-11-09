@@ -1,6 +1,7 @@
 import { registerRootComponent } from 'expo';
 
 import App from './App';
+import { captureMailInvitation } from './src/data/mailUpload';
 import { preloadScreenForPath } from './src/navigation/screenPreload';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
@@ -15,6 +16,10 @@ import { preloadScreenForPath } from './src/navigation/screenPreload';
 // where there is no server-written text and no separate download.
 // Direct-entry video events retain their article outside that mount point;
 // EventScreen adds navigation and comments without replacing the playing frame.
+// The production HTML also captures before any resource or application code.
+// This call covers local development and consumes that one-use in-memory value.
+captureMailInvitation();
+
 if (typeof document === 'undefined') {
   registerRootComponent(App);
 } else {

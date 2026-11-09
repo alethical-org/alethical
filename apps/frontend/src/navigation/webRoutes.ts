@@ -95,6 +95,7 @@ type WebRouteTarget =
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
   | { kind: 'services' }
+  | { kind: 'mailUpload' }
   | { kind: 'contactUs'; article?: string; purpose?: ContactPurpose }
   | { kind: 'confirmEmail' }
   | { kind: 'resetPassword' }
@@ -464,6 +465,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return { kind: 'tab', screen: 'Home' };
     }
   }
+
+  if (segments.length === 1 && segments[0] === 'mail-upload') return { kind: 'mailUpload' };
 
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
     const article = searchParams.get('article') || undefined;
@@ -1169,6 +1172,8 @@ export function pathForRoute(activeRoute: {
       return '/about';
     case 'Services':
       return '/services';
+    case 'MailUpload':
+      return '/mail-upload';
     case 'ContactUs': {
       const article = activeRoute.params?.article;
       const query: string[] = [];
@@ -1413,6 +1418,8 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       return pageState({ name: 'AboutUs' });
     case 'services':
       return pageState({ name: 'Services' });
+    case 'mailUpload':
+      return pageState({ name: 'MailUpload' });
     case 'contactUs':
       return pageState(
         target.article || target.purpose

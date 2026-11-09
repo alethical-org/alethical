@@ -50,6 +50,7 @@ async function render() {
 
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  history.replaceState(null, '', '/');
   state.auth = { accessToken: null, isLoading: false, isSignedIn: false, user: null };
   state.beforeSend = null;
   state.injected = false;
@@ -265,4 +266,11 @@ describe('event-time traffic permission', () => {
     await render();
     expect(state.beforeSend?.(event)).toEqual({ url: 'https://www.alethical.com/bills' });
   });
+});
+
+it('does not load outside analytics for a direct mail demo visit', async () => {
+  history.replaceState(null, '', '/mail-upload#invite=private');
+  await render();
+  expect(state.injected).toBe(false);
+  expect(state.views).toEqual([]);
 });

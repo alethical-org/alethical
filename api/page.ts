@@ -5,15 +5,14 @@ import {
 } from "../apps/frontend/src/lib/billRecordReads";
 import { billHistorySnapshot } from "../apps/frontend/src/lib/billHistorySnapshot";
 import type { ApiBillDetailPayload } from "../apps/frontend/src/data/api";
-import { renderEventArticle, publishedEventMetadata } from "../apps/frontend/src/lib/eventArticle";
+import {
+  renderEventArticle,
+  publishedEventMetadata,
+} from "../apps/frontend/src/lib/eventArticle";
 import { eventBySlug, eventPath } from "../apps/frontend/src/lib/events";
 import { eventReplayBySlug } from "../apps/frontend/src/lib/eventReplayContent";
-import {
-  eventsPageMetadata,
-} from "../apps/frontend/src/lib/eventMetadata";
-import {
-  renderEventsCollection,
-} from "../apps/frontend/src/lib/eventMarkup";
+import { eventsPageMetadata } from "../apps/frontend/src/lib/eventMetadata";
+import { renderEventsCollection } from "../apps/frontend/src/lib/eventMarkup";
 import { legalPageSnapshot } from "../apps/frontend/src/lib/legalPageSnapshot";
 import {
   candidateLookupPageSnapshot,
@@ -1104,7 +1103,11 @@ type MoneySummaryPayload = {
   register?: { state?: string | null; filer_count?: number | null } | null;
   freshness?: {
     downloads_fetched_at?: string | null;
-    payment_copied_at?: { contributions?: string | null; expenditures?: string | null; independent_expenditures?: string | null } | null;
+    payment_copied_at?: {
+      contributions?: string | null;
+      expenditures?: string | null;
+      independent_expenditures?: string | null;
+    } | null;
     register_fetched_at?: string | null;
   } | null;
 };
@@ -1225,9 +1228,13 @@ async function moneyLandingContent(): Promise<PageContent> {
             : null,
         filesLastCopiedAt: summary?.freshness?.downloads_fetched_at ?? null,
         paymentCopiedAt: {
-          contributions: summary?.freshness?.payment_copied_at?.contributions ?? null,
-          expenditures: summary?.freshness?.payment_copied_at?.expenditures ?? null,
-          independentExpenditures: summary?.freshness?.payment_copied_at?.independent_expenditures ?? null,
+          contributions:
+            summary?.freshness?.payment_copied_at?.contributions ?? null,
+          expenditures:
+            summary?.freshness?.payment_copied_at?.expenditures ?? null,
+          independentExpenditures:
+            summary?.freshness?.payment_copied_at?.independent_expenditures ??
+            null,
         },
         registerLastCopiedAt: summary?.freshness?.register_fetched_at ?? null,
         lobbyingFilesLastCopiedAt:
@@ -2051,7 +2058,13 @@ async function contentFor(
       const now = Date.now();
       return {
         metadata: publishedEventMetadata(event, now),
-        snapshot: renderEventPageSnapshot(renderEventArticle(event, now, { origin: "https://www.alethical.com", search: pathWithQuery(query).split("?")[1] ?? "" }), eventReplayBySlug(event.slug)?.video ? eventPath(event) : undefined),
+        snapshot: renderEventPageSnapshot(
+          renderEventArticle(event, now, {
+            origin: "https://www.alethical.com",
+            search: pathWithQuery(query).split("?")[1] ?? "",
+          }),
+          eventReplayBySlug(event.slug)?.video ? eventPath(event) : undefined,
+        ),
       };
     }
     case "readResearch":
@@ -2192,6 +2205,8 @@ async function contentFor(
         metadata: STATIC_PAGE_METADATA["/services"],
         snapshot: renderPageSnapshot(servicesPageSnapshot()),
       };
+    case "mailUpload":
+      return headOnly(STATIC_PAGE_METADATA["/mail-upload"]);
     case "contactUs":
       return {
         metadata: STATIC_PAGE_METADATA["/about/contact"],
@@ -2370,6 +2385,7 @@ export default async function handler(
   const isEmailLinkPage =
     requestedPath === "/confirm" || requestedPath === "/reset";
   const isForgotPasswordBridge = requestedPath === "/forgot-password";
+  const isMailUploadPage = pageFamily === "mailUpload";
   const isPrivateEmailPage =
     requestedPath === "/email-preferences" ||
     requestedPath === "/unsubscribe" ||
@@ -2403,7 +2419,7 @@ export default async function handler(
       // A brief outage must never tell a search engine our pages are gone.
       response.setHeader("Content-Type", "text/plain; charset=utf-8");
       response.setHeader("Cache-Control", "no-store");
-      if (isPrivateEmailPage)
+      if (isPrivateEmailPage || isMailUploadPage)
         response.setHeader("Referrer-Policy", "no-referrer");
       response.setHeader("Retry-After", "120");
       response.status(503).send("This page is temporarily unavailable.");
@@ -2424,13 +2440,18 @@ export default async function handler(
   let html: string;
   try {
     html = injectPageHead(await pageShell(), content.metadata);
-    if (isAdminPage || isPrivateEmailPage) {
+    if (isAdminPage || isPrivateEmailPage || isMailUploadPage) {
       html = html.replace(
         /<script\b[^>]*src=["']https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js["'][^>]*>[\s\S]*?<\/script>/gi,
         "",
       );
     }
-    if (isEmailLinkPage) {
+    if (isMailUploadPage) {
+      html = html.replace(
+        "<head>",
+        '<head><meta name="referrer" content="no-referrer" /><script src="/mail-upload-bootstrap.js"></script>',
+      );
+    } else if (isEmailLinkPage) {
       html = protectedEmailLinkShell(html);
     } else if (isForgotPasswordBridge) {
       html = forgotPasswordBridgeShell(html);
@@ -2439,7 +2460,7 @@ export default async function handler(
     reportPageFailure("shell", pageFamily, error, started);
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
-    if (isPrivateEmailPage)
+    if (isPrivateEmailPage || isMailUploadPage)
       response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("Retry-After", "120");
     response.status(503).send("This page is temporarily unavailable.");
@@ -2474,11 +2495,14 @@ export default async function handler(
     isEmailLinkPage ||
     isForgotPasswordBridge ||
     isAdminPage ||
-    isPrivateEmailPage
+    isPrivateEmailPage ||
+    isMailUploadPage
   ) {
     response.setHeader(
       "Cache-Control",
-      isAdminPage || isPrivateEmailPage ? "private, no-store" : "no-store",
+      isAdminPage || isPrivateEmailPage || isMailUploadPage
+        ? "private, no-store"
+        : "no-store",
     );
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("X-Robots-Tag", "noindex, nofollow");
@@ -2487,7 +2511,13 @@ export default async function handler(
   }
   response.setHeader(
     "Cache-Control",
-    isAdminPage ? "private, no-store" : content.noStore ? "no-store" : status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
+    isAdminPage
+      ? "private, no-store"
+      : content.noStore
+        ? "no-store"
+        : status === 404
+          ? NOT_FOUND_CACHE
+          : OK_CACHE,
   );
   if (!content.noStore)
     response.setHeader("Vercel-Cache-Tag", PUBLIC_RECORDS_CACHE_TAG);

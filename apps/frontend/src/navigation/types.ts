@@ -190,6 +190,7 @@ export type RootStackParamList = {
   Terms: undefined;
   AboutUs: undefined;
   Services: undefined;
+  MailUpload: undefined;
   ContactUs: { article?: string; purpose?: ContactPurpose } | undefined;
   ConfirmEmail: undefined;
   ResetPassword: undefined;

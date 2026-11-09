@@ -10,7 +10,8 @@ export function isPrivateMetricUrl(value: string): boolean {
       /^\/candidates\/[a-f0-9]{64}\/(?:claim|manage)$/.test(path) ||
       path === '/email-preferences' ||
       path === '/unsubscribe' ||
-      path === '/comment-emails'
+      path === '/comment-emails' ||
+      path.replace(/\/$/, '') === '/mail-upload'
     );
   } catch {
     // A malformed URL cannot be safely classified for collection.
