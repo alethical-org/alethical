@@ -54,6 +54,10 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
   // would be writing prose the author did not write.
   dek: '',
   authorLine: 'ALETHICAL',
+  correction: {
+    datedLabel: 'CORRECTED NOV 9 2026',
+    note: 'Personal names in the guide were replaced with role descriptions.',
+  },
   filingBodies: ['Minnesota Campaign Finance Board'],
   // A guide states rules rather than findings, so there is nothing to summarise
   // above it and no SHORT VERSION box is drawn.
@@ -196,7 +200,7 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
               { kind: 'bold', text: 'For' },
               {
                 kind: 'text',
-                text: ', about Dippel, Tom Senate Committee, for “Advertising - general: Ad Placement”, paid to Arena LLC of Salt Lake City.',
+                text: ', about a state Senate campaign, for “Advertising - general: Ad Placement”, paid to Arena LLC of Salt Lake City.',
               },
             ],
             [
@@ -204,7 +208,7 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
               { kind: 'bold', text: 'Against' },
               {
                 kind: 'text',
-                text: ', about Janigo, Kristy Senate Committee, same wording, same company.',
+                text: ', about a different state Senate campaign, same wording, same company.',
               },
             ],
           ],

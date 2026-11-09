@@ -44,6 +44,10 @@ export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR: ResearchPiece = {
   // would be writing prose the author did not write.
   dek: '',
   authorLine: 'ALETHICAL',
+  correction: {
+    datedLabel: 'CORRECTED NOV 9 2026',
+    note: 'Personal names in the guide were replaced with role descriptions.',
+  },
   filingBodies: ['Minnesota Campaign Finance Board'],
   // A guide states rules rather than findings, so there is nothing to summarise
   // above it and no SHORT VERSION box is drawn.
@@ -112,7 +116,7 @@ export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR: ResearchPiece = {
             [
               {
                 kind: 'text',
-                text: '30 October 2024. The DFL House Caucus gave $3,000.00 to Wolgamott, Dan House Committee.',
+                text: '30 October 2024. The DFL House Caucus gave $3,000.00 to a state House campaign committee.',
               },
             ],
           ],
