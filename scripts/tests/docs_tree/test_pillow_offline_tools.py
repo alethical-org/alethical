@@ -34,7 +34,12 @@ def boundary(tmp_path):
     ):
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((ROOT / relative).read_bytes())
+        source = (
+            ROOT / "scripts/tests/fixtures/pillow-reviewed" / relative
+            if relative in {"uv.lock", "pyproject.toml"}
+            else ROOT / relative
+        )
+        target.write_bytes(source.read_bytes())
     subprocess.run(
         ["git", "init", "--quiet", str(tmp_path)], check=True, capture_output=True
     )

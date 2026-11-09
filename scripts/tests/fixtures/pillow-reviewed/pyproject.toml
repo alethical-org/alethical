@@ -1,0 +1,3 @@
+# Historical dependency boundary, not current application dependencies.
+[project]
+dependencies = ["pillow>=13.0.0"]
