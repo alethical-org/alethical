@@ -352,3 +352,12 @@ it('ignores saved recovery from an earlier session', async () => {
   expect(hook.status).toBe('editing');
   expect(hook.photos.front.receipt).toBeUndefined();
 });
+
+it.each([
+  ['Open your invitation link to continue', 'missing'],
+  ['This demo link is no longer available', 'expired'],
+])('distinguishes missing access from expired access: %s', async (detail, expected) => {
+  calls.session.mockRejectedValueOnce(new MailUploadError(401, detail));
+  await mount();
+  expect(hook.access).toBe(expected);
+});

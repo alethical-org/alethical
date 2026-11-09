@@ -135,3 +135,11 @@ it('focuses the first missing item after a validation failure', async () => {
   await render();
   expect(document.activeElement).toBe(container.querySelector('#back-photo'));
 });
+
+it('gives reload visitors a recovery step without an upload form', async () => {
+  form.access = 'missing';
+  await render();
+  expect(container.querySelector('h1')?.textContent).toBe('Open your invitation link to continue');
+  expect(container.querySelector('form')).toBeNull();
+  expect(container.querySelector('.intro')).toBeNull();
+});

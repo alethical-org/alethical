@@ -202,7 +202,7 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
   const content =
     form.access === 'loading'
       ? h('p', { role: 'status' }, 'Loading…')
-      : form.access === 'expired'
+      : form.access === 'expired' || form.access === 'missing'
         ? null
         : form.access === 'failed'
           ? h(
@@ -370,9 +370,11 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
             null,
             form.access === 'expired'
               ? 'This demo link is no longer available'
-              : 'Upload political mail',
+              : form.access === 'missing'
+                ? 'Open your invitation link to continue'
+                : 'Upload political mail',
           ),
-          form.access !== 'expired'
+          form.access !== 'expired' && form.access !== 'missing'
             ? h(
                 'p',
                 { className: 'intro' },
