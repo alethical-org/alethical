@@ -2392,3 +2392,20 @@ candidate or money page keeps its public first response; its administrator-only
 TV group loads separately after permission succeeds. The private guide reuses the
 article presentation without adding Share or reader comments. See
 [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md).
+
+
+## Private political mail demo
+
+`/mail-upload` has the title **Upload political mail | Alethical** and the description
+**Private political mail demo**, with `noindex, nofollow`, `Cache-Control: private,
+no-store` and `Referrer-Policy: no-referrer`. The initial response contains page
+metadata and the application shell, with no mail photos, messages, private records
+or public page snapshot. The address is absent from sitemaps and has no Share action.
+
+The invitation arrives in `#invite=...`. A same-origin script runs before the app,
+captures it in memory and removes the query and fragment from browser history;
+the app consumes that value for the private session exchange. No invitation value
+enters server-rendered metadata. The response omits the Cloudflare beacon, and the
+loaded route is excluded from site metrics. These choices do not change public
+record or article indexing. [Private political mail upload](../operations/political-mail-upload.md)
+owns the demo scope, session access and storage requirements.
