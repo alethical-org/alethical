@@ -86,6 +86,36 @@ pages carrying invoice links; those lists still reject any change to their read 
 
 ### People records
 
+#### Member vote history
+
+The profile vote list reads existing legislative records through
+`GET /api/v1/legislators/{legislator_id}/votes?history=true`. It accepts a held legislator's
+slug or UUID, never a spelling group or an unconfirmed person match. A person profile
+can use it only through its confirmed legislative link. This is a read service for
+the approved profile expansion; its screen still needs design review and approval.
+
+Unlike the public member's current-session preview, this research list covers all held
+sessions by default, with an optional exact `session` slug. `limit` (1–100, default 20)
+and `offset` page the same newest-first order; undated votes come last and record IDs
+break date ties. Each row carries the recorded vote value, exact motion and result,
+date, source URL, bill key and number, chamber, and session name and slug. Missing
+source text or dates stay null. A vote on a motion never establishes support for the
+bill as a whole. The total counts held vote records, not complete lifetime coverage.
+
+The response retains the public collection shape: `data` is the row list and `page`
+contains `limit`, `offset`, `total`, `has_more` and `version`. Its source token covers
+the selected member, session scope and all returned fields across that history;
+edits, additions or removals invalidate subsequent pages with 409 `records-changed`.
+It reads a lightweight projection in one pinned database view, with no full bill
+text or relationship trees. `finance_versions.pin` also accepts an already-open
+stable view and refuses a transaction whose reads could see different source states.
+History responses use `no-store` so a cached page cannot skip the version check.
+The route serves public legislative records; Finance access still governs the Finance
+profile and its confirmed identity links. There are no writes, imports, new identity
+links or changes to the public site's default vote-preview response.
+
+#### Directory and confirmed links
+
 Candidate and legislator rows include `person_links: [{id, name}]` for validated
 public-person links, or an empty array. Matching spelling and a bare legislator foreign
 key are never link evidence. A candidate may have several individually reviewed person

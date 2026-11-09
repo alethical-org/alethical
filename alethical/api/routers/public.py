@@ -22,6 +22,8 @@ from alethical.api.schemas import (
     DetailResponse,
     MetaPayload,
     RepresentativeLookupRequest,
+    VoteHistoryPage,
+    VoteHistoryResponse,
 )
 from alethical.api.serializers import (
     ai_analysis_payload_for_enrichment,
@@ -37,6 +39,7 @@ from alethical.api.serializers import (
     sponsor_payloads,
     tracking_payload,
 )
+from alethical.api.services import finance_versions, legislator_votes as vote_history
 from alethical.api.services.legislative_freshness import legislative_copy_date
 from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
@@ -3179,13 +3182,40 @@ def legislator_bills(
     )
 
 
-@router.get("/legislators/{legislator_id}/votes", response_model=CollectionResponse)
+@router.get(
+    "/legislators/{legislator_id}/votes",
+    response_model=VoteHistoryResponse | CollectionResponse,
+)
 def legislator_votes(
     legislator_id: str,
+    response: Response,
     session: str | None = None,
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, ge=1, le=100),
+    history: bool = False,
+    offset: int = Query(default=0, ge=0, le=2147483647),
+    version: str | None = Query(default=None, pattern=r"^[0-9a-f]{16}$"),
     db: Session = Depends(get_db),
 ):
+    if history:
+        # A cached page must not bypass the check that its source state still exists.
+        response.headers["Cache-Control"] = "no-store"
+        finance_versions.pin(db)
+        data = vote_history.history(
+            db,
+            get_legislator_by_id(db, legislator_id),
+            session=session,
+            limit=limit,
+            offset=offset,
+            version=version,
+        )
+        return VoteHistoryResponse(
+            data=data["rows"],
+            page=VoteHistoryPage(
+                **data["page"], total=data["total"], version=data["version"]
+            ),
+        )
+    if offset or version is not None:
+        raise HTTPException(422, "Paging requires history=true")
     session_row = get_session_by_slug(db, session)
     legislator = get_legislator_by_id(db, legislator_id)
     rows = db.scalars(

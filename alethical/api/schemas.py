@@ -28,6 +28,14 @@ class CollectionResponse(BaseModel):
     links: dict[str, str | None] | None = None
 
 
+class VoteHistoryPage(PageInfo):
+    version: str
+
+
+class VoteHistoryResponse(CollectionResponse):
+    page: VoteHistoryPage
+
+
 class DetailResponse(BaseModel):
     data: Any
     links: dict[str, str | None] | None = None
