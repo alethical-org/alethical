@@ -828,14 +828,38 @@ Each row includes the member's `vote_value` and `vote_event_id`, plus the joined
 record facts a profile can render without guessing: `bill_id`, `bill_code`,
 `occurred_at`, and the vote event's `chamber`.
 
-Filters (`legislator_votes()` takes two):
+The default is the existing current-session preview. Filters:
 
 - `session`
-- `limit`
+- `limit` (1–100, default 20)
+- `history=true` opts into the complete held history, across all sessions unless
+  `session` names one exact session. It adds `offset` and `version` paging.
 - `bill_id` — **NOT BUILT**. Silently ignored, so the filtered call returns the same rows as
   the unfiltered one.
 - `vote_value` — **NOT BUILT**, same silent pass-through.
 - `cursor` — **NOT BUILT**
+
+History mode uses the same public route for Alethical and Finance. Each `data` row
+contains `id`, `vote_value`, `vote_event_id`, `motion_text`, `result_text`,
+`occurred_at`, `official_url`, `bill_id`, `file_type`, `file_number`, `chamber`,
+`session` and `session_name`. Missing text, dates and source URLs stay null.
+The chamber belongs to the roll call, not necessarily the bill's originating chamber.
+A recorded motion vote does not establish support for the whole bill.
+
+Rows sort newest first, undated last, with record IDs breaking ties. `page` holds
+`limit`, `offset`, `has_more`, `total`, `next_cursor: null` and a 16-character `version`.
+The total counts held records, not lifetime completeness. A lightweight projection
+of the member's selected history supplies the page, count and source hash in one
+stable database view. Each page currently reads that member's full selected history;
+it does not load bill text or ORM relationship trees. The shared
+`finance_versions.pin` accepts an already-open stable view and refuses a transaction
+whose reads could see different source states.
+
+Send the returned `version` on subsequent pages. Any addition, removal or change to
+the selected source fields returns 409 `records-changed`, requiring a reload. History
+mode sets `Cache-Control: no-store` so a cached page cannot bypass that check. Default
+preview responses keep their existing shape and cache behavior; nonzero `offset` or
+`version` without `history=true` returns 422. No private Finance data is served.
 
 #### `GET /api/v1/legislators/{legislator_id}/independent-spending`
 
