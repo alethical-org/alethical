@@ -117,7 +117,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 ## Operations
 
-- [Private political mail upload](operations/political-mail-upload.md) — invitation access, API, storage, recovery and deployment checks
+- [Private political mail upload](operations/political-mail-upload.md) — session access, API, storage, recovery and deployment checks
 - [Production ingestion refresh](operations/production-ingestion-refresh.md) — current entry routes and historical full-biennium recovery record
 
 - [Security policy](../SECURITY.md) — supported clients and private vulnerability reporting

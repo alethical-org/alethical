@@ -139,7 +139,7 @@ identity or failed permission check keeps signed-in Vercel collection off. Verce
 receives the account identifier. `/admin` and its child addresses are excluded from Vercel
 page-use and anonymous action collection at event time. The private `/comment-emails`
 screen is excluded too; its first response omits the Cloudflare measurement script.
-The invitation-only `/mail-upload` demo is excluded from Vercel page-use and anonymous
+The `/mail-upload` demo is excluded from Vercel page-use and anonymous
 actions too. A direct visit does not start Vercel collection, and its first response
 omits the Cloudflare measurement script. Photos, reactions, messages and invitation
 credentials never enter those measurements.

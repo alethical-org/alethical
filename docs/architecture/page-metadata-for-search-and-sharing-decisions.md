@@ -2402,9 +2402,9 @@ no-store` and `Referrer-Policy: no-referrer`. The initial response contains page
 metadata and the application shell, with no mail photos, messages, private records
 or public page snapshot. The address is absent from sitemaps and has no Share action.
 
-The invitation arrives in `#invite=...`. A same-origin script runs before the app,
-captures it in memory and removes the query and fragment from browser history;
-the app consumes that value for the private session exchange. No invitation value
+The plain URL starts a private session. For older links, a same-origin script runs before
+the app, captures `#invite=...` in memory and removes the query and fragment from browser
+history. The app consumes that value for the legacy session exchange. No invitation value
 enters server-rendered metadata. The response omits the Cloudflare beacon, and the
 loaded route is excluded from site metrics. These choices do not change public
 record or article indexing. [Private political mail upload](../operations/political-mail-upload.md)
