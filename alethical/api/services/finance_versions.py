@@ -118,8 +118,8 @@ MARKS = {
 }
 
 
-def current(db: Session, *marks: str, on_date: date | None = None) -> str:
-    """The token for these sources, read in this request's pinned view.
+def pin(db: Session) -> None:
+    """Keep all reads in this request in one stable database snapshot.
 
     Pinned before the first statement of a fresh request. An already-open
     transaction must actually have a stable snapshot; READ COMMITTED cannot
@@ -140,6 +140,11 @@ def current(db: Session, *marks: str, on_date: date | None = None) -> str:
         filings.mark_pinned_read(db)
     else:
         committee_finance.pin_to_one_view(db)
+
+
+def current(db: Session, *marks: str, on_date: date | None = None) -> str:
+    """The token for these sources, read in this request's pinned view."""
+    pin(db)
     statement = "SELECT jsonb_build_array(" + ", ".join(MARKS[m] for m in marks) + ")"
     state = db.execute(text(statement)).scalar_one()
     payload = repr((marks, state, on_date)).encode()

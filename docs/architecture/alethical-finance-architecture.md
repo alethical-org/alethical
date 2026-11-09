@@ -86,6 +86,22 @@ pages carrying invoice links; those lists still reject any change to their read 
 
 ### People records
 
+#### Member vote history
+
+The profile vote list reads existing legislative records through
+`GET /api/v1/legislators/{legislator_id}/votes?history=true`. It accepts a held legislator's
+slug or UUID, never a spelling group or an unconfirmed person match. A person profile
+can use it only through its confirmed legislative link. This is a read service for
+the approved profile expansion; its screen still needs design review and approval.
+
+The [shared API contract](backend-api-system-design.md#get-apiv1legislatorslegislator_idvotes)
+owns session scope, source fields, paging and version checks. Finance keeps the recorded
+motion and source with each vote and never treats it as a stance on the whole bill.
+Finance access still governs its profile and confirmed identity links; the shared route
+serves only public legislative records. This adds no imports or identity confirmations.
+
+#### Directory and confirmed links
+
 Candidate and legislator rows include `person_links: [{id, name}]` for validated
 public-person links, or an empty array. Matching spelling and a bare legislator foreign
 key are never link evidence. A candidate may have several individually reviewed person
