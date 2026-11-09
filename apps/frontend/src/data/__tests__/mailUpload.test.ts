@@ -75,27 +75,20 @@ describe('private mail sessions', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
-  it.each(['pending', 'exchanged'] as const)(
-    'requires reopening the invitation after a reload of %s access',
-    async (state) => {
-      invite();
-      if (state === 'exchanged') {
-        fetcher.mockResolvedValueOnce(reply(session));
-        await api.getMailUploadSession();
-      }
-      const requestsBeforeReload = fetcher.mock.calls.length;
-      vi.resetModules();
-      api = await import('../mailUpload');
-      await expect(api.getMailUploadSession()).rejects.toMatchObject({
-        status: 401,
-        detail: 'Open your invitation link to continue',
-      });
-      expect(fetcher).toHaveBeenCalledTimes(requestsBeforeReload);
-      invite();
-      fetcher.mockResolvedValueOnce(reply(session));
-      await expect(api.getMailUploadSession()).resolves.toEqual(session);
-    },
-  );
+  it('opens the plain URL and starts a fresh private session after reload', async () => {
+    fetcher.mockResolvedValueOnce(reply(session));
+    await expect(api.getMailUploadSession()).resolves.toEqual(session);
+    const first = JSON.parse(fetcher.mock.calls[0][1].body);
+    expect(first.invitation_token).toBeUndefined();
+    vi.resetModules();
+    api = await import('../mailUpload');
+    fetcher.mockResolvedValueOnce(reply({ ...session, token: 'next-session' }));
+    await expect(api.getMailUploadSession()).resolves.toMatchObject({ token: 'next-session' });
+    const next = JSON.parse(fetcher.mock.calls[1][1].body);
+    expect(next.invitation_token).toBeUndefined();
+    expect(next.client_id).not.toBe(first.client_id);
+    expect(next.client_secret).not.toBe(first.client_secret);
+  });
 
   it('removes legacy tab credentials without reading or restoring them', async () => {
     sessionStorage.setItem(
@@ -109,10 +102,11 @@ describe('private mail sessions', () => {
     const storageRead = vi.spyOn(Object.getPrototypeOf(window.sessionStorage), 'getItem');
     vi.resetModules();
     api = await import('../mailUpload');
-    await expect(api.getMailUploadSession()).rejects.toMatchObject({ status: 401 });
+    fetcher.mockResolvedValueOnce(reply(session));
+    await expect(api.getMailUploadSession()).resolves.toEqual(session);
     expect(storageRead).not.toHaveBeenCalled();
     expect(sessionStorage.length).toBe(0);
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).client_id).not.toBe(id);
   });
 
   it('shares an in-flight exchange and never lets an old invitation overwrite a new one', async () => {
@@ -144,13 +138,14 @@ describe('private mail sessions', () => {
     expect(JSON.parse(fetcher.mock.calls[0][1].body).invitation_token).toBe('bootstrap-invite');
   });
 
-  it('rejects missing and expired access without making an upload', async () => {
-    await expect(api.getMailUploadSession()).rejects.toMatchObject({ status: 401 });
-    expect(fetcher).not.toHaveBeenCalled();
+  it('clears expired access so a visitor can start again from the plain URL', async () => {
     invite();
     fetcher.mockResolvedValue(reply({ ...session, expires_at: '2000-01-01T00:00:00Z' }));
     await api.getMailUploadSession();
     await expect(api.getMailUploadSession()).rejects.toMatchObject({ status: 401 });
+    fetcher.mockResolvedValueOnce(reply(session));
+    await expect(api.getMailUploadSession()).resolves.toEqual(session);
+    expect(JSON.parse(fetcher.mock.calls[1][1].body).invitation_token).toBeUndefined();
     expect(sessionStorage.length).toBe(0);
   });
 });
@@ -201,7 +196,9 @@ describe('mail submission requests', () => {
     await api.getMailUploadSession();
     fetcher.mockResolvedValueOnce(new Response('{}', { status: 401 }));
     await expect(api.getMailSubmission(session.token, id)).rejects.toMatchObject({ status: 401 });
-    await expect(api.getMailUploadSession()).rejects.toMatchObject({ status: 401 });
+    fetcher.mockResolvedValueOnce(reply({ ...session, token: 'fresh-session' }));
+    await expect(api.getMailUploadSession()).resolves.toMatchObject({ token: 'fresh-session' });
+    expect(JSON.parse(fetcher.mock.calls[2][1].body).invitation_token).toBeUndefined();
     expect(sessionStorage.length).toBe(0);
   });
 

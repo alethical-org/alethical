@@ -204,8 +204,13 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
   const content =
     form.access === 'loading'
       ? h('p', { role: 'status' }, 'Loading…')
-      : form.access === 'expired' || form.access === 'missing'
-        ? null
+      : form.access === 'expired'
+        ? h(
+            'div',
+            null,
+            h('p', { role: 'alert' }, 'This upload session is no longer available'),
+            h('button', { onClick: () => void form.checkAccess() }, 'Start again'),
+          )
         : form.access === 'failed'
           ? h(
               'div',
@@ -372,22 +377,12 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
           'main',
           { className: 'mail-upload' },
           h('style', null, css),
+          h('h1', null, 'Upload political mail'),
           h(
-            'h1',
-            null,
-            form.access === 'expired'
-              ? 'This demo link is no longer available'
-              : form.access === 'missing'
-                ? 'Open your invitation link to continue'
-                : 'Upload political mail',
+            'p',
+            { className: 'intro' },
+            'Try the demo with a sample mailer that has no personal details',
           ),
-          form.access !== 'expired' && form.access !== 'missing'
-            ? h(
-                'p',
-                { className: 'intro' },
-                'See who paid for this mail and what public records show about them',
-              )
-            : null,
           content,
         )}
         <Footer

@@ -157,10 +157,13 @@ it('focuses the first missing item after a validation failure', async () => {
   expect(document.activeElement).toBe(container.querySelector('#back-photo'));
 });
 
-it('gives reload visitors a recovery step without an upload form', async () => {
-  form.access = 'missing';
+it('lets visitors start again when their upload session expires', async () => {
+  form.access = 'expired';
   await render();
-  expect(container.querySelector('h1')?.textContent).toBe('Open your invitation link to continue');
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    'This upload session is no longer available',
+  );
   expect(container.querySelector('form')).toBeNull();
-  expect(container.querySelector('.intro')).toBeNull();
+  await act(async () => button('Start again').click());
+  expect(form.checkAccess).toHaveBeenCalledTimes(1);
 });
