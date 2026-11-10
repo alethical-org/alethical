@@ -288,6 +288,18 @@ def image_fingerprint(image):
     return format(sum(int(bit) << index for index, bit in enumerate(bits)), "016x")
 
 
+def recovery_canvas(image):
+    """Prepare large display lettering directly from decoded source pixels.
+
+    Reading oversized glyphs can split one word into several confident fragments.
+    Resize once, before deskew; resampling the already resized main canvas changes
+    the strokes again. The separate full-size path still serves fine print.
+    """
+    factor = min(1.0, 2400 / image.width, 2400 / image.height)
+    size = (max(1, round(image.width * factor)), max(1, round(image.height * factor)))
+    return image.resize(size, Image.Resampling.BICUBIC, reducing_gap=2.0).convert("RGB")
+
+
 def read_image(path: Path) -> dict:
     """Bound work and memory; preserve original file, including its metadata."""
     best = None
@@ -296,6 +308,12 @@ def read_image(path: Path) -> dict:
     with Image.open(path) as original:
         original.draft("RGB", (4000, 4000))
         picture = ImageOps.exif_transpose(original)
+        recovery_picture = recovery_canvas(picture)
+        recovery_metadata = {
+            "source_size": list(picture.size),
+            "size": list(recovery_picture.size),
+            "resample": "bicubic",
+        }
         picture.thumbnail((4000, 4000))
         picture = picture.convert("RGB")
     with tempfile.TemporaryDirectory(prefix="mail-ocr-") as folder:
@@ -305,6 +323,7 @@ def read_image(path: Path) -> dict:
                     break
                 oriented = picture.rotate(angle, expand=True)
                 rotated, skew = oriented, 0
+                used_recovery = False
                 source = Path(folder) / "page.png"
                 rotated.save(source)
                 raw = subprocess.run(
@@ -344,7 +363,9 @@ def read_image(path: Path) -> dict:
                     and time.monotonic() < deadline
                 ):
                     recovery_attempted = True
-                    recovered, recovered_skew = deskew(oriented)
+                    recovered, recovered_skew = deskew(
+                        recovery_picture.rotate(angle, expand=True)
+                    )
                     recovered = ImageOps.grayscale(recovered)
                     recovery_path = Path(folder) / "recovery.png"
                     recovered.save(recovery_path)
@@ -380,6 +401,7 @@ def read_image(path: Path) -> dict:
                         if len(recovery_copy["display_text"]) > len(
                             initial_copy["display_text"]
                         ):
+                            used_recovery = True
                             lines, rotated, skew = (
                                 recovery_lines,
                                 recovered,
@@ -446,6 +468,8 @@ def read_image(path: Path) -> dict:
                     "height": rotated.height,
                     "complete": False,
                 }
+                if used_recovery:
+                    result["recovery_canvas"] = recovery_metadata
                 result = reading_copy(result)
                 useful_lines = result["display_text"].splitlines()
                 score = sum(len(line) for line in useful_lines) + 1000 * len(quotes)

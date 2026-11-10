@@ -406,6 +406,12 @@ def test_extraction_allowlist_removes_nested_private_and_assembled_fields():
         {
             "text": "Paid for by Example",
             "private_comment": "private",
+            "recovery_canvas": {
+                "source_size": [4032, 3024],
+                "size": [2400, 1800],
+                "resample": "bicubic",
+                "owner_token": "secret",
+            },
             "disclosures": [
                 {
                     "quote": "Paid for by Example",
@@ -429,6 +435,11 @@ def test_extraction_allowlist_removes_nested_private_and_assembled_fields():
     assert "secret" not in str(result)
     assert "private" not in str(result)
     assert "candidates" not in str(result)
+    assert result["recovery_canvas"] == {
+        "source_size": [4032, 3024],
+        "size": [2400, 1800],
+        "resample": "bicubic",
+    }
     assert result["disclosures"][0]["crop"] == {"width": 100}
     assert result["reading_lines"][0]["words"] == [
         {"text": "Example", "confidence": 99}

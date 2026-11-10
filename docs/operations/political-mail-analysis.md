@@ -69,7 +69,7 @@ The public wording follows
 
 ## Progressive reader contract
 
-Reader version `tesseract-english-v4` publishes cumulative `snapshot_version: 1`
+Reader version `tesseract-english-v5` publishes cumulative `snapshot_version: 1`
 responses. Their arrays are authoritative even when empty; clients must not combine
 superseded payers with old records. `progress.active_sides` names actual running
 reads, `completed_sides` names finished sides, and `reading_complete` and
@@ -93,7 +93,12 @@ keyboard focus and visible reading position as earlier sections arrive.
 
 Local reading retains word confidence and position. An almost-empty result without a
 payer may get 1 grayscale/straightening pass, bounded to 8 seconds within the existing
-90-second image budget. It cannot discard an already-found payer. This improves the
+90-second image budget. Its separate canvas is scaled directly from decoded source
+pixels to at most 2400 pixels on either edge using bicubic resampling, before
+straightening. Resizing the already reduced 4000-pixel canvas can split oversized
+lettering into confident fragments. The ordinary fine-print path stays at 4000 pixels;
+the recovery scale and source dimensions remain private extraction provenance.
+It cannot discard an already-found payer. This improves the
 reported dark, angled front but does not certify complete transcription. Remaining
 uncertain text is omitted with the shared notice; missing words are never guessed.
 
