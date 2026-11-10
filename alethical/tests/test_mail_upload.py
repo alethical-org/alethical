@@ -231,6 +231,7 @@ def test_failed_copy_keeps_file_and_gate_until_other_copy_finishes(
     previous = upload(client, path, headers).json()
     failed = Event()
     held = Event()
+    copied = Event()
     release = Event()
 
     def fail(*args):
@@ -244,6 +245,7 @@ def test_failed_copy_keeps_file_and_gate_until_other_copy_finishes(
         assert release.wait(10), "test did not release the other copy"
         # The temporary source must still exist, even after the other copy failed.
         original(key, file_path, expected_sha256)
+        copied.set()
 
     monkeypatch.setattr(storage[failed_store], "put_and_verify", fail)
     monkeypatch.setattr(storage[1 - failed_store], "put_and_verify", slow_copy)
@@ -258,6 +260,7 @@ def test_failed_copy_keeps_file_and_gate_until_other_copy_finishes(
             release.set()
         result = pending.result(timeout=10)
     assert result.status_code == 503
+    assert copied.is_set(), "temporary file was removed before the other copy finished"
     assert "provider" not in result.text
     assert client.get(path, headers=headers).json() == previous
 
