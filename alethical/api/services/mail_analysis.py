@@ -51,7 +51,7 @@ from alethical.pipeline.campaign_finance_filings import (
 )
 
 logger = logging.getLogger(__name__)
-VERSION = "tesseract-english-v4"
+VERSION = "tesseract-english-v5"
 LEASE = timedelta(minutes=10)
 
 
@@ -103,6 +103,7 @@ EXTRACTION_FIELDS = frozenset(
         "display_text",
         "reading_incomplete",
         "deskew_angle",
+        "recovery_canvas",
     }
 )
 INPUT_FIELDS = ("sha256", "byte_count", "content_type", "width", "height")
@@ -116,6 +117,10 @@ def extraction_copy(value):
     def fields(item, names):
         return {key: deepcopy(item[key]) for key in names if key in item}
 
+    if "recovery_canvas" in result:
+        result["recovery_canvas"] = fields(
+            value["recovery_canvas"], ("source_size", "size", "resample")
+        )
     if "disclosures" in result:
         result["disclosures"] = []
         for quote in value["disclosures"]:
