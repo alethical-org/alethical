@@ -6528,7 +6528,9 @@ class MailUploadAnalysis(Base):
         ForeignKey("identity_entity.id")
     )
     confirmation_evidence: Mapped[Optional[str]] = mapped_column(Text)
-    creative_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    creative_evidence: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
     excluded_from_counts: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
+        Boolean, nullable=False, default=False, server_default=text("false")
     )

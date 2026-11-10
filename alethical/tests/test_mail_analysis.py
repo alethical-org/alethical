@@ -520,6 +520,70 @@ def test_transient_public_records_failure_can_recover_without_rereading_photos(
     assert result["payers"][0]["candidates"][0]["records"]["state"] == "available"
 
 
+@pytest.mark.usefixtures("storage")
+def test_failed_record_refresh_retains_same_candidate_evidence(client, monkeypatch):
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    upload(client, path, headers, "front")
+    upload(client, path, headers, "back")
+    client.post(path + "/submit", headers=headers, json={"likes_ad": False})
+    candidate = {
+        "registration_number": "41412",
+        "scope": "candidate_record",
+        "source_url": "https://example.org/41412",
+    }
+    monkeypatch.setattr(
+        mail_analysis, "candidate_records", lambda *args: [dict(candidate)]
+    )
+    quote = {
+        "quote": "Paid for by Restore Sanity",
+        "payer_text": "Restore Sanity",
+        "edge_warning": False,
+        "confidence": 90,
+    }
+    monkeypatch.setattr(
+        mail_analysis,
+        "read_image",
+        lambda _: {
+            "status": "partial",
+            "text": quote["quote"],
+            "disclosures": [quote],
+            "complete": False,
+        },
+    )
+    from datetime import datetime, timezone
+
+    record = {
+        "state": "available",
+        "registration_number": "41412",
+        "year": datetime.now(timezone.utc).year,
+        "fetched_at": "2026-11-09T00:00:00Z",
+        "release_id": "original-snapshot",
+    }
+    monkeypatch.setattr(mail_analysis, "public_records", lambda *args: dict(record))
+    mail_analysis.drain_once()
+    client.post(path + "/analysis/retry", headers=headers)
+    monkeypatch.setattr(
+        mail_analysis,
+        "public_records",
+        lambda *args: (_ for _ in ()).throw(TimeoutError()),
+    )
+    mail_analysis.drain_once()
+    result = client.get(path + "/analysis", headers=headers).json()["data"]
+    assert result["status"] == "partial"
+    assert result["records_retry_needed"] is True
+    assert result["payers"][0]["candidates"][0]["records"] == {
+        **record,
+        "refresh_failed": True,
+    }
+    # A different registration must not inherit the previous candidate's records.
+    candidate["registration_number"] = "99999"
+    client.post(path + "/analysis/retry", headers=headers)
+    mail_analysis.drain_once()
+    result = client.get(path + "/analysis", headers=headers).json()["data"]
+    assert result["payers"][0]["candidates"][0]["records"]["state"] == "unavailable"
+
+
 @pytest.mark.parametrize(
     "url",
     [

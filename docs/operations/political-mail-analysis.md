@@ -81,8 +81,8 @@ unchanged. `tesseract-english-v2` identifies this reader revision.
 
 ## Release and initial review
 
-Merge only after backend and frontend acceptance. Deploy the additive migration and
-backend image with analysis disabled. Prepare a private JSON review manifest outside
+The additive backend may merge and deploy after backend acceptance, independently
+of the results interface. Deploy its migration and image with analysis disabled. Prepare a private JSON review manifest outside
 Git containing each saved submission ID, exact `front_sha256` and `back_sha256`,
 `excluded_from_counts`, and the two-side/version comparison `evidence`. The 5 retained
 synthetic receipts identify excluded records; no reaction-based heuristic is used.
@@ -93,9 +93,10 @@ for hash-checked dry run, then the same command with `--apply`. It validates eve
 saved/verified pair before writing only analysis grouping metadata in one transaction.
 It never writes image rows, bytes, reaction or comments. Repeating a decision is
 idempotent; correction history remains private. Keep the private manifest as evidence.
-Enable `ALETHICAL_MAIL_ANALYSIS_ENABLED=true`; saved rows are queued automatically,
+Keep analysis disabled until the results interface is ready and the parent owner
+gives the enable signal. Then enable `ALETHICAL_MAIL_ANALYSIS_ENABLED=true`; saved rows are queued automatically,
 so no separate OCR backfill command is needed. Use existing administrator result
 routes for the old sessions, whose private uploader tokens are not recoverable.
-Verify 20 saved analysis rows, 5 exclusions, 15 real results and their source/partial
+Verify the initial 20 saved analysis rows, their 5 exclusions and 15 real results and source/partial
 states against the private originals. Disable the flag to stop new claims; retain
 results and originals. No deletion or destructive migration is part of release.

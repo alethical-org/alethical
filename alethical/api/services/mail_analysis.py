@@ -461,6 +461,7 @@ def analyze(db, submission_id) -> dict:
     # establish that account paid for this piece. Bound distinct record reads.
     records = {}
     records_retry_needed = False
+    failed_record_numbers = set()
     for payer in payers:
         for candidate in payer["candidates"] + payer["related_records"]:
             number = candidate["registration_number"]
@@ -469,13 +470,41 @@ def analyze(db, submission_id) -> dict:
                     records[number] = public_records(number, submission.saved_at.year)
                 except Exception:
                     records_retry_needed = True
+                    failed_record_numbers.add(number)
                     records[number] = {
                         "state": "unavailable",
                         "registration_number": number,
                     }
-            candidate["records"] = records.get(
+            current_records = records.get(
                 number, {"state": "not_loaded", "registration_number": number}
             )
+            if number in failed_record_numbers:
+                # Keep evidence only under the same printed payer and candidate
+                # identity. Its original fetch date and source snapshot stay intact.
+                for prior_payer in (
+                    (previous.result or {}).get("payers", []) if previous else []
+                ):
+                    if (prior_payer.get("side"), prior_payer.get("payer_text")) != (
+                        payer["side"],
+                        payer["payer_text"],
+                    ):
+                        continue
+                    for prior_candidate in prior_payer.get(
+                        "candidates", []
+                    ) + prior_payer.get("related_records", []):
+                        identity = ("registration_number", "scope", "source_url")
+                        prior_records = prior_candidate.get("records", {})
+                        if (
+                            all(
+                                prior_candidate.get(key) == candidate.get(key)
+                                for key in identity
+                            )
+                            and prior_records.get("state") == "available"
+                            and prior_records.get("year") == submission.saved_at.year
+                        ):
+                            current_records = {**prior_records, "refresh_failed": True}
+                            break
+            candidate["records"] = current_records
     return {
         "version": VERSION,
         "records_retry_needed": records_retry_needed,
