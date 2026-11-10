@@ -38,6 +38,64 @@ function invite(value = 'private-invitation') {
   api.captureMailInvitation();
 }
 
+describe('private analysis requests', () => {
+  it('uses the owned session header and never puts the token in a URL or browser storage', async () => {
+    fetcher.mockResolvedValue(reply({ status: 'pending' }));
+    const result = await api.getMailAnalysis(session.token, id);
+    const [url, init] = fetcher.mock.calls[0];
+    expect(url).toBe(`https://api.example.test/api/v1/mail-upload/submissions/${id}/analysis`);
+    expect(init.headers.Authorization).toBe(`Bearer ${session.token}`);
+    expect(init).toMatchObject({
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    });
+    expect(result).toMatchObject({
+      status: 'pending',
+      sides: [],
+      payers: [],
+      matching_mailers: { count: null },
+      can_retry: false,
+    });
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it('posts retry once and retains an explicit exhausted retry state', async () => {
+    fetcher.mockResolvedValue(
+      reply({
+        status: 'partial',
+        can_retry: false,
+        sides: [],
+        payers: [],
+        matching_mailers: { count: 1 },
+      }),
+    );
+    expect(await api.retryMailAnalysis(session.token, id)).toMatchObject({
+      can_retry: false,
+      matching_mailers: { count: 1 },
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0][0]).toBe(
+      `https://api.example.test/api/v1/mail-upload/submissions/${id}/analysis/retry`,
+    );
+    expect(fetcher.mock.calls[0][1].method).toBe('POST');
+  });
+
+  it('rejects an unconfirmed response without exposing its body and never guesses missing counts', async () => {
+    fetcher.mockResolvedValueOnce(reply({ status: 'unexpected', secret: 'private OCR' }));
+    await expect(api.getMailAnalysis(session.token, id)).rejects.toMatchObject({
+      status: 502,
+      detail: 'The response could not be confirmed',
+    });
+    fetcher.mockResolvedValueOnce(reply({ status: 'ready', matching_mailers: { count: '3' } }));
+    expect(await api.getMailAnalysis(session.token, id)).toMatchObject({
+      matching_mailers: { count: null },
+    });
+    expect(() => api.getMailAnalysis(session.token, '../private')).toThrow('Invalid submission');
+  });
+});
+
 describe('private mail sessions', () => {
   it('removes the entire fragment and query before starting any network request', async () => {
     invite();

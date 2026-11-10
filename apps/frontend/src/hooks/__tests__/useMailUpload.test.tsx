@@ -88,6 +88,25 @@ afterEach(async () => {
 });
 
 describe('mail photo confirmation', () => {
+  it('snapshots only the saved submission and its confirmed files, clearing them for upload another', async () => {
+    await mount();
+    expect(hook.savedSubmission).toBeNull();
+    await addBoth();
+    const front = hook.photos.front.confirmedFile;
+    const back = hook.photos.back.confirmedFile;
+    expect(hook.savedSubmission).toBeNull();
+    await act(async () => {
+      await hook.submit();
+    });
+    expect(hook.savedSubmission).toMatchObject({ token: access.token, photos: { front, back } });
+    expect(hook.savedSubmission?.id).toBe(calls.submit.mock.calls[0][1]);
+    const saved = hook.savedSubmission;
+    await act(async () => hook.reset());
+    expect(hook.savedSubmission).toBeNull();
+    expect(saved?.photos.front).toBe(front);
+    expect(hook.photos.front.confirmedFile).toBeUndefined();
+  });
+
   it('shows confirmation only after a server receipt for those bytes', async () => {
     await mount();
     const pending = deferred<MailSubmission>();
