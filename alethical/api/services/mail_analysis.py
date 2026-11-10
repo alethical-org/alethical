@@ -13,6 +13,7 @@ import io
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -652,11 +653,33 @@ def response(db, submission):
     }
 
 
+def require_ocr_runtime():
+    """Check the local reader before any saved submission uses an attempt."""
+    if not shutil.which("tesseract") or not shutil.which("nice"):
+        raise RuntimeError("Mail analysis OCR executable unavailable")
+    result = subprocess.run(
+        ["tesseract", "--list-langs"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    if "eng" not in result.stdout.splitlines():
+        raise RuntimeError("Mail analysis English data unavailable")
+
+
 @asynccontextmanager
 async def mail_analysis_lifespan(app):
     stop = asyncio.Event()
 
     async def run():
+        if os.getenv("ALETHICAL_MAIL_ANALYSIS_ENABLED", "").lower() == "true":
+            try:
+                await asyncio.to_thread(require_ocr_runtime)
+            except Exception:
+                logger.error("Mail analysis OCR unavailable; queue remains unclaimed")
+                return
+            logger.info("Mail analysis OCR ready: tesseract and English data available")
         while not stop.is_set():
             image_gate = getattr(app.state, "mail_upload_image_gate", None)
             upload_busy = image_gate is not None and image_gate.locked()

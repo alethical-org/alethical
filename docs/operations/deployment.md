@@ -68,7 +68,7 @@ Use the repository `railway.json` config from the repo root. It configures a ser
 ### Restricted political mail activation
 
 Private analysis has a separate gate, `ALETHICAL_MAIL_ANALYSIS_ENABLED=true`, and
-additive migration `0091_mail_analysis`. The backend image includes Tesseract English.
+additive migration `0091_mail_analysis`. The production Railpack runtime and local Dockerfile include Tesseract English. The enabled mail worker checks the executable and English data before claiming work; missing OCR leaves the queue unclaimed without blocking uploads.
 Enable only after [analysis acceptance](political-mail-analysis.md) passes; upload
 acceptance never waits for analysis. Disabling the gate retains existing results.
 
