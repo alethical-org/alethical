@@ -1,6 +1,9 @@
 """Private extraction never turns OCR or matching names into facts."""
 
+import pytest
+
 from alethical.api.services.mail_analysis import disclosures
+from alethical.api.services.mail_payer_sources import corroborate
 from alethical.api.services import mail_analysis
 from alethical.tests.test_mail_upload import session, draft, upload, storage as storage
 
@@ -46,7 +49,7 @@ def test_multiple_disclosures_remain_separate():
     ]
 
 
-@__import__("pytest").mark.usefixtures("storage")
+@pytest.mark.usefixtures("storage")
 def test_owned_results_queue_and_retry(client, monkeypatch):
     headers, _, _ = session(client)
     path = draft(client, headers)
@@ -83,7 +86,7 @@ def test_owned_results_queue_and_retry(client, monkeypatch):
     assert result["status"] == "ready"
     assert len(result["sides"]) == 2
     assert result["payer_status"] == "not_found"
-    assert result["matching_mailers"]["count"] is None
+    assert result["matching_mailers"] == {"count": 1, "basis": "same_photo_pair"}
     assert result["confirmed_entity_id"] is None
     assert "object_key" not in response.text
     # Completed analyses are never silently run again.
@@ -92,3 +95,55 @@ def test_owned_results_queue_and_retry(client, monkeypatch):
     )
     mail_analysis.drain_once()
     assert client.get(path + "/analysis", headers=headers).json()["data"] == result
+
+
+def test_official_match_requires_name_and_payer_address_not_name_alone():
+    name = "the Republican Party of Minnesota"
+    quote = "Paid for by the Republican Party of Minnesota. 7400 Metro Blvd Ste424 Edina MN55439"
+    assert corroborate(name, quote, edge_warning=False, confidence=90) is None
+    quote = "Paid for by the Republican Party of Minnesota. 7400 Metro Blvd Ste 424 Edina MN 55439"
+    match = corroborate(name, quote, edge_warning=False, confidence=90)
+    assert match["scope"] == "organization"
+    assert match["basis"] == "printed_name_and_address"
+    assert corroborate(name, name, edge_warning=False, confidence=95) is None
+    assert corroborate(name, quote, edge_warning=True, confidence=95) is None
+    assert corroborate(name, quote, edge_warning=False, confidence=70) is None
+
+
+@pytest.mark.usefixtures("storage")
+def test_failed_worker_recovers_without_unbounded_retries(client, monkeypatch):
+    import uuid
+    from datetime import datetime, timedelta, timezone
+    from alethical.db.models import MailUploadAnalysis
+    from alethical.db.session import get_session_factory
+
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    upload(client, path, headers, "front")
+    upload(client, path, headers, "back")
+    client.post(path + "/submit", headers=headers, json={"likes_ad": True})
+    submission_id = uuid.UUID(path.rsplit("/", 1)[1])
+    with get_session_factory()() as db:
+        db.add(
+            MailUploadAnalysis(
+                submission_id=submission_id,
+                status="processing",
+                attempts=3,
+                started_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                result={},
+            )
+        )
+        db.commit()
+    monkeypatch.setattr(
+        mail_analysis,
+        "analyze",
+        lambda *_: (_ for _ in ()).throw(AssertionError("must not retry")),
+    )
+    mail_analysis.drain_once()
+    result = client.get(path + "/analysis", headers=headers).json()["data"]
+    assert result["status"] == "failed"
+    assert result["can_retry"] is False
+    assert (
+        client.post(path + "/analysis/retry", headers=headers).json()["data"]["status"]
+        == "failed"
+    )

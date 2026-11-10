@@ -1,7 +1,7 @@
 """Private local OCR of frozen mailer pairs; machine text never confirms identity.
 
 Saved rows are the durable queue. A database lock serializes claims across API
-replicas; a lease recovers crashes. No image or OCR text reaches another provider.
+replicas using row locks; a fenced lease recovers crashes. No image or OCR text reaches another provider.
 """
 
 from __future__ import annotations
@@ -20,11 +20,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image, ImageOps
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
 
 from alethical.api.services import mail_upload
+from alethical.api.services.mail_payer_sources import corroborate
 from alethical.db import models as m
 from alethical.db.session import get_session_factory
 from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
@@ -262,6 +262,12 @@ def analyze(db, submission_id) -> dict:
             "side": side,
             **quote,
             "candidates": candidate_records(db, quote["payer_text"]),
+            "official_organization": corroborate(
+                quote["payer_text"],
+                quote["quote"],
+                edge_warning=quote["edge_warning"],
+                confidence=quote["confidence"],
+            ),
         }
         for side, quote in quotes
     ]
@@ -269,77 +275,89 @@ def analyze(db, submission_id) -> dict:
         "version": VERSION,
         "sides": sides,
         "payers": payers,
-        "payer_status": "uncertain" if payers else "not_found",
+        "payer_status": "matched"
+        if len(payers) == 1 and payers[0]["official_organization"]
+        else ("uncertain" if payers else "not_found"),
     }
 
 
 def drain_once():
     factory = get_session_factory()
-    with factory() as probe:
-        engine = probe.get_bind()
-    with engine.connect() as connection, Session(bind=connection) as db:
-        # Session-scoped advisory lock avoids duplicate OCR across replicas while
-        # permitting commits of claim/attempt state. Never log private exceptions.
-        if not db.scalar(text("SELECT pg_try_advisory_lock(71392419)")):
+    with factory() as db:
+        db.execute(
+            insert(m.MailUploadAnalysis)
+            .from_select(
+                ["submission_id", "status", "attempts", "result"],
+                select(
+                    m.MailUploadSubmission.id,
+                    text("'pending'"),
+                    text("0"),
+                    text("'{}'::jsonb"),
+                ).where(m.MailUploadSubmission.saved_at.is_not(None)),
+            )
+            .on_conflict_do_nothing()
+        )
+        db.commit()
+        now = datetime.now(timezone.utc)
+        db.execute(
+            update(m.MailUploadAnalysis)
+            .where(
+                m.MailUploadAnalysis.status == "processing",
+                m.MailUploadAnalysis.attempts >= 3,
+                m.MailUploadAnalysis.started_at < now - LEASE,
+            )
+            .values(status="failed")
+        )
+        row = db.scalar(
+            select(m.MailUploadAnalysis)
+            .where(
+                m.MailUploadAnalysis.attempts < 3,
+                (m.MailUploadAnalysis.status == "pending")
+                | (
+                    (m.MailUploadAnalysis.status == "processing")
+                    & (m.MailUploadAnalysis.started_at < now - LEASE)
+                ),
+            )
+            .order_by(m.MailUploadAnalysis.submission_id)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        if row is None:
+            db.commit()
             return
+        row.status, row.started_at, row.attempts = "processing", now, row.attempts + 1
+        submission_id, attempt = row.submission_id, row.attempts
+        db.commit()
         try:
-            saved = select(m.MailUploadSubmission.id).where(
-                m.MailUploadSubmission.saved_at.is_not(None)
+            result = analyze(db, submission_id)
+            status = (
+                "partial"
+                if any(side["status"] == "unreadable" for side in result["sides"])
+                else "ready"
             )
-            db.execute(
-                insert(m.MailUploadAnalysis)
-                .from_select(
-                    ["submission_id", "status", "attempts", "result"],
-                    select(
-                        m.MailUploadSubmission.id,
-                        text("'pending'"),
-                        text("0"),
-                        text("'{}'::jsonb"),
-                    ).where(m.MailUploadSubmission.id.in_(saved)),
-                )
-                .on_conflict_do_nothing()
+        except Exception:
+            db.rollback()
+            result = None
+            status = "failed" if attempt >= 3 else "pending"
+            logger.warning("Mail analysis attempt failed; private originals retained")
+        # Fencing rejects a stale worker if a lease was recovered or replaced.
+        row = db.scalar(
+            select(m.MailUploadAnalysis)
+            .where(
+                m.MailUploadAnalysis.submission_id == submission_id,
             )
-            db.commit()
-            now = datetime.now(timezone.utc)
-            row = db.scalar(
-                select(m.MailUploadAnalysis)
-                .where(
-                    m.MailUploadAnalysis.attempts < 3,
-                    (m.MailUploadAnalysis.status == "pending")
-                    | (
-                        (m.MailUploadAnalysis.status == "processing")
-                        & (m.MailUploadAnalysis.started_at < now - LEASE)
-                    ),
-                )
-                .order_by(m.MailUploadAnalysis.submission_id)
-                .limit(1)
-            )
-            if row is None:
-                return
-            row.status, row.started_at, row.attempts = (
-                "processing",
-                now,
-                row.attempts + 1,
-            )
-            db.commit()
-            try:
-                result = analyze(db, row.submission_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if (
+            row.status == "processing"
+            and row.attempts == attempt
+            and row.started_at == now
+        ):
+            row.status = status
+            if result is not None:
                 row.result = result
-                row.status = (
-                    "partial"
-                    if any(s["status"] == "unreadable" for s in result["sides"])
-                    else "ready"
-                )
                 row.completed_at = datetime.now(timezone.utc)
-            except Exception:
-                db.rollback()
-                row.status = "failed" if row.attempts >= 3 else "pending"
-                logger.warning(
-                    "Mail analysis attempt failed; private originals retained"
-                )
-            db.commit()
-        finally:
-            db.execute(text("SELECT pg_advisory_unlock(71392419)"))
             db.commit()
 
 
@@ -354,24 +372,42 @@ def response(db, submission):
                 "matching_mailers": {"count": None},
             }
         }
-    # Only explicitly grouped creatives count. Neither photos nor sessions imply
-    # distinct people, delivered mail, or creative identity.
-    count = (
-        db.scalar(
-            select(func.count())
-            .select_from(m.MailUploadAnalysis)
-            .where(m.MailUploadAnalysis.creative_id == row.creative_id)
+    # Exact-pair count is explicitly scoped to the same photos. It does not
+    # establish creative identity across recaptures, distinct people or reach.
+    images = mail_upload.selected_images(db, submission)
+    hashes = {image.sha256 for image in images.values()}
+    matching = (
+        select(m.MailUploadImage.submission_id)
+        .join(
+            m.MailUploadSubmission,
+            m.MailUploadSubmission.id == m.MailUploadImage.submission_id,
         )
-        if row.creative_id
+        .where(
+            m.MailUploadSubmission.saved_at.is_not(None),
+            m.MailUploadImage.selected.is_(True),
+            m.MailUploadImage.sha256.in_(hashes),
+        )
+        .group_by(m.MailUploadImage.submission_id)
+        .having(
+            func.count() == 2,
+            func.count(func.distinct(m.MailUploadImage.sha256)) == len(hashes),
+        )
+        .subquery()
+    )
+    count = (
+        db.scalar(select(func.count()).select_from(matching))
+        if len(images) == 2
         else None
     )
+
     return {
         "data": {
             **row.result,
             "status": row.status,
+            "can_retry": row.status in {"failed", "partial"} and row.attempts < 3,
             "matching_mailers": {
                 "count": count,
-                "basis": "reviewed_creative" if count is not None else None,
+                "basis": "same_photo_pair" if count is not None else None,
             },
             "confirmed_entity_id": str(row.confirmed_entity_id)
             if row.confirmed_entity_id
