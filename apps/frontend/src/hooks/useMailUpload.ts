@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { SavedMailSubmission } from '../data/mailAnalysis';
 import {
   createMailSubmission,
   getMailSubmission,
@@ -35,6 +36,7 @@ export function useMailUpload() {
   const [status, setStatus] = useState<'editing' | 'sending' | 'retry' | 'saved'>('editing');
   const statusRef = useRef(status);
   const [failure, setFailure] = useState('');
+  const [savedSubmission, setSavedSubmission] = useState<SavedMailSubmission | null>(null);
   const session = useRef<MailUploadSession | null>(null);
   const id = useRef<string | null>(null);
   const draft = useRef<Promise<void> | null>(null);
@@ -64,6 +66,7 @@ export function useMailUpload() {
     setComment('');
     setErrors({});
     setFailure('');
+    setSavedSubmission(null);
     updateStatus('editing');
     setAccess('loading');
     try {
@@ -166,6 +169,17 @@ export function useMailUpload() {
     const submissionId = id.current!;
     const signal = requests.current.signal;
     const active = () => mounted.current && generation.current === requestGeneration;
+    const markSaved = () => {
+      setSavedSubmission({
+        id: submissionId,
+        token,
+        photos: {
+          front: current.front.confirmedFile,
+          back: current.back.confirmedFile,
+        },
+      });
+      updateStatus('saved');
+    };
     updateStatus('sending');
     setFailure('');
     try {
@@ -173,7 +187,7 @@ export function useMailUpload() {
       if (!active()) return;
       if (result.status !== 'saved')
         throw new MailUploadError(502, 'The response could not be confirmed');
-      updateStatus('saved');
+      markSaved();
     } catch (error) {
       if (!active()) return;
       if (error instanceof MailUploadError && error.status === 401) setAccess('expired');
@@ -182,7 +196,7 @@ export function useMailUpload() {
         const result = await getMailSubmission(token, submissionId, { signal });
         if (!active()) return;
         if (result.status === 'saved') {
-          updateStatus('saved');
+          markSaved();
           return;
         }
       } catch {
@@ -195,6 +209,7 @@ export function useMailUpload() {
   };
   const reset = () => {
     if (statusRef.current !== 'saved') return;
+    setSavedSubmission(null);
     id.current = null;
     draft.current = null;
     payload.current = null;
@@ -217,6 +232,7 @@ export function useMailUpload() {
     errors,
     status,
     failure,
+    savedSubmission,
     upload,
     submit,
     reset,

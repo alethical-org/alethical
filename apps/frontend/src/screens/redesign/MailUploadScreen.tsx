@@ -1,5 +1,6 @@
 import { Fragment, createElement as h, useEffect, useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
+import { MailAnalysisResults } from '../../components/MailAnalysisResults';
 import { useMailUpload, type PhotoState } from '../../hooks/useMailUpload';
 import { type MailImageSide } from '../../data/mailUpload';
 import type { MenuKey } from '../../navigation/ia';
@@ -365,11 +366,22 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
           )
         : form.status === 'saved'
           ? h(
-              'section',
-              { className: 'success', 'aria-labelledby': 'mail-saved' },
-              h(Check, { size: 28 }),
-              h('h2', { id: 'mail-saved', ref: savedHeading, tabIndex: -1 }, 'Saved'),
-              h('button', { onClick: form.reset }, 'Upload another'),
+              'div',
+              { className: 'saved-results' },
+              h(
+                'section',
+                { className: 'success', 'aria-labelledby': 'mail-saved' },
+                h(Check, { size: 28 }),
+                h('h2', { id: 'mail-saved', ref: savedHeading, tabIndex: -1 }, 'Saved'),
+                h('button', { onClick: form.reset }, 'Upload another'),
+              ),
+              form.savedSubmission
+                ? h(MailAnalysisResults, {
+                    key: form.savedSubmission.id,
+                    submission: form.savedSubmission,
+                    onStartAgain: () => void form.checkAccess(),
+                  })
+                : null,
             )
           : h(
               'form',

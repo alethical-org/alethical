@@ -45,6 +45,31 @@ function attributeName(attribute) {
   return ts.isJsxAttribute(attribute) ? attribute.name.getText() : '';
 }
 
+// A heading can name the back of an object. It is not a return action unless
+// the heading itself, or an enclosing element, makes it interactive.
+function isStaticHeading(node) {
+  let parent = node.parent;
+  while (parent && !ts.isJsxElement(parent)) parent = parent.parent;
+  if (!parent || !/^h[1-6]$/.test(parent.openingElement.tagName.getText())) return false;
+  while (parent) {
+    if (ts.isJsxElement(parent)) {
+      const opening = parent.openingElement;
+      if (['a', 'button', 'Link', 'Pressable', 'GoBackLink'].includes(opening.tagName.getText()))
+        return false;
+      if (
+        opening.tagName.getText() !== 'dialog' &&
+        opening.attributes.properties.some((item) => {
+          const name = attributeName(item);
+          return /^on[A-Z]/.test(name) || name === 'href' || name === 'role';
+        })
+      )
+        return false;
+    }
+    parent = parent.parent;
+  }
+  return true;
+}
+
 // The sign-in header's Back changes a dialog step, with its specific action named
 // for assistive readers. No page-return exception or file-wide suppression exists.
 function isSignInStep(node, filename) {
@@ -126,6 +151,7 @@ export function checkReturnLinkSource(source, filename = 'src/example.tsx') {
     if (
       ts.isStringLiteralLike(node) &&
       genericReturn.test(normalize(node.text)) &&
+      !isStaticHeading(node) &&
       !isSignInStep(node, filename)
     ) {
       let value = node;
@@ -154,6 +180,7 @@ export function checkReturnLinkSource(source, filename = 'src/example.tsx') {
     if (
       ts.isJsxText(node) &&
       genericReturn.test(normalize(node.text)) &&
+      !isStaticHeading(node) &&
       !isSignInStep(node, filename)
     ) {
       add(node, 'Generic page-return words must name the actual destination');

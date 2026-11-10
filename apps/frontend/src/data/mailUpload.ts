@@ -1,3 +1,5 @@
+import { normalizeMailAnalysis, type MailAnalysis } from './mailAnalysis';
+
 /** Private upload sessions. Never send these values to site telemetry. */
 export const MAX_MAIL_IMAGE_BYTES = 15 * 1024 * 1024;
 export const MAIL_IMAGE_TYPES = [
@@ -247,6 +249,33 @@ export function getMailSubmission(
   options?: MailRequestOptions,
 ): Promise<MailSubmission> {
   return request(submissionPath(id), token, { method: 'GET' }, options);
+}
+async function analysisRequest(
+  path: string,
+  token: string,
+  init: RequestInit,
+  options?: MailRequestOptions,
+): Promise<MailAnalysis> {
+  const value = await request<MailAnalysis>(path, token, init, options);
+  try {
+    return normalizeMailAnalysis(value);
+  } catch {
+    throw new MailUploadError(502, 'The response could not be confirmed');
+  }
+}
+export function getMailAnalysis(
+  token: string,
+  id: string,
+  options?: MailRequestOptions,
+): Promise<MailAnalysis> {
+  return analysisRequest(`${submissionPath(id)}/analysis`, token, { method: 'GET' }, options);
+}
+export function retryMailAnalysis(
+  token: string,
+  id: string,
+  options?: MailRequestOptions,
+): Promise<MailAnalysis> {
+  return analysisRequest(`${submissionPath(id)}/analysis/retry`, token, json('POST', {}), options);
 }
 export function mailImageContentType(file: File): string {
   const declared = file.type.toLowerCase();

@@ -35,6 +35,7 @@ function makeForm(): ReturnType<typeof useMailUpload> {
     errors: {},
     status: 'editing',
     failure: '',
+    savedSubmission: null,
     upload: vi.fn(),
     submit: vi.fn(),
     reset: vi.fn(),
