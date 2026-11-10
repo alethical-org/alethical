@@ -1,4 +1,4 @@
-import { Children, useLayoutEffect, useRef, useState } from 'react';
+import { Children, useId, useLayoutEffect, useRef, useState } from 'react';
 import type {
   SavedMailSubmission,
   MailRegistration,
@@ -23,7 +23,7 @@ const css = `
 .mail-results .result-name{font-size:19px;line-height:1.25;letter-spacing:-.01em;font-weight:800;margin:0 0 4px}
 .mail-results .result-source{display:inline-flex;align-items:center;min-height:44px;color:#0f7a45;text-decoration:underline;text-underline-offset:3px;font-weight:600}
 .mail-results .result-source:hover{color:#11832b;text-decoration-thickness:2px}.mail-results a:focus-visible,.mail-results h2:focus-visible,.mail-results h3:focus-visible,.mail-results .reading:focus-visible,.mail-results .results-failure:focus-visible{outline:3px solid rgba(91,48,214,.55);outline-offset:3px;border-radius:3px}
-.mail-results .record-meta{color:#4f5651;font-size:15px;font-variant-numeric:tabular-nums}.mail-results .count{font-variant-numeric:tabular-nums}
+.mail-results .record-summary{font-size:16px;line-height:1.5;margin:8px 0 14px}.mail-results .record-website .result-source{display:flex;width:fit-content}.mail-results .record-meta{color:#4f5651;font-size:15px;font-variant-numeric:tabular-nums}
 .mail-upload .mail-results .text-card{padding:4px 10px 4px 7px}.mail-results .text-side+.text-side{border-top:1px solid rgba(17,21,15,.1)}
 .mail-results .text-controls{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:4px 0}.mail-upload .mail-results .text-toggle{display:flex;align-items:center;gap:8px;flex:1 1 120px;min-width:0;min-height:48px;text-align:left;border:0;border-radius:10px;padding:0 10px 0 4px;font-size:17px}
 .mail-upload .mail-results .text-toggle:hover{background:#f1f3f2}.mail-results .text-content{margin:0 0 12px 4px;background:#f5f6f7;border-radius:10px;padding:12px 14px;font-size:16px;line-height:1.55;color:#2c322c;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -36,9 +36,15 @@ const css = `
 @media(max-width:1099px){.mail-upload .saved-results{grid-template-columns:minmax(0,1fr);gap:32px}.mail-upload .saved-results>.success{margin-top:0}}
 .mail-results .record-basis{font-size:15px;line-height:1.45;font-weight:600;color:#4f5651}
 .mail-results .committee-records{margin-top:14px;padding-top:12px;border-top:1px solid rgba(17,21,15,.08)}.mail-results .committee-records h4{margin:0;font-size:16px;line-height:1.4;font-weight:800}.mail-results .registration-record{margin-top:6px;padding-bottom:12px}.mail-results .registration-record p+p{margin-top:0}
-.mail-results .record-group{border-top:1px solid rgba(17,21,15,.08);padding:4px 0 12px}.mail-results .record-group h4{margin:0}.mail-results .record-group h4 a{font-size:16px;font-weight:700;line-height:1.35;text-underline-offset:2px}
+.mail-results .record-group{border-top:1px solid rgba(17,21,15,.08);padding:14px 0 16px}.mail-results .record-group h4{margin:0}.mail-results .record-group h4 a{font-size:16px;font-weight:700;line-height:1.35;text-underline-offset:2px}
 .mail-results .payment-rows{list-style:none;margin:2px 0 0;padding:0}.mail-results .payment-row{margin-top:10px;padding-top:10px;border-top:1px solid rgba(17,21,15,.08)}.mail-results .payment-row:first-child{margin-top:2px;padding-top:0;border-top:0}.mail-results .payment-value{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0 12px;font-variant-numeric:tabular-nums}.mail-results .payment-amount{font-size:18px;line-height:1.35;font-weight:800;white-space:nowrap}.mail-results .payment-value>span{font-size:15px;line-height:1.45;color:#4f5651}.mail-results .payment-row .payment-fact{font-size:15px;line-height:1.5;margin:2px 0 0;overflow-wrap:anywhere;text-wrap:pretty}.mail-results .payment-fact b{margin-right:6px;font-weight:700;color:#4f5651}.mail-results .retrieved{margin-top:8px;font-size:14px}
-.mail-results .results-failure{display:flex;align-items:flex-start;gap:8px;background:#fdecec;border:1px solid #f4c9c6;border-radius:12px;padding:11px 13px;color:#8f2a20;font-size:15px;line-height:1.45;font-weight:600}.mail-results .results-failure svg{flex:none;margin-top:1px}.mail-upload .mail-results .results-retry{margin-top:10px;width:240px;max-width:100%;min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:11px 14px;font-size:16px}.mail-upload .mail-results .results-retry[aria-disabled="true"]{cursor:default;opacity:.6;background:#fff;border-color:rgba(17,21,15,.18)}.mail-results .results-spinner{display:inline-block;width:18px;height:18px;border:2.6px solid rgba(6,35,26,.25);border-top-color:#06231a;border-radius:50%;animation:mail-spin .8s linear infinite;flex:none}.mail-results .reading{min-height:64px;padding:18px 17px;font-weight:600}.mail-results .partial-note{padding:0 0 10px 30px;font-size:14.5px;line-height:1.45;font-weight:600;color:#4f5651}
+.mail-results .results-failure{display:flex;align-items:flex-start;gap:8px;background:#fdecec;border:1px solid #f4c9c6;border-radius:12px;padding:11px 13px;color:#8f2a20;font-size:15px;line-height:1.45;font-weight:600}.mail-results .results-failure svg{flex:none;margin-top:1px}.mail-upload .mail-results .results-retry{margin-top:10px;width:240px;max-width:100%;min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:11px 14px;font-size:16px}.mail-upload .mail-results .results-retry[aria-disabled="true"]{cursor:default;opacity:.6;background:#fff;border-color:rgba(17,21,15,.18)}.mail-results .results-spinner{display:inline-block;width:18px;height:18px;border:2.6px solid rgba(6,35,26,.25);border-top-color:#06231a;border-radius:50%;animation:mail-spin .8s linear infinite;flex:none}.mail-results .reading{min-height:64px;padding:18px 17px;font-weight:600}.mail-results .partial-note{padding:0 4px 10px;font-size:14.5px;line-height:1.45;font-weight:600;color:#4f5651}
+.mail-results .contribution-definition{font-size:15px;color:#4f5651;margin-top:4px}
+.mail-upload .mail-results .contribution-toggle{display:block;width:100%;min-height:44px;border:0;border-radius:10px;text-align:left;background:transparent;padding:8px 4px;font-size:15px;line-height:1.5;white-space:normal;overflow-wrap:anywhere}
+.mail-upload .mail-results .contribution-toggle:hover{background:#f1f3f2}.mail-upload .mail-results .contribution-toggle:focus-visible,.mail-upload .mail-results .text-toggle:focus-visible{outline:2px solid #7c5cff!important;outline-offset:4px!important}
+.mail-results .contribution-toggle svg{display:inline-block;width:18px;height:18px;vertical-align:-3px;margin-right:8px}.mail-results .contribution-answer{font-size:15px;line-height:1.5;margin:8px 0 12px}
+.mail-results .record-context{font-size:15px;margin:8px 0}.mail-results .record-context p+p{margin-top:2px}.mail-results .record-downloads{border-top:1px solid rgba(17,21,15,.08);padding-top:12px}.mail-results .record-downloads .result-source{display:flex;width:fit-content;gap:8px;font-size:15px}.mail-results .download-arrow{flex:none}.mail-results .text-gap{color:#4b524b;background:#f5f6f7;font-weight:600}.mail-results .text-side>.results-failure{margin:0 4px 10px}.mail-results .text-side>.results-retry{margin:0 4px 12px}
+@media(hover:none){.mail-upload .mail-results .contribution-toggle:hover{background:transparent}}
 @media(prefers-reduced-motion:reduce){.mail-results .results-spinner{animation:none}}
 @media(max-width:767px){.mail-upload .mail-results .results-retry{width:100%}}
 `;
@@ -48,7 +54,11 @@ const sideName = (side: MailImageSide) => (side === 'front' ? 'Front' : 'Back');
 function SourceLink({
   url,
   children,
+  describedBy,
+  label,
 }: {
+  describedBy?: string;
+  label?: string;
   url: string | null | undefined;
   children: React.ReactNode;
 }) {
@@ -67,11 +77,12 @@ function SourceLink({
   return safe ? (
     <a
       className="result-source"
+      aria-describedby={describedBy}
       href={url!}
       target="_blank"
       rel="noopener noreferrer"
       referrerPolicy="no-referrer"
-      aria-label={[Children.toArray(children).join(''), publisher, 'opens in a new tab']
+      aria-label={[label ?? Children.toArray(children).join(''), publisher, 'opens in a new tab']
         .filter(Boolean)
         .join(', ')}
     >
@@ -181,23 +192,80 @@ function Retry({ busy, onClick }: { busy: boolean; onClick: () => void }) {
     </button>
   );
 }
-function Payment({
-  row,
-  kind,
-}: {
-  row: MailPayment;
-  kind: 'received' | 'paid' | 'independent_spending';
-}) {
-  const type = row.receipt_type ?? row.expenditure_type;
-  const unpaid =
-    row.unpaid_amount && Number(row.unpaid_amount) > 0 ? formatMoney(row.unpaid_amount) : null;
+const recordKinds = ['received', 'paid', 'independent_spending'] as const;
+type RecordKind = (typeof recordKinds)[number];
+const recordTitles: Record<RecordKind, string> = {
+  received: 'Contributions received',
+  paid: 'Payments',
+  independent_spending: 'Independent spending',
+};
+const downloadBase =
+  'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
+const downloads: Partial<Record<RecordKind, string>> = {
+  received: `${downloadBase}?download=-2113865252`,
+  independent_spending: `${downloadBase}?download=-617535497`,
+};
+
+function Chevron({ expanded }: { expanded: boolean }) {
   return (
-    <li className="payment-row">
-      <div className="payment-value">
-        <strong className="payment-amount">{formatMoney(row.amount) ?? 'Not reported'}</strong>
-        <span>{formatDay(row.received_on ?? row.paid_on)}</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={expanded ? 'M6 9 L12 15 L18 9' : 'M9 6 L15 12 L9 18'}
+        stroke="#4f5651"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ContributionDefinition({ isFund }: { isFund: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+  return (
+    <>
+      <p className="contribution-definition">
+        Money or donated goods and services given to this {isFund ? 'fund' : 'committee'}
+      </p>
+      <button
+        type="button"
+        className="contribution-toggle"
+        aria-expanded={expanded}
+        aria-controls={id}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <Chevron expanded={expanded} />
+        What counts as a contribution?
+      </button>
+      <div className="contribution-answer" id={id} hidden={!expanded}>
+        An organization can also assign its own money to its political fund. Minnesota records this
+        as a contribution.
       </div>
-      {unpaid && <p className="payment-fact">{unpaid} of it unpaid</p>}
+    </>
+  );
+}
+
+type SharedPaymentContext = Pick<
+  MailPayment,
+  'contributor' | 'vendor_name' | 'affected_committee_name' | 'stance'
+>;
+function sharedContext(rows: MailPayment[], kind: RecordKind): SharedPaymentContext {
+  const common = (field: keyof SharedPaymentContext) =>
+    rows[0]?.[field] && rows.every((row) => row[field] === rows[0][field])
+      ? rows[0][field]
+      : undefined;
+  const stance = common('stance');
+  return {
+    contributor: kind === 'received' ? common('contributor') : undefined,
+    vendor_name: common('vendor_name'),
+    affected_committee_name: stance ? common('affected_committee_name') : undefined,
+    stance,
+  };
+}
+function PaymentContext({ row, kind }: { row: SharedPaymentContext; kind: RecordKind }) {
+  return (
+    <>
       {kind === 'received' && row.contributor && (
         <p className="payment-fact">
           <b>From</b> {row.contributor}
@@ -211,9 +279,42 @@ function Payment({
       )}
       {row.vendor_name && (
         <p className="payment-fact">
-          <b>To</b> {row.vendor_name}
+          <b>Paid to</b> {row.vendor_name}
         </p>
       )}
+    </>
+  );
+}
+function Payment({
+  row,
+  kind,
+  shared,
+}: {
+  row: MailPayment;
+  kind: RecordKind;
+  shared: SharedPaymentContext;
+}) {
+  const type = row.receipt_type ?? row.expenditure_type;
+  const unpaid =
+    row.unpaid_amount && Number(row.unpaid_amount) > 0 ? formatMoney(row.unpaid_amount) : null;
+  return (
+    <li className="payment-row">
+      <div className="payment-value">
+        <strong className="payment-amount">{formatMoney(row.amount) ?? 'Not reported'}</strong>
+        <span>{formatDay(row.received_on ?? row.paid_on)}</span>
+      </div>
+      {unpaid && <p className="payment-fact">{unpaid} of it unpaid</p>}
+      <PaymentContext
+        kind={kind}
+        row={{
+          ...row,
+          contributor: shared.contributor ? undefined : row.contributor,
+          vendor_name: shared.vendor_name ? undefined : row.vendor_name,
+          affected_committee_name: shared.affected_committee_name
+            ? undefined
+            : row.affected_committee_name,
+        }}
+      />
       {type &&
         !['Contribution', 'General Expenditure', 'Independent Expenditure'].includes(type) && (
           <p className="payment-fact">{type}</p>
@@ -235,64 +336,152 @@ function RecordBlock({
   block,
   kind,
   year,
+  showRetrieved,
+  isFund,
+  retry,
 }: {
   block?: MailRecordBlock;
-  kind: 'received' | 'paid' | 'independent_spending';
+  kind: RecordKind;
   year?: number;
+  showRetrieved: boolean;
+  isFund: boolean;
+  retry?: React.ReactNode;
 }) {
   if (block?.state === 'not_reported') return null;
-  const title = {
-    received: 'Contributions',
-    paid: 'Payments',
-    independent_spending: 'Independent spending',
-  }[kind];
   const rows = block?.state === 'reported' ? block.payments.slice(0, 5) : [];
   const more =
     block?.has_more && block.total_payments !== null && block.total_payments > rows.length;
   const scope = rows.length
     ? `${block?.has_more ? `Latest ${rows.length}${more ? ` of ${block.total_payments}` : ''}` : rows.length} ${rows.length === 1 && !more ? 'record' : 'records'}`
     : null;
+  // The row dates provide the year only when every visible row has that scope.
+  const datesShowYear =
+    year &&
+    rows.length > 0 &&
+    rows.every((row) => (row.received_on ?? row.paid_on)?.startsWith(`${year}-`));
+  const shared = sharedContext(rows, kind);
   return (
     <div className="record-group">
-      <h4>{block?.source_url ? <SourceLink url={block.source_url}>{title}</SourceLink> : title}</h4>
+      <h4>{recordTitles[kind]}</h4>
+      {kind === 'received' && <ContributionDefinition isFund={isFund} />}
       <p className="record-meta">
-        {[scope, year].filter((value) => value !== null && value !== undefined).join(' · ')}
+        {[scope, datesShowYear ? null : year]
+          .filter((value) => value !== null && value !== undefined)
+          .join(' · ')}
       </p>
       {!block || block.state === 'unavailable' ? (
-        <Failure>We couldn’t load these results</Failure>
+        <>
+          <Failure>We couldn’t load these results</Failure>
+          {retry}
+        </>
       ) : (
-        <ul className="payment-rows">
-          {rows.map((row, index) => (
-            <Payment key={index} row={row} kind={kind} />
-          ))}
-        </ul>
+        <>
+          {(shared.contributor || shared.vendor_name || shared.affected_committee_name) && (
+            <div className="record-context">
+              <PaymentContext row={shared} kind={kind} />
+            </div>
+          )}
+          <ul className="payment-rows">
+            {rows.map((row, index) => (
+              <Payment key={index} row={row} kind={kind} shared={shared} />
+            ))}
+          </ul>
+        </>
       )}
-      {block?.fetched_at && (
+      {showRetrieved && block?.fetched_at && (
         <p className="record-meta retrieved">Retrieved {centralDateLabel(block.fetched_at)}</p>
       )}
     </div>
   );
 }
 
-function Registration({ record, retry }: { record: MailRegistration; retry?: React.ReactNode }) {
-  const basis =
-    record.basis === 'same_website'
-      ? 'Same website'
-      : record.basis === 'similar_committee_name'
-        ? 'Similar name'
-        : record.basis === 'same_committee_name'
-          ? 'Name matches only'
-          : null;
+function supportedSummary(record: MailRegistration): string | null {
   const records = record.records;
+  const normalize = (value?: string | null) => value?.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (
+    record.registration_number !== '30807' ||
+    normalize(record.name) !== 'our america minnesota political fund' ||
+    records?.state !== 'available' ||
+    records.refresh_failed ||
+    records.registration_number !== record.registration_number ||
+    records.received?.state !== 'reported' ||
+    records.independent_spending?.state !== 'reported'
+  )
+    return null;
+  const received = records.received.payments.some(
+    (row) =>
+      normalize(row.contributor) === 'our america' &&
+      Number.isFinite(Number(row.amount)) &&
+      Number(row.amount) > 0,
+  );
+  const spending = records.independent_spending.payments.filter(
+    (row) =>
+      normalize(row.vendor_name) === 'bilander media' &&
+      normalize(row.affected_committee_name) === 'demuth, lisa gov committee' &&
+      row.stance === 'For' &&
+      row.unpaid_amount != null &&
+      Number.isFinite(Number(row.amount)) &&
+      Number.isFinite(Number(row.unpaid_amount)) &&
+      Number(row.unpaid_amount) >= 0 &&
+      Number(row.amount) - Number(row.unpaid_amount) > 0,
+  );
+  const digital = spending.some((row) =>
+    /\bdigital (?:ad(?:vertising|s)?|advertisements?)\b/i.test(row.purpose ?? ''),
+  );
+  const texts = spending.some((row) => /\b(?:texts?|texting)\b/i.test(row.purpose ?? ''));
+  return received && digital && texts
+    ? 'Records show contributions from Our America and payments to Bilander Media for digital ads and texts supporting Lisa Demuth. They don’t identify who produced this mailer.'
+    : null;
+}
+
+function verifiedWebsite(record: MailRegistration): string | null {
+  if (record.basis !== 'same_website' || !record.domain) return null;
+  // A verified domain is a hostname, never a path, credential or arbitrary URL.
+  if (!/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(record.domain)) return null;
+  return `https://${record.domain.toLowerCase()}`;
+}
+function Registration({ record, retry }: { record: MailRegistration; retry?: React.ReactNode }) {
+  const downloadNotice = useId();
+  const basis =
+    record.basis === 'similar_committee_name'
+      ? 'Similar name'
+      : record.basis === 'same_committee_name'
+        ? 'Name matches only'
+        : null;
+  const records = record.records;
+  const website = verifiedWebsite(record);
+  const summary = supportedSummary(record);
+  const visibleBlocks = recordKinds.flatMap((kind) =>
+    records?.[kind] && records[kind].state !== 'not_reported'
+      ? [{ kind, block: records[kind] }]
+      : [],
+  );
+  const dateLabels = visibleBlocks.map(({ block }) =>
+    block.fetched_at ? centralDateLabel(block.fetched_at) : null,
+  );
+  const commonDate =
+    dateLabels.length > 0 && dateLabels[0] && dateLabels.every((date) => date === dateLabels[0])
+      ? dateLabels[0]
+      : null;
+  const sourceBlocks = visibleBlocks.filter(({ block }) => !!block.source_url);
+  const hasDownloads = sourceBlocks.some(({ kind, block }) => downloads[kind] === block.source_url);
   return (
     <article className="result-card">
       <h3 tabIndex={-1} className="result-name">
         {record.name}
       </h3>
+      {summary && <p className="record-summary">{summary}</p>}
+      {website && (
+        <div className="record-website">
+          <p className="record-basis">Website on the mail and state record</p>
+          <SourceLink url={website}>{record.domain}</SourceLink>
+        </div>
+      )}
       {basis && <p className="record-basis">{basis}</p>}
       <div className="committee-records">
         <h4>Records for this committee</h4>
         <p className="record-meta">Minnesota Campaign Finance Board</p>
+        {commonDate && <p className="record-meta retrieved">Retrieved {commonDate}</p>}
         <div className="registration-record">
           <SourceLink url={record.source_url}>Registration {record.registration_number}</SourceLink>
           {record.roles?.map(({ role, name }, index) => (
@@ -314,9 +503,53 @@ function Registration({ record, retry }: { record: MailRegistration; retry?: Rea
         )}
         {records?.state === 'available' ? (
           <>
-            {(['received', 'paid', 'independent_spending'] as const).map((kind) => (
-              <RecordBlock key={kind} kind={kind} block={records[kind]} year={records.year} />
+            {recordKinds.map((kind) => (
+              <RecordBlock
+                key={kind}
+                kind={kind}
+                block={records[kind]}
+                year={records.year}
+                showRetrieved={!commonDate}
+                isFund={/\bfund\b/i.test(record.name)}
+                retry={retry}
+              />
             ))}
+            {!!sourceBlocks.length && (
+              <div className="record-downloads">
+                {hasDownloads && (
+                  <p id={downloadNotice} className="record-meta">
+                    State files cover all filers from 2015 to present. Downloads may take a moment.
+                  </p>
+                )}
+                {sourceBlocks.map(({ kind, block }) => (
+                  <SourceLink
+                    key={kind}
+                    url={block.source_url}
+                    label={
+                      downloads[kind] === block.source_url
+                        ? kind === 'received'
+                          ? 'Download contributions (CSV)'
+                          : 'Download independent spending (CSV)'
+                        : undefined
+                    }
+                    describedBy={downloads[kind] === block.source_url ? downloadNotice : undefined}
+                  >
+                    {downloads[kind] === block.source_url ? (
+                      <>
+                        <span className="download-arrow" aria-hidden="true">
+                          ↓
+                        </span>
+                        {kind === 'received'
+                          ? 'Download contributions (CSV)'
+                          : 'Download independent spending (CSV)'}
+                      </>
+                    ) : (
+                      `View ${recordTitles[kind].toLowerCase()} source`
+                    )}
+                  </SourceLink>
+                ))}
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -326,6 +559,22 @@ function Registration({ record, retry }: { record: MailRegistration; retry?: Rea
         )}
       </div>
     </article>
+  );
+}
+
+function ReadingText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\[Unreadable\])/gi).map((part, index) =>
+        /^\[Unreadable\]$/i.test(part) ? (
+          <span key={index} className="text-gap" aria-label="Unreadable">
+            [Unreadable]
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
   );
 }
 
@@ -370,8 +619,9 @@ export function MailAnalysisResults({
     result?.can_retry || analysis.retrying ? (
       <Retry busy={analysis.retrying || reading} onClick={analysis.retry} />
     ) : null;
-  const announcement =
-    result?.status === 'ready'
+  const announcement = analysis.retrying
+    ? 'Trying again…'
+    : result?.status === 'ready'
       ? 'Results ready'
       : result?.status === 'partial' && (partialText || unreadable.length)
         ? 'Some text could not be read'
@@ -410,17 +660,6 @@ export function MailAnalysisResults({
           {retry}
         </section>
       )}
-      {!!unreadable.length && (
-        <section>
-          {unreadable.map((side) => (
-            <div className="unreadable-side" key={side.side}>
-              <h2 tabIndex={-1}>{sideName(side.side)}</h2>
-              <Failure>We couldn’t read this photo</Failure>
-            </div>
-          ))}
-          {retry}
-        </section>
-      )}
       {!!result?.payers.length && (
         <section aria-labelledby="mail-printed-payer">
           <h2 tabIndex={-1} id="mail-printed-payer">
@@ -429,7 +668,7 @@ export function MailAnalysisResults({
           {result.payers.map((payer, index) => (
             <article className="result-card payer-card" key={`${payer.side}-${index}`}>
               <div className="source-row">
-                <span className="record-meta">Machine-read text · {sideName(payer.side)}</span>
+                <span className="record-meta">From the {payer.side}</span>
                 <PhotoButton side={payer.side} open={setPhotoSide} />
               </div>
               <blockquote>“{payer.quote}”</blockquote>
@@ -499,31 +738,23 @@ export function MailAnalysisResults({
           ))}
         </section>
       )}
-      {result && (!reading || retained || result.matching_mailers.count !== null) && (
-        <section aria-labelledby="mail-matching-mailers">
-          <h2 tabIndex={-1} id="mail-matching-mailers">
-            Matching mailers
-          </h2>
-          <div className="result-card count">
-            {result.matching_mailers.count === null
-              ? 'Not counted yet'
-              : `${result.matching_mailers.count.toLocaleString('en-US')} ${result.matching_mailers.count === 1 ? 'submission' : 'submissions'}`}
-          </div>
-        </section>
-      )}
       {!!result?.sides.length && (
         <section aria-labelledby="mail-machine-text">
           <h2 tabIndex={-1} id="mail-machine-text">
-            Machine-read text
+            Text from your mail
           </h2>
           <div className="result-card text-card">
             {(['front', 'back'] as const).map((side) => {
               const read = result.sides.find((item) => item.side === side);
               if (!read) return null;
+              const displayText = read.display_text ?? read.text;
+              const notice =
+                read.reading_notice ??
+                (read.status === 'partial' ? 'Some text could not be read' : null);
               return (
                 <div className="text-side" key={side}>
                   <div className="text-controls">
-                    {read.text ? (
+                    {displayText ? (
                       <button
                         type="button"
                         className="text-toggle"
@@ -553,19 +784,21 @@ export function MailAnalysisResults({
                     )}
                     <PhotoButton side={side} open={setPhotoSide} />
                   </div>
-                  {read.status === 'partial' && (
-                    <p className="partial-note">Some text could not be read</p>
+                  {read.status === 'unreadable' ? (
+                    <Failure>We couldn’t read this photo</Failure>
+                  ) : (
+                    notice && <p className="partial-note">{notice}</p>
                   )}
-                  {read.text && (
+                  {displayText && (
                     <div id={`mail-text-${side}`} className="text-content" hidden={!expanded[side]}>
-                      {read.text}
+                      <ReadingText text={displayText} />
                     </div>
                   )}
+                  {read.status !== 'read' && retry}
                 </div>
               );
             })}
           </div>
-          {partialText && !unreadable.length && retry}
         </section>
       )}
       {photoSide && (

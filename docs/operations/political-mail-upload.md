@@ -25,7 +25,7 @@ uv run python scripts/mail_upload.py --target local create --output /private/tmp
 uv run python scripts/mail_upload.py --target local revoke INVITATION_UUID
 ```
 
-Default invitation lifetime: 7 days, 20 sessions and 512 MiB of unique image bytes. CLI bounds: 1–30 days, 1–100 sessions. Sessions expire after 24 hours or invitation expiry, whichever comes first. Revocation invalidates every session on the next authenticated action. Invite possession is access; an unlisted URL alone is not an access control. Put the invitation token in the frontend URL fragment, never its query string. The frontend clears it after capturing it and keeps credentials only in page memory. A shared invitation can create multiple isolated sessions; those sessions are not verified distinct people.
+Default invitation lifetime: 7 days, 20 sessions and 512 MiB of reserved image-reference bytes. CLI bounds: 1–30 days, 1–100 sessions. Sessions expire after 24 hours or invitation expiry, whichever comes first. Revocation invalidates every session on the next authenticated action. Invite possession is access; an unlisted URL alone is not an access control. Put the invitation token in the frontend URL fragment, never its query string. The frontend clears it after capturing it and keeps credentials only in page memory. A shared invitation can create multiple isolated sessions; those sessions are not verified distinct people.
 
 ## API contract
 
@@ -47,11 +47,11 @@ Validation: maximum 15 MiB per original, 51 million decoded pixels, JPEG/PNG/Web
 
 ## Limits and recovery
 
-Database locks serialize quota reservations across API replicas. Global limits are 2 GiB of reserved unique image bytes and 2,000 storage attempts; each invitation allows 400 attempts, its byte allowance and its session count. The plain URL uses a server-created quota record with a lifetime cap of 1,000 sessions, 512 MiB of unique image bytes and 400 storage attempts. No database migration or browser credential setup is needed. Each session expires after 24 hours and allows 25 submissions. Replacements and incomplete objects count toward storage. Successful identical image retries do not reserve bytes again. Global counters intentionally do not reset on application restart or invitation revocation. This conservative ceiling bounds abandoned/failed transfers as well as accepted images.
+Database locks serialize quota reservations across API replicas. Global limits are 2 GiB of reserved image-reference bytes and 2,000 storage attempts; each invitation allows 400 attempts, its byte allowance and its session count. The plain URL uses a server-created quota record with a lifetime cap of 1,000 sessions, 512 MiB of reserved image-reference bytes and 400 storage attempts. No database migration or browser credential setup is needed. Each session expires after 24 hours and allows 25 submissions. Each new owned side reference reserves its full bytes, including when it reuses a physical file. Replacements and incomplete objects count toward storage. Successful identical image retries do not reserve bytes again. Global counters intentionally do not reset on application restart or invitation revocation. This conservative ceiling bounds abandoned/failed transfers as well as accepted images.
 
 An additional per-process, per-IP limit defaults to 60 API calls/minute. It uses the project's trusted-proxy client address, not caller-controlled forwarding headers. This rate limit is a first-line throttle; the database counters are the cross-replica ceiling. Image reception is limited to 45 seconds and one in-flight decode/storage operation per process; storage network calls use bounded connection/read timeouts and retries.
 
-On storage failure return 503 with no provider body, preserve the old selected side, and allow retry. On a missing response the client can GET the owned submission before deciding to retry. No artificial success: `saved` requires both selected photos to have verified primary and backup copies. A subsequent external bucket deletion is outside that upload-time guarantee and needs normal backup monitoring.
+On storage failure return 503 with no provider body and allow retry. A temporary outage preserves the old selected side. A proven read-back mismatch withdraws verification and selection from draft references to that key, under the submission lock; saved history and stored files remain unchanged. A verification generation prevents an earlier in-flight upload from restoring withdrawn confirmation. On a missing response the client can GET the owned submission before deciding to retry. No artificial success: `saved` requires both selected photos to have verified primary and backup copies. A subsequent external bucket deletion is outside that upload-time guarantee and needs normal backup monitoring.
 
 ## Administrator inspection
 
@@ -76,18 +76,44 @@ The form appears while the browser opens an upload session. Its controls become 
 
 ## Private results after Saved
 
-The results use section 08 of the same Design file. Phone and tablet keep one column with 32px between Saved and results. At 1100px and wider, Saved is 360px, results are up to 720px, the gap is 56px, and their first card tops align. Results appear in this order: current reading/failure status, printed payer, public records or separate possible/related records, matching mailers, and collapsible Front/Back machine-read text. Results arrival is announced without moving focus. A focused retry that disappears moves focus to its related result heading; a person who moved elsewhere keeps that focus.
+The results use section 09 of the same Design file. Phone and tablet keep one column with 32px between Saved and results. At 1100px and wider, Saved is 360px, results are up to 720px, the gap is 56px, and their first card tops align. Results appear in this order: current reading/failure status, printed payer, public records or separate possible/related records, and collapsible Front/Back text under “Text from your mail”. Results arrival is announced without moving focus. A focused retry that disappears moves focus to its related result heading; a person who moved elsewhere keeps that focus.
 
 After the server confirms save, the browser snapshots the submission ID, owned session token and the exact accepted File for each side. It polls the owned analysis GET every 2 seconds only while pending or processing, stopping at ready, partial or failed. Requests are aborted and late replies ignored on reset, session change or unmount. Retry uses the owned POST only while the server allows it, never inferring another attempt from local state. Successful text and prior public rows remain during retries. A transport retry refreshes GET instead of spending a processing attempt. See [analysis operations](political-mail-analysis.md) for the worker, 3-attempt limit and API.
 
-“Machine-read text” labels the exact printed disclosure in curly quotation marks with its side and View photo. Partial or unreadable text never becomes a complete-transcript claim. “No payer found” requires both sides to have been read and no disclosure; no general “No public records found” claim is made because the response does not prove a completed empty search. Name-only and similar-name registrations remain Possible matches; website evidence remains Related records; a name-and-address organization match does not identify a payer account.
+“From the front” or “From the back” identifies the exact printed disclosure in curly quotation marks, beside View photo. Partial or unreadable text never becomes a complete-transcript claim. “No payer found” requires both sides to have been read and no disclosure; no general “No public records found” claim is made because the response does not prove a completed empty search. Name-only and similar-name registrations remain Possible matches; website evidence remains Related records; a name-and-address organization match does not identify a payer account.
 
-Each registration keeps its source link, roles and separate Contributions, Payments and Independent spending groups. Each group shows up to 5 source rows, its year and sample coverage, exact source meanings, and Retrieved dates from the original fetch. Decimal strings remain exact in data and use the existing public money formatter for display. Missing amounts say “Not reported”; positive unpaid portions use the reported unpaid field. Groups with no held rows (`not_reported`) are omitted; unavailable groups show failure. Groups may overlap and are never added together. A failed refresh keeps prior rows and dates with “We couldn’t refresh these records”. Source links open a new tab with publisher and new-tab wording for assistive technology, no opener and no referrer.
+Each registration keeps its source link, roles and separate Contributions, Payments and Independent spending groups. Each group shows up to 5 source rows with their full dates and sample coverage. Its year appears separately only when needed to understand that scope. Shared contributor, vendor, candidate and retrieval dates appear once where they apply to all displayed rows; meaningful differences remain beside their rows. Decimal strings remain exact in data and use the existing public money formatter for display. Missing amounts say “Not reported”; positive unpaid portions use the reported unpaid field. Groups with no held rows (`not_reported`) are omitted; unavailable groups show failure. Groups may overlap and are never added together. A failed refresh keeps prior rows and dates with “We couldn’t refresh these records”. Source links open a new tab with publisher and new-tab wording for assistive technology, no opener and no referrer.
 
-Matching mailers counts saved submissions assigned to the checked creative, excluding test records. It says “1 submission”, plural submissions, or “Not counted yet”; it never counts people, physical pieces or delivery. Private result URLs carry no token, photo or personal data. No Share control or return-later history is offered.
+Matching mailers is internal data and is not shown in results. Its count includes saved submissions assigned to the checked creative, excluding test records; it never counts people, physical pieces or delivery. Private result URLs carry no token, photo or personal data. No Share control or return-later history is offered.
 
 View photo creates a temporary blob URL from the retained accepted File, without downloading an original from an API or changing its bytes. The dialog supports fit, zoom, pan, keyboard, touch, Escape and return focus. Inactive zoom controls remain in the Tab order with `aria-disabled`; they cannot act. Closing, reset and unmount revoke blob URLs. A missing or unreadable local file says “We couldn’t open this photo” with Close available. Reload cannot recover these page-memory files.
 
 A known expired session blocks further analysis fetches and retries and offers Start again. Already displayed results and the owner's retained local photo remain until that reset. Start again and a real ownership change clear private state. Expiry does not make prior machine-read evidence newly public or erase the owner's local file.
 
 Focused Vitest tests cover the owned API, private state, bounded retry, stale responses, file lifecycle, evidence wording and source rows. `e2e/mail-analysis-results.spec.ts` uses intercepted synthetic responses to exercise real-browser focus, retry recovery, photo controls, reset and 200% text. Run it only against a local preview with `E2E_BASE_URL`, alongside the rendered phone/tablet/desktop review; it does not call production.
+
+## Exact-file reuse
+
+Migration `0092_mail_file_reuse` permits separate private image references to share
+an object key. Matching uses exact SHA-256, byte length, media type and dimensions;
+a different photo of the same mailer remains a different file. Each fresh submission
+keeps its own feedback and ownership. The storage key is never returned to the
+uploader or accepted as proof of access.
+
+The existing database quota lock serializes key reservation across replicas. Each
+selected reference requires verified bytes in both Supabase and Cloudflare. A missing
+copy is repaired from the incoming identical file; an unavailable or corrupt copy
+fails without selecting the new reference or overwriting corrupt evidence. Proven
+corruption also withdraws draft confirmations as described under Limits and recovery.
+Saved history remains intact. Retrying
+verification spends an attempt but reserves no duplicate bytes. Byte quotas
+conservatively reserve each fresh owned reference even when the
+physical file is reused. Admission and remaining allowance therefore do not reveal
+whether another person uploaded the same bytes.
+Existing duplicate objects and their conservative reservations remain unchanged.
+
+Deploy the migration before the API. Roll back application code with migration 0092
+retained once keys are shared; the previous API can still read the references but
+allocates new objects. Database downgrade refuses while shared keys exist rather
+than deleting references. No live file deletion or retroactive quota refund is part
+of this release.

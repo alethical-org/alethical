@@ -160,11 +160,11 @@ it('keeps exact machine-read evidence separate from possible and related identit
     'Printed payer',
     'Possible matches',
     'Related records',
-    'Matching mailers',
-    'Machine-read text',
+    'Text from your mail',
   ]);
   expect(container.textContent).toContain('Similar name');
-  expect(container.textContent).toContain('Same website');
+  expect(container.textContent).not.toContain('Same website');
+  expect(container.textContent).toContain('From the back');
   expect(container.textContent).not.toContain('Name and address match');
   expect(container.textContent).not.toContain(submission.token);
 });
@@ -182,15 +182,12 @@ it('lets an expired session start again while retaining readable results until r
   expect(current.refresh).not.toHaveBeenCalled();
 });
 
-it('keeps unknown and singular counts distinct without people or delivery claims', async () => {
+it.each([null, 1, 12])('keeps the internal matching count %s out of the results', async (count) => {
+  current.result!.matching_mailers.count = count;
   await render();
-  expect(container.querySelector('.count')?.textContent).toBe('Not counted yet');
-  current.result = { ...result, matching_mailers: { count: 1 } };
-  await render();
-  expect(container.querySelector('.count')?.textContent).toBe('1 submission');
-  current.result = { ...result, matching_mailers: { count: 12 } };
-  await render();
-  expect(container.querySelector('.count')?.textContent).toBe('12 submissions');
+  expect(container.querySelector('.count')).toBeNull();
+  expect(container.textContent).not.toContain('Matching mailers');
+  expect(current.result!.matching_mailers.count).toBe(count);
 });
 
 it('opens text in place with a separate accessible photo button', async () => {
@@ -273,7 +270,8 @@ it('shows at most five source rows, preserves missing money and payment qualific
   await render();
   const card = container.querySelector('#mail-possible-matches')!.parentElement!;
   expect(card.querySelectorAll('.payment-row')).toHaveLength(6);
-  expect(card.textContent).toContain('Latest 5 of 9 records · 2026');
+  expect(card.textContent).toContain('Latest 5 of 9 records');
+  expect(card.textContent).not.toContain('Latest 5 of 9 records · 2026');
   expect(card.textContent).not.toContain('Contributor 5');
   expect(card.textContent).toContain('Not reported');
   expect(card.textContent).not.toContain('$0');
@@ -282,7 +280,7 @@ it('shows at most five source rows, preserves missing money and payment qualific
   expect(card.textContent).toContain('In kind: Printing');
   expect(card.textContent).toContain('$7 of it unpaid');
   expect(card.textContent).toContain('Against Example Candidate');
-  expect(card.textContent).toContain('To Example Printer');
+  expect(card.textContent).toContain('Paid to Example Printer');
   expect(card.textContent).toContain('Purpose “DIRECT MAIL: PRINTING”');
   expect(card.textContent).toContain('Retrieved Nov 9, 2026');
   expect(card.querySelector('a[href="https://cfb.mn.gov/payments"]')).toBeNull();
@@ -345,4 +343,259 @@ it('keeps the retry button busy and old text usable while the queued retry is pr
   expect(retry.every((button) => button.getAttribute('aria-disabled') === 'true')).toBe(true);
   expect(container.textContent).toContain('Back machine words');
   expect(container.textContent).not.toContain('Reading your mail');
+});
+
+function supportedFund() {
+  const source = 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
+  const block = {
+    state: 'reported' as const,
+    has_more: true,
+    total_payments: 26,
+    fetched_at: '2026-11-10T00:17:45Z',
+  };
+  const fund = current.result!.payers[0].related_records[0];
+  Object.assign(fund, {
+    name: 'Our America Minnesota Political Fund',
+    registration_number: '30807',
+    domain: 'joinouramerica.org',
+    checked_on: '2026-11-09',
+    records: {
+      state: 'available',
+      registration_number: '30807',
+      year: 2026,
+      received: {
+        ...block,
+        source_url: `${source}?download=-2113865252`,
+        payments: [
+          {
+            amount: '5945.85',
+            record_number: 487344,
+            contributor: 'Our America',
+            received_on: '2026-10-19',
+          },
+          {
+            amount: '6143.24',
+            record_number: 349548,
+            contributor: 'Our America',
+            received_on: '2026-10-18',
+          },
+        ],
+      },
+      paid: { ...block, state: 'not_reported', payments: [], source_url: null },
+      independent_spending: {
+        ...block,
+        fetched_at: '2026-11-10T00:18:13Z',
+        source_url: `${source}?download=-617535497`,
+        payments: [
+          'Advertising - general: Digital Advertising Service',
+          'Telephone: Texting - Lisa Demuth for Governor',
+        ].map((purpose, index) => ({
+          amount: '5945.85',
+          unpaid_amount: '0.0000',
+          record_number: 23758 + index,
+          paid_on: '2026-10-19',
+          vendor_name: 'Bilander Media',
+          affected_committee_name: 'Demuth, Lisa Gov Committee',
+          stance: 'For',
+          purpose,
+        })),
+      },
+    },
+  });
+  return fund;
+}
+
+it('shows the approved summary only beside records that support every claim', async () => {
+  supportedFund();
+  await render();
+  const summary = container.querySelector('.record-summary')!;
+  expect(summary.textContent).toBe(
+    'Records show contributions from Our America and payments to Bilander Media for digital ads and texts supporting Lisa Demuth. They don’t identify who produced this mailer.',
+  );
+  expect(summary.previousElementSibling?.textContent).toBe('Our America Minnesota Political Fund');
+  expect(summary.nextElementSibling?.textContent).toContain('Website on the mail and state record');
+});
+
+it.each([
+  'registration',
+  'fund name',
+  'contributor',
+  'vendor',
+  'candidate',
+  'stance',
+  'digital',
+  'texts',
+  'refresh',
+  'missing block',
+  'unavailable',
+  'zero',
+  'fully unpaid',
+  'unknown unpaid',
+])('omits the summary when %s evidence is missing or contradictory', async (change) => {
+  const fund = supportedFund();
+  const records = fund.records!;
+  if (change === 'registration') fund.registration_number = '99999';
+  if (change === 'fund name') fund.name = 'Another Fund';
+  if (change === 'contributor')
+    records.received!.payments.forEach((row) => (row.contributor = 'Another contributor'));
+  if (change === 'vendor')
+    records.independent_spending!.payments.forEach((row) => (row.vendor_name = 'Another vendor'));
+  if (change === 'candidate')
+    records.independent_spending!.payments.forEach(
+      (row) => (row.affected_committee_name = 'Another candidate'),
+    );
+  if (change === 'stance')
+    records.independent_spending!.payments.forEach((row) => (row.stance = 'Against'));
+  if (change === 'digital') records.independent_spending!.payments[0].purpose = 'Direct mail';
+  if (change === 'texts') records.independent_spending!.payments[1].purpose = 'Printing';
+  if (change === 'refresh') records.refresh_failed = true;
+  if (change === 'missing block') delete records.received;
+  if (change === 'unavailable') records.state = 'unavailable';
+  if (change === 'zero') records.received!.payments.forEach((row) => (row.amount = '0'));
+  if (change === 'fully unpaid')
+    records.independent_spending!.payments.forEach((row) => (row.unpaid_amount = row.amount));
+  if (change === 'unknown unpaid')
+    records.independent_spending!.payments.forEach((row) => delete row.unpaid_amount);
+  await render();
+  expect(container.querySelector('.record-summary')).toBeNull();
+});
+
+it('moves shared identities above their rows and restores each differing identity beside its row', async () => {
+  const fund = supportedFund();
+  await render();
+  const card = container.querySelector('#mail-related-records')!.parentElement!;
+  const rows = [...card.querySelectorAll('.payment-row')];
+  expect(card.querySelectorAll('.record-context')).toHaveLength(2);
+  expect(card.textContent?.match(/From Our America/g)).toHaveLength(1);
+  expect(card.textContent?.match(/Paid to Bilander Media/g)).toHaveLength(1);
+  expect(card.textContent?.match(/For Demuth, Lisa Gov Committee/g)).toHaveLength(1);
+  expect(rows.every((row) => !row.textContent?.includes('Bilander Media'))).toBe(true);
+  expect(rows[2].textContent).toContain(
+    'Purpose “Advertising - general: Digital Advertising Service”',
+  );
+  fund.records!.received!.payments[1].contributor = 'Another contributor';
+  fund.records!.independent_spending!.payments[1].vendor_name = 'Another vendor';
+  fund.records!.independent_spending!.payments[1].stance = 'Against';
+  await render();
+  expect(card.querySelectorAll('.record-context')).toHaveLength(0);
+  expect(card.querySelectorAll('.payment-row')[0].textContent).toContain('From Our America');
+  expect(card.querySelectorAll('.payment-row')[1].textContent).toContain(
+    'From Another contributor',
+  );
+  expect(card.querySelectorAll('.payment-row')[2].textContent).toContain(
+    'For Demuth, Lisa Gov Committee',
+  );
+  expect(card.querySelectorAll('.payment-row')[3].textContent).toContain(
+    'Against Demuth, Lisa Gov Committee',
+  );
+  expect(card.querySelectorAll('.payment-row')[3].textContent).toContain('Paid to Another vendor');
+});
+
+it('shares the retrieved date only for matching dates, while keeping each registration check', async () => {
+  const fund = supportedFund();
+  await render();
+  const card = container.querySelector('#mail-related-records')!.parentElement!;
+  expect(card.querySelectorAll('.retrieved')).toHaveLength(1);
+  expect(card.querySelector('.retrieved')?.closest('.record-group')).toBeNull();
+  expect(card.textContent).toContain('Checked Nov 9, 2026');
+  fund.records!.independent_spending!.fetched_at = '2026-11-10T12:00:00Z';
+  await render();
+  expect(card.querySelectorAll('.record-group .retrieved')).toHaveLength(2);
+  expect(card.textContent).toContain('Retrieved Nov 9, 2026');
+  expect(card.textContent).toContain('Retrieved Nov 10, 2026');
+  fund.records!.received!.payments[0].received_on = null;
+  await render();
+  expect(card.textContent).toContain('Latest 2 of 26 records · 2026');
+});
+
+it('identifies supported downloads and shared scope without turning unknown URLs into CSV claims', async () => {
+  const fund = supportedFund();
+  await render();
+  const card = container.querySelector('#mail-related-records')!.parentElement!;
+  expect(card.querySelector('.record-group h4 a')).toBeNull();
+  const links = [...card.querySelectorAll<HTMLAnchorElement>('.record-downloads a')];
+  expect(links).toHaveLength(2);
+  for (const link of links) {
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toBe('noopener noreferrer');
+    expect(link.getAttribute('aria-label')).toMatch(
+      /^Download (contributions|independent spending) \(CSV\), Minnesota Campaign Finance Board, opens in a new tab$/,
+    );
+    expect(document.getElementById(link.getAttribute('aria-describedby')!)?.textContent).toBe(
+      'State files cover all filers from 2015 to present. Downloads may take a moment.',
+    );
+  }
+  fund.records!.received!.source_url = 'https://cfb.mn.gov/new-source';
+  await render();
+  const unknown = card.querySelector('a[href="https://cfb.mn.gov/new-source"]')!;
+  expect(unknown.textContent).toBe('View contributions received source');
+  expect(unknown.hasAttribute('aria-describedby')).toBe(false);
+});
+
+it('shows only a verified website domain with matching evidence', async () => {
+  const fund = supportedFund();
+  await render();
+  const website = container.querySelector<HTMLAnchorElement>(
+    'a[href="https://joinouramerica.org"]',
+  )!;
+  expect(website.textContent).toBe('joinouramerica.org');
+  expect(website.target).toBe('_blank');
+  for (const domain of [
+    'javascript:alert(1)',
+    'joinouramerica.org/path',
+    'joinouramerica.org@evil.test',
+    '',
+  ]) {
+    fund.domain = domain;
+    await render();
+    expect(container.querySelector('.record-website')).toBeNull();
+  }
+  fund.domain = 'joinouramerica.org';
+  fund.basis = 'same_committee_name';
+  await render();
+  expect(container.querySelector('.record-website')).toBeNull();
+});
+
+it('opens the contribution explanation without moving focus and uses a distinct controlled region', async () => {
+  supportedFund();
+  await render();
+  const button = container.querySelector<HTMLButtonElement>('.contribution-toggle')!;
+  const answer = document.getElementById(button.getAttribute('aria-controls')!)!;
+  expect(button.textContent).toBe('What counts as a contribution?');
+  expect(answer.hidden).toBe(true);
+  button.focus();
+  await act(async () => button.click());
+  expect(button.getAttribute('aria-expanded')).toBe('true');
+  expect(document.activeElement).toBe(button);
+  expect(answer.hidden).toBe(false);
+  expect(answer.textContent).toBe(
+    'An organization can also assign its own money to its political fund. Minnesota records this as a contribution.',
+  );
+  await act(async () => button.click());
+  expect(answer.hidden).toBe(true);
+});
+
+it('keeps the derived text, unreadable gap and local recovery beside the affected photo', async () => {
+  current.result!.status = 'partial';
+  current.result!.can_retry = true;
+  current.result!.sides[1].display_text = 'Back words [Unreadable]\nVote 42';
+  current.result!.sides[1].reading_notice = 'Some text could not be read';
+  await render();
+  const back = container.querySelector<HTMLElement>('#mail-text-back')!;
+  const side = back.closest('.text-side')!;
+  expect(side.querySelector('.partial-note')?.textContent).toBe('Some text could not be read');
+  expect(side.querySelector('button.results-retry')).not.toBeNull();
+  expect(back.textContent).toBe('Back words [Unreadable]\nVote 42');
+  expect(back.querySelector('.text-gap')?.getAttribute('aria-label')).toBe('Unreadable');
+  expect(current.result!.sides[1].text).toBe('Back machine words');
+  expect(back.hidden).toBe(true);
+  current.result!.sides[1].status = 'unreadable';
+  current.result!.sides[1].display_text = '';
+  await render();
+  const failure = [...container.querySelectorAll('.results-failure')].find(
+    (node) => node.textContent === 'We couldn’t read this photo',
+  )!;
+  expect(failure.closest('.text-side')?.querySelector('button.results-retry')).not.toBeNull();
+  expect(container.querySelector('#mail-text-front')?.textContent).toBe('Front machine words');
+  expect(container.querySelector('blockquote')?.textContent).toContain(result.payers[0].quote);
 });
