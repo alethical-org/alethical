@@ -83,6 +83,28 @@ it('passes the selected side and File directly to the upload flow', async () => 
   expect(input.value).toBe('');
 });
 
+it('keeps the form in place while connecting and enables it when ready', async () => {
+  form.access = 'loading';
+  await render();
+  const front = container.querySelector<HTMLButtonElement>('#front-photo');
+  expect(front?.disabled).toBe(true);
+  expect(button('Submit').disabled).toBe(true);
+  expect(container.querySelector('form')?.getAttribute('aria-busy')).toBe('true');
+  expect(container.textContent).not.toContain('Loading…');
+  await act(async () =>
+    container
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+  );
+  expect(form.submit).not.toHaveBeenCalled();
+
+  form.access = 'ready';
+  await render();
+  expect(container.querySelector('#front-photo')).toBe(front);
+  expect(front?.disabled).toBe(false);
+  expect(button('Submit').disabled).toBe(false);
+});
+
 it('opens the rear camera or photo library for the side chosen on mobile', async () => {
   useMobilePicker();
   await render();

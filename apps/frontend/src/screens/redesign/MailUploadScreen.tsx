@@ -327,7 +327,8 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
   const form = useMailUpload();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const savedHeading = useRef<HTMLHeadingElement>(null);
-  const locked = form.status !== 'editing';
+  const connecting = form.access === 'loading';
+  const locked = connecting || form.status !== 'editing';
   const photoBusy = form.photos.front.busy || form.photos.back.busy;
   useEffect(() => {
     if (form.status === 'saved') savedHeading.current?.focus();
@@ -348,166 +349,163 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
     }
   }, [form.errors]);
   const content =
-    form.access === 'loading'
-      ? h('p', { role: 'status' }, 'Loading…')
-      : form.access === 'expired'
+    form.access === 'expired'
+      ? h(
+          'div',
+          null,
+          h('p', { role: 'alert' }, 'This upload session is no longer available'),
+          h('button', { onClick: () => void form.checkAccess() }, 'Start again'),
+        )
+      : form.access === 'failed'
         ? h(
             'div',
             null,
-            h('p', { role: 'alert' }, 'This upload session is no longer available'),
-            h('button', { onClick: () => void form.checkAccess() }, 'Start again'),
+            h('p', { role: 'alert' }, 'This demo is unavailable'),
+            h('button', { onClick: () => void form.checkAccess() }, 'Try again'),
           )
-        : form.access === 'failed'
+        : form.status === 'saved'
           ? h(
-              'div',
-              null,
-              h('p', { role: 'alert' }, 'This demo is unavailable'),
-              h('button', { onClick: () => void form.checkAccess() }, 'Try again'),
+              'section',
+              { className: 'success', 'aria-labelledby': 'mail-saved' },
+              h(Check, { size: 28 }),
+              h('h2', { id: 'mail-saved', ref: savedHeading, tabIndex: -1 }, 'Saved'),
+              h('button', { onClick: form.reset }, 'Upload another'),
             )
-          : form.status === 'saved'
-            ? h(
-                'section',
-                { className: 'success', 'aria-labelledby': 'mail-saved' },
-                h(Check, { size: 28 }),
-                h('h2', { id: 'mail-saved', ref: savedHeading, tabIndex: -1 }, 'Saved'),
-                h('button', { onClick: form.reset }, 'Upload another'),
-              )
-            : h(
-                'form',
-                {
-                  noValidate: true,
-                  onSubmit: (event: React.FormEvent) => {
-                    event.preventDefault();
-                    void form.submit();
-                  },
+          : h(
+              'form',
+              {
+                noValidate: true,
+                'aria-busy': connecting,
+                onSubmit: (event: React.FormEvent) => {
+                  event.preventDefault();
+                  if (!connecting) void form.submit();
                 },
+              },
+              h(
+                'div',
+                { className: 'columns' },
                 h(
                   'div',
-                  { className: 'columns' },
-                  h(
-                    'div',
-                    { className: 'photos' },
-                    ...(['front', 'back'] as const).map((side) =>
-                      h(Photo, {
-                        key: side,
-                        side,
-                        photo: form.photos[side],
-                        error: form.errors[side],
-                        locked,
-                        upload: form.upload,
-                      }),
-                    ),
+                  { className: 'photos' },
+                  ...(['front', 'back'] as const).map((side) =>
+                    h(Photo, {
+                      key: side,
+                      side,
+                      photo: form.photos[side],
+                      error: form.errors[side],
+                      locked,
+                      upload: form.upload,
+                    }),
                   ),
+                ),
+                h(
+                  'div',
+                  null,
                   h(
-                    'div',
-                    null,
+                    'fieldset',
+                    { disabled: locked },
+                    h('legend', null, 'Do you like this ad?'),
                     h(
-                      'fieldset',
-                      { disabled: locked },
-                      h('legend', null, 'Do you like this ad?'),
-                      h(
-                        'div',
-                        { className: 'choices' },
-                        ...([true, false] as const).map((value) =>
+                      'div',
+                      { className: 'choices' },
+                      ...([true, false] as const).map((value) =>
+                        h(
+                          'label',
+                          { key: String(value) },
+                          h('input', {
+                            type: 'radio',
+                            name: 'likes-ad',
+                            id: value ? 'mail-yes' : 'mail-no',
+                            checked: form.likes === value,
+                            onChange: () => form.setLikes(value),
+                            'aria-describedby': form.errors.likes ? 'mail-likes-error' : undefined,
+                          }),
                           h(
-                            'label',
-                            { key: String(value) },
-                            h('input', {
-                              type: 'radio',
-                              name: 'likes-ad',
-                              id: value ? 'mail-yes' : 'mail-no',
-                              checked: form.likes === value,
-                              onChange: () => form.setLikes(value),
-                              'aria-describedby': form.errors.likes
-                                ? 'mail-likes-error'
-                                : undefined,
-                            }),
-                            h(
-                              'span',
-                              null,
-                              form.likes === value
-                                ? h(
-                                    'svg',
-                                    {
-                                      className: 'choice-mark',
-                                      width: 18,
-                                      height: 18,
-                                      viewBox: '0 0 24 24',
-                                      fill: 'none',
-                                      'aria-hidden': true,
-                                    },
-                                    h('path', {
-                                      d: 'M5 12.5 L10 17.5 L19 7',
-                                      stroke: 'currentColor',
-                                      strokeWidth: 2.6,
-                                      strokeLinecap: 'round',
-                                      strokeLinejoin: 'round',
-                                    }),
-                                  )
-                                : null,
-                              h('span', { className: 'choice-text' }, value ? 'Yes' : 'No'),
-                            ),
+                            'span',
+                            null,
+                            form.likes === value
+                              ? h(
+                                  'svg',
+                                  {
+                                    className: 'choice-mark',
+                                    width: 18,
+                                    height: 18,
+                                    viewBox: '0 0 24 24',
+                                    fill: 'none',
+                                    'aria-hidden': true,
+                                  },
+                                  h('path', {
+                                    d: 'M5 12.5 L10 17.5 L19 7',
+                                    stroke: 'currentColor',
+                                    strokeWidth: 2.6,
+                                    strokeLinecap: 'round',
+                                    strokeLinejoin: 'round',
+                                  }),
+                                )
+                              : null,
+                            h('span', { className: 'choice-text' }, value ? 'Yes' : 'No'),
                           ),
                         ),
                       ),
-                      form.errors.likes
-                        ? h('p', { className: 'error', id: 'mail-likes-error' }, form.errors.likes)
-                        : null,
                     ),
+                    form.errors.likes
+                      ? h('p', { className: 'error', id: 'mail-likes-error' }, form.errors.likes)
+                      : null,
+                  ),
+                  h(
+                    'div',
+                    { className: 'label-row' },
                     h(
-                      'div',
-                      { className: 'label-row' },
-                      h(
-                        'label',
-                        { className: 'label', htmlFor: 'mail-comment' },
-                        'Anything you’d like to share?',
-                      ),
-                      h('span', { className: 'optional', id: 'mail-optional' }, 'Optional'),
+                      'label',
+                      { className: 'label', htmlFor: 'mail-comment' },
+                      'Anything you’d like to share?',
+                    ),
+                    h('span', { className: 'optional', id: 'mail-optional' }, 'Optional'),
+                  ),
+                  h(
+                    'p',
+                    { className: 'helper', id: 'mail-helper' },
+                    'e.g. your feelings about this mail or how our tool could be more helpful',
+                  ),
+                  h('textarea', {
+                    id: 'mail-comment',
+                    rows: 3,
+                    maxLength: 4000,
+                    disabled: locked,
+                    value: form.comment,
+                    'aria-describedby': 'mail-optional mail-helper',
+                    onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
+                      form.setComment(event.target.value.replace(/\0/g, '')),
+                  }),
+                  h(
+                    'div',
+                    { className: 'submit-area' },
+                    form.failure
+                      ? h('div', { className: 'failure', role: 'alert' }, form.failure)
+                      : null,
+                    h(
+                      'button',
+                      {
+                        className: 'primary',
+                        type: 'submit',
+                        disabled: connecting || form.status === 'sending' || photoBusy,
+                        'aria-busy': form.status === 'sending' || photoBusy,
+                      },
+                      form.status === 'sending'
+                        ? 'Submitting…'
+                        : form.status === 'retry'
+                          ? 'Try again'
+                          : 'Submit',
                     ),
                     h(
                       'p',
-                      { className: 'helper', id: 'mail-helper' },
-                      'e.g. your feelings about this mail or how our tool could be more helpful',
-                    ),
-                    h('textarea', {
-                      id: 'mail-comment',
-                      rows: 3,
-                      maxLength: 4000,
-                      disabled: locked,
-                      value: form.comment,
-                      'aria-describedby': 'mail-optional mail-helper',
-                      onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
-                        form.setComment(event.target.value.replace(/\0/g, '')),
-                    }),
-                    h(
-                      'div',
-                      { className: 'submit-area' },
-                      form.failure
-                        ? h('div', { className: 'failure', role: 'alert' }, form.failure)
-                        : null,
-                      h(
-                        'button',
-                        {
-                          className: 'primary',
-                          type: 'submit',
-                          disabled: form.status === 'sending' || photoBusy,
-                          'aria-busy': form.status === 'sending' || photoBusy,
-                        },
-                        form.status === 'sending'
-                          ? 'Submitting…'
-                          : form.status === 'retry'
-                            ? 'Try again'
-                            : 'Submit',
-                      ),
-                      h(
-                        'p',
-                        { className: 'privacy' },
-                        'Your photos and comments stay private to Alethical',
-                      ),
+                      { className: 'privacy' },
+                      'Your photos and comments stay private to Alethical',
                     ),
                   ),
                 ),
-              );
+              ),
+            );
   return (
     <PageBackground>
       <ScrollView keyboardShouldPersistTaps="handled">
@@ -527,7 +525,7 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
           h(
             'p',
             { className: 'intro' },
-            'Try the demo with a sample mailer that has no personal details',
+            'See who paid for this mail and what public records show about them',
           ),
           content,
         )}
