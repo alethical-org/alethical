@@ -72,6 +72,20 @@ test('workflow exception is confined to the actual sign-in step control', () => 
   assert.ok(findings('<GoBackLink href="/bills" /><Text>Go back</Text>', filename).length);
 });
 
+test('Back can name a photo side in a static heading but not a return action', () => {
+  assert.deepEqual(findings('<h2 id="photo-title">{side === "front" ? "Front" : "Back"}</h2>'), []);
+  assert.deepEqual(findings('<h2>Back</h2>'), []);
+  assert.deepEqual(findings('<dialog onClick={dismissBackdrop}><h2>Back</h2></dialog>'), []);
+  for (const source of [
+    '<button><h2>Back</h2></button>',
+    '<h2 onClick={goBack}>Back</h2>',
+    '<h2 role="button">Back</h2>',
+    '<h2><a href="/">Back</a></h2>',
+    '<div onClick={goBack}><h2>Back</h2></div>',
+  ])
+    assert.ok(findings(source).length, source);
+});
+
 test('scanner includes first-response API and source while ignoring tests, dependencies and symlinks', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'alethical-returns-'));
   const frontend = path.join(root, 'apps/frontend');

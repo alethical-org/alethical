@@ -22,13 +22,13 @@ const css = `
 .mail-results .payer-card{padding:8px 10px 16px 17px}.mail-results .source-row{border-bottom:1px solid rgba(17,21,15,.08);padding-bottom:8px;flex-wrap:wrap;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .mail-results .result-name{font-size:19px;line-height:1.25;letter-spacing:-.01em;font-weight:800;margin:0 0 4px}
 .mail-results .result-source{display:inline-flex;align-items:center;min-height:44px;color:#0f7a45;text-decoration:underline;text-underline-offset:3px;font-weight:600}
-.mail-results .result-source:hover{color:#11832b;text-decoration-thickness:2px}.mail-results a:focus-visible,.mail-results h2:focus-visible,.mail-results h3:focus-visible{outline:3px solid rgba(91,48,214,.55);outline-offset:3px;border-radius:3px}
+.mail-results .result-source:hover{color:#11832b;text-decoration-thickness:2px}.mail-results a:focus-visible,.mail-results h2:focus-visible,.mail-results h3:focus-visible,.mail-results .reading:focus-visible,.mail-results .results-failure:focus-visible{outline:3px solid rgba(91,48,214,.55);outline-offset:3px;border-radius:3px}
 .mail-results .record-meta{color:#4f5651;font-size:15px;font-variant-numeric:tabular-nums}.mail-results .count{font-variant-numeric:tabular-nums}
 .mail-upload .mail-results .text-card{padding:4px 10px 4px 7px}.mail-results .text-side+.text-side{border-top:1px solid rgba(17,21,15,.1)}
 .mail-results .text-controls{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:4px 0}.mail-upload .mail-results .text-toggle{display:flex;align-items:center;gap:8px;flex:1 1 120px;min-width:0;min-height:48px;text-align:left;border:0;border-radius:10px;padding:0 10px 0 4px;font-size:17px}
 .mail-upload .mail-results .text-toggle:hover{background:#f1f3f2}.mail-results .text-content{margin:0 0 12px 4px;background:#f5f6f7;border-radius:10px;padding:12px 14px;font-size:16px;line-height:1.55;color:#2c322c;white-space:pre-wrap;overflow-wrap:anywhere}
 .mail-upload .mail-results .view-photo{display:inline-flex;align-items:center;gap:8px;padding:0 14px 0 12px;border-radius:10px;font-size:15px;line-height:1.3;min-height:44px;flex:0 1 auto;max-width:100%;text-align:left}
-.mail-results .view-photo svg{flex:none}.mail-results .reading{display:flex;align-items:center;gap:12px}.mail-results .reading-dot{width:12px;height:12px;border-radius:50%;background:#2ed47e;flex:none}
+.mail-results .view-photo svg{flex:none}.mail-results .reading{display:flex;align-items:center;gap:12px}
 .mail-upload .mail-photo-dialog{position:fixed;inset:10px;margin:0;padding:0;border:0;border-radius:20px;width:calc(100vw - 20px);height:calc(100dvh - 20px);max-width:none;max-height:none;color:#11150f;background:#fff;font-family:'Libre Franklin',sans-serif;overflow:visible;box-shadow:0 1px 2px rgba(17,21,15,.1),0 12px 26px rgba(17,21,15,.16),0 40px 80px rgba(17,21,15,.3)}
 .mail-photo-dialog::backdrop{background:rgba(17,21,15,.42)}.mail-photo-panel{padding:10px;box-sizing:border-box;height:100%;display:flex;flex-direction:column;gap:10px}
 .mail-photo-heading{display:flex;flex:none;align-items:center;justify-content:space-between;gap:12px;padding-left:8px}.mail-upload .mail-photo-heading h2{font-size:19px;line-height:1.25;font-weight:800;margin:0}.mail-photo-image-area{position:relative;flex:1;min-height:0;overflow:hidden;text-align:center;background:#e4e8e6;border-radius:12px;touch-action:none;user-select:none}.mail-photo-image-area img{position:absolute;left:50%;top:50%;max-width:none;max-height:none;object-fit:contain;transform-origin:center;pointer-events:none}.mail-photo-image-area p{padding:16px}.mail-photo-failed{position:absolute;inset:0;background:#f5f6f7;border:1px solid #e0b673;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px}.mail-photo-image-area .mail-photo-error{display:flex;align-items:flex-start;gap:7px;color:#8f5a12;font-size:14.5px;line-height:1.45;font-weight:600;text-wrap:pretty}.mail-photo-error svg{flex:none;margin-top:2px}
@@ -113,7 +113,7 @@ function PhotoButton({ side, open }: { side: MailImageSide; open: (side: MailIma
 
 function Failure({ children }: { children: React.ReactNode }) {
   return (
-    <div className="results-failure" role="alert">
+    <div className="results-failure" role="alert" tabIndex={-1}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
         <path d="M12 7.5V13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -146,9 +146,21 @@ function Retry({ busy, onClick }: { busy: boolean; onClick: () => void }) {
           return;
         const destination = heading?.isConnected
           ? heading
-          : (results.querySelector<HTMLElement>('#mail-machine-text') ??
-            results.querySelector<HTMLElement>('h2, [role="status"][tabindex]'));
+          : (results.querySelector<HTMLElement>('.session-recovery') ??
+            results.querySelector<HTMLElement>(
+              'h2, [role="status"][tabindex], [role="alert"][tabindex]',
+            ) ??
+            results.querySelector<HTMLElement>('button.results-retry'));
         destination?.focus({ preventScroll: true });
+        if (destination) {
+          const rect = destination.getBoundingClientRect();
+          if (rect.top < 0 || rect.left < 0 || rect.bottom > innerHeight || rect.right > innerWidth)
+            destination.scrollIntoView({
+              block: 'nearest',
+              inline: 'nearest',
+              behavior: 'instant',
+            });
+        }
       });
     },
     [],
@@ -384,7 +396,7 @@ export function MailAnalysisResults({
               : 'We couldn’t load these results'}
           </Failure>
           {analysis.error === 'expired' ? (
-            <button type="button" className="results-retry" onClick={onStartAgain}>
+            <button type="button" className="results-retry session-recovery" onClick={onStartAgain}>
               Start again
             </button>
           ) : (

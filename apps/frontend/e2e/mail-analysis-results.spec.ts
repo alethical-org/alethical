@@ -72,7 +72,7 @@ const result: MailAnalysis = {
   ],
 };
 
-async function savedMail(page: Page, initial = result) {
+async function savedMail(page: Page, initial: MailAnalysis | null = result) {
   const base = new URL(test.info().project.use.baseURL!);
   if (!['localhost', '127.0.0.1'].includes(base.hostname))
     throw new Error('Local preview required');
@@ -97,9 +97,12 @@ async function savedMail(page: Page, initial = result) {
         supported_content_types: ['image/png'],
       };
     else if (path.endsWith('/analysis/retry'))
-      data = analysis = { ...analysis, status: 'pending', can_retry: false };
-    else if (path.endsWith('/analysis')) data = analysis;
-    else if (path.endsWith('/submit')) data = { ...submission, status: 'saved' };
+      data = analysis = { ...(analysis ?? result), status: 'pending', can_retry: false };
+    else if (path.endsWith('/analysis')) {
+      if (!analysis)
+        return route.fulfill({ status: 503, json: { detail: 'Synthetic transport failure' } });
+      data = analysis;
+    } else if (path.endsWith('/submit')) data = { ...submission, status: 'saved' };
     else if (path.includes('/images/'))
       data = submission = { ...submission, [path.split('/').pop()!]: receipt };
     else
@@ -126,7 +129,9 @@ async function savedMail(page: Page, initial = result) {
   await expect(page.getByText('Back photo uploaded', { exact: true })).toBeAttached();
   await page.locator('#mail-yes').check();
   await page.getByRole('button', { name: 'Submit', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toBeVisible();
+  if (initial)
+    await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toBeVisible();
+  else await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
   return {
     finish: () => {
       analysis = result;
@@ -188,7 +193,7 @@ test('a completed retry keeps evidence and returns focus to its related result',
   await expect(page.locator('blockquote')).toHaveText('“Paid for by Example committee”');
   response.finish();
   await expect(page.getByRole('button', { name: 'Trying again…', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Machine-read text', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toBeFocused();
 });
 
 test('a browser photo decode failure leaves Close and the unavailable controls reachable', async ({
@@ -245,8 +250,29 @@ test('GET recovery keeps focused busy and failed buttons, then focuses the retai
   await expect(busy).toBeFocused();
   await expect.poll(() => waiting !== null).toBe(true);
   await waiting!.fulfill({ json: { data: result } });
-  await expect(page.getByRole('heading', { name: 'Machine-read text', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toBeFocused();
+  const target = (await page
+    .getByRole('heading', { name: 'Printed payer', exact: true })
+    .boundingBox())!;
+  expect(target.y >= 0 && target.y + target.height <= 844).toBe(true);
   expect(retries).toBe(0);
+});
+
+test('an empty GET recovery that finds an expired session focuses visible Start again', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await savedMail(page, null);
+  await page.route('**/api/v1/mail-upload/submissions/*/analysis', (route) =>
+    route.fulfill({ status: 401, json: { detail: 'Expired' } }),
+  );
+  await page.getByRole('button', { name: 'Try again', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  const start = page.getByRole('button', { name: 'Start again', exact: true });
+  await expect(start).toBeFocused();
+  const bounds = (await start.boundingBox())!;
+  expect(bounds.y >= 0 && bounds.y + bounds.height <= 844).toBe(true);
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
 });
 
 // Enlarge every HTML node's actual computed text size and line height. This

@@ -134,6 +134,23 @@ it('returns a focused network recovery to Reading your mail when results are sti
   expect(document.activeElement?.textContent).toBe('Reading your mail');
 });
 
+it.each(['expired', 'failed'] as const)(
+  'keeps a useful focus target after empty %s recovery',
+  async (outcome) => {
+    current.result = null;
+    current.error = 'unavailable';
+    await render();
+    (container.querySelector('button.results-retry') as HTMLButtonElement).focus();
+    current.error = outcome === 'expired' ? 'expired' : null;
+    current.result =
+      outcome === 'failed' ? { ...result, status: 'failed', sides: [], payers: [] } : null;
+    await render();
+    expect(document.activeElement?.textContent).toBe(
+      outcome === 'expired' ? 'Start again' : 'We couldn’t load these results',
+    );
+  },
+);
+
 it('keeps exact machine-read evidence separate from possible and related identities', async () => {
   await render();
   expect(container.querySelector('blockquote')?.textContent).toBe(`“${result.payers[0].quote}”`);
