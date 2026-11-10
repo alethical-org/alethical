@@ -8,19 +8,19 @@ Read both private photos, preserve the printed payer separately from any matched
 
 ## Live backend and remaining acceptance
 
-The backend is deployed at `114b7bf6ca6fa4cd4678e8480016fca10e65d494` with migration `0091_mail_analysis`. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. Analysis is temporarily disabled during that repair; those empty reads are not accepted results. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
+The backend runtime repair is live at `39779f404f58ea15fe585bb96716c1a3f191fa1b` with migration `0091_mail_analysis`, and analysis is enabled. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. The dependency is now present in the live runtime, verified through the enabled worker’s bounded startup check; initial empty reads were recovered after that proof. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
 
 Machine-read words are not checked transcriptions. A detected disclosure retains its quote, photo side, bounding box and cutoff warning; absent words are never reconstructed from the registry. Exact official-name hits are candidates, not confirmed identity. A missing number is not zero. Automatic corroboration requires independent registration, domain or address evidence from an official source; unresolved cases remain uncertain.
 
 ## Acceptance progress
 
 - Local OCR evaluated all 30 originals; detected disclosures on 9 sides in the initial pass. Final visual review found further readable disclosures, so production coverage must be compared with that private review; cropped or soft words remain unknown
-- 29 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
+- 33 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
 - Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
 - Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
 - Independent backend review passed the queue, access and matching checks; the final public-record retention correction passed its separate targeted review
 - Responsive results Design and frontend are separate work owned by the parent
-- Current-head CI passed; backend deployed, hash-checked initial groups applied and initial activation inspected. Runtime repair, targeted retry, full live result coverage and frontend acceptance remain open
+- Backend and runtime repair passed CI and deployed; hash-checked initial groups and runtime recovery are complete. Initial live coverage is recorded below. The bounded angled-disclosure correction, its targeted live recovery and final frontend acceptance remain open
 
 Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
 
