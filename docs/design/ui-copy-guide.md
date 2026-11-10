@@ -94,11 +94,26 @@ individual values otherwise lack them, and retain each distinct unit in a mixed-
 comparison. This applies to visual and screen-reader text: remove the redundant
 copy, not the reader's ability to identify what each number measures.
 
-Review each heading, legend, value label and caption together: what information
-does this element add that its neighbors do not already supply? Keep repetition
-only when separation or ambiguity makes it necessary. For example, a comparison
-showing “1,000 USD” and “500 USD” has a period line reading “Cited filings
-(2023-01-01 through 2023-12-20)”, without a second “USD”.
+Review each heading, summary, context line, legend, record, date, value label and
+caption together: what information does this element add that its neighbors do not
+already supply? Judge repeated meaning, not just identical words. Record the remaining
+source of each needed fact and the specific ambiguity that justifies any repetition.
+Recheck the complete group after corrections, including accessible reading, loading,
+empty, filtered and mixed-year states. For example, a comparison showing “1,000 USD”
+and “500 USD” has a period line reading “Cited filings (2023-01-01 through 2023-12-20)”,
+without a second “USD”.
+
+In the proposed political-mail results, the Contributions received and Independent
+spending groups use “Latest 5 of 26 records”, without “· 2026”, beside rows whose full
+dates already include the year. Keep each row's date. The count still covers the
+selected record year; it is not an all-years count. Row dates alone do not establish
+the coverage of unseen records, and a source file may cover a different period. Keep
+necessary scope clear in states where it cannot be understood from the group.
+
+The related fund heading identifies the recipient of Contributions received;
+“From Our America” identifies the contributor. These are different roles, not
+redundant names. Independent spending distinguishes the candidate supported (For)
+from the vendor paid (Paid to). Neither group proves who funded this particular mailer.
 
 The heading itself can supply the unit. For example, “Donor registrations
 appearing in both parties’ caucus records” already tells readers what the diagram
