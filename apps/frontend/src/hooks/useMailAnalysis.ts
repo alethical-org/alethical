@@ -62,9 +62,10 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
         });
         if (!current()) return;
         // Queue responses can omit the preceding read; keep useful evidence while
-        // retrying this same submission. Terminal responses remain authoritative.
+        // retrying this same submission. Full progressive snapshots are authoritative
+        // even when an array is empty: old evidence must not survive a changed read.
         latest =
-          latest && working(next)
+          latest && working(next) && next.snapshot_version !== 1
             ? {
                 ...latest,
                 ...next,

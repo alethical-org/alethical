@@ -118,7 +118,7 @@ it('moves focus from a disappearing retry to the result heading only while that 
   expect(document.activeElement).toBe(photo);
 });
 
-it('returns a focused network recovery to Reading your mail when results are still queued', async () => {
+it('returns a focused network recovery to the text section while reading continues', async () => {
   current.result = null;
   current.error = 'unavailable';
   await render();
@@ -131,7 +131,9 @@ it('returns a focused network recovery to Reading your mail when results are sti
   current.result = { ...result, status: 'pending', payers: [], sides: [] };
   await render();
   expect(document.activeElement).toBe(container.querySelector('.reading'));
-  expect(document.activeElement?.textContent).toBe('Reading your mail');
+  expect(container.textContent).toContain('Reading your mail');
+  expect(container.textContent).not.toContain('Reading the front');
+  expect(container.textContent).not.toContain('Reading the back');
 });
 
 it.each(['expired', 'failed'] as const)(
@@ -157,9 +159,9 @@ it('keeps exact machine-read evidence separate from possible and related identit
   expect(container.querySelector('blockquote')?.textContent).not.toContain('Example Fund');
   const headings = [...container.querySelectorAll('h2')].map((x) => x.textContent);
   expect(headings).toEqual([
-    'Printed payer',
     'Possible matches',
     'Related records',
+    'Printed payer',
     'Text from your mail',
   ]);
   expect(container.textContent).toContain('Similar name');
@@ -575,18 +577,20 @@ it('opens the contribution explanation without moving focus and uses a distinct 
   expect(answer.hidden).toBe(true);
 });
 
-it('keeps the derived text, unreadable gap and local recovery beside the affected photo', async () => {
+it('keeps derived text and local recovery, with one notice and no legacy gap markers', async () => {
   current.result!.status = 'partial';
   current.result!.can_retry = true;
-  current.result!.sides[1].display_text = 'Back words [Unreadable]\nVote 42';
+  current.result!.sides[1].display_text = 'John Smith will\n[Unreadable]\nraise taxes\n\nVote 42';
   current.result!.sides[1].reading_notice = 'Some text could not be read';
   await render();
   const back = container.querySelector<HTMLElement>('#mail-text-back')!;
   const side = back.closest('.text-side')!;
-  expect(side.querySelector('.partial-note')?.textContent).toBe('Some text could not be read');
+  expect(container.querySelector('.reading-notice')?.textContent).toContain(
+    'Some text couldn’t be read',
+  );
   expect(side.querySelector('button.results-retry')).not.toBeNull();
-  expect(back.textContent).toBe('Back words [Unreadable]\nVote 42');
-  expect(back.querySelector('.text-gap')?.getAttribute('aria-label')).toBe('Unreadable');
+  expect(back.textContent).toBe('Vote 42');
+  expect(back.querySelector('.text-gap')).toBeNull();
   expect(current.result!.sides[1].text).toBe('Back machine words');
   expect(back.hidden).toBe(true);
   current.result!.sides[1].status = 'unreadable';
@@ -598,4 +602,77 @@ it('keeps the derived text, unreadable gap and local recovery beside the affecte
   expect(failure.closest('.text-side')?.querySelector('button.results-retry')).not.toBeNull();
   expect(container.querySelector('#mail-text-front')?.textContent).toBe('Front machine words');
   expect(container.querySelector('blockquote')?.textContent).toContain(result.payers[0].quote);
+});
+
+it('places records before the printed payer, immediately followed by captured text', async () => {
+  await render();
+  expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
+    'Possible matches',
+    'Related records',
+    'Printed payer',
+    'Text from your mail',
+  ]);
+});
+
+it('shows corrected payer punctuation without changing the raw evidence', async () => {
+  current.result!.payers[0].display_quote = 'Paid for by Example Fund. It is responsible for it.';
+  const original = current.result!.payers[0].quote;
+  await render();
+  expect(container.querySelector('blockquote')?.textContent).toBe(
+    '“Paid for by Example Fund. It is responsible for it.”',
+  );
+  expect(current.result!.payers[0].quote).toBe(original);
+});
+
+it('keeps one incompleteness note and omits completed empty text disclosures', async () => {
+  current.result!.sides[0] = {
+    ...current.result!.sides[0],
+    status: 'partial',
+    display_text: '',
+    reading_incomplete: true,
+  };
+  current.result!.sides[1] = {
+    ...current.result!.sides[1],
+    display_text: 'Cut\nWaste\nFraud',
+    reading_incomplete: true,
+  };
+  await render();
+  const section = container.querySelector('#mail-machine-text')!.parentElement!;
+  expect(section.querySelector('[aria-controls="mail-text-front"]')).toBeNull();
+  expect(section.querySelector('[aria-controls="mail-text-back"]')).not.toBeNull();
+  expect(section.textContent?.match(/Some text couldn’t be read/g)).toHaveLength(1);
+  expect(section.textContent).not.toContain('[Unreadable]');
+  expect(section.querySelector('button[aria-label="View front photo"]')).not.toBeNull();
+});
+
+it('shows records loading without reporting a failure and preserves an open text block', async () => {
+  current.result!.status = 'processing';
+  current.result!.snapshot_version = 1;
+  current.result!.progress = {
+    completed_sides: ['front'],
+    active_sides: ['back'],
+    reading_complete: false,
+    records_complete: false,
+  };
+  current.result!.sides = [current.result!.sides[0]];
+  current.result!.payers[0].related_records = [];
+  current.result!.payers[0].candidates[0].records = {
+    state: 'loading',
+    registration_number: '10001',
+  };
+  await render();
+  const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="mail-text-front"]')!;
+  await act(async () => toggle.click());
+  toggle.focus();
+  expect(container.textContent).toContain('Reading the back');
+  expect(container.textContent).toContain('Finding public records');
+  expect(container.textContent).not.toContain('We couldn’t load these results');
+  expect(container.textContent).not.toContain('No payer found');
+  current.result!.payers[0].candidates[0].records = {
+    state: 'available',
+    registration_number: '10001',
+  };
+  await render();
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(document.activeElement).toBe(toggle);
 });

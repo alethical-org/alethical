@@ -193,3 +193,51 @@ it('retains same-owner evidence on expiry while refusing further fetches or retr
   expect(hook.result?.sides).toEqual([]);
   expect(calls.get).toHaveBeenCalledTimes(2);
 });
+
+it('treats progressive snapshots as authoritative and removes superseded payer evidence', async () => {
+  const stale = {
+    ...partial,
+    payers: [
+      {
+        side: 'front' as const,
+        quote: 'Old disclosure',
+        payer_text: 'Old payer',
+        official_organization: null,
+        candidates: [],
+        related_records: [],
+      },
+    ],
+  };
+  calls.get.mockResolvedValueOnce(stale);
+  await render();
+  const snapshot = {
+    ...pending,
+    status: 'processing' as const,
+    snapshot_version: 1 as const,
+    progress: {
+      completed_sides: ['back' as const],
+      reading_complete: false,
+      records_complete: false,
+    },
+    sides: [{ ...partial.sides[0], side: 'back' as const, text: 'Current back' }],
+  };
+  calls.retry.mockResolvedValueOnce(snapshot);
+  await act(async () => hook.retry());
+  expect(hook.result?.payers).toEqual([]);
+  expect(hook.result?.sides).toEqual(snapshot.sides);
+  expect(hook.result?.progress?.completed_sides).toEqual(['back']);
+  calls.get.mockResolvedValueOnce({
+    ...snapshot,
+    status: 'ready',
+    progress: {
+      completed_sides: ['front', 'back'],
+      reading_complete: true,
+      records_complete: true,
+    },
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(hook.result?.status).toBe('ready');
+  expect(hook.retrying).toBe(false);
+});

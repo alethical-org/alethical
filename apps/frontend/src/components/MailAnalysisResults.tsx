@@ -10,6 +10,7 @@ import { useMailAnalysis } from '../hooks/useMailAnalysis';
 import { formatDay, formatMoney } from '../lib/moneyFormat';
 import { centralDateLabel } from '../lib/moneyLanding';
 import { MailPhotoDialog } from './MailPhotoDialog';
+import { MailResultPosition } from './MailResultPosition';
 
 const css = `
 .mail-upload .saved-results{display:grid;grid-template-columns:360px minmax(0,720px);gap:56px;align-items:start}
@@ -22,7 +23,7 @@ const css = `
 .mail-results .payer-card{padding:8px 10px 16px 17px}.mail-results .source-row{border-bottom:1px solid rgba(17,21,15,.08);padding-bottom:8px;flex-wrap:wrap;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .mail-results .result-name{font-size:19px;line-height:1.25;letter-spacing:-.01em;font-weight:800;margin:0 0 4px}
 .mail-results .result-source{display:inline-flex;align-items:center;min-height:44px;color:#0f7a45;text-decoration:underline;text-underline-offset:3px;font-weight:600}
-.mail-results .result-source:hover{color:#11832b;text-decoration-thickness:2px}.mail-results a:focus-visible,.mail-results h2:focus-visible,.mail-results h3:focus-visible,.mail-results .reading:focus-visible,.mail-results .results-failure:focus-visible{outline:3px solid rgba(91,48,214,.55);outline-offset:3px;border-radius:3px}
+.mail-results .result-source:hover{color:#11832b;text-decoration-thickness:2px}.mail-results a:focus-visible,.mail-results h2:focus-visible,.mail-results h3:focus-visible,.mail-results .reading:focus-visible,.mail-results .reading-side:focus-visible,.mail-results .results-failure:focus-visible{outline:3px solid rgba(91,48,214,.55);outline-offset:3px;border-radius:3px}
 .mail-results .record-summary{font-size:16px;line-height:1.5;margin:8px 0 14px}.mail-results .record-website .result-source{display:flex;width:fit-content}.mail-results .record-meta{color:#4f5651;font-size:15px;font-variant-numeric:tabular-nums}
 .mail-upload .mail-results .text-card{padding:4px 10px 4px 7px}.mail-results .text-side+.text-side{border-top:1px solid rgba(17,21,15,.1)}
 .mail-results .text-controls{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:4px 0}.mail-upload .mail-results .text-toggle{display:flex;align-items:center;gap:8px;flex:1 1 120px;min-width:0;min-height:48px;text-align:left;border:0;border-radius:10px;padding:0 10px 0 4px;font-size:17px}
@@ -43,7 +44,7 @@ const css = `
 .mail-upload .mail-results .contribution-toggle{display:block;width:100%;min-height:44px;border:0;border-radius:10px;text-align:left;background:transparent;padding:8px 4px;font-size:15px;line-height:1.5;white-space:normal;overflow-wrap:anywhere}
 .mail-upload .mail-results .contribution-toggle:hover{background:#f1f3f2}.mail-upload .mail-results .contribution-toggle:focus-visible,.mail-upload .mail-results .text-toggle:focus-visible{outline:2px solid #7c5cff!important;outline-offset:4px!important}
 .mail-results .contribution-toggle svg{display:inline-block;width:18px;height:18px;vertical-align:-3px;margin-right:8px}.mail-results .contribution-answer{font-size:15px;line-height:1.5;margin:8px 0 12px}
-.mail-results .record-context{font-size:15px;margin:8px 0}.mail-results .record-context p+p{margin-top:2px}.mail-results .record-downloads{border-top:1px solid rgba(17,21,15,.08);padding-top:12px}.mail-results .record-downloads .result-source{display:flex;width:fit-content;gap:8px;font-size:15px}.mail-results .download-arrow{flex:none}.mail-results .text-gap{color:#4b524b;background:#f5f6f7;font-weight:600}.mail-results .text-side>.results-failure{margin:0 4px 10px}.mail-results .text-side>.results-retry{margin:0 4px 12px}
+.mail-results .record-context{font-size:15px;margin:8px 0}.mail-results .record-context p+p{margin-top:2px}.mail-results .record-downloads{border-top:1px solid rgba(17,21,15,.08);padding-top:12px}.mail-results .record-downloads .result-source{display:flex;width:fit-content;gap:8px;font-size:15px}.mail-results .download-arrow{flex:none}.mail-results .reading-notice{display:flex;align-items:flex-start;gap:8px;margin:0 0 12px;padding:0}.mail-results .reading-notice>span{flex:none}.mail-results .reading-side{font-weight:600}.mail-results .text-unavailable:hover{background:transparent!important}.mail-results .text-side>.results-failure{margin:0 4px 10px}.mail-results .text-side>.results-retry{margin:0 4px 12px}
 @media(hover:none){.mail-upload .mail-results .contribution-toggle:hover{background:transparent}}
 @media(prefers-reduced-motion:reduce){.mail-results .results-spinner{animation:none}}
 @media(max-width:767px){.mail-upload .mail-results .results-retry{width:100%}}
@@ -466,7 +467,7 @@ function Registration({ record, retry }: { record: MailRegistration; retry?: Rea
   const sourceBlocks = visibleBlocks.filter(({ block }) => !!block.source_url);
   const hasDownloads = sourceBlocks.some(({ kind, block }) => downloads[kind] === block.source_url);
   return (
-    <article className="result-card">
+    <article className="result-card" data-mail-anchor="registration">
       <h3 tabIndex={-1} className="result-name">
         {record.name}
       </h3>
@@ -551,6 +552,11 @@ function Registration({ record, retry }: { record: MailRegistration; retry?: Rea
               </div>
             )}
           </>
+        ) : records?.state === 'loading' ? (
+          <div className="reading" role="status">
+            <Spinner />
+            Finding public records
+          </div>
         ) : (
           <>
             <Failure>We couldn’t load these results</Failure>
@@ -559,22 +565,6 @@ function Registration({ record, retry }: { record: MailRegistration; retry?: Rea
         )}
       </div>
     </article>
-  );
-}
-
-function ReadingText({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(/(\[Unreadable\])/gi).map((part, index) =>
-        /^\[Unreadable\]$/i.test(part) ? (
-          <span key={index} className="text-gap" aria-label="Unreadable">
-            [Unreadable]
-          </span>
-        ) : (
-          part
-        ),
-      )}
-    </>
   );
 }
 
@@ -610,7 +600,20 @@ export function MailAnalysisResults({
       payer.official_organization ? [payer.official_organization] : [],
     ) ?? [];
   const unreadable = result?.sides.filter((side) => side.status === 'unreadable') ?? [];
-  const partialText = result?.sides.some((side) => side.status === 'partial');
+  const partialText = result?.sides.some(
+    (side) =>
+      side.reading_incomplete ||
+      side.status === 'partial' ||
+      /\[Unreadable\]/i.test(side.display_text ?? side.text),
+  );
+  const activeSides = reading && !analysis.error ? (result?.progress?.active_sides ?? []) : [];
+  const waitingForRead = reading && !analysis.error && !activeSides.length && !result?.sides.length;
+  const recordsLoading =
+    reading &&
+    !!result?.payers.length &&
+    result?.progress?.records_complete === false &&
+    !candidates.length &&
+    !related.length;
   const bothRead = (['front', 'back'] as const).every((side) =>
     result?.sides.some((read) => read.side === side && read.status === 'read'),
   );
@@ -624,20 +627,14 @@ export function MailAnalysisResults({
     : result?.status === 'ready'
       ? 'Results ready'
       : result?.status === 'partial' && (partialText || unreadable.length)
-        ? 'Some text could not be read'
+        ? 'Some text couldn’t be read'
         : '';
   return (
-    <div className="mail-results">
+    <MailResultPosition>
       <style>{css}</style>
       <p className="sr-only" role="status">
         {announcement}
       </p>
-      {reading && !analysis.retrying && !analysis.error && (
-        <section role="status" tabIndex={-1} className="result-card reading">
-          <Spinner />
-          Reading your mail
-        </section>
-      )}
       {analysis.error && (
         <section>
           <Failure>
@@ -660,30 +657,10 @@ export function MailAnalysisResults({
           {retry}
         </section>
       )}
-      {!!result?.payers.length && (
-        <section aria-labelledby="mail-printed-payer">
-          <h2 tabIndex={-1} id="mail-printed-payer">
-            Printed payer
-          </h2>
-          {result.payers.map((payer, index) => (
-            <article className="result-card payer-card" key={`${payer.side}-${index}`}>
-              <div className="source-row">
-                <span className="record-meta">From the {payer.side}</span>
-                <PhotoButton side={payer.side} open={setPhotoSide} />
-              </div>
-              <blockquote>“{payer.quote}”</blockquote>
-            </article>
-          ))}
-        </section>
-      )}
-      {bothRead && !result?.payers.length && !reading && (
-        <section aria-labelledby="mail-printed-payer">
-          <h2 tabIndex={-1} id="mail-printed-payer">
-            Printed payer
-          </h2>
-          <div className="result-card">
-            <strong>No payer found</strong>
-          </div>
+      {waitingForRead && (
+        <section className="result-card reading" role="status" tabIndex={-1}>
+          <Spinner />
+          Reading your mail
         </section>
       )}
       {!!organizations.length && (
@@ -692,7 +669,7 @@ export function MailAnalysisResults({
             Public records
           </h2>
           {organizations.map((organization, index) => (
-            <article className="result-card" key={index}>
+            <article className="result-card" key={index} data-mail-anchor="organization">
               <h3 tabIndex={-1} className="result-name">
                 {organization.name}
               </h3>
@@ -715,9 +692,9 @@ export function MailAnalysisResults({
           <h2 tabIndex={-1} id="mail-possible-matches">
             Possible matches
           </h2>
-          {candidates.map((record, index) => (
+          {candidates.map((record) => (
             <Registration
-              key={`${record.registration_number}-${index}`}
+              key={`${record.scope}-${record.registration_number}`}
               record={record}
               retry={retry}
             />
@@ -729,32 +706,95 @@ export function MailAnalysisResults({
           <h2 tabIndex={-1} id="mail-related-records">
             Related records
           </h2>
-          {related.map((record, index) => (
+          {related.map((record) => (
             <Registration
-              key={`${record.registration_number}-${index}`}
+              key={`${record.scope}-${record.registration_number}`}
               record={record}
               retry={retry}
             />
           ))}
         </section>
       )}
-      {!!result?.sides.length && (
+      {recordsLoading && (
+        <section
+          className="result-card reading"
+          role="status"
+          tabIndex={-1}
+          data-mail-anchor="record-loading"
+        >
+          <Spinner />
+          Finding public records
+        </section>
+      )}
+      {!!result?.payers.length && (
+        <section aria-labelledby="mail-printed-payer">
+          <h2 tabIndex={-1} id="mail-printed-payer">
+            Printed payer
+          </h2>
+          {result.payers.map((payer, index) => (
+            <article
+              className="result-card payer-card"
+              key={`${payer.side}-${index}`}
+              data-mail-anchor="payer"
+            >
+              <div className="source-row">
+                <span className="record-meta">From the {payer.side}</span>
+                <PhotoButton side={payer.side} open={setPhotoSide} />
+              </div>
+              <blockquote>“{payer.display_quote ?? payer.quote}”</blockquote>
+            </article>
+          ))}
+        </section>
+      )}
+      {bothRead && !result?.payers.length && !reading && (
+        <section aria-labelledby="mail-printed-payer">
+          <h2 tabIndex={-1} id="mail-printed-payer">
+            Printed payer
+          </h2>
+          <div className="result-card">
+            <strong>No payer found</strong>
+          </div>
+        </section>
+      )}
+      {(!!result?.sides.length || activeSides.length > 0) && (
         <section aria-labelledby="mail-machine-text">
-          <h2 tabIndex={-1} id="mail-machine-text">
+          <h2
+            tabIndex={-1}
+            id="mail-machine-text"
+            style={partialText ? { marginBottom: 6 } : undefined}
+          >
             Text from your mail
           </h2>
+          {partialText && (
+            <p className="partial-note reading-notice">
+              <span aria-hidden="true">ⓘ</span>Some text couldn’t be read
+            </p>
+          )}
           <div className="result-card text-card">
             {(['front', 'back'] as const).map((side) => {
-              const read = result.sides.find((item) => item.side === side);
-              if (!read) return null;
-              const displayText = read.display_text ?? read.text;
-              const notice =
-                read.reading_notice ??
-                (read.status === 'partial' ? 'Some text could not be read' : null);
+              const read = result?.sides.find((item) => item.side === side);
+              const active = activeSides.includes(side);
+              if (!read && !active) return null;
+              // Older responses may contain gap markers. Omit their whole paragraph
+              // so a missing qualifier cannot join surrounding words into a new claim.
+              const displayText = (read?.display_text ?? read?.text ?? '')
+                .split(/\n\s*\n/)
+                .filter((paragraph) => !/\[Unreadable\]/i.test(paragraph))
+                .join('\n\n')
+                .trim();
               return (
-                <div className="text-side" key={side}>
+                <div className="text-side" key={side} data-mail-anchor={`text-${side}`}>
                   <div className="text-controls">
-                    {displayText ? (
+                    {!read && active ? (
+                      <div
+                        className="text-toggle text-unavailable reading-side"
+                        role="status"
+                        tabIndex={-1}
+                      >
+                        <Spinner />
+                        Reading the {side}
+                      </div>
+                    ) : displayText ? (
                       <button
                         type="button"
                         className="text-toggle"
@@ -784,17 +824,14 @@ export function MailAnalysisResults({
                     )}
                     <PhotoButton side={side} open={setPhotoSide} />
                   </div>
-                  {read.status === 'unreadable' ? (
-                    <Failure>We couldn’t read this photo</Failure>
-                  ) : (
-                    notice && <p className="partial-note">{notice}</p>
-                  )}
+                  {read?.status === 'unreadable' && <Failure>We couldn’t read this photo</Failure>}
                   {displayText && (
                     <div id={`mail-text-${side}`} className="text-content" hidden={!expanded[side]}>
-                      <ReadingText text={displayText} />
+                      {displayText}
                     </div>
                   )}
-                  {read.status !== 'read' && retry}
+                  {(read?.status === 'unreadable' || (displayText && read?.status === 'partial')) &&
+                    retry}
                 </div>
               );
             })}
@@ -809,6 +846,6 @@ export function MailAnalysisResults({
           onClose={() => setPhotoSide(null)}
         />
       )}
-    </div>
+    </MailResultPosition>
   );
 }

@@ -160,12 +160,15 @@ async def image(
 def submit(
     submission_id: uuid.UUID,
     body: SubmissionBody,
+    request: Request,
     token: str = Depends(bearer),
     db: Session = Depends(get_db),
 ):
-    return service.submit(
+    result = service.submit(
         db, service.authorize(db, token), submission_id, body.likes_ad, body.comment
     )
+    mail_analysis.wake_worker(request.app)
+    return result
 
 
 @admin_router.get("/submissions")
@@ -239,6 +242,7 @@ def analysis(
 @router.post("/submissions/{submission_id}/analysis/retry")
 def retry_analysis(
     submission_id: uuid.UUID,
+    request: Request,
     token: str = Depends(bearer),
     db: Session = Depends(get_db),
 ):
@@ -251,6 +255,7 @@ def retry_analysis(
     ):
         analysis.status = "pending"
         db.commit()
+        mail_analysis.wake_worker(request.app)
     return mail_analysis.response(db, row)
 
 

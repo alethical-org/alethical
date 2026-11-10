@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import type { MailAnalysis } from '../src/data/mailAnalysis';
 
 // Synthetic image and isolated responses. Never upload to a real service.
 const photo = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
   'base64',
 );
 const result: MailAnalysis = {
@@ -72,6 +72,36 @@ const result: MailAnalysis = {
   ],
 };
 
+async function captureReview(page: Page, info: TestInfo, name: string) {
+  const folder = process.env.E2E_REVIEW_DIR;
+  await page.screenshot({
+    path: folder ? `${folder}/${info.project.name}-${name}` : info.outputPath(name),
+  });
+}
+
+async function expectSuccessButtonInsidePadding(page: Page) {
+  const box = await page
+    .getByRole('button', { name: 'Upload another', exact: true })
+    .evaluate((button) => {
+      const card = button.closest('.success')!;
+      const bounds = card.getBoundingClientRect();
+      const style = getComputedStyle(card);
+      const control = button.getBoundingClientRect();
+      return {
+        left: control.left,
+        right: control.right,
+        contentLeft:
+          bounds.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft),
+        contentRight:
+          bounds.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight),
+        fitsText: button.scrollWidth <= button.clientWidth,
+      };
+    });
+  expect(box.left).toBeGreaterThanOrEqual(box.contentLeft - 1);
+  expect(box.right).toBeLessThanOrEqual(box.contentRight + 1);
+  expect(box.fitsText).toBe(true);
+}
+
 async function savedMail(page: Page, initial: MailAnalysis | null = result) {
   const base = new URL(test.info().project.use.baseURL!);
   if (!['localhost', '127.0.0.1'].includes(base.hostname))
@@ -129,10 +159,12 @@ async function savedMail(page: Page, initial: MailAnalysis | null = result) {
   await expect(page.getByText('Back photo uploaded', { exact: true })).toBeAttached();
   await page.locator('#mail-yes').check();
   await page.getByRole('button', { name: 'Submit', exact: true }).click();
-  if (initial)
-    await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toBeVisible();
+  if (initial) await expect(page.locator('.mail-results')).toBeVisible();
   else await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
   return {
+    update: (next: MailAnalysis) => {
+      analysis = next;
+    },
     finish: () => {
       analysis = result;
     },
@@ -252,9 +284,9 @@ test('GET recovery keeps focused busy and failed buttons, then focuses the retai
   await expect(busy).toBeFocused();
   await expect.poll(() => waiting !== null).toBe(true);
   await waiting!.fulfill({ json: { data: result } });
-  await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Possible matches', exact: true })).toBeFocused();
   const target = (await page
-    .getByRole('heading', { name: 'Printed payer', exact: true })
+    .getByRole('heading', { name: 'Possible matches', exact: true })
     .boundingBox())!;
   expect(target.y >= 0 && target.y + target.height <= 844).toBe(true);
   expect(retries).toBe(0);
@@ -590,9 +622,8 @@ function publicFundResults(): MailAnalysis {
   fixture.sides[1] = {
     ...fixture.sides[1],
     status: 'partial',
-    display_text:
-      'Synthetic reading example\n[Unreadable]\nThe rest of the printed words stay in order',
-    reading_notice: 'Some text could not be read',
+    display_text: 'Synthetic reading example\nThe rest of the printed words stay in order',
+    reading_notice: 'Some text couldn’t be read',
   };
   fixture.status = 'partial';
   fixture.can_retry = true;
@@ -658,9 +689,11 @@ for (const { width, scale } of [
           Math.abs((await viewport.evaluate((node) => node.scrollTop)) - positions[index]),
         )
         .toBeLessThan(1);
-      await page.screenshot({
-        path: info.outputPath(`results-page-${String(index + 1).padStart(2, '0')}.png`),
-      });
+      await captureReview(
+        page,
+        info,
+        `complete-${width}-${scale * 100}-page-${String(index + 1).padStart(2, '0')}.png`,
+      );
     }
   });
 }
@@ -683,3 +716,222 @@ test.describe('touch contribution explanation', () => {
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 });
+
+for (const width of [390, 1280]) {
+  test(`progressive records preserve expanded text, keyboard focus and reading position at ${width}px`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 844 });
+    const frontText = Array.from(
+      { length: 18 },
+      (_, index) => `Readable front paragraph ${index + 1} explains this synthetic printed mail.`,
+    ).join('\n');
+    const initial: MailAnalysis = {
+      ...result,
+      snapshot_version: 1,
+      status: 'processing',
+      progress: {
+        active_sides: ['back'],
+        completed_sides: ['front'],
+        reading_complete: false,
+        records_complete: false,
+      },
+      sides: [{ ...result.sides[0], text: frontText, display_text: frontText }],
+      payers: [],
+    };
+    const response = await savedMail(page, initial);
+    await expect(page.getByText('Reading the back', { exact: true })).toBeVisible();
+    await expect(page.getByText('Reading the front', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toHaveCount(0);
+    await expect(page.getByText('No payer found', { exact: true })).toHaveCount(0);
+    const front = page.getByRole('button', { name: 'Front', exact: true });
+    await front.focus();
+    await page.keyboard.press('Enter');
+    await expect(front).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#mail-text-front')).toBeVisible();
+    // Put the same real reading control inside the viewport. Increasing scrollTop
+    // after new content arrives is correct when its viewport position is preserved.
+    const before = await front.evaluate((node) => {
+      let owner = node.parentElement;
+      while (
+        owner &&
+        !(
+          owner.scrollHeight > owner.clientHeight &&
+          /auto|scroll/.test(getComputedStyle(owner).overflowY)
+        )
+      )
+        owner = owner.parentElement;
+      owner ??= document.scrollingElement as HTMLElement;
+      owner.scrollTop += node.getBoundingClientRect().top - 160;
+      return { y: node.getBoundingClientRect().top, scroll: owner.scrollTop };
+    });
+    const finished = structuredClone(result);
+    finished.snapshot_version = 1;
+    finished.progress = {
+      active_sides: [],
+      completed_sides: ['front', 'back'],
+      reading_complete: true,
+      records_complete: true,
+    };
+    finished.sides[0] = { ...finished.sides[0], text: frontText, display_text: frontText };
+    response.update(finished);
+    await expect(
+      page.getByRole('heading', { name: 'Contributions received', exact: true }),
+    ).toBeAttached();
+    await expect(page.getByText('Reading the back', { exact: true })).toHaveCount(0);
+    await expect(front).toBeFocused();
+    await expect(front).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#mail-text-front')).toHaveText(frontText);
+    await expect
+      .poll(async () => Math.abs((await front.boundingBox())!.y - before.y))
+      .toBeLessThan(2);
+    const after = await front.evaluate((node) => {
+      let owner = node.parentElement;
+      while (
+        owner &&
+        !(
+          owner.scrollHeight > owner.clientHeight &&
+          /auto|scroll/.test(getComputedStyle(owner).overflowY)
+        )
+      )
+        owner = owner.parentElement;
+      owner ??= document.scrollingElement as HTMLElement;
+      return owner.scrollTop;
+    });
+    expect(after).toBeGreaterThan(before.scroll);
+    await page.screenshot({ path: info.outputPath('progressive-reading-position.png') });
+    // Printed evidence follows public records and precedes the readable text.
+    const order = await page.locator('.mail-results h2').allTextContents();
+    expect(order.indexOf('Possible matches')).toBeLessThan(order.indexOf('Printed payer'));
+    expect(order.indexOf('Printed payer')).toBeLessThan(order.indexOf('Text from your mail'));
+  });
+}
+
+test('completed empty front has no text disclosure or retry and shares one reading notice', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await savedMail(page, {
+    ...result,
+    snapshot_version: 1,
+    status: 'partial',
+    can_retry: false,
+    progress: {
+      active_sides: [],
+      completed_sides: ['front', 'back'],
+      reading_complete: true,
+      records_complete: true,
+    },
+    sides: [
+      {
+        ...result.sides[0],
+        status: 'partial',
+        text: 'Y | %',
+        display_text: '',
+        reading_incomplete: true,
+      },
+      {
+        ...result.sides[1],
+        status: 'partial',
+        text: 'Y Cut waste and fraud',
+        display_text: 'Cut waste and fraud',
+        reading_incomplete: true,
+      },
+    ],
+    payers: [],
+  });
+  await expect(page.getByRole('button', { name: 'Front', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'View front photo', exact: true })).toBeVisible();
+  await expect(page.locator('#mail-text-front')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toHaveCount(0);
+  await expect(page.locator('.reading-notice')).toHaveCount(1);
+  await expect(page.locator('.reading-notice')).toHaveText('ⓘSome text couldn’t be read');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.locator('#mail-text-back')).toHaveText('Cut waste and fraud');
+  await expect(page.getByText('Y Cut waste and fraud', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.results-failure')).toHaveCount(0);
+});
+
+for (const { width, scale } of [
+  { width: 320, scale: 1 },
+  { width: 390, scale: 1 },
+  { width: 834, scale: 1 },
+  { width: 1440, scale: 1 },
+  { width: 320, scale: 2 },
+]) {
+  test(`progressive and empty reading render coverage ${width}px ${scale * 100}%`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await savedMail(page, {
+      ...result,
+      snapshot_version: 1,
+      status: 'processing',
+      progress: {
+        active_sides: ['front'],
+        completed_sides: [],
+        reading_complete: false,
+        records_complete: false,
+      },
+      sides: [],
+      payers: [],
+    });
+    await expect(page.getByText('Reading the front', { exact: true })).toBeVisible();
+    await expect(page.getByText('Reading the back', { exact: true })).toHaveCount(0);
+    if (scale === 2) {
+      expect(await doubleAllText(page)).toEqual([]);
+      await expectSuccessButtonInsidePadding(page);
+    }
+    await page.locator('.mail-results').scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await captureReview(page, info, `progressive-${width}-${scale * 100}.png`);
+
+    // A new document doubles text once, including the terminal reading state.
+    await savedMail(page, {
+      ...result,
+      snapshot_version: 1,
+      status: 'partial',
+      can_retry: false,
+      progress: {
+        active_sides: [],
+        completed_sides: ['front', 'back'],
+        reading_complete: true,
+        records_complete: true,
+      },
+      sides: [
+        {
+          ...result.sides[0],
+          status: 'partial',
+          text: 'Y | %',
+          display_text: '',
+          reading_incomplete: true,
+        },
+        {
+          ...result.sides[1],
+          status: 'partial',
+          text: 'Y Cut waste and fraud',
+          display_text: 'Cut waste and fraud',
+          reading_incomplete: true,
+        },
+      ],
+      payers: [],
+    });
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    if (scale === 2) {
+      expect(await doubleAllText(page)).toEqual([]);
+      await expectSuccessButtonInsidePadding(page);
+    }
+    await page.locator('.mail-results').scrollIntoViewIfNeeded();
+    await expect(page.locator('.reading-notice')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Front', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
+    await expect(page.locator('#mail-text-back')).toHaveText('Cut waste and fraud');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await captureReview(page, info, `empty-front-${width}-${scale * 100}.png`);
+  });
+}

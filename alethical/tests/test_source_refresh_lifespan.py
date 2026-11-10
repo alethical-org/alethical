@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from types import SimpleNamespace
 import threading
 
+from fastapi import FastAPI
 import pytest
 
 from alethical.api import main
@@ -39,7 +40,10 @@ async def test_all_application_contexts_and_address_copy_survive_composition(
             stop=lambda: events.append("address:stop"),
         ),
     )
-    async with main.email_lifespan(None):
+    monkeypatch.delenv("ALETHICAL_MAIL_ANALYSIS_ENABLED", raising=False)
+    app = FastAPI()
+    async with main.email_lifespan(app):
+        assert app.state.mail_analysis_wake is not None
         assert events == [
             "address:start",
             "comments:start",
@@ -52,6 +56,8 @@ async def test_all_application_contexts_and_address_copy_survive_composition(
         "comments:stop",
         "address:stop",
     ]
+    assert app.state.mail_analysis_wake is None
+    assert app.state.mail_analysis_loop is None
 
 
 @pytest.mark.asyncio

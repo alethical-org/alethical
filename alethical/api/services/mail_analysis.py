@@ -7,12 +7,11 @@ replicas using row locks; a fenced lease recovers crashes. No image or OCR text 
 from __future__ import annotations
 
 import asyncio
-import csv
+from copy import deepcopy
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 import hashlib
-import io
 import logging
 import os
-import re
 import shutil
 import subprocess
 import tempfile
@@ -21,14 +20,24 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from PIL import Image, ImageOps
-import numpy as np
 from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.api.services import mail_upload
+from alethical.api.services.mail_ocr import (
+    PAYER as PAYER,
+    disclosures as disclosures,
+    parse_tsv as parse_tsv,
+    deskew as deskew,
+    angled_disclosure_region as angled_disclosure_region,
+    disclosure_column as disclosure_column,
+    payer_context as payer_context,
+    refine_disclosure as refine_disclosure,
+    image_fingerprint as image_fingerprint,
+    read_image as read_image,
+)
 from alethical.api.services.mail_public_records import public_records
-from alethical.api.services.mail_reading_copy import reading_copy
+from alethical.api.services.mail_reading_copy import reading_copy, reading_disclosure
 from alethical.api.services.mail_payer_sources import (
     corroborate,
     related_records,
@@ -42,385 +51,8 @@ from alethical.pipeline.campaign_finance_filings import (
 )
 
 logger = logging.getLogger(__name__)
-VERSION = "tesseract-english-v3"
+VERSION = "tesseract-english-v4"
 LEASE = timedelta(minutes=10)
-PAYER = re.compile(r"\b(?:prepared\s+and\s+)?paid\s+for\s+by\s+(.+)", re.I)
-
-
-def disclosures(lines: list[dict], width: int, height: int) -> list[dict]:
-    """Quote OCR verbatim; never fill a clipped or missing disclosure."""
-    found = []
-    for index, line in enumerate(lines):
-        match = PAYER.search(line["text"])
-        if not match:
-            continue
-        # One immediately following line is retained only as evidence, not silently
-        # joined to a payer's name. A missing name remains an unreadable outcome.
-        payer = match.group(1).strip()
-        payer = re.split(
-            r"[.;]|,?\s+https?://|,?\s+P\.?O\.?\s+Box\b|,\s+\d|\s+not\s+authorized",
-            payer,
-            maxsplit=1,
-            flags=re.I,
-        )[0].strip()
-        box = line["box"]
-        edge = box[0] <= 8 or box[1] <= 8 or box[2] >= width - 8 or box[3] >= height - 8
-        found.append(
-            {
-                "quote": line["text"],
-                "payer_text": payer or None,
-                "quality": "machine_read",
-                "edge_warning": edge,
-                "box": box,
-                "confidence": line["confidence"],
-            }
-        )
-    return found
-
-
-def parse_tsv(raw):
-    grouped = {}
-    for word in csv.DictReader(
-        io.StringIO(raw), delimiter="\t", quoting=csv.QUOTE_NONE
-    ):
-        value = word.get("text", "").strip()
-        confidence = float(word.get("conf", "-1"))
-        if not value or confidence < 0:
-            continue
-        key = tuple(word[name] for name in ("block_num", "par_num", "line_num"))
-        x, y, w, h = (int(word[name]) for name in ("left", "top", "width", "height"))
-        grouped.setdefault(key, []).append((value, confidence, x, y, x + w, y + h))
-    return [
-        {
-            "text": " ".join(w[0] for w in words),
-            "confidence": round(sum(w[1] for w in words) / len(words), 1),
-            "box": [
-                min(w[2] for w in words),
-                min(w[3] for w in words),
-                max(w[4] for w in words),
-                max(w[5] for w in words),
-            ],
-        }
-        for words in grouped.values()
-    ]
-
-
-def deskew(image):
-    """Local projection pass on a small disclosure crop, without changing bytes."""
-    if np.median(np.asarray(image.convert("L"))) < 120:
-        image = ImageOps.invert(image)
-    sample = image.convert("L")
-    sample.thumbnail((800, 300))
-    pixels = np.asarray(sample)
-    threshold = float(np.percentile(pixels, 35))
-    mask = Image.fromarray(np.where(pixels < threshold, 255, 0).astype(np.uint8))
-    choices = []
-    for angle in range(-12, 13, 2):
-        turned = np.asarray(mask.rotate(angle, expand=False, fillcolor=0), dtype=float)
-        projection = turned.sum(axis=1)
-        choices.append((float(np.square(np.diff(projection)).sum()), angle))
-    angle = max(choices)[1]
-    return image.rotate(
-        angle, resample=Image.Resampling.BICUBIC, expand=True, fillcolor="white"
-    ), angle
-
-
-def angled_disclosure_region(size, box):
-    """Keep context above/below sloped fine print, without reading the full page."""
-    width, height = size
-    x1, y1, x2, y2 = box
-    span = x2 - x1
-    left = max(0, x1 - max(600, span * 2))
-    right = min(width, x2 + max(400, span))
-    pad = max(200, int((right - left) * 0.22))
-    return (left, max(0, y1 - pad), right, min(height, y2 + pad))
-
-
-def disclosure_column(lines, start):
-    """Keep only nearby lines aligned with the disclosure, not postage columns."""
-    first = lines[start]
-    x1, y1, x2, y2 = first["box"]
-    selected = [first]
-    bottom = y2
-    line_height = max(1, y2 - y1)
-    for line in sorted(lines, key=lambda item: item["box"][1]):
-        if line is first:
-            continue
-        left, top, right, end = line["box"]
-        if top < y1 + line_height / 2 or top > bottom + line_height * 2:
-            continue
-        overlap = max(0, min(x2, right) - max(x1, left))
-        if (
-            abs(left - x1) > max(80, line_height * 2)
-            or overlap < min(x2 - x1, right - left) * 0.5
-        ):
-            continue
-        selected.append(line)
-        bottom = end
-        if len(selected) == 4:
-            break
-    return selected
-
-
-def payer_context(quote):
-    """Stop a name at a separately read address/site line; retain the full quote."""
-    kept = []
-    for line in quote.splitlines():
-        if kept and re.search(
-            r"^\s*(?:https?://|www\.|P\.?\s*O\.?\s+Box\b|"
-            r"\d{1,6}\s+.+\b(?:street|st|avenue|ave|boulevard|blvd|road|rd|"
-            r"lane|ln|drive|dr|way|court|ct|highway|hwy)\b)",
-            line,
-            re.I,
-        ):
-            break
-        kept.append(line)
-    return " ".join(" ".join(kept).split())
-
-
-def refine_disclosure(rotated, quote, folder, deadline):
-    x1, y1, x2, y2 = quote["box"]
-    pad = max(12, (y2 - y1) // 2)
-    regions = [
-        (
-            max(0, x1 - pad),
-            max(0, y1 - pad),
-            min(rotated.width, x2 + pad),
-            min(rotated.height, y2 + 4 * (y2 - y1)),
-        ),
-        (
-            max(0, x1 - pad),
-            max(0, y1 - pad),
-            min(rotated.width, x2 + max(400, x2 - x1)),
-            min(rotated.height, y2 + 4 * (y2 - y1)),
-        ),
-        (
-            0,
-            max(0, y1 - pad),
-            min(rotated.width, x2 + pad),
-            min(rotated.height, y2 + 4 * (y2 - y1)),
-        ),
-    ]
-    # One extra sparse pass only when the normal disclosure read is unresolved
-    # or weak. It shares the existing per-image deadline and 3-anchor limit.
-    regions.append(angled_disclosure_region(rotated.size, quote["box"]))
-    best = None
-    try:
-        for region_index, region in enumerate(regions):
-            sparse = region_index == len(regions) - 1
-            if (
-                sparse
-                and best is not None
-                and best[1]["confidence"] >= 90
-                and not best[1]["edge_warning"]
-            ):
-                break
-            original_crop = rotated.crop(region)
-            variants = (
-                (deskew(original_crop),)
-                if sparse
-                else ((original_crop, 0), deskew(original_crop))
-            )
-            for corrected, angle in variants:
-                if time.monotonic() >= deadline:
-                    break
-                path = Path(folder) / "disclosure.png"
-                corrected.save(path)
-                raw = subprocess.run(
-                    [
-                        "nice",
-                        "-n",
-                        "10",
-                        "tesseract",
-                        str(path.resolve()),
-                        "stdout",
-                        "-l",
-                        "eng",
-                        "--psm",
-                        "11" if sparse else "6",
-                        "tsv",
-                    ],
-                    capture_output=True,
-                    check=True,
-                    timeout=max(0.1, min(10, deadline - time.monotonic())),
-                    env={**os.environ, "OMP_THREAD_LIMIT": "1"},
-                ).stdout.decode("utf-8", errors="replace")
-                lines = parse_tsv(raw)
-                start = next(
-                    (i for i, line in enumerate(lines) if PAYER.search(line["text"])),
-                    None,
-                )
-                if start is None:
-                    continue
-                relevant = disclosure_column(lines, start) if sparse else lines[start:]
-                refined = "\n".join(line["text"] for line in relevant)
-                match = PAYER.search(payer_context(refined))
-                split = re.split(
-                    r"[.;]|,?\s+https?://|,?\s+P\.?O\.?\s+Box\b|,\s+\d|\s+not\s+authorized",
-                    match.group(1),
-                    maxsplit=1,
-                    flags=re.I,
-                )
-                payer = split[0].strip()
-                measured = relevant[: min(2, len(relevant))]
-                confidence = sum(line["confidence"] for line in measured) / len(
-                    measured
-                )
-                edge = any(
-                    line["box"][0] <= 3 or line["box"][2] >= corrected.width - 3
-                    for line in measured
-                )
-                score = (
-                    confidence
-                    - 20 * edge
-                    - 15 * (len(split) == 1)
-                    - 20 * (len(payer) > 100)
-                )
-                if best is None or score > best[0]:
-                    best = (
-                        score,
-                        {
-                            **quote,
-                            "quote": refined,
-                            "box": None,
-                            "payer_text": payer,
-                            "confidence": round(confidence, 1),
-                            "edge_warning": edge or quote["edge_warning"],
-                            "crop": {
-                                "source_box": list(region),
-                                "width": corrected.width,
-                                "height": corrected.height,
-                                "deskew_angle": angle,
-                                "segmentation": "sparse_column" if sparse else "block",
-                            },
-                        },
-                    )
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-        if best is None:
-            raise
-        best[1]["refinement_incomplete"] = True
-    chosen = best[1] if best else quote
-    if chosen.get("payer_text") and len(chosen["payer_text"]) > 100:
-        chosen["payer_text"] = None
-        chosen["edge_warning"] = True
-    return chosen
-
-
-def image_fingerprint(image):
-    """Private similarity hint only; never evidence of the same creative version."""
-    pixels = np.asarray(image.convert("L").resize((9, 8)))
-    bits = (pixels[:, 1:] > pixels[:, :-1]).flatten()
-    return format(sum(int(bit) << index for index, bit in enumerate(bits)), "016x")
-
-
-def read_image(path: Path) -> dict:
-    """Bound work and memory; preserve original file, including its metadata."""
-    best = None
-    deadline = time.monotonic() + 90
-    with Image.open(path) as original:
-        original.draft("RGB", (4000, 4000))
-        picture = ImageOps.exif_transpose(original)
-        picture.thumbnail((4000, 4000))
-        picture = picture.convert("RGB")
-    with tempfile.TemporaryDirectory(prefix="mail-ocr-") as folder:
-        try:
-            for angle in (0, 90, 180, 270):
-                if time.monotonic() >= deadline:
-                    break
-                rotated = picture.rotate(angle, expand=True)
-                source = Path(folder) / "page.png"
-                rotated.save(source)
-                raw = subprocess.run(
-                    [
-                        "nice",
-                        "-n",
-                        "10",
-                        "tesseract",
-                        str(source.resolve()),
-                        "stdout",
-                        "-l",
-                        "eng",
-                        "--psm",
-                        "11",
-                        "tsv",
-                    ],
-                    capture_output=True,
-                    timeout=max(0.1, min(25, deadline - time.monotonic())),
-                    check=True,
-                    env={**os.environ, "OMP_THREAD_LIMIT": "1"},
-                ).stdout.decode("utf-8", errors="replace")
-                lines = parse_tsv(raw)
-                quotes = disclosures(lines, *rotated.size)
-                # Sparse OCR interleaves neighboring columns. Re-read only the
-                # disclosure's own column so wrapped payer names stay in order.
-                for line in lines:
-                    if not PAYER.search(line["text"]) and re.search(
-                        r"\bpaid\b|\bprepared\b|\bexpenditure\b|\b(?:for|or|r)\s+by\b",
-                        line["text"],
-                        re.I,
-                    ):
-                        quotes.append(
-                            {
-                                "quote": line["text"],
-                                "payer_text": None,
-                                "quality": "machine_read",
-                                "edge_warning": False,
-                                "box": line["box"],
-                                "confidence": line["confidence"],
-                            }
-                        )
-                partial_reasons = []
-                refined_quotes = []
-                for quote in quotes[:3]:
-                    try:
-                        refined_quotes.append(
-                            refine_disclosure(rotated, quote, folder, deadline)
-                        )
-                    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-                        refined_quotes.append(quote)
-                        partial_reasons.append("disclosure_reading_stopped")
-                quotes = refined_quotes
-                if any(quote.get("refinement_incomplete") for quote in quotes):
-                    partial_reasons.append("disclosure_reading_stopped")
-                quotes = [quote for quote in quotes if quote["payer_text"]]
-                readable = [line for line in lines if line["confidence"] >= 60]
-                score = sum(len(line["text"]) for line in readable) + 1000 * len(quotes)
-                result = {
-                    "status": (
-                        "partial"
-                        if partial_reasons or any(q["edge_warning"] for q in quotes)
-                        else "read"
-                    )
-                    if readable
-                    else "unreadable",
-                    "partial_reasons": partial_reasons
-                    + (
-                        ["disclosure_cut_off"]
-                        if any(q["edge_warning"] for q in quotes)
-                        else []
-                    ),
-                    "text": "\n".join(line["text"] for line in lines)[:60000],
-                    "disclosures": quotes,
-                    "rotation": angle,
-                    "image_fingerprint": image_fingerprint(rotated),
-                    "width": rotated.width,
-                    "height": rotated.height,
-                    "complete": False,
-                }
-                if best is None or score > best[0]:
-                    best = (score, result)
-                # A useful upright read needs no speculative rotations. Completeness
-                # is still unknown, even when every recognized word is confident.
-                if time.monotonic() >= deadline or (
-                    quotes and readable and all(q["confidence"] >= 70 for q in quotes)
-                ):
-                    break
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            if best is None:
-                raise
-            best[1]["status"] = "partial"
-            best[1]["partial_reasons"] = ["reading_stopped"]
-    return best[1]
 
 
 def candidate_records(db, payer: str) -> list[dict]:
@@ -454,138 +86,418 @@ def candidate_records(db, payer: str) -> list[dict]:
     ] + curated
 
 
-def analyze(db, submission_id) -> dict:
-    submission = db.get(m.MailUploadSubmission, submission_id)
-    images = mail_upload.selected_images(db, submission)
-    primary, _ = mail_upload.stores()
-    previous = db.get(m.MailUploadAnalysis, submission_id)
-    prior_sides = (
-        {side["side"]: side for side in (previous.result or {}).get("sides", [])}
-        if previous
-        else {}
+# Only image-derived fields may move between submissions with identical files.
+# Keep ownership, reactions, matching decisions and assembled records out.
+EXTRACTION_FIELDS = frozenset(
+    {
+        "status",
+        "text",
+        "disclosures",
+        "complete",
+        "partial_reasons",
+        "rotation",
+        "image_fingerprint",
+        "width",
+        "height",
+        "reading_lines",
+        "display_text",
+        "reading_incomplete",
+        "deskew_angle",
+    }
+)
+INPUT_FIELDS = ("sha256", "byte_count", "content_type", "width", "height")
+
+
+def extraction_copy(value):
+    result = {key: deepcopy(value[key]) for key in EXTRACTION_FIELDS if key in value}
+
+    # Nested objects are image evidence too, not an escape hatch for assembled
+    # identity, feedback or credentials from a different submission.
+    def fields(item, names):
+        return {key: deepcopy(item[key]) for key in names if key in item}
+
+    if "disclosures" in result:
+        result["disclosures"] = []
+        for quote in value["disclosures"]:
+            clean = fields(
+                quote,
+                (
+                    "quote",
+                    "payer_text",
+                    "quality",
+                    "edge_warning",
+                    "box",
+                    "confidence",
+                    "refinement_incomplete",
+                    "display_quote",
+                    "display_quote_normalization",
+                ),
+            )
+            if isinstance(quote.get("crop"), dict):
+                clean["crop"] = fields(
+                    quote["crop"],
+                    (
+                        "source_box",
+                        "width",
+                        "height",
+                        "deskew_angle",
+                        "segmentation",
+                    ),
+                )
+            result["disclosures"].append(clean)
+    if "reading_lines" in result:
+        result["reading_lines"] = []
+        for line in value["reading_lines"]:
+            clean = fields(line, ("text", "confidence", "box"))
+            if "words" in line:
+                clean["words"] = [
+                    fields(word, ("text", "confidence", "box"))
+                    for word in line["words"]
+                ]
+            result["reading_lines"].append(clean)
+    return result
+
+
+def same_input(side, image):
+    return side.get("input") == {key: image[key] for key in INPUT_FIELDS}
+
+
+def reusable_reading(db, submission_id, image):
+    """Reuse only an extraction of bytes this submission has already provided.
+
+    The hash index bounds candidates; strict metadata and reader version are part
+    of the key. No user-facing lookup by hash or other submission is exposed.
+    """
+    rows = db.execute(
+        select(m.MailUploadAnalysis.result, m.MailUploadImage.side)
+        .join(
+            m.MailUploadImage,
+            m.MailUploadImage.submission_id == m.MailUploadAnalysis.submission_id,
+        )
+        .join(
+            m.MailUploadSubmission,
+            m.MailUploadSubmission.id == m.MailUploadImage.submission_id,
+        )
+        .where(
+            m.MailUploadAnalysis.submission_id != submission_id,
+            m.MailUploadAnalysis.status.in_(("ready", "partial")),
+            m.MailUploadAnalysis.result["version"].as_string() == VERSION,
+            m.MailUploadSubmission.saved_at.is_not(None),
+            m.MailUploadImage.selected.is_(True),
+            m.MailUploadImage.verified_at.is_not(None),
+            *(getattr(m.MailUploadImage, key) == image[key] for key in INPUT_FIELDS),
+        )
+        .order_by(m.MailUploadAnalysis.completed_at.desc())
+        .limit(20)
     )
-    sides = []
-    with tempfile.TemporaryDirectory(prefix="mail-analysis-") as folder:
-        for side in ("front", "back"):
-            row = images.get(side)
-            if row is None or row.verified_at is None:
-                raise ValueError("Unverified image")
-            prior = prior_sides.get(side)
+    for result, source_side in rows:
+        for side in result.get("sides", []):
             if (
-                prior
-                and prior.get("sha256") == row.sha256
-                and prior.get("status") == "read"
+                side.get("side") == source_side
+                and side.get("sha256") == image["sha256"]
+                and side.get("status") == "read"
+                and side.get("reader_version") == VERSION
+                and same_input(side, image)
             ):
-                sides.append(prior)
-                continue
+                return extraction_copy(side)
+    return None
+
+
+def read_side(image, side, cached, prior):
+    reader_version = VERSION
+    if cached is not None:
+        result = cached
+    else:
+        with tempfile.TemporaryDirectory(prefix="mail-analysis-") as folder:
             path = Path(folder) / side
             try:
-                primary.get(row.object_key, path, max_bytes=mail_upload.MAX_IMAGE_BYTES)
-                if hashlib.sha256(path.read_bytes()).hexdigest() != row.sha256:
+                primary, _ = mail_upload.stores()
+                started = time.monotonic()
+                primary.get(
+                    image["object_key"], path, max_bytes=mail_upload.MAX_IMAGE_BYTES
+                )
+                body = path.read_bytes()
+                if (
+                    len(body) != image["byte_count"]
+                    or hashlib.sha256(body).hexdigest() != image["sha256"]
+                ):
                     raise ValueError("Image verification failed")
+                logger.info(
+                    "Mail reading timing stage=fetch_verify elapsed_ms=%.1f",
+                    (time.monotonic() - started) * 1000,
+                )
+                started = time.monotonic()
                 result = read_image(path)
+                logger.info(
+                    "Mail reading timing stage=image_read elapsed_ms=%.1f",
+                    (time.monotonic() - started) * 1000,
+                )
             except Exception:
-                # Failed storage/reading affects only this side. Keep the other
-                # successful side for the next bounded attempt; no provider body.
                 result = {
                     "status": "unreadable",
                     "text": "",
                     "disclosures": [],
                     "complete": False,
                 }
-            if (
-                prior
-                and prior.get("sha256") == row.sha256
-                and prior.get("status") == "partial"
-                and prior.get("text")
-                and (result["status"] == "unreadable" or not result.get("text"))
-            ):
-                result = {
-                    **prior,
-                    "status": "partial",
-                    "partial_reasons": sorted(
-                        set(prior.get("partial_reasons", []) + ["retry_failed"])
-                    ),
-                }
-            sides.append({"side": side, "sha256": row.sha256, **result})
-    quotes = [
-        (side["side"], q)
-        for side in sides
-        for q in side["disclosures"]
-        if q["payer_text"]
-    ]
-    payers = [
-        {
-            "side": side,
-            **quote,
-            "candidates": candidate_records(db, quote["payer_text"]),
-            "related_records": related_records(quote["quote"], quote["payer_text"]),
-            "official_organization": corroborate(
-                quote["payer_text"],
-                quote["quote"],
-                edge_warning=quote["edge_warning"],
-                confidence=quote["confidence"],
+    if (
+        prior
+        and prior.get("sha256") == image["sha256"]
+        and ("input" not in prior or same_input(prior, image))
+        and prior.get("status") in {"read", "partial"}
+        and prior.get("text")
+        and (result["status"] == "unreadable" or not result.get("text"))
+    ):
+        reader_version = prior.get("reader_version")
+        result = {
+            **extraction_copy(prior),
+            "status": "partial",
+            "partial_reasons": sorted(
+                set(prior.get("partial_reasons", []) + ["retry_failed"])
             ),
         }
-        for side, quote in quotes
-    ]
-    # A candidate's public records remain under that candidate; they never
-    # establish that account paid for this piece. Bound distinct record reads.
-    records = {}
-    records_retry_needed = False
-    failed_record_numbers = set()
-    for payer in payers:
-        for candidate in payer["candidates"] + payer["related_records"]:
-            number = candidate["registration_number"]
-            if number not in records and len(records) < 3:
-                try:
-                    records[number] = public_records(number, submission.saved_at.year)
-                except Exception:
-                    records_retry_needed = True
-                    failed_record_numbers.add(number)
-                    records[number] = {
-                        "state": "unavailable",
-                        "registration_number": number,
-                    }
-            current_records = records.get(
-                number, {"state": "not_loaded", "registration_number": number}
-            )
-            if number in failed_record_numbers:
-                # Keep evidence only under the same printed payer and candidate
-                # identity. Its original fetch date and source snapshot stay intact.
-                for prior_payer in (
-                    (previous.result or {}).get("payers", []) if previous else []
-                ):
-                    if (prior_payer.get("side"), prior_payer.get("payer_text")) != (
-                        payer["side"],
-                        payer["payer_text"],
-                    ):
-                        continue
-                    for prior_candidate in prior_payer.get(
-                        "candidates", []
-                    ) + prior_payer.get("related_records", []):
-                        identity = ("registration_number", "scope", "source_url")
-                        prior_records = prior_candidate.get("records", {})
-                        if (
-                            all(
-                                prior_candidate.get(key) == candidate.get(key)
-                                for key in identity
-                            )
-                            and prior_records.get("state") == "available"
-                            and prior_records.get("year") == submission.saved_at.year
-                        ):
-                            current_records = {**prior_records, "refresh_failed": True}
-                            break
-            candidate["records"] = current_records
     return {
-        "version": VERSION,
-        "records_retry_needed": records_retry_needed,
-        "sides": sides,
-        "payers": payers,
-        "payer_status": "matched"
-        if len(payers) == 1 and payers[0]["official_organization"]
-        else ("uncertain" if payers else "not_found"),
+        **extraction_copy(result),
+        "side": side,
+        "reader_version": reader_version,
+        "sha256": image["sha256"],
+        "input": {key: image[key] for key in INPUT_FIELDS},
     }
+
+
+def previous_records(previous, payer, candidate, year):
+    for prior_payer in previous.get("payers", []):
+        if (prior_payer.get("side"), prior_payer.get("payer_text")) != (
+            payer["side"],
+            payer["payer_text"],
+        ):
+            continue
+        for prior_candidate in prior_payer.get("candidates", []) + prior_payer.get(
+            "related_records", []
+        ):
+            records = prior_candidate.get("records", {})
+            if (
+                all(
+                    prior_candidate.get(key) == candidate.get(key)
+                    for key in ("registration_number", "scope", "source_url")
+                )
+                and records.get("state") == "available"
+                and records.get("year") == year
+            ):
+                return deepcopy(records)
+    return None
+
+
+def analyze(db, submission_id, *, publish=None) -> dict:
+    submission = db.get(m.MailUploadSubmission, submission_id)
+    selected = mail_upload.selected_images(db, submission)
+    images = {}
+    for side in ("front", "back"):
+        row = selected.get(side)
+        if row is None or row.verified_at is None:
+            raise ValueError("Unverified image")
+        images[side] = {key: getattr(row, key) for key in (*INPUT_FIELDS, "object_key")}
+    year = submission.saved_at.year
+    previous_row = db.get(m.MailUploadAnalysis, submission_id)
+    previous = deepcopy(previous_row.result or {}) if previous_row else {}
+    # Old same-input evidence can survive a failed fresh read, but cannot skip
+    # this reader's work or become a current-version reusable extraction.
+    prior_sides = {
+        side["side"]: {
+            **side,
+            "reader_version": side.get("reader_version", previous.get("version")),
+        }
+        for side in previous.get("sides", [])
+        if side.get("side") in images
+        and side.get("sha256") == images[side["side"]]["sha256"]
+        and ("input" not in side or same_input(side, images[side["side"]]))
+    }
+    cached = {}
+    for side, image in images.items():
+        prior = prior_sides.get(side)
+        cached[side] = (
+            extraction_copy(prior)
+            if prior
+            and prior.get("status") == "read"
+            and prior.get("reader_version") == VERSION
+            and same_input(prior, image)
+            else reusable_reading(db, submission_id, image)
+        )
+    db.rollback()  # No database connection stays checked out during image work.
+    sides = {side: deepcopy(value) for side, value in prior_sides.items()}
+    completed = set()
+    active = set()
+    payers_by_side = {}
+    records = {}
+    failed_records = set()
+    resolved_records = set()
+    records_retry_needed = False
+
+    def payers_for(side):
+        return [
+            {
+                "side": side,
+                **quote,
+                "candidates": candidate_records(db, quote["payer_text"]),
+                "related_records": related_records(quote["quote"], quote["payer_text"]),
+                "official_organization": corroborate(
+                    quote["payer_text"],
+                    quote["quote"],
+                    edge_warning=quote["edge_warning"],
+                    confidence=quote["confidence"],
+                ),
+            }
+            for quote in sides[side].get("disclosures", [])
+            if quote.get("payer_text")
+        ]
+
+    def snapshot(*, final=False):
+        payers = deepcopy(
+            [
+                payer
+                for side in ("front", "back")
+                for payer in payers_by_side.get(side, [])
+            ]
+        )
+        for payer in payers:
+            for candidate in payer["candidates"] + payer["related_records"]:
+                number = candidate["registration_number"]
+                value = records.get(number)
+                old = previous_records(previous, payer, candidate, year)
+                if number in failed_records and old:
+                    value = {**old, "refresh_failed": True}
+                elif value is None:
+                    value = (
+                        old
+                        if old
+                        else {
+                            "state": "not_loaded" if final else "loading",
+                            "registration_number": number,
+                        }
+                    )
+                candidate["records"] = deepcopy(value)
+        result = {
+            "version": VERSION,
+            "snapshot_version": 1,
+            "progress": {
+                "active_sides": [side for side in ("front", "back") if side in active],
+                "completed_sides": [
+                    side for side in ("front", "back") if side in completed
+                ],
+                "reading_complete": len(completed) == 2,
+                "records_complete": final,
+            },
+            "records_retry_needed": records_retry_needed,
+            "sides": [
+                deepcopy(sides[side]) for side in ("front", "back") if side in sides
+            ],
+            "payers": payers,
+        }
+        if len(completed) == 2:
+            result["payer_status"] = (
+                "matched"
+                if len(payers) == 1 and payers[0]["official_organization"]
+                else ("uncertain" if payers else "not_found")
+            )
+        return result
+
+    def emit():
+        if publish is not None and not publish(snapshot()):
+            raise RuntimeError("Mail reading lease was replaced")
+
+    # Keep useful same-input evidence visible through a retry while recomputing
+    # identity/records from current approved sources, never copying another result.
+    for side in sides:
+        payers_by_side[side] = payers_for(side)
+    db.rollback()
+    try:
+        concurrency = min(
+            2, max(1, int(os.getenv("ALETHICAL_MAIL_READ_CONCURRENCY", "1")))
+        )
+    except ValueError:
+        concurrency = 1
+
+    def load_records(number):
+        started = time.monotonic()
+        try:
+            return public_records(number, year)
+        finally:
+            logger.info(
+                "Mail reading timing stage=public_records elapsed_ms=%.1f",
+                (time.monotonic() - started) * 1000,
+            )
+
+    # A slow public-record query must not hide another completed image. Its
+    # service owns a separate short-lived DB session; image workers use none.
+    with (
+        ThreadPoolExecutor(max_workers=concurrency) as pool,
+        ThreadPoolExecutor(max_workers=1) as record_pool,
+    ):
+        futures = {}
+
+        def read_started(image, side, signal):
+            # Signal execution, not queueing; the main thread persists progress.
+            signal.set_result(side)
+            return read_side(image, side, cached[side], prior_sides.get(side))
+
+        for side, image in images.items():
+            signal = Future()
+            futures[signal] = ("started", side)
+            futures[pool.submit(read_started, image, side, signal)] = ("side", side)
+        while futures:
+            done, _ = wait(futures, return_when=FIRST_COMPLETED)
+            for future in done:
+                kind, key = futures.pop(future)
+                if kind == "started":
+                    if key not in completed:
+                        active.add(key)
+                        emit()
+                    continue
+                if kind == "records":
+                    try:
+                        records[key] = future.result()
+                    except Exception:
+                        records_retry_needed = True
+                        failed_records.add(key)
+                        records[key] = {
+                            "state": "unavailable",
+                            "registration_number": key,
+                        }
+                    emit()
+                    continue
+                sides[key] = future.result()
+                active.discard(key)
+                completed.add(key)
+                payers_by_side[key] = payers_for(key)
+                db.rollback()
+                emit()
+                for payer in payers_by_side[key]:
+                    for candidate in payer["candidates"] + payer["related_records"]:
+                        number = candidate["registration_number"]
+                        if number in resolved_records or len(resolved_records) >= 3:
+                            continue
+                        resolved_records.add(number)
+                        futures[record_pool.submit(load_records, number)] = (
+                            "records",
+                            number,
+                        )
+    return snapshot(final=True)
+
+
+def publish_progress(submission_id, attempt, started_at, result):
+    """Short fenced write; no shared ORM state or private assignment changes."""
+    with get_session_factory()() as db:
+        updated = db.execute(
+            update(m.MailUploadAnalysis)
+            .where(
+                m.MailUploadAnalysis.submission_id == submission_id,
+                m.MailUploadAnalysis.status == "processing",
+                m.MailUploadAnalysis.attempts == attempt,
+                m.MailUploadAnalysis.started_at == started_at,
+            )
+            .values(result=deepcopy(result))
+        )
+        db.commit()
+        return updated.rowcount == 1
 
 
 def drain_once():
@@ -637,12 +549,18 @@ def drain_once():
         )
         if row is None:
             db.commit()
-            return
+            return False
         row.status, row.started_at, row.attempts = "processing", now, row.attempts + 1
         submission_id, attempt = row.submission_id, row.attempts
         db.commit()
         try:
-            result = analyze(db, submission_id)
+            result = analyze(
+                db,
+                submission_id,
+                publish=lambda result: publish_progress(
+                    submission_id, attempt, now, result
+                ),
+            )
             status = (
                 "partial"
                 if any(side["status"] != "read" for side in result["sides"])
@@ -678,6 +596,7 @@ def drain_once():
                 row.completed_at = datetime.now(timezone.utc)
                 inherit_reviewed_creative(db, row)
             db.commit()
+        return True
 
 
 def response(db, submission):
@@ -695,6 +614,9 @@ def response(db, submission):
         "data": {
             **row.result,
             "sides": [reading_copy(side) for side in row.result.get("sides", [])],
+            "payers": [
+                reading_disclosure(payer) for payer in row.result.get("payers", [])
+            ],
             "status": row.status,
             "can_retry": row.status in {"failed", "partial"} and row.attempts < 3,
             "matching_mailers": {
@@ -740,9 +662,20 @@ def require_ocr_runtime():
         raise RuntimeError("Mail analysis English data unavailable")
 
 
+def wake_worker(app):
+    """Notify the lifespan loop after a committed save, including sync routes."""
+    loop = getattr(app.state, "mail_analysis_loop", None)
+    wake = getattr(app.state, "mail_analysis_wake", None)
+    if loop is not None and wake is not None and not loop.is_closed():
+        loop.call_soon_threadsafe(wake.set)
+
+
 @asynccontextmanager
 async def mail_analysis_lifespan(app):
     stop = asyncio.Event()
+    wake = asyncio.Event()
+    app.state.mail_analysis_loop = asyncio.get_running_loop()
+    app.state.mail_analysis_wake = wake
 
     async def run():
         if os.getenv("ALETHICAL_MAIL_ANALYSIS_ENABLED", "").lower() == "true":
@@ -753,18 +686,25 @@ async def mail_analysis_lifespan(app):
                 return
             logger.info("Mail analysis OCR ready: tesseract and English data available")
         while not stop.is_set():
+            # Clear before claiming. A save during/after the claim then remains
+            # signaled; clearing after an empty claim could lose that wake.
+            wake.clear()
             image_gate = getattr(app.state, "mail_upload_image_gate", None)
             upload_busy = image_gate is not None and image_gate.locked()
+            claimed = False
             if (
                 os.getenv("ALETHICAL_MAIL_ANALYSIS_ENABLED", "").lower() == "true"
                 and not upload_busy
             ):
                 try:
-                    await asyncio.to_thread(drain_once)
+                    claimed = await asyncio.to_thread(drain_once)
                 except Exception:
                     logger.warning("Mail analysis worker unavailable")
+            if claimed:
+                # Drain ready backlog; the existing claim fence still owns work.
+                continue
             try:
-                await asyncio.wait_for(stop.wait(), timeout=5)
+                await asyncio.wait_for(wake.wait(), timeout=5)
             except TimeoutError:
                 pass
 
@@ -773,7 +713,10 @@ async def mail_analysis_lifespan(app):
         yield
     finally:
         stop.set()
+        wake.set()
         await task
+        app.state.mail_analysis_loop = None
+        app.state.mail_analysis_wake = None
 
 
 def assign_creative(db, submission_id, *, matching_submission_id, excluded, evidence):
