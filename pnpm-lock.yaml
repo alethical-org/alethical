@@ -29,6 +29,7 @@ overrides:
   undici: 8.12.2
   uuid: 11.1.1
   zod: 4.6.7
+  node-forge: 1.4.2
   vite: 8.1.6
 
 patchedDependencies:
@@ -53,9 +54,9 @@ patchedDependencies:
   minimatch@10.2.5:
     hash: 6e9b5b0bb1b4da39bf8c426e8962f700abfa5864a6c80cfbdd90ba616bc6d0ad
     path: patches/minimatch@10.2.5.patch
-  node-forge@1.4.0:
-    hash: b6b641c5516784f73c3ada59a215dbd7bb2eb7d4b2c254699a06551baa835ff6
-    path: patches/node-forge@1.4.0.patch
+  node-forge@1.4.2:
+    hash: 26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952
+    path: patches/node-forge@1.4.2.patch
   query-string@7.1.3:
     hash: 32fabd661c87a64d8e92d6fb323ef8ca9b61812de3a3cba21215ac3373e9b641
     path: patches/query-string@7.1.3.patch
@@ -2526,8 +2527,8 @@ packages:
     resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  node-forge@1.4.0:
-    resolution: {integrity: sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==}
+  node-forge@1.4.2:
+    resolution: {integrity: sha512-rRtAR5XLJ8gCKd9du4qrKAsgCG1ObGP4gLeNJMa4vYSeq4bmBMOJk5IHkrviBV0q7uoAJlVd8HEQYQSVUb4FGQ==}
     engines: {node: '>= 6.13.0'}
 
   node-int64@0.4.0:
@@ -3929,7 +3930,7 @@ snapshots:
       glob: 13.0.6(patch_hash=6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a)
       lan-network: 0.2.1
       multitars: 1.0.0
-      node-forge: 1.4.0(patch_hash=b6b641c5516784f73c3ada59a215dbd7bb2eb7d4b2c254699a06551baa835ff6)
+      node-forge: 1.4.2(patch_hash=26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952)
       npm-package-arg: 11.0.3
       ora: 3.4.0
       picomatch: 4.0.5
@@ -3964,7 +3965,7 @@ snapshots:
 
   '@expo/code-signing-certificates@0.0.6':
     dependencies:
-      node-forge: 1.4.0(patch_hash=b6b641c5516784f73c3ada59a215dbd7bb2eb7d4b2c254699a06551baa835ff6)
+      node-forge: 1.4.2(patch_hash=26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952)
 
   '@expo/config-plugins@57.0.7(typescript@6.0.3)':
     dependencies:
@@ -6025,7 +6026,7 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
-  node-forge@1.4.0(patch_hash=b6b641c5516784f73c3ada59a215dbd7bb2eb7d4b2c254699a06551baa835ff6): {}
+  node-forge@1.4.2(patch_hash=26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952): {}
 
   node-int64@0.4.0: {}
 

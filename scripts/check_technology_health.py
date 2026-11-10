@@ -32,22 +32,6 @@ KNOWN_JAVASCRIPT_EXCEPTIONS = {
 IMAGE_SIZE_REVIEW_EXPIRES = date(2026, 10, 18)
 IMAGE_SIZE_BUILD_PATH = "apps__frontend>expo>@expo/metro>metro>image-size"
 FORGE_ADVISORY = "GHSA-86w9-cpqp-85rv"
-FORGE_BUILD_PATH = "apps__frontend>expo>@expo/cli>node-forge"
-# node-forge 1.4.1 fixes these 11; the same local patch carries its exact lib/
-# diff while 1.4.1 (27 October 2026) is younger than the 7-day package gate.
-FORGE_RELEASE_ADVISORIES = {
-    "GHSA-4642-5mcj-2rqw": "low",
-    "GHSA-6wvx-3r32-xmcg": "moderate",
-    "GHSA-525v-9gp9-w22h": "moderate",
-    "GHSA-7wch-p9px-956x": "high",
-    "GHSA-h6cr-wjv9-3cpp": "low",
-    "GHSA-4487-j8r4-4g2f": "low",
-    "GHSA-5cwg-6vw7-rj6p": "moderate",
-    "GHSA-jc66-7q78-782g": "high",
-    "GHSA-8hrf-8g6f-7xwp": "high",
-    "GHSA-hqq3-7jhf-c5jx": "high",
-    "GHSA-5x38-2vff-x55p": "high",
-}
 # glob 14.0.3 (28 October 2026) and minimatch 11.0.1 (27 October 2026) are
 # major versions younger than the 7-day gate; local patches carry their exact
 # fix commits, including in the minimatch copy inside glob's minified bundles.
@@ -452,7 +436,6 @@ def javascript_audit_problems(
     payload: dict,
     *,
     today: date | None = None,
-    forge_repaired: bool = False,
     braces_repaired: bool = False,
     deepmerge_repaired: bool = False,
     decode_uri_repaired: bool = False,
@@ -483,26 +466,6 @@ def javascript_audit_problems(
             raise ValueError("JavaScript audit returned an invalid advisory")
         advisory_id = advisory.get("github_advisory_id") or key
         findings = advisory.get("findings")
-        if (
-            forge_repaired
-            and advisory_id == FORGE_ADVISORY
-            and advisory.get("module_name") == "node-forge"
-            and advisory.get("severity") == "high"
-            and advisory.get("vulnerable_versions") == "<=1.4.0"
-            and advisory.get("patched_versions") == "<0.0.0"
-            and findings == [{"version": "1.4.0", "paths": [FORGE_BUILD_PATH]}]
-        ):
-            continue
-        if (
-            forge_repaired
-            and advisory_id in FORGE_RELEASE_ADVISORIES
-            and advisory.get("module_name") == "node-forge"
-            and advisory.get("severity") == FORGE_RELEASE_ADVISORIES[advisory_id]
-            and advisory.get("vulnerable_versions") == "<=1.4.0"
-            and advisory.get("patched_versions") == ">=1.4.1"
-            and findings == [{"version": "1.4.0", "paths": [FORGE_BUILD_PATH]}]
-        ):
-            continue
         if (
             glob_repaired
             and advisory_id == GLOB_ADVISORY
@@ -641,7 +604,6 @@ def security_audit_problems(
     *,
     expected_python: set[tuple[str, str]] | None = None,
     pillow_exception_verified: bool = False,
-    forge_repaired: bool = False,
     braces_repaired: bool = False,
     deepmerge_repaired: bool = False,
     decode_uri_repaired: bool = False,
@@ -666,7 +628,6 @@ def security_audit_problems(
         else:
             problems = javascript_audit_problems(
                 payload,
-                forge_repaired=forge_repaired,
                 braces_repaired=braces_repaired,
                 deepmerge_repaired=deepmerge_repaired,
                 decode_uri_repaired=decode_uri_repaired,
@@ -1011,7 +972,6 @@ def run_security_audits(root: Path) -> list[str]:
         security_audit_problems(
             audited,
             "JavaScript",
-            forge_repaired=repaired[FORGE_ADVISORY],
             braces_repaired=repaired[BRACES_ADVISORY],
             deepmerge_repaired=repaired[DEEPMERGE_ADVISORY],
             decode_uri_repaired=repaired[DECODE_URI_ADVISORY],
@@ -1172,14 +1132,10 @@ def main() -> int:
         )
     if args.online or args.security_only:
         report += (
-            "\nLocal security repair: node-forge 1.4.0 retains the raw "
-            "GHSA-86w9-cpqp-85rv warning and the 11 warnings node-forge 1.4.1 fixes ("
-            + ", ".join(sorted(FORGE_RELEASE_ADVISORIES))
-            + "). It passes only after frozen installation, exact patch/lock/"
-            "installed-code fingerprints for every patched file, and signature, "
-            "PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC and CA-store checks "
-            "through both Expo consumers. Any changed finding or failed repair "
-            "check blocks release.\n"
+            "\nNode-forge 1.4.2 uses the published fixes and retains the exact "
+            "GHSA-86w9-cpqp-85rv nested signature repair. Frozen installation, "
+            "patch and installed rsa.js fingerprints, and behavior checks "
+            "through both Expo consumers are required. No Forge audit finding is suppressed.\n"
             "\nLocal security repair: braces 3.0.3 retains the raw "
             "GHSA-vfj7-8cjw-p6xm warning. It passes only after frozen installation, "
             "exact patch/lock/installed-code fingerprints, braces API checks in both "

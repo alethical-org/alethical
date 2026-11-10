@@ -8,39 +8,24 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
-const patchPath = 'patches/node-forge@1.4.0.patch';
-const patchHash = 'b6b641c5516784f73c3ada59a215dbd7bb2eb7d4b2c254699a06551baa835ff6';
-// Every lib/ file the patch changes: the digitalbazaar/forge#1152 hunk in
-// rsa.js for GHSA-86w9-cpqp-85rv (no upstream release), plus the exact
-// node-forge 1.4.0 -> 1.4.1 lib/ diff for the 11 advisories 1.4.1 fixes while
-// that release (27 Oct 2026) is younger than the 7-day package gate.
-const libraryHashes = {
-  asn1: '77cc3ca2b4c1009e93cf26594232598f253bd3e046f16eb32386c8bf644857b6',
-  cipher: '9dbfb9e9a02a128c9092faf78462221b9092ef0f3555da7ea1f6002aab4819a8',
-  cipherModes: '904c168aecdfdf07afce4e38bdc9e0a8f3a799274b8c36d0adae3439a83324a8',
-  http: '257276e15b49964f8e5c4037e1bd6b4368aacdc1de4f6f46a45b67ca72728265',
-  jsbn: 'f17e767bfef62490e22a66ec2e12444fe53aee15e838fe572b7808e75194b62d',
-  pbe: '674750301f7c7d44b7b52c80bde90399aef8ff6021e6d6ccd1553ce3f5768c81',
-  pem: '38f22a503dc8285e31edfb67f0614a30c8af4abd0032e7738d45a08c31361401',
-  pkcs12: '4e471bf3e717d940a07b34d5716d988cfa01b143c38c3fc1f8b597cb83d29742',
-  rsa: '97027a525106f7c1cade09b5032ca31cf3e8a55078cd6d34f7a4265cd549f5f0',
-  tls: '3d7def7a2e1c568de50c18109d7186c0c83d0384c7f9badab4831722b6233cbe',
-  x509: '6749ed90069312a63470cc468d434781494fa3c9d3f2cc194efb2099011f9132',
-};
+const patchPath = 'patches/node-forge@1.4.2.patch';
+const patchHash = '26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952';
+// The only local repair is the exact nested DigestAlgorithm check in rsa.js.
+const rsaHash = '97027a525106f7c1cade09b5032ca31cf3e8a55078cd6d34f7a4265cd549f5f0';
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 // Accept only the exact saved patch, lock binding and installed code, never
-// stock 1.4.0 or a different patch. Frozen installation is required by the
+// the stock release or a different patch. Frozen installation is required by the
 // calling security gate.
 assert.equal(sha256(readFileSync(join(root, patchPath))), patchHash);
 assert.match(
   readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'),
-  /^  node-forge@1\.4\.0: patches\/node-forge@1\.4\.0\.patch$/m,
+  /^  node-forge@1\.4\.2: patches\/node-forge@1\.4\.2\.patch$/m,
 );
 assert.match(
   readFileSync(join(root, 'pnpm-lock.yaml'), 'utf8'),
   new RegExp(
-    `^  node-forge@1\\.4\\.0:\\n    hash: ${patchHash}\\n    path: ${patchPath.replaceAll('.', '\\.')}\\n`,
+    `^  node-forge@1\\.4\\.2:\\n    hash: ${patchHash}\\n    path: ${patchPath.replaceAll('.', '\\.')}\\n`,
     'm',
   ),
 );
@@ -79,11 +64,9 @@ const boundedProbe = String.raw`
 for (const consumer of ['@expo/cli', '@expo/code-signing-certificates']) {
   const consumerRequire = createRequire(require.resolve(`${consumer}/package.json`));
   const manifest = consumerRequire('node-forge/package.json');
-  assert.equal(manifest.version, '1.4.0');
+  assert.equal(manifest.version, '1.4.2');
   const forgeRequire = createRequire(consumerRequire.resolve('node-forge'));
-  for (const [name, hash] of Object.entries(libraryHashes)) {
-    assert.equal(sha256(readFileSync(forgeRequire.resolve(`./${name}`))), hash, `lib/${name}.js`);
-  }
+  assert.equal(sha256(readFileSync(forgeRequire.resolve('./rsa'))), rsaHash, 'lib/rsa.js');
   const forge = consumerRequire('node-forge');
   const privateKey = forge.pki.privateKeyFromPem(pem);
   const publicKey = forge.pki.rsa.setPublicKey(privateKey.n, privateKey.e);
@@ -307,5 +290,5 @@ for (const consumer of ['@expo/cli', '@expo/code-signing-certificates']) {
 }
 
 console.log(
-  'GHSA-86w9-cpqp-85rv and the 11 node-forge 1.4.1 advisories: exact installed repair, valid/malformed signatures, PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC and CA-store checks passed for both Expo consumers',
+  'node-forge 1.4.2 with GHSA-86w9-cpqp-85rv repair: exact installed repair, valid/malformed signatures, PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC and CA-store checks passed for both Expo consumers',
 );
