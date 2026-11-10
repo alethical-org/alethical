@@ -280,8 +280,10 @@ test('touch pinch, drag and double tap change only the photo view', async ({
     y = bounds.y + bounds.height / 2;
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true });
-  const touch = (type: string, points: { id: number; x: number; y: number }[]) =>
-    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+  const touch = (
+    type: 'touchStart' | 'touchMove' | 'touchEnd',
+    points: { id: number; x: number; y: number }[],
+  ) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
   await touch('touchStart', [
     { id: 0, x: x - 40, y },
     { id: 1, x: x + 40, y },
