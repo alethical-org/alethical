@@ -4,23 +4,23 @@ Implementation owner: [Political mail text and evidence results](https://github.
 
 ## Approved scope
 
-Read both private photos, preserve the printed payer separately from any matched official identity, count matching mailers separately from submissions or people, and show source-supported records and connections. The 15 supplied mailer pairs allow extraction work to proceed. Recipient details and originals stay private. Existing upload wording and behavior remain unchanged.
+Read both private photos, preserve the printed payer separately from any matched official identity, count saved submissions for each matching creative version without claiming unique people or physical pieces, and show source-supported records and connections. The 15 supplied mailer pairs allow extraction work to proceed. Recipient details and originals stay private. Existing upload wording and behavior remain unchanged.
 
 ## Live backend and remaining acceptance
 
-The backend runtime repair is live at `39779f404f58ea15fe585bb96716c1a3f191fa1b` with migration `0091_mail_analysis`, and analysis is enabled. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. The dependency is now present in the live runtime, verified through the enabled worker’s bounded startup check; initial empty reads were recovered after that proof. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
+The corrected backend is live at `9d0f06115b8d34ebb125adaba21a015ba4195407` with migration `0091_mail_analysis`, and analysis is enabled. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. The dependency is now present in the live runtime, verified through the enabled worker’s bounded startup check; initial empty reads were recovered after that proof. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
 
 Machine-read words are not checked transcriptions. A detected disclosure retains its quote, photo side, bounding box and cutoff warning; absent words are never reconstructed from the registry. Exact official-name hits are candidates, not confirmed identity. A missing number is not zero. Automatic corroboration requires independent registration, domain or address evidence from an official source; unresolved cases remain uncertain.
 
 ## Acceptance progress
 
-- Local OCR evaluated all 30 originals; detected disclosures on 9 sides in the initial pass. Final visual review found further readable disclosures, so production coverage must be compared with that private review; cropped or soft words remain unknown
+- Live OCR produced text for all 30 initial real sides. Targeted recovery increased payer excerpts from 9 to 12 of 15 mailers; several remain malformed or uncertain. Cropped, soft and missed words remain unknown
 - 37 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
 - Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
 - Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
 - Independent backend review passed the queue, access and matching checks; the final public-record retention correction passed its separate targeted review
-- Responsive results Design and frontend are separate work owned by the parent
-- Backend and runtime repair passed CI and deployed; hash-checked initial groups and runtime recovery are complete. Initial live coverage is recorded below. The bounded angled-disclosure correction, its targeted live recovery and final frontend acceptance remain open
+- Responsive results Design and frontend are live; final integration acceptance is owned by the parent
+- Backend, runtime repair and bounded disclosure corrections passed CI and independent review, then deployed. Hash-checked initial groups, targeted live recovery and guarded rollback dry run passed; live coverage is recorded below
 
 Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
 
@@ -51,8 +51,8 @@ Each payer keeps its exact machine-read quote separate from `official_organizati
 `candidates` and `related_records`. A checked organization is not a checked funding
 account. Each candidate/related registration may carry `records`: published snapshot,
 year, fetched date and independent `received`, `paid`, `independent_spending` blocks.
-Each block retains its existing public-reader state, official source URL, record
-numbers, payment dates, exact decimal amounts, total rows and `has_more`; only the
+Each block retains its existing public-reader state, official source URL, source row
+identifiers, payment dates, exact decimal amounts, total rows and `has_more`; only the
 latest 5 rows are embedded. An unavailable block never becomes zero. These rows
 show that registration's activity, not who funded an individual mailer. Only existing
 public campaign-money services are used; protected Finance research is not exposed.
@@ -122,11 +122,26 @@ visually distinct creative groups counted 1 saved submission; 5 known synthetic
 submissions were explicitly excluded. Original image and submission rows were
 unchanged by grouping and recovery.
 
-Bounded local checks of the changed reader recovered 3 readable angled disclosures,
-including a joint payer, while other malformed and clipped disclosures remained
-unresolved. After the corrected reader deploys, only the 3 proven improved sides
-are eligible for guarded recovery: private original-hash and prior-result checks,
-backup, dry run, then preserve the successful opposite side, grouping and prior
-public evidence. Do not treat processing completion as a complete transcription or
-manually fill missing words. Production recovery and final coverage remain to be
-verified; private reports retain exact quotations and remaining limits.
+The corrected reader recovered exactly 3 front-side disclosures in production:
+a joint payer retains both names without becoming a confirmed single organization;
+the other 2 retain candidate identity and available public records. The successful
+back sides, original upload-row digest and creative groups are unchanged. A private
+backup was created exclusively with mode 0600 before the transaction; the guarded
+rollback dry run validated all 3 completed rows without applying a rollback. Recovery
+kept existing attempts and did not rerun the other photos.
+
+Payer excerpts now appear for 12 of 15 initial mailers. One original disclosure is
+clipped, one is soft/glared, and one visually readable payer is still not detected.
+Three further payer readings remain malformed and uncertain. No missing words were
+filled from registry records. A processing-ready state never certifies complete text.
+
+At 2026-11-10 02:51:54 UTC, 22 submissions were saved: 15 real and 7 explicitly
+excluded synthetic submissions. There were 14 unsaved drafts. Initial-pair coverage
+is distinct from this timestamped aggregate; new submissions need a fresh count.
+The 2 final controlled UI fixtures are excluded by exact original hashes, save
+windows and test comments. Their private session results remain accessible only
+through the existing ownership boundary.
+
+Delivery folders and private evidence are retained for follow-up. Remaining limits
+include the unresolved readings above and reliable recapture classification; neither
+is presented as solved by the shipped reader or reviewed initial creative groups.
