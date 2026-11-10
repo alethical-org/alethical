@@ -130,9 +130,9 @@ Exact-file reuse is part of the approved build, owned by
 [private upload storage](political-mail-upload.md). Fresh submissions retain new
 feedback and private access; retries retain their submission identifier.
 
-## Live backend and remaining acceptance
+## Initial backend activation
 
-The corrected backend is live at `9d0f06115b8d34ebb125adaba21a015ba4195407` with migration `0091_mail_analysis`, and analysis is enabled. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. The dependency is now present in the live runtime, verified through the enabled worker’s bounded startup check; initial empty reads were recovered after that proof. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
+The initial corrected backend went live at `9d0f06115b8d34ebb125adaba21a015ba4195407` with migration `0091_mail_analysis`, and analysis is enabled. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. The dependency is now present in the live runtime, verified through the enabled worker’s bounded startup check; initial empty reads were recovered after that proof. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
 
 Machine-read words are not checked transcriptions. A detected disclosure retains its quote, photo side, bounding box and cutoff warning; absent words are never reconstructed from the registry. Exact official-name hits are candidates, not confirmed identity. A missing number is not zero. Automatic corroboration requires independent registration, domain or address evidence from an official source; unresolved cases remain uncertain.
 
@@ -146,8 +146,9 @@ Machine-read words are not checked transcriptions. A detected disclosure retains
 - Responsive results Design and frontend are live. Independent live review verified upload, results, reset and the corrected official-source link; parent retains integration acceptance
 - Backend, runtime repair and bounded disclosure corrections passed CI and independent review, then deployed. Hash-checked initial groups, targeted live recovery and guarded rollback dry run passed; live coverage is recorded below
 
-Parent owns final acceptance and Design coordination. Exact-file reuse is live;
-readable text, records-first order and reading-speed work are authorized and in progress.
+The records-first layout and progressive results shipped in [PR 2940](https://github.com/alethical-org/alethical/pull/2940); original-camera-image reading recovery shipped in [PR 2941](https://github.com/alethical-org/alethical/pull/2941). The API release is `96e1f8cc24bf0344b3c053a7c029fa0cd6e1324c`, with reader `tesseract-english-v5`; the unchanged frontend remains at `77da14dac7e64dc087a668d4284acc276ebbcf71`. Section 09 is the current Design direction, with section 08 retained as an earlier comparison.
+
+A controlled live original-JPEG pair completed fresh reading in 25.385 seconds after submission, with the first side available at 16.026 seconds. A repeat completed in 1.883 seconds, with eligible current-version extraction and identical output. The API does not expose a cache-hit flag. These measurements concern one 4032×3024 front/back pair, not a 50 MP phone benchmark or a guaranteed time. Separate feedback, private-access boundaries, unchanged original hashes and two unique image objects across four references passed; both controlled submissions were excluded from counts. Final browser acceptance and release evidence are tracked in [issue 2933](https://github.com/alethical-org/alethical/issues/2933).
 
 ## Creative counts
 
