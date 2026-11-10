@@ -655,3 +655,98 @@ def test_reviewed_original_copies_inherit_but_similarity_never_assigns(client):
     assert public["matching_mailers"]["count"] is None
     assert "creative_evidence" not in public
     assert str(ids[0]) not in str(public)
+
+
+@pytest.mark.usefixtures("storage")
+@pytest.mark.parametrize("review_before_ocr", [False, True])
+def test_creative_assignment_does_not_depend_on_read_order(client, review_before_ocr):
+    import uuid
+    from alethical.db import models as m
+    from alethical.db.session import get_session_factory
+
+    headers, _, _ = session(client)
+    ids = []
+    for _ in range(2):
+        path = draft(client, headers)
+        upload(client, path, headers, "front")
+        upload(client, path, headers, "back")
+        client.post(path + "/submit", headers=headers, json={"likes_ad": False})
+        ids.append(uuid.UUID(path.rsplit("/", 1)[1]))
+    pair = {
+        "sides": [
+            {"side": side, "sha256": "same-" + side, "status": "read"}
+            for side in ("front", "back")
+        ]
+    }
+    with get_session_factory()() as db:
+        copy = m.MailUploadAnalysis(submission_id=ids[1], result=pair)
+        db.add(copy)
+        db.flush()
+        mail_analysis.inherit_reviewed_creative(db, copy)
+        assert copy.creative_id is None
+        assert copy.creative_evidence["automatic"] is True
+        if review_before_ocr:
+            root = mail_analysis.assign_creative(
+                db,
+                ids[0],
+                matching_submission_id=None,
+                excluded=False,
+                evidence="Both original sides reviewed as a distinct creative",
+            )
+            root.result = pair
+            db.flush()
+            mail_analysis.inherit_reviewed_creative(db, root)
+        else:
+            root = m.MailUploadAnalysis(submission_id=ids[0], result=pair)
+            db.add(root)
+            db.flush()
+            mail_analysis.assign_creative(
+                db,
+                ids[0],
+                matching_submission_id=None,
+                excluded=False,
+                evidence="Both original sides reviewed as a distinct creative",
+            )
+        assert copy.creative_id == root.creative_id
+
+
+@pytest.mark.usefixtures("storage")
+def test_review_manifest_checks_hashes_and_does_not_mutate_originals(client):
+    import uuid
+    from alethical.db import models as m
+    from alethical.db.session import get_session_factory
+    from alethical.api.services import mail_upload
+    from scripts.mail_analysis import Review, apply_reviews
+
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    upload(client, path, headers, "front")
+    upload(client, path, headers, "back")
+    client.post(path + "/submit", headers=headers, json={"likes_ad": False})
+    sid = uuid.UUID(path.rsplit("/", 1)[1])
+    with get_session_factory()() as db:
+        submission = db.get(m.MailUploadSubmission, sid)
+        images = mail_upload.selected_images(db, submission)
+        before = {
+            side: (row.object_key, row.byte_count, row.sha256)
+            for side, row in images.items()
+        }
+        review = Review(
+            submission_id=sid,
+            front_sha256=images["front"].sha256,
+            back_sha256=images["back"].sha256,
+            excluded_from_counts=False,
+            evidence="Both sides compared against original hashes; distinct design",
+        )
+        bad = review.model_copy(update={"front_sha256": "0" * 64})
+        with pytest.raises(ValueError, match="does not match"):
+            apply_reviews(db, [bad], apply=True)
+        assert db.get(m.MailUploadAnalysis, sid) is None
+        assert apply_reviews(db, [review], apply=False)["applied"] is False
+        assert db.get(m.MailUploadAnalysis, sid) is None
+        assert apply_reviews(db, [review], apply=True)["reviewed"] == 1
+        after = {
+            side: (row.object_key, row.byte_count, row.sha256)
+            for side, row in mail_upload.selected_images(db, submission).items()
+        }
+        assert after == before

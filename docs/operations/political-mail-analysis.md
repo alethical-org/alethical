@@ -78,3 +78,24 @@ reason. Transient record failures make the result retryable without rereading
 successful photo sides. Historical scratch reads are not seeded into production:
 they lack the final reader-version and provenance checks. Exact originals remain
 unchanged. `tesseract-english-v2` identifies this reader revision.
+
+## Release and initial review
+
+Merge only after backend and frontend acceptance. Deploy the additive migration and
+backend image with analysis disabled. Prepare a private JSON review manifest outside
+Git containing each saved submission ID, exact `front_sha256` and `back_sha256`,
+`excluded_from_counts`, and the two-side/version comparison `evidence`. The 5 retained
+synthetic receipts identify excluded records; no reaction-based heuristic is used.
+The 15 visually distinct real pairs each receive their own reviewed creative group.
+
+Run `uv run python scripts/mail_analysis.py --target production --manifest /private/path/review.json`
+for hash-checked dry run, then the same command with `--apply`. It validates every
+saved/verified pair before writing only analysis grouping metadata in one transaction.
+It never writes image rows, bytes, reaction or comments. Repeating a decision is
+idempotent; correction history remains private. Keep the private manifest as evidence.
+Enable `ALETHICAL_MAIL_ANALYSIS_ENABLED=true`; saved rows are queued automatically,
+so no separate OCR backfill command is needed. Use existing administrator result
+routes for the old sessions, whose private uploader tokens are not recoverable.
+Verify 20 saved analysis rows, 5 exclusions, 15 real results and their source/partial
+states against the private originals. Disable the flag to stop new claims; retain
+results and originals. No deletion or destructive migration is part of release.

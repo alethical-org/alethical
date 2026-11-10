@@ -157,6 +157,9 @@ def refine_disclosure(rotated, quote, folder, deadline):
                 corrected.save(path)
                 raw = subprocess.run(
                     [
+                        "nice",
+                        "-n",
+                        "10",
                         "tesseract",
                         str(path.resolve()),
                         "stdout",
@@ -257,6 +260,9 @@ def read_image(path: Path) -> dict:
                 rotated.save(source)
                 raw = subprocess.run(
                     [
+                        "nice",
+                        "-n",
+                        "10",
                         "tesseract",
                         str(source.resolve()),
                         "stdout",
@@ -623,7 +629,12 @@ async def mail_analysis_lifespan(app):
 
     async def run():
         while not stop.is_set():
-            if os.getenv("ALETHICAL_MAIL_ANALYSIS_ENABLED", "").lower() == "true":
+            image_gate = getattr(app.state, "mail_upload_image_gate", None)
+            upload_busy = image_gate is not None and image_gate.locked()
+            if (
+                os.getenv("ALETHICAL_MAIL_ANALYSIS_ENABLED", "").lower() == "true"
+                and not upload_busy
+            ):
                 try:
                     await asyncio.to_thread(drain_once)
                 except Exception:
@@ -736,7 +747,12 @@ def inherit_reviewed_creative(db, row):
     unchanged wording, payer or version. Conflicting reviewed references yield no
     automatic assignment. No other uploader's identifiers enter reader responses.
     """
-    if row.creative_id is not None or row.excluded_from_counts:
+    if row.creative_id is not None:
+        if row.creative_evidence.get("method") == "reviewed_creative":
+            db.flush()
+            reconcile_automatic_copies(db, row)
+        return
+    if row.excluded_from_counts:
         return
     sides = {side["side"]: side for side in row.result.get("sides", [])}
     if set(sides) != {"front", "back"}:
@@ -815,15 +831,14 @@ def inherit_reviewed_creative(db, row):
                         "basis": "image_similarity_only",
                     }
                 )
-    if near or groups:
-        row.creative_evidence = {
-            "method": "unresolved",
-            "automatic": True,
-            "assignment_history": row.creative_evidence.get("assignment_history", []),
-            "similarity_candidates": near[:10],
-            "candidate_search_limit": 500,
-            "conflicting_exact_references": len(groups) > 1,
-        }
+    row.creative_evidence = {
+        "method": "unresolved",
+        "automatic": True,
+        "assignment_history": row.creative_evidence.get("assignment_history", []),
+        "similarity_candidates": near[:10],
+        "candidate_search_limit": 500,
+        "conflicting_exact_references": len(groups) > 1,
+    }
 
 
 def reconcile_automatic_copies(db, reference):
