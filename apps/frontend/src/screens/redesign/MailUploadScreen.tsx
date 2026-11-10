@@ -521,7 +521,7 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
           h(
             'p',
             { className: 'intro' },
-            'See who paid for this mail and what public records show about them',
+            'See who paid for this and what public records show about them',
           ),
           content,
         )}

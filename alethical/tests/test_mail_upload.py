@@ -266,6 +266,34 @@ def test_heic_and_pixel_limit(monkeypatch):
     assert exc.value.status_code == 422
 
 
+@pytest.mark.parametrize("size", [(8160, 6120), (8192, 6144)])
+def test_50_megapixel_camera_photo_upload(client, storage, size):
+    out = io.BytesIO()
+    with Image.new("RGB", size, "white") as image:
+        image.save(out, format="JPEG")
+    body = out.getvalue()
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    result = client.put(
+        path + "/images/front",
+        headers={**headers, "Content-Type": "image/jpeg"},
+        content=body,
+    )
+    assert result.status_code == 200, result.text
+    assert result.json()["data"]["front"]["bytes"] == len(body)
+    assert list(storage[0].objects.values()) == [body]
+    assert list(storage[1].objects.values()) == [body]
+
+
+def test_photo_above_51_megapixels_is_rejected():
+    out = io.BytesIO()
+    with Image.new("RGB", (8256, 6192), "white") as image:
+        image.save(out, format="JPEG")
+    with pytest.raises(Exception) as exc:
+        service.validate_image(out.getvalue(), "image/jpeg")
+    assert exc.value.status_code == 422
+
+
 def test_admin_is_protected_and_tables_have_rls(client, storage):
     assert client.get("/api/v1/admin/mail-upload/submissions").status_code == 401
     with get_session_factory()() as db:
