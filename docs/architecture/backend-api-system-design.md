@@ -192,7 +192,7 @@ including failures. Administrator inspection uses the existing administrator che
 All paths above follow `/api/v1`. The [political mail operations guide](../operations/political-mail-upload.md)
 owns request fields, byte and attempt limits, retry behavior, private storage and
 activation. [Private analysis](../operations/political-mail-analysis.md) owns the
-separate local OCR worker, evidence rules and release status. Real recipient collection waits for the retention decision.
+separate local OCR worker, evidence rules and release status. Real mail collection is authorized; no retention duration is set.
 
 ## Editorial comments
 

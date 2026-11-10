@@ -398,9 +398,8 @@ Session/invitation expiry and revocation stop access, not retention. Account del
 does not erase these anonymous records. Supabase's database backups exclude Storage
 objects; full recovery needs the database and file copies. A future deletion rule
 must cover both buckets, unfinished/replaced images, database rows and retained
-backups; no period is approved here. Live verification is limited to synthetic
-images until retention and provider disclosures are settled before real recipient
-collection. [Political mail upload](../operations/political-mail-upload.md) owns
+backups; no period is approved here. Real mail collection and private analysis are authorized. Synthetic images remain
+useful for controlled verification, but are not a restriction on real uploads. [Political mail upload](../operations/political-mail-upload.md) owns
 current storage, access and operating checks.
 
 ## 3. Given, generated, or just written down
@@ -435,8 +434,9 @@ no.
 ## 4. What leaves our systems
 
 The table records recipients, purposes and public Privacy Policy coverage.
-The restricted mail demo remains synthetic-only until its additional storage
-disclosure and retention decision are settled.
+Real political mail is processed privately through Supabase, Cloudflare R2 and
+local server OCR. No external OCR provider receives its photos or text. Retention
+duration remains unset.
 
 | Who gets it                                 | What they get                                                                                                         | When                                                                                                 | Named in our Privacy Policy? |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
@@ -450,7 +450,7 @@ disclosure and retention decision are settled.
 | **Minnesota Secretary of State**            | **The ZIP code and the official ballot-range number, which can identify 1 building or apartment; for a building divided by apartment number, also the official street, city and ZIP. Never the typed address, house number or unit** | Every **Find my candidates** address search; the street only when the source marks the house range as needing a unit | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)                                                    | Every page load                                                                                      | Yes                          |
 | Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details                 | Every API call; every website visit after the script loads                                           | Yes                          |
-| Cloudflare R2, restricted mail demo | Exact private original photo bytes; no public object access | Photo uploads, including unfinished attempts (§2.11); synthetic-only until real-mail activation | Additional mail-backup disclosure must be checked before real recipient collection |
+| Cloudflare R2, restricted mail demo | Exact private original photo bytes; no public object access | Photo uploads, including real mail and unfinished attempts (§2.11) | Mail-specific backup disclosure coverage remains to be checked |
 | Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the private Site Metrics totals refresh                                                          | Yes                          |
 | Bing Webmaster Tools                        | The same sitewide search totals and the same private limits                                                           | When the private Site Metrics totals refresh                                                          | Yes                          |
 | Checkly                                     | The 3 public Alethical addresses it tests                                                                             | Every 2 minutes from North Virginia                                                                  | Yes                          |

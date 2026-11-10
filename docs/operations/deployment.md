@@ -78,9 +78,8 @@ before-deploy command. Its dedicated Supabase and R2 buckets must be private;
 they must not reuse the permanent public-source archive or its mirror.
 [Political mail upload](political-mail-upload.md#before-enabling) owns the exact
 settings, invitation commands, synthetic save/read-back checks and rollback.
-Check bucket privacy before enabling synthetic uploads, then verify the saved
-bytes in both stores. Real recipient mail remains held
-until retention and the related provider disclosure are settled. Reverting code
+Check bucket privacy, then verify saved bytes in both stores with controlled
+fixtures. Real mail uploads are authorized; retention duration remains unset. Reverting code
 or revoking an invitation does not erase stored originals or their backups.
 
 ### Preventing request pileups

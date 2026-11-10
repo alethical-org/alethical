@@ -274,7 +274,7 @@ def test_creative_count_keeps_submissions_retries_and_tests_distinct(client):
     with get_session_factory()() as db:
         mail_analysis.assign_creative(
             db,
-            ids[1],
+            ids[0],
             matching_submission_id=None,
             excluded=False,
             evidence="Changed substantive content; split into a distinct version",
@@ -354,5 +354,165 @@ def test_curated_candidates_remain_unconfirmed_and_keep_source_scope():
         )
         is None
     )
-    assert related_records("joinouramerica.org.")[0]["scope"] == "related_record"
+    assert (
+        related_records("Paid for by Our America joinouramerica.org.")[0]["scope"]
+        == "related_record"
+    )
     assert related_records("joinouramerica.org.evil.example") == []
+
+
+@pytest.mark.usefixtures("storage")
+def test_failed_partial_retry_preserves_useful_text(client, monkeypatch):
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    upload(client, path, headers, "front")
+    upload(client, path, headers, "back")
+    client.post(path + "/submit", headers=headers, json={"likes_ad": False})
+    monkeypatch.setattr(
+        mail_analysis,
+        "read_image",
+        lambda _: {
+            "status": "partial",
+            "text": "Previously readable partial text",
+            "disclosures": [],
+            "complete": False,
+            "partial_reasons": ["reading_stopped"],
+        },
+    )
+    mail_analysis.drain_once()
+    client.post(path + "/analysis/retry", headers=headers)
+    monkeypatch.setattr(
+        mail_analysis, "read_image", lambda _: (_ for _ in ()).throw(TimeoutError())
+    )
+    mail_analysis.drain_once()
+    result = client.get(path + "/analysis", headers=headers).json()["data"]
+    assert result["status"] == "partial"
+    assert all(
+        side["text"] == "Previously readable partial text" for side in result["sides"]
+    )
+    assert all("retry_failed" in side["partial_reasons"] for side in result["sides"])
+
+
+def test_later_crop_timeout_retains_successful_payer_read(tmp_path, monkeypatch):
+    import subprocess
+    import time
+    from types import SimpleNamespace
+    from PIL import Image
+
+    image = Image.new("RGB", (600, 200), "white")
+    quote = {
+        "text": "Paid for by Our",
+        "quote": "Paid for by Our",
+        "payer_text": "Our",
+        "confidence": 88,
+        "box": [30, 30, 300, 50],
+        "edge_warning": False,
+    }
+    raw = b"block_num\tpar_num\tline_num\tleft\ttop\twidth\theight\tconf\ttext\n1\t1\t1\t20\t20\t200\t10\t90\tPaid for by Our America.\n"
+    calls = 0
+
+    def run(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return SimpleNamespace(stdout=raw)
+        raise subprocess.TimeoutExpired("tesseract", 10)
+
+    monkeypatch.setattr(mail_analysis.subprocess, "run", run)
+    result = mail_analysis.refine_disclosure(
+        image, quote, tmp_path, time.monotonic() + 90
+    )
+    assert result["payer_text"] == "Our America"
+    assert result["crop"]["source_box"]
+    assert result["refinement_incomplete"] is True
+
+
+@pytest.mark.usefixtures("storage")
+def test_transient_public_records_failure_can_recover_without_rereading_photos(
+    client, monkeypatch
+):
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    upload(client, path, headers, "front")
+    upload(client, path, headers, "back")
+    client.post(path + "/submit", headers=headers, json={"likes_ad": False})
+    monkeypatch.setattr(
+        mail_analysis,
+        "candidate_records",
+        lambda *args: [{"registration_number": "41412", "scope": "candidate_record"}],
+    )
+    quote = {
+        "quote": "Paid for by Restore Sanity",
+        "payer_text": "Restore Sanity",
+        "quality": "machine_read",
+        "edge_warning": False,
+        "box": [20, 20, 200, 50],
+        "confidence": 90,
+    }
+    monkeypatch.setattr(
+        mail_analysis,
+        "read_image",
+        lambda _: {
+            "status": "read",
+            "text": "Paid for by Restore Sanity",
+            "disclosures": [quote],
+            "complete": False,
+        },
+    )
+    monkeypatch.setattr(
+        mail_analysis,
+        "public_records",
+        lambda *args: (_ for _ in ()).throw(TimeoutError()),
+    )
+    mail_analysis.drain_once()
+    result = client.get(path + "/analysis", headers=headers).json()["data"]
+    assert result["status"] == "partial"
+    assert result["can_retry"] is True
+    client.post(path + "/analysis/retry", headers=headers)
+    monkeypatch.setattr(
+        mail_analysis,
+        "read_image",
+        lambda _: (_ for _ in ()).throw(AssertionError("must retain successful OCR")),
+    )
+    monkeypatch.setattr(
+        mail_analysis,
+        "public_records",
+        lambda *args: {"state": "available", "registration_number": "41412"},
+    )
+    mail_analysis.drain_once()
+    result = client.get(path + "/analysis", headers=headers).json()["data"]
+    assert result["status"] == "ready"
+    assert result["payers"][0]["candidates"][0]["records"]["state"] == "available"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://joinouramerica.org@evil.example",
+        "https://evil.example/path/joinouramerica.org",
+        "info@joinouramerica.org",
+    ],
+)
+def test_related_website_uses_hostname_not_embedded_text(url):
+    assert related_records("Paid for by Our America " + url, "Our America") == []
+
+
+def test_neighbor_website_is_not_attributed_to_disclosure_payer():
+    assert (
+        related_records(
+            "Paid for by Restore Sanity.\nVisit joinouramerica.org", "Restore Sanity"
+        )
+        == []
+    )
+    assert (
+        related_records(
+            "Paid for by Our America.\nUnrelated campaign: https://joinouramerica.org",
+            "Our America",
+        )
+        == []
+    )
+    result = related_records(
+        "This is an independent expenditure prepared and paid for by Our\nAmerica, https://joinouramerica.org, It is not coordinated",
+        "Our America",
+    )
+    assert result[0]["registration_number"] == "30807"

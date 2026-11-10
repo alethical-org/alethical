@@ -147,75 +147,83 @@ def refine_disclosure(rotated, quote, folder, deadline):
         ),
     ]
     best = None
-    for region in regions:
-        original_crop = rotated.crop(region)
-        for corrected, angle in ((original_crop, 0), deskew(original_crop)):
-            if time.monotonic() >= deadline:
-                break
-            path = Path(folder) / "disclosure.png"
-            corrected.save(path)
-            raw = subprocess.run(
-                [
-                    "tesseract",
-                    str(path.resolve()),
-                    "stdout",
-                    "-l",
-                    "eng",
-                    "--psm",
-                    "6",
-                    "tsv",
-                ],
-                capture_output=True,
-                check=True,
-                timeout=max(0.1, min(10, deadline - time.monotonic())),
-                env={**os.environ, "OMP_THREAD_LIMIT": "1"},
-            ).stdout.decode("utf-8", errors="replace")
-            lines = parse_tsv(raw)
-            start = next(
-                (i for i, line in enumerate(lines) if PAYER.search(line["text"])), None
-            )
-            if start is None:
-                continue
-            relevant = lines[start:]
-            refined = "\n".join(line["text"] for line in relevant)
-            match = PAYER.search(" ".join(refined.split()))
-            split = re.split(
-                r"[.;]|,?\s+https?://|,?\s+P\.?O\.?\s+Box\b|,\s+\d|\s+not\s+authorized",
-                match.group(1),
-                maxsplit=1,
-                flags=re.I,
-            )
-            payer = split[0].strip()
-            measured = relevant[: min(2, len(relevant))]
-            confidence = sum(line["confidence"] for line in measured) / len(measured)
-            edge = any(
-                line["box"][0] <= 3 or line["box"][2] >= corrected.width - 3
-                for line in measured
-            )
-            score = (
-                confidence
-                - 20 * edge
-                - 15 * (len(split) == 1)
-                - 20 * (len(payer) > 100)
-            )
-            if best is None or score > best[0]:
-                best = (
-                    score,
-                    {
-                        **quote,
-                        "quote": refined,
-                        "box": None,
-                        "payer_text": payer,
-                        "confidence": round(confidence, 1),
-                        "edge_warning": edge or quote["edge_warning"],
-                        "crop": {
-                            "source_box": list(region),
-                            "width": corrected.width,
-                            "height": corrected.height,
-                            "deskew_angle": angle,
-                        },
-                    },
+    try:
+        for region in regions:
+            original_crop = rotated.crop(region)
+            for corrected, angle in ((original_crop, 0), deskew(original_crop)):
+                if time.monotonic() >= deadline:
+                    break
+                path = Path(folder) / "disclosure.png"
+                corrected.save(path)
+                raw = subprocess.run(
+                    [
+                        "tesseract",
+                        str(path.resolve()),
+                        "stdout",
+                        "-l",
+                        "eng",
+                        "--psm",
+                        "6",
+                        "tsv",
+                    ],
+                    capture_output=True,
+                    check=True,
+                    timeout=max(0.1, min(10, deadline - time.monotonic())),
+                    env={**os.environ, "OMP_THREAD_LIMIT": "1"},
+                ).stdout.decode("utf-8", errors="replace")
+                lines = parse_tsv(raw)
+                start = next(
+                    (i for i, line in enumerate(lines) if PAYER.search(line["text"])),
+                    None,
                 )
+                if start is None:
+                    continue
+                relevant = lines[start:]
+                refined = "\n".join(line["text"] for line in relevant)
+                match = PAYER.search(" ".join(refined.split()))
+                split = re.split(
+                    r"[.;]|,?\s+https?://|,?\s+P\.?O\.?\s+Box\b|,\s+\d|\s+not\s+authorized",
+                    match.group(1),
+                    maxsplit=1,
+                    flags=re.I,
+                )
+                payer = split[0].strip()
+                measured = relevant[: min(2, len(relevant))]
+                confidence = sum(line["confidence"] for line in measured) / len(
+                    measured
+                )
+                edge = any(
+                    line["box"][0] <= 3 or line["box"][2] >= corrected.width - 3
+                    for line in measured
+                )
+                score = (
+                    confidence
+                    - 20 * edge
+                    - 15 * (len(split) == 1)
+                    - 20 * (len(payer) > 100)
+                )
+                if best is None or score > best[0]:
+                    best = (
+                        score,
+                        {
+                            **quote,
+                            "quote": refined,
+                            "box": None,
+                            "payer_text": payer,
+                            "confidence": round(confidence, 1),
+                            "edge_warning": edge or quote["edge_warning"],
+                            "crop": {
+                                "source_box": list(region),
+                                "width": corrected.width,
+                                "height": corrected.height,
+                                "deskew_angle": angle,
+                            },
+                        },
+                    )
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        if best is None:
+            raise
+        best[1]["refinement_incomplete"] = True
     chosen = best[1] if best else quote
     if chosen.get("payer_text") and len(chosen["payer_text"]) > 100:
         chosen["payer_text"] = None
@@ -287,6 +295,8 @@ def read_image(path: Path) -> dict:
                         refined_quotes.append(quote)
                         partial_reasons.append("disclosure_reading_stopped")
                 quotes = refined_quotes
+                if any(quote.get("refinement_incomplete") for quote in quotes):
+                    partial_reasons.append("disclosure_reading_stopped")
                 quotes = [quote for quote in quotes if quote["payer_text"]]
                 readable = [line for line in lines if line["confidence"] >= 60]
                 score = sum(len(line["text"]) for line in readable) + 1000 * len(quotes)
@@ -346,6 +356,8 @@ def candidate_records(db, payer: str) -> list[dict]:
             "name": row.name,
             "registration_number": row.registration_number,
             "snapshot_id": str(snapshot.id),
+            "scope": "candidate_record",
+            "basis": "same_committee_name",
             "source_url": viewer_url(row.kind).removesuffix("api")
             + row.registration_number
             + "/",
@@ -395,6 +407,20 @@ def analyze(db, submission_id) -> dict:
                     "disclosures": [],
                     "complete": False,
                 }
+            if (
+                prior
+                and prior.get("sha256") == row.sha256
+                and prior.get("status") == "partial"
+                and prior.get("text")
+                and (result["status"] == "unreadable" or not result.get("text"))
+            ):
+                result = {
+                    **prior,
+                    "status": "partial",
+                    "partial_reasons": sorted(
+                        set(prior.get("partial_reasons", []) + ["retry_failed"])
+                    ),
+                }
             sides.append({"side": side, "sha256": row.sha256, **result})
     quotes = [
         (side["side"], q)
@@ -407,7 +433,7 @@ def analyze(db, submission_id) -> dict:
             "side": side,
             **quote,
             "candidates": candidate_records(db, quote["payer_text"]),
-            "related_records": related_records(quote["quote"]),
+            "related_records": related_records(quote["quote"], quote["payer_text"]),
             "official_organization": corroborate(
                 quote["payer_text"],
                 quote["quote"],
@@ -420,6 +446,7 @@ def analyze(db, submission_id) -> dict:
     # A candidate's public records remain under that candidate; they never
     # establish that account paid for this piece. Bound distinct record reads.
     records = {}
+    records_retry_needed = False
     for payer in payers:
         for candidate in payer["candidates"] + payer["related_records"]:
             number = candidate["registration_number"]
@@ -427,6 +454,7 @@ def analyze(db, submission_id) -> dict:
                 try:
                     records[number] = public_records(number, submission.saved_at.year)
                 except Exception:
+                    records_retry_needed = True
                     records[number] = {
                         "state": "unavailable",
                         "registration_number": number,
@@ -436,6 +464,7 @@ def analyze(db, submission_id) -> dict:
             )
     return {
         "version": VERSION,
+        "records_retry_needed": records_retry_needed,
         "sides": sides,
         "payers": payers,
         "payer_status": "matched"
@@ -496,6 +525,7 @@ def drain_once():
             status = (
                 "partial"
                 if any(side["status"] != "read" for side in result["sides"])
+                or result.get("records_retry_needed")
                 else "ready"
             )
         except Exception:
@@ -601,6 +631,9 @@ def assign_creative(db, submission_id, *, matching_submission_id, excluded, evid
     """
     import uuid
 
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext('mail_creative_assignment'))")
+    )
     submission = db.get(m.MailUploadSubmission, submission_id)
     if submission is None or submission.saved_at is None:
         raise mail_upload.fail(404, "Saved mail not found")
@@ -609,6 +642,18 @@ def assign_creative(db, submission_id, *, matching_submission_id, excluded, evid
         row = m.MailUploadAnalysis(submission_id=submission_id)
         db.add(row)
         db.flush()
+    history = list((row.creative_evidence or {}).get("history", []))
+    decision = {
+        "matching_submission_id": str(matching_submission_id)
+        if matching_submission_id
+        else None,
+        "excluded": excluded,
+        "evidence": evidence,
+    }
+    if history and all(
+        history[-1].get(key) == value for key, value in decision.items()
+    ):
+        return row
     if matching_submission_id is not None:
         other = db.get(m.MailUploadAnalysis, matching_submission_id)
         other_submission = db.get(m.MailUploadSubmission, matching_submission_id)
@@ -622,8 +667,26 @@ def assign_creative(db, submission_id, *, matching_submission_id, excluded, evid
             raise mail_upload.fail(409, "Matching mail needs a recorded creative")
         creative_id = other.creative_id
     else:
-        creative_id = uuid.uuid5(uuid.NAMESPACE_URL, f"mail-creative:{submission_id}")
-    history = list((row.creative_evidence or {}).get("history", []))
+        other_members = (
+            db.scalar(
+                select(func.count())
+                .select_from(m.MailUploadAnalysis)
+                .where(
+                    m.MailUploadAnalysis.creative_id == row.creative_id,
+                    m.MailUploadAnalysis.submission_id != submission_id,
+                )
+            )
+            if row.creative_id
+            else 0
+        )
+        creative_id = (
+            uuid.uuid4()
+            if other_members
+            else (
+                row.creative_id
+                or uuid.uuid5(uuid.NAMESPACE_URL, f"mail-creative:{submission_id}")
+            )
+        )
     history.append(
         {
             "at": datetime.now(timezone.utc).isoformat(),

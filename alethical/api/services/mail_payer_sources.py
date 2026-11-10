@@ -9,6 +9,7 @@ primary-source evidence; preserve the original quote separately.
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 
 SOURCES = (
     {
@@ -61,15 +62,29 @@ RELATED_RECORDS = (
 )
 
 
-def related_records(quote: str) -> list[dict]:
-    """A shared website connects records, not a particular funding account."""
-    domains = set(
-        re.findall(
-            r"(?<![a-z0-9.-])(?:https?://)?(?:www\.)?([a-z0-9-]+\.[a-z]{2,})(?![a-z0-9-]|\.[a-z0-9])",
-            quote.lower(),
-        )
+def related_records(quote: str, payer_text: str | None = None) -> list[dict]:
+    """A website printed beside this payer supports a related record only.
+
+    A URL elsewhere in a crop is not that payer's website. Retain the complete
+    disclosure separately; compare only a URL immediately after the known printed
+    payer name, including a wrapped line break.
+    """
+    match = re.search(
+        r"\bpaid\s+for\s+by\s+(Our\s+America)\s*,?\s+(https?://[^\s<>\"']+|(?:www\.)?joinouramerica\.org[^\s<>\"']*)",
+        quote,
+        re.I,
     )
-    return [dict(record) for record in RELATED_RECORDS if record["domain"] in domains]
+    if match is None or (payer_text is not None and words(payer_text) != "our america"):
+        return []
+    token = match.group(2).rstrip(".,;:)")
+    try:
+        parsed = urlsplit(token if "://" in token else "//" + token)
+        host = (parsed.hostname or "").removeprefix("www.").lower()
+    except ValueError:
+        return []
+    if parsed.username is not None or parsed.password is not None:
+        return []
+    return [dict(record) for record in RELATED_RECORDS if record["domain"] == host]
 
 
 CANDIDATE_RECORDS = (
