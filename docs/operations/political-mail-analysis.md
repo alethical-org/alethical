@@ -10,12 +10,18 @@ Read both private photos, preserve the printed payer separately from any matched
 
 Section 09 of `Mail upload.dc.html` in [Alethical UX](https://claude.ai/design/p/e592f874-1b47-4dda-a8d9-2e9f086f2bac?file=Mail+upload.dc.html)
 is the approved results drawing. Section 08 remains its live baseline. Implementation
-includes the results presentation and exact-file reuse; deployment follows the
-focused tests, independent review and live checks. Processing-speed changes remain
-on the roadmap, including the progressive-result states drawn in section 09.
+includes the live results presentation and exact-file reuse. The current authorized build
+updates section 09 with records first, readable captured text and progressive results.
+Deployment follows drawing review, focused tests, independent review and live checks.
 
 The results identify the source photo with “From the front” or “From the back”,
-retain the printed payer quote exactly, and remove the visible matching-mailer count.
+place Printed payer after all public, possible and related records, directly before
+Text from your mail, and omit the visible matching-mailer count. Payer display may
+correct clear sentence-boundary punctuation while preserving substantive words and
+meaning. A terminal comma and a comma after a website before an unambiguous new
+sentence may become periods. Internal commas, names, amounts and uncertain wording
+stay unchanged. Record this as presentation normalization, not a character-perfect
+transcription; raw extraction stays private and unchanged. Missing words are never invented.
 Internal creative grouping and counts remain available. A related record is never
 promoted to a confirmed payer merely because its website matches.
 
@@ -40,16 +46,56 @@ Known state CSV links state the download format, all-filer scope and potential w
 Unknown source formats remain source links without an invented download promise.
 Shared retrieval dates appear once; differing dates remain beside their groups.
 “Text from your mail” retains meaningful words, numbers and qualifications. The
-reading view replaces isolated extraction noise and unrenderable characters with
-explicit unreadable gaps, keeping raw extraction and exact payer quotations private
-and unchanged. Uncertain wordlike text stays as read, without dictionary repair.
-Per-photo notices stay cause-neutral unless independent evidence proves a cause.
-Existing saved results receive the same presentation without rereading their photos.
-Side and record failures retain useful evidence with recovery beside the affected
-content. This release retains the current whole-result delivery timing.
+reading view omits extraction noise and unreadable fragments, while keeping meaningful
+slogans, names, numbers, negations and qualifications. A grammatical sentence is not
+required for a heading or slogan. Confidence and image evidence guide cleanup; a
+dictionary alone cannot establish that a name is noise. Raw extraction stays private
+and unchanged. One section notice, “Some text couldn’t be read”, covers omitted text;
+no repeated unreadable markers appear within the reading. A completed side with no
+readable text has no empty text disclosure. Original photos remain accessible and
+actual reading failures retain a local retry. Causes are stated only when established.
+Existing saved results receive safe presentation cleanup; improved reading uses the
+new reader version rather than treating older extraction as equivalent.
+
+Useful sides and supported records appear as they finish. Unfinished work stays distinct
+from failed, unavailable and not-found states; no final payer absence is shown before
+both sides finish. Later updates preserve expanded content, focus and reading position.
+An authoritative new snapshot removes superseded evidence rather than combining a new
+payer with old records. Side and record failures retain valid evidence with recovery
+beside the affected content.
 
 The public wording follows
 [reader-focused design principles](../design/design-principles.md#1-what-alethical-should-feel-like).
+
+## Progressive reader contract
+
+Reader version `tesseract-english-v4` publishes cumulative `snapshot_version: 1`
+responses. Their arrays are authoritative even when empty; clients must not combine
+superseded payers with old records. `progress.active_sides` names actual running
+reads, `completed_sides` names finished sides, and `reading_complete` and
+`records_complete` describe worker completion, not completeness of source records.
+Candidate/related `records.state: loading` remains a working state until its bounded
+lookup finishes. Payer absence is not final before both sides finish.
+
+Committed saves and retries wake the worker, and queued jobs drain without the idle
+5-second gap. The fallback wake remains for other replicas. Image reading defaults
+to 1 worker; `ALETHICAL_MAIL_READ_CONCURRENCY=2` may be enabled only after runtime
+capacity is measured. One separate bounded record worker prevents public-record
+lookups blocking completed image publication. Each database operation owns its session;
+intermediate and final writes compare attempt and start time to reject stale workers.
+
+Exact extraction reuse requires selected verified bytes, hash, MIME, dimensions and
+current per-side reader version. It copies source extraction through allowlists, never
+feedback, access tokens, assigned identities or assembled public records. Old-version
+own-submission evidence can survive a failed reread but cannot become current-version
+cache evidence. The client keeps its 2-second polling budget and preserves open text,
+keyboard focus and visible reading position as earlier sections arrive.
+
+Local reading retains word confidence and position. An almost-empty result without a
+payer may get 1 grayscale/straightening pass, bounded to 8 seconds within the existing
+90-second image budget. It cannot discard an already-found payer. This improves the
+reported dark, angled front but does not certify complete transcription. Remaining
+uncertain text is omitted with the shared notice; missing words are never guessed.
 
 ## Follow-up roadmap
 
@@ -60,10 +106,13 @@ ownership of an earlier anonymous upload by itself. Claiming a current guest upl
 requires its existing private access. File or mailer matching never exposes another
 person's comments, recipient details or photos.
 
-Reading-speed work measures image preparation, queue wait, each side's reading,
-record lookup and delivery separately. Progressive results, fewer worker/polling
-waits, bounded parallel reads and correctly scoped reading/record reuse stay on this
-roadmap. No new vendor, paid run or transfer of private photos is authorized.
+Reading-speed work is now authorized with the results corrections: measure image
+preparation, queue wait, each side’s reading, record lookup and delivery separately;
+remove avoidable queue waits, publish progressive results and reuse only versioned,
+verified exact-image extraction. Bounded side concurrency depends on measured runtime
+capacity. Keep the existing 2-second poll within its shared request budget. Record
+lookup caching is added only if measurement warrants it. No new vendor, paid run or
+transfer of private photos is authorized.
 
 Supplementary Front/Back detail photos and recognition of different photos of the
 same mailer need separate design and implementation. Recaptures require substantive
@@ -92,7 +141,8 @@ Machine-read words are not checked transcriptions. A detected disclosure retains
 - Responsive results Design and frontend are live. Independent live review verified upload, results, reset and the corrected official-source link; parent retains integration acceptance
 - Backend, runtime repair and bounded disclosure corrections passed CI and independent review, then deployed. Hash-checked initial groups, targeted live recovery and guarded rollback dry run passed; live coverage is recorded below
 
-Parent owns final acceptance and Design coordination. Exact-file reuse is included in the approved results build; reading-speed work stays on the roadmap.
+Parent owns final acceptance and Design coordination. Exact-file reuse is live;
+readable text, records-first order and reading-speed work are authorized and in progress.
 
 ## Creative counts
 

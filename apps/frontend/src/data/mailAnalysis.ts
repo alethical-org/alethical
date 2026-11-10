@@ -24,6 +24,7 @@ export function normalizeMailAnalysis(value: MailAnalysis): MailAnalysis {
 /** Private machine-read evidence. Never persist or send this payload to telemetry. */
 export interface MailDisclosure {
   quote: string;
+  display_quote?: string;
   payer_text: string | null;
   edge_warning?: boolean;
   confidence?: number;
@@ -34,7 +35,9 @@ export interface MailReadSide {
   status: 'read' | 'partial' | 'unreadable';
   text: string;
   display_text?: string;
-  reading_notice?: 'Some text could not be read' | 'We couldn’t read this photo';
+  reading_incomplete?: boolean;
+  reading_notice?:
+    'Some text couldn’t be read' | 'Some text could not be read' | 'We couldn’t read this photo';
   complete: false;
   disclosures: MailDisclosure[];
   partial_reasons?: string[];
@@ -64,7 +67,7 @@ export interface MailRecordBlock {
   fetched_at: string | null;
 }
 export interface MailPublicRecords {
-  state: 'available' | 'unavailable' | 'not_loaded';
+  state: 'available' | 'unavailable' | 'not_loaded' | 'loading';
   registration_number: string;
   year?: number;
   fetched_at?: string | null;
@@ -102,6 +105,13 @@ export interface MailPayer extends MailDisclosure {
   related_records: MailRegistration[];
 }
 export interface MailAnalysis {
+  snapshot_version?: 1;
+  progress?: {
+    completed_sides: MailImageSide[];
+    active_sides?: MailImageSide[];
+    reading_complete: boolean;
+    records_complete: boolean;
+  };
   status: 'pending' | 'processing' | 'ready' | 'partial' | 'failed';
   can_retry?: boolean;
   records_retry_needed?: boolean;

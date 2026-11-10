@@ -51,8 +51,12 @@ credibility first.
   case: use a reader-facing heading such as “Text from your mail”, not “Machine-read
   text”. Reading copy may omit clear extraction artifacts, but keeps meaningful words,
   numbers and qualifications. Never guess missing words or silently repair uncertain
-  readings. Keep source quotations exact, raw extraction privately, and source photos
-  within their access boundary. Mark unreadable gaps beside the affected photo; name
+  readings. Keep raw extraction and exact source quotations privately, and source photos
+  within their access boundary. Separately recorded display normalization may correct
+  clear sentence-boundary punctuation without changing substantive words. Omit garbled
+  fragments as whole uncertain spans so removing a qualifier cannot reverse meaning.
+  Show one concise incompleteness notice for the reading section, not a marker for every
+  gap; omit empty completed text disclosures while retaining original-photo access. Name
   glare, cropping or another cause only when evidence supports it. A software failure
   must not become an unsupported claim that the person took a poor photo. Design
   handoffs and reviews check the result, gaps and useful recovery together.
