@@ -19,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from alethical.api.rate_limit import rate_limit, trusted_client_ip
 from alethical.api.routers.admin import require_admin
 from alethical.api.services import mail_upload as service
+from alethical.api.services import mail_analysis
 from alethical.db.models import MailUploadImage, MailUploadSubmission
 from alethical.db.session import get_db
 
@@ -221,3 +222,71 @@ def original(
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+@router.get("/submissions/{submission_id}/analysis")
+def analysis(
+    submission_id: uuid.UUID,
+    token: str = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    row = service.owned(db, service.authorize(db, token), submission_id)
+    if row.saved_at is None:
+        raise service.fail(409, "Save this mail before reading its results")
+    return mail_analysis.response(db, row)
+
+
+@router.post("/submissions/{submission_id}/analysis/retry")
+def retry_analysis(
+    submission_id: uuid.UUID,
+    token: str = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    row = service.owned(db, service.authorize(db, token), submission_id, lock=True)
+    analysis = db.get(mail_analysis.m.MailUploadAnalysis, row.id)
+    if (
+        analysis is not None
+        and analysis.status in {"failed", "partial"}
+        and analysis.attempts < 3
+    ):
+        analysis.status = "pending"
+        db.commit()
+    return mail_analysis.response(db, row)
+
+
+@admin_router.get("/submissions/{submission_id}/analysis")
+def admin_analysis(submission_id: uuid.UUID, db: Session = Depends(get_db)):
+    row = db.get(MailUploadSubmission, submission_id)
+    if row is None:
+        raise service.fail(404, "Mail not found")
+    result = mail_analysis.response(db, row)
+    analysis = db.get(mail_analysis.m.MailUploadAnalysis, row.id)
+    result["data"]["creative_evidence"] = analysis.creative_evidence if analysis else {}
+    result["data"]["excluded_from_counts"] = (
+        analysis.excluded_from_counts if analysis else False
+    )
+    return result
+
+
+class CreativeAssignment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    matching_submission_id: uuid.UUID | None = None
+    excluded_from_counts: StrictBool = False
+    evidence: str = Field(min_length=20, max_length=2000)
+
+
+@admin_router.put("/submissions/{submission_id}/analysis/creative")
+def assign_mail_creative(
+    submission_id: uuid.UUID,
+    body: CreativeAssignment,
+    db: Session = Depends(get_db),
+):
+    mail_analysis.assign_creative(
+        db,
+        submission_id,
+        matching_submission_id=body.matching_submission_id,
+        excluded=body.excluded_from_counts,
+        evidence=body.evidence,
+    )
+    db.commit()
+    return mail_analysis.response(db, db.get(MailUploadSubmission, submission_id))

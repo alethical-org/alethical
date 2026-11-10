@@ -1,0 +1,102 @@
+# Political mail analysis
+
+Implementation owner: [Political mail text and evidence results](https://github.com/alethical-org/alethical/issues/2924), building on [private upload](political-mail-upload.md).
+
+## Approved scope
+
+Read both private photos, preserve the printed payer separately from any matched official identity, count matching mailers separately from submissions or people, and show source-supported records and connections. The 15 supplied mailer pairs allow extraction work to proceed. Recipient details and originals stay private. Existing upload wording and behavior remain unchanged.
+
+## Build in progress
+
+The `codex/mail-analysis` branch contains an additive private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. These changes are not deployed or enabled. Set `ALETHICAL_MAIL_ANALYSIS_ENABLED=true` only after migration and release checks. No request waits for OCR. No external OCR provider receives photos.
+
+Machine-read words are not checked transcriptions. A detected disclosure retains its quote, photo side, bounding box and cutoff warning; absent words are never reconstructed from the registry. Exact official-name hits are candidates, not confirmed identity. A missing number is not zero. Automatic corroboration requires independent registration, domain or address evidence from an official source; unresolved cases remain uncertain.
+
+## Acceptance progress
+
+- Local OCR evaluated all 30 originals; detected disclosures on 9 sides in the initial pass. Final visual review found further readable disclosures, so production coverage must be compared with that private review; cropped or soft words remain unknown
+- 25 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
+- Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
+- Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
+- Independent backend review passed the queue, access and matching checks; the final public-record retention correction has a bounded follow-up review
+- Responsive results Design and frontend are separate work owned by the parent
+- Current-head checks, disabled backend deployment, hash-checked initial group assignments, activation and live result coverage remain release work
+
+Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
+
+## Creative counts
+
+A creative/version group counts saved submissions, excluding explicitly tagged
+synthetic records. Network retries reuse the submission identifier; separate
+submissions remain separate counts. This is not a count of people, households,
+physical pieces or delivered mail. Both sides and substantive content must agree;
+a changed payer or substantive version stays separate. A missing group has an
+unknown count, not zero. The private administrator assignment route retains its
+comparison evidence and change history. The initial 15 pairs were visually reviewed
+as distinct; their actual assignments and live counts remain release work.
+
+The assignment route is `PUT /api/v1/admin/mail-upload/submissions/{id}/analysis/creative`.
+Its optional `matching_submission_id` points to an existing compared group; otherwise
+it assigns the submission's own stable group. `excluded_from_counts` explicitly marks
+synthetic data. `evidence` records the two-side/payer/version comparison. This does
+not establish an official payer match. Identical front/back originals can inherit an existing reviewed creative decision.
+Near-image comparison is a private administrator hint only; new or ambiguous
+recaptures remain unassigned. Reviewed-reference changes recheck derived matches,
+including exclusions and contradictory groups. Reliable recapture classification
+remains unfinished.
+
+## Public record response
+
+Each payer keeps its exact machine-read quote separate from `official_organization`,
+`candidates` and `related_records`. A checked organization is not a checked funding
+account. Each candidate/related registration may carry `records`: published snapshot,
+year, fetched date and independent `received`, `paid`, `independent_spending` blocks.
+Each block retains its existing public-reader state, official source URL, record
+numbers, payment dates, exact decimal amounts, total rows and `has_more`; only the
+latest 5 rows are embedded. An unavailable block never becomes zero. These rows
+show that registration's activity, not who funded an individual mailer. Only existing
+public campaign-money services are used; protected Finance research is not exposed.
+At most 3 registrations are read per analysis, each database statement bounded to
+10 seconds. Further alternatives say `not_loaded`.
+
+Read-only production inspection found useful 2026 records for Restore Sanity (21
+receipt rows, 71 outgoing rows, 71 independent-spending rows), Our America Minnesota
+Political Fund (26 receipt rows, no reported outgoing block, 26 independent-spending
+rows), and Heintzeman (Keri) for Senate (59 receipt rows, 8 outgoing rows, no reported
+independent-spending block). Overlapping blocks must never be added together.
+These findings do not confirm which candidate registration paid for a mailer.
+
+## Processing bounds and recovery
+
+The 30-original local evaluation took 173.6 seconds summed across photo reads
+(3.2–8.9 seconds per photo). The production worker processes one saved submission
+at a time per API process, outside upload requests; initial 15-pair processing is
+roughly 3–6 minutes including record reads, subject to host CPU/storage speed.
+No artificial wait is added. Oldest saved submissions are claimed first. A
+later OCR failure retains earlier usable text and crop evidence with a partial
+reason. Transient record failures make the result retryable without rereading
+successful photo sides. A failed record refresh retains available evidence only for the same printed payer, registration, scope, source and year, with `refresh_failed: true`; its original snapshot and fetched date remain unchanged. Historical scratch reads are not seeded into production:
+they lack the final reader-version and provenance checks. Exact originals remain
+unchanged. `tesseract-english-v2` identifies this reader revision.
+
+## Release and initial review
+
+The additive backend may merge and deploy after backend acceptance, independently
+of the results interface. Deploy its migration and image with analysis disabled. Prepare a private JSON review manifest outside
+Git containing each saved submission ID, exact `front_sha256` and `back_sha256`,
+`excluded_from_counts`, and the two-side/version comparison `evidence`. The 5 retained
+synthetic receipts identify excluded records; no reaction-based heuristic is used.
+The 15 visually distinct real pairs each receive their own reviewed creative group.
+
+Run `uv run python scripts/mail_analysis.py --target production --manifest /private/path/review.json`
+for hash-checked dry run, then the same command with `--apply`. It validates every
+saved/verified pair before writing only analysis grouping metadata in one transaction.
+It never writes image rows, bytes, reaction or comments. Repeating a decision is
+idempotent; correction history remains private. Keep the private manifest as evidence.
+Keep analysis disabled until the results interface is ready and the parent owner
+gives the enable signal. Then enable `ALETHICAL_MAIL_ANALYSIS_ENABLED=true`; saved rows are queued automatically,
+so no separate OCR backfill command is needed. Use existing administrator result
+routes for the old sessions, whose private uploader tokens are not recoverable.
+Verify the initial 20 saved analysis rows, their 5 exclusions and 15 real results and source/partial
+states against the private originals. Disable the flag to stop new claims; retain
+results and originals. No deletion or destructive migration is part of release.
