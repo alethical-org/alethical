@@ -12,15 +12,15 @@ The `codex/mail-analysis` branch contains an additive private analysis table, lo
 
 Machine-read words are not checked transcriptions. A detected disclosure retains its quote, photo side, bounding box and cutoff warning; absent words are never reconstructed from the registry. Exact official-name hits are candidates, not confirmed identity. A missing number is not zero. Automatic corroboration requires independent registration, domain or address evidence from an official source; unresolved cases remain uncertain.
 
-## Remaining acceptance
+## Acceptance progress
 
-- Improved local OCR evaluated all 30 originals, finding disclosure candidates on 9 sides; fine print and cropped words remain incomplete, especially pair 3 back
-- 27 focused extraction, ownership, retry and upload tests pass; successful-side text is retained on retry
-- Add source-corroborated matches and useful existing-record connections; verify matches against official evidence
-- Establish explicit matching-creative evidence and counts; do not count name matches or people
-- Complete independent correctness/security review and queue recovery tests
-- Have Design review results layout and copy, then build and review responsive results states
-- Run current-main checks, merge, deploy, enable and verify actual private results
+- Local OCR evaluated all 30 originals; detected disclosures on 9 sides in the initial pass. Final visual review found further readable disclosures, so production coverage must be compared with that private review; cropped or soft words remain unknown
+- 25 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
+- Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
+- Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
+- Independent backend review passed the queue, access and matching checks; the final public-record retention correction has a bounded follow-up review
+- Responsive results Design and frontend are separate work owned by the parent
+- Current-head checks, disabled backend deployment, hash-checked initial group assignments, activation and live result coverage remain release work
 
 Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
 
@@ -75,7 +75,7 @@ roughly 3–6 minutes including record reads, subject to host CPU/storage speed.
 No artificial wait is added. Oldest saved submissions are claimed first. A
 later OCR failure retains earlier usable text and crop evidence with a partial
 reason. Transient record failures make the result retryable without rereading
-successful photo sides. Historical scratch reads are not seeded into production:
+successful photo sides. A failed record refresh retains available evidence only for the same printed payer, registration, scope, source and year, with `refresh_failed: true`; its original snapshot and fetched date remain unchanged. Historical scratch reads are not seeded into production:
 they lack the final reader-version and provenance checks. Exact originals remain
 unchanged. `tesseract-english-v2` identifies this reader revision.
 
