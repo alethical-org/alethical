@@ -1,8 +1,8 @@
 # What the retired campaign-finance build got wrong, measured
 
 *Evidence behind [`docs/architecture/campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md).
-A working Minnesota campaign-finance product was built on Base44 at alethicalfinance.com and is
-being retired. Everything below was measured on 10–11 August 2026 from its complete data export
+A prior Minnesota campaign-finance product was built on Base44 and previously served
+alethicalfinance.com. Everything below was measured on 10–11 August 2026 from its complete data export
 (16 tables, 1,002,007 rows) and its complete code export (202 files), not from its screens.*
 
 **Net:** Two failures made every displayed total wrong, and both trace to one root cause:

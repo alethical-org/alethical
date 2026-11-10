@@ -658,6 +658,7 @@ class HostedSettingsTest(unittest.TestCase):
                         "uri_allow_list": ",".join(
                             [
                                 "https://www.alethical.com/**",
+                                "https://alethicalfinance.com/**",
                                 "https://finance.alethical.com/**",
                                 "http://localhost:8081/**",
                                 "http://127.0.0.1:8081/**",
@@ -772,6 +773,7 @@ class HostedSettingsTest(unittest.TestCase):
                         "uri_allow_list": ",".join(
                             [
                                 "https://www.alethical.com/**",
+                                "https://alethicalfinance.com/**",
                                 "https://finance.alethical.com/**",
                                 "http://localhost:8081/**",
                                 "http://127.0.0.1:8081/**",

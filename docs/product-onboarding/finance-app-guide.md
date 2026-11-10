@@ -5,7 +5,7 @@
 **Net:** Alethical Finance is the sign-in-only research site for law firms and their
 political committees. With its signed-in screens on, a listed account researches bills,
 legislators, committees and their money from Finance Home; a page not built yet answers
-exactly like an unknown address. With them off, https://finance.alethical.com serves only
+exactly like an unknown address. With them off, https://alethicalfinance.com serves only
 the landing page and sign-in.
 
 The settled decisions are in
@@ -593,8 +593,9 @@ none.
 - Ordinary Finance accounts are Supabase accounts in alethical.com's sign-in project,
   so those sign-ins and Google users appear among alethical.com's accounts and sign-up
   figures. Shared research accounts remain separate from Supabase.
-- The site runs at https://finance.alethical.com, the `alethical-finance` Vercel project,
-  until alethicalfinance.com launches ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).
+- The site runs at https://alethicalfinance.com, the `alethical-finance` Vercel project.
+  Old links at https://finance.alethical.com redirect to the same page on the primary
+  address ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).
 
 ## Media buys
 

@@ -210,8 +210,8 @@ already available measurements.
 
 ## 1. Why this design, in one paragraph
 
-A working implementation of this product already exists, built on Base44 at
-alethicalfinance.com, and it is being retired. It is worth knowing what went wrong there,
+A prior implementation was built on Base44 and previously served alethicalfinance.com.
+It is worth knowing what went wrong there,
 because two of its failures shaped every decision below. Its importer checked only the first
 1,000 stored records when looking for an existing match and never compared incoming rows
 against each other, so **241,258 of its 954,188 money rows repeat another row's fingerprint**.
