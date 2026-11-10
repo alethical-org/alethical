@@ -31,6 +31,8 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
     }
     let active = true;
     let busy = false;
+    let expired = false;
+    let retryCycle = false;
     let latest: MailAnalysis | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
@@ -41,10 +43,11 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
     setState({ ...empty, identity: key });
 
     const load = async (retry = false) => {
-      if (!current() || busy || (retry && !latest?.can_retry)) return;
+      if (!current() || busy || expired || (retry && !latest?.can_retry)) return;
       busy = true;
+      if (retry) retryCycle = true;
       clearTimeout(timer);
-      update({ error: null, retrying: retry });
+      update({ error: null, retrying: retryCycle });
       try {
         const next = await (retry ? retryMailAnalysis : getMailAnalysis)(token, id, {
           signal: controller.signal,
@@ -64,14 +67,18 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
             : next;
         update({ result: latest });
         if (working(next)) timer = setTimeout(() => void load(), 2000);
+        else retryCycle = false;
       } catch (error) {
+        retryCycle = false;
+        expired = error instanceof MailUploadError && error.status === 401;
+        if (expired && latest) latest = { ...latest, can_retry: false };
         update({
-          error:
-            error instanceof MailUploadError && error.status === 401 ? 'expired' : 'unavailable',
+          error: expired ? 'expired' : 'unavailable',
+          result: latest,
         });
       } finally {
         busy = false;
-        update({ retrying: false });
+        update({ retrying: retryCycle });
       }
     };
     actions.current = {

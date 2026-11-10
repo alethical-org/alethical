@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 
 /** Object URLs expose only the exact server-confirmed File retained in this tab. */
 export function useMailPhoto(file: File | undefined) {
-  const [preview, setPreview] = useState<{ file: File; url: string } | null>(null);
+  const [preview, setPreview] = useState<{ file: File; url?: string; failed?: boolean } | null>(
+    null,
+  );
   useEffect(() => {
     setPreview(null);
     if (!file) return;
@@ -11,9 +13,11 @@ export function useMailPhoto(file: File | undefined) {
       url = URL.createObjectURL(file);
       setPreview({ file, url });
     } catch {
+      setPreview({ file, failed: true });
       return;
     }
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  return preview?.file === file ? preview?.url : undefined;
+  const current = preview?.file === file ? preview : null;
+  return { url: current?.url, failed: !file || current?.failed === true };
 }

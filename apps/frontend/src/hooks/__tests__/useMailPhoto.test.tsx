@@ -19,7 +19,7 @@ it('uses exact retained bytes and revokes every URL on replacement, clearing and
   const back = new File(['exact back'], 'back.jpg', { type: 'image/jpeg' });
   let url: string | undefined;
   function Probe({ file }: { file?: File }) {
-    url = useMailPhoto(file);
+    url = useMailPhoto(file).url;
     return null;
   }
   try {

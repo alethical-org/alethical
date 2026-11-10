@@ -11,6 +11,7 @@ vi.mock('../../data/mailUpload', async (load) => ({
   retryMailAnalysis: calls.retry,
 }));
 import { useMailAnalysis } from '../useMailAnalysis';
+import { MailUploadError } from '../../data/mailUpload';
 
 const pending: MailAnalysis = {
   status: 'pending',
@@ -113,6 +114,17 @@ it('isolates a changed session and aborts requests on unmount', async () => {
   expect(calls.get).toHaveBeenCalledTimes(2);
 });
 
+it('keeps a newer submission visible when an aborted older request resolves late', async () => {
+  const old = deferred<MailAnalysis>();
+  const newer = { ...partial, status: 'ready' as const, matching_mailers: { count: 3 } };
+  calls.get.mockReturnValueOnce(old.promise).mockResolvedValueOnce(newer);
+  await render('first');
+  await render('second');
+  expect(hook.result).toEqual(newer);
+  await act(async () => old.resolve(partial));
+  expect(hook.result).toEqual(newer);
+});
+
 it('retains readable results during one retry and refuses duplicate or exhausted retries', async () => {
   calls.get.mockResolvedValueOnce(partial);
   const retry = deferred<MailAnalysis>();
@@ -127,6 +139,7 @@ it('retains readable results during one retry and refuses duplicate or exhausted
   expect(hook.result?.sides[0].text).toBe('Words from the front');
   await act(async () => retry.resolve({ ...pending, can_retry: false }));
   expect(hook.result?.sides[0].text).toBe('Words from the front');
+  expect(hook.retrying).toBe(true);
   calls.get.mockResolvedValueOnce({ ...partial, can_retry: false });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(2000);
@@ -134,6 +147,7 @@ it('retains readable results during one retry and refuses duplicate or exhausted
   await act(async () => hook.retry());
   expect(calls.retry).toHaveBeenCalledTimes(1);
   expect(hook.result?.can_retry).toBe(false);
+  expect(hook.retrying).toBe(false);
 });
 
 it('retains results on a network failure and refreshes without spending an analysis retry', async () => {
@@ -149,4 +163,24 @@ it('retains results on a network failure and refreshes without spending an analy
   expect(hook.result).toEqual(partial);
   expect(hook.error).toBeNull();
   expect(calls.retry).not.toHaveBeenCalled();
+});
+
+it('retains same-owner evidence on expiry while refusing further fetches or retries until reset', async () => {
+  calls.get.mockResolvedValueOnce(partial);
+  calls.retry.mockRejectedValueOnce(new MailUploadError(401, 'Expired'));
+  await render();
+  await act(async () => hook.retry());
+  expect(hook.error).toBe('expired');
+  expect(hook.result?.sides).toEqual(partial.sides);
+  expect(hook.result?.can_retry).toBe(false);
+  await act(async () => {
+    hook.retry();
+    hook.refresh();
+  });
+  expect(calls.retry).toHaveBeenCalledTimes(1);
+  expect(calls.get).toHaveBeenCalledTimes(1);
+  await render('second', 'fresh-session');
+  expect(hook.error).toBeNull();
+  expect(hook.result?.sides).toEqual([]);
+  expect(calls.get).toHaveBeenCalledTimes(2);
 });

@@ -39,6 +39,7 @@ export interface MailReadSide {
 }
 export interface MailPayment {
   amount: string | null;
+  unpaid_amount?: string | null;
   record_number: number | null;
   received_on?: string | null;
   paid_on?: string | null;
@@ -49,6 +50,8 @@ export interface MailPayment {
   purpose?: string | null;
   in_kind?: string | null;
   in_kind_description?: string | null;
+  receipt_type?: string | null;
+  expenditure_type?: string | null;
 }
 export interface MailRecordBlock {
   state: 'reported' | 'not_reported' | 'unavailable';
@@ -73,6 +76,7 @@ export interface MailOrganization {
   source_url: string;
   source_title?: string;
   checked_on?: string;
+  address?: string;
   basis: string;
   scope: 'organization';
 }
@@ -97,6 +101,7 @@ export interface MailPayer extends MailDisclosure {
 export interface MailAnalysis {
   status: 'pending' | 'processing' | 'ready' | 'partial' | 'failed';
   can_retry?: boolean;
+  records_retry_needed?: boolean;
   sides: MailReadSide[];
   payers: MailPayer[];
   payer_status?: 'matched' | 'uncertain' | 'not_found';
