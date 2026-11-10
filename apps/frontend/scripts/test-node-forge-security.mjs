@@ -10,12 +10,12 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const checkerPath = 'apps/frontend/scripts/check-node-forge-security.mjs';
-const patchPath = 'patches/node-forge@1.4.0.patch';
+const patchPath = 'patches/node-forge@1.4.2.patch';
 const forgeDirectory = dirname(require.resolve('node-forge/package.json'));
 const repairedCondition =
   "obj.value.length !== 2 ||\n            obj.value[0].value.length !==\n              (('parameters' in capture) ? 2 : 1)) {";
-// The node-forge 1.4.1 canonical DigestInfo check carried by the same patch
-// also rejects the malformed forms, so the stock-behaviour probe removes both.
+// The upstream canonical DigestInfo check also rejects the malformed forms.
+// The regression probe removes both guards to demonstrate the older behavior.
 const canonicalCheck =
   'if(d.substring(0, withParameters.length) !== withParameters &&\n            d.substring(0, withoutParameters.length) !== withoutParameters) {';
 const iterationGuard =
@@ -76,7 +76,7 @@ const rejectedFixtures = [
     'missing workspace patch binding',
     (directory) =>
       change(directory, 'pnpm-workspace.yaml', (text) =>
-        text.replace(/^  node-forge@1\.4\.0: patches\/node-forge@1\.4\.0\.patch\n/m, ''),
+        text.replace(/^  node-forge@1\.4\.2: patches\/node-forge@1\.4\.2\.patch\n/m, ''),
       ),
     /AssertionError/,
   ],
@@ -84,7 +84,7 @@ const rejectedFixtures = [
     'changed lock patch hash',
     (directory) =>
       change(directory, 'pnpm-lock.yaml', (text) =>
-        text.replace(/(  node-forge@1\.4\.0:\n    hash: )[a-f0-9]+/, `$1${'0'.repeat(64)}`),
+        text.replace(/(  node-forge@1\.4\.2:\n    hash: )[a-f0-9]+/, `$1${'0'.repeat(64)}`),
       ),
     /AssertionError/,
   ],
@@ -122,11 +122,6 @@ const rejectedFixtures = [
       change(directory, 'node_modules/node-forge/lib/pkcs12.js', (text) =>
         text.replace(iterationGuard, ''),
       ),
-    /AssertionError/,
-  ],
-  [
-    'drifted installed PEM source',
-    (directory) => change(directory, 'node_modules/node-forge/lib/pem.js', (text) => `${text}\n`),
     /AssertionError/,
   ],
   [
