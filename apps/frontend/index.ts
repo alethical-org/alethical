@@ -25,11 +25,13 @@ if (typeof document === 'undefined') {
   // Load private upload credentials only on their route. The production HTML
   // already stripped the invitation before outside resources; this also covers
   // local entry before React or its analytics can mount.
-  const prepare =
-    window.location.pathname.replace(/\/$/, '') === '/mail-upload'
-      ? import('./src/data/mailUpload').then(({ captureMailInvitation }) => captureMailInvitation())
-      : Promise.resolve();
-  void prepare
-    .then(() => preloadScreenForPath(`${window.location.pathname}${window.location.search}`))
-    .then(() => registerRootComponent(App));
+  const { pathname, search } = window.location;
+  const isMailUpload = pathname.replace(/\/$/, '') === '/mail-upload';
+  const prepare = isMailUpload
+    ? import('./src/data/mailUpload').then(({ captureMailInvitation }) => captureMailInvitation())
+    : Promise.resolve();
+  void Promise.all([
+    prepare,
+    preloadScreenForPath(isMailUpload ? pathname : `${pathname}${search}`),
+  ]).then(() => registerRootComponent(App));
 }

@@ -50,6 +50,14 @@ async function render() {
 const button = (name: string) =>
   Array.from(container.querySelectorAll('button')).find((item) => item.textContent === name)!;
 
+function useMobilePicker() {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   form = makeForm();
@@ -63,6 +71,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 it('passes the selected side and File directly to the upload flow', async () => {
@@ -72,6 +81,80 @@ it('passes the selected side and File directly to the upload flow', async () => 
   await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })));
   expect(form.upload).toHaveBeenCalledWith('front', photo);
   expect(input.value).toBe('');
+});
+
+it('keeps the form in place while connecting and enables it when ready', async () => {
+  form.access = 'loading';
+  await render();
+  const front = container.querySelector<HTMLButtonElement>('#front-photo');
+  expect(front?.disabled).toBe(true);
+  expect(button('Submit').disabled).toBe(true);
+  expect(container.querySelector('form')?.getAttribute('aria-busy')).toBe('true');
+  expect(container.textContent).not.toContain('Loading…');
+  await act(async () =>
+    container
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+  );
+  expect(form.submit).not.toHaveBeenCalled();
+
+  form.access = 'ready';
+  await render();
+  expect(container.querySelector('#front-photo')).toBe(front);
+  expect(front?.disabled).toBe(false);
+  expect(button('Submit').disabled).toBe(false);
+});
+
+it('opens the rear camera or photo library for the side chosen on mobile', async () => {
+  useMobilePicker();
+  await render();
+
+  for (const [side, source] of [
+    ['front', 'Take photo'],
+    ['back', 'Choose photo'],
+  ] as const) {
+    const trigger = container.querySelector<HTMLButtonElement>(`#${side}-photo`)!;
+    const input = trigger
+      .closest('.photo')!
+      .querySelector<HTMLInputElement>(
+        source === 'Take photo'
+          ? 'input[capture="environment"]'
+          : 'input[type="file"]:not([capture])',
+      );
+    await act(async () => trigger.click());
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(button('Take photo'));
+    expect(input).toBeTruthy();
+    const openPicker = vi.spyOn(input!, 'click');
+    await act(async () => button(source).click());
+    expect(openPicker).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(trigger);
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+
+    Object.defineProperty(input, 'files', { value: [photo] });
+    await act(async () => input!.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(form.upload).toHaveBeenLastCalledWith(side, photo);
+  }
+});
+
+it('moves between photo sources by keyboard and restores focus when dismissed', async () => {
+  useMobilePicker();
+  await render();
+  const trigger = container.querySelector<HTMLButtonElement>('#front-photo')!;
+  await act(async () => trigger.click());
+  await act(async () => {
+    button('Take photo').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+    );
+  });
+  expect(document.activeElement).toBe(button('Choose photo'));
+  await act(async () => {
+    button('Choose photo').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+  });
+  expect(container.querySelector('[role="menu"]')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
 });
 
 it('shows a check only for a confirmed photo and disables Submit during photo transfer', async () => {
