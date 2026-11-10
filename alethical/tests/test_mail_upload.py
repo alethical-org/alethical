@@ -3,6 +3,8 @@ from __future__ import annotations
 import io
 import secrets
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from pathlib import Path
 
 import pytest
@@ -179,15 +181,102 @@ def test_isolation_secret_and_revocation(client, storage):
     assert client.post(BASE + "/sessions", json=request).status_code == 401
 
 
-def test_failed_replacement_keeps_side_and_retry_repairs_backup(client, storage):
+@pytest.mark.parametrize("held_store", [0, 1])
+def test_storage_copies_overlap_and_both_finish_before_selection(
+    client, storage, monkeypatch, held_store
+):
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    previous = upload(client, path, headers).json()
+    entered = [Event(), Event()]
+    completed = [Event(), Event()]
+    release = Event()
+
+    def controlled_put(index, original):
+        def put(key, file_path, expected_sha256):
+            entered[index].set()
+            if index == held_store:
+                assert release.wait(10), "test did not release the held store"
+            original(key, file_path, expected_sha256)
+            completed[index].set()
+
+        return put
+
+    for index, store in enumerate(storage):
+        monkeypatch.setattr(
+            store, "put_and_verify", controlled_put(index, store.put_and_verify)
+        )
+    with ThreadPoolExecutor(max_workers=1) as requests:
+        pending = requests.submit(upload, client, path, headers, body=photo("blue"))
+        try:
+            assert all(event.wait(5) for event in entered), "copies ran sequentially"
+            assert completed[1 - held_store].wait(5)
+            assert not pending.done(), "response returned before both copies verified"
+            assert client.get(path, headers=headers).json() == previous
+        finally:
+            release.set()
+        result = pending.result(timeout=10)
+    assert result.status_code == 200, result.text
+    assert result.json()["data"]["front"] != previous["data"]["front"]
+    assert all(event.is_set() for event in completed)
+    assert storage[0].objects == storage[1].objects
+
+
+@pytest.mark.parametrize("failed_store", [0, 1])
+def test_failed_copy_keeps_file_and_gate_until_other_copy_finishes(
+    client, storage, monkeypatch, failed_store
+):
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    previous = upload(client, path, headers).json()
+    failed = Event()
+    held = Event()
+    copied = Event()
+    release = Event()
+
+    def fail(*args):
+        failed.set()
+        raise RuntimeError("private provider failure")
+
+    original = storage[1 - failed_store].put_and_verify
+
+    def slow_copy(key, file_path, expected_sha256):
+        held.set()
+        assert release.wait(10), "test did not release the other copy"
+        # The temporary source must still exist, even after the other copy failed.
+        original(key, file_path, expected_sha256)
+        copied.set()
+
+    monkeypatch.setattr(storage[failed_store], "put_and_verify", fail)
+    monkeypatch.setattr(storage[1 - failed_store], "put_and_verify", slow_copy)
+    with ThreadPoolExecutor(max_workers=1) as requests:
+        pending = requests.submit(upload, client, path, headers, body=photo("blue"))
+        try:
+            assert held.wait(5) and failed.wait(5)
+            assert not pending.done()
+            assert upload(client, path, headers, "back").status_code == 429
+            assert client.get(path, headers=headers).json() == previous
+        finally:
+            release.set()
+        result = pending.result(timeout=10)
+    assert result.status_code == 503
+    assert copied.is_set(), "temporary file was removed before the other copy finished"
+    assert "provider" not in result.text
+    assert client.get(path, headers=headers).json() == previous
+
+
+@pytest.mark.parametrize("failed_store", [0, 1])
+def test_failed_replacement_keeps_side_and_retry_repairs_backup(
+    client, storage, failed_store
+):
     headers, _, _ = session(client)
     path = draft(client, headers)
     first = upload(client, path, headers).json()
-    storage[1].failed = True
+    storage[failed_store].failed = True
     failed = upload(client, path, headers, body=photo("blue"))
     assert failed.status_code == 503 and "provider" not in failed.text
     assert client.get(path, headers=headers).json() == first
-    storage[1].failed = False
+    storage[failed_store].failed = False
     success = upload(client, path, headers, body=photo("blue"))
     assert success.status_code == 200
     assert success.json()["data"]["front"] != first["data"]["front"]

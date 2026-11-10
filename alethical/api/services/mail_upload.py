@@ -10,6 +10,7 @@ import secrets
 import tempfile
 import uuid
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
@@ -425,8 +426,16 @@ def save_image(
         with tempfile.NamedTemporaryFile() as handle:
             handle.write(body)
             handle.flush()
-            primary.put_and_verify(key, handle.name, sha)
-            mirror.put_and_verify(key, handle.name, sha)
+            # Each store has its own client/file handle. Keep the source and the
+            # image gate alive until both bounded storage operations finish,
+            # including when either one fails. Selection still requires both.
+            with ThreadPoolExecutor(max_workers=2) as copies:
+                verified = [
+                    copies.submit(store.put_and_verify, key, handle.name, sha)
+                    for store in (primary, mirror)
+                ]
+                for copied in verified:
+                    copied.result()
     except Exception:
         # Private keys/provider errors never enter logs or response bodies.
         raise fail(
