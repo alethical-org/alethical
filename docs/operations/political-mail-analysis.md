@@ -71,13 +71,20 @@ These findings do not confirm which candidate registration paid for a mailer.
 The 30-original local evaluation took 173.6 seconds summed across photo reads
 (3.2–8.9 seconds per photo). The production worker processes one saved submission
 at a time per API process, outside upload requests; initial 15-pair processing is
-roughly 3–6 minutes including record reads, subject to host CPU/storage speed.
+host-dependent. The initial production batch took 607.5 seconds (10.1 minutes), with early
+pairs taking 29–46 seconds including storage and record reads.
 No artificial wait is added. Oldest saved submissions are claimed first. A
 later OCR failure retains earlier usable text and crop evidence with a partial
 reason. Transient record failures make the result retryable without rereading
 successful photo sides. A failed record refresh retains available evidence only for the same printed payer, registration, scope, source and year, with `refresh_failed: true`; its original snapshot and fetched date remain unchanged. Historical scratch reads are not seeded into production:
 they lack the final reader-version and provenance checks. Exact originals remain
-unchanged. `tesseract-english-v2` identifies this reader revision.
+unchanged. `tesseract-english-v3` adds one bounded sparse-column fallback for unresolved or
+low-confidence disclosure crops. Vertical context preserves angled lines; aligned
+continuations keep joint payer names together and omit neighboring postage columns.
+It adds at most one subprocess per anchor, bounded to 10 seconds within the same
+90-second image deadline and 3-anchor limit. Crop source bounds, deskew angle,
+segmentation mode and newly measured confidence remain attached to the quote.
+A partial hint alone never becomes a payer without a newly read paid-for-by line.
 
 ## Release and initial review
 
@@ -101,3 +108,22 @@ routes for the old sessions, whose private uploader tokens are not recoverable.
 Verify the initial 20 saved analysis rows, their 5 exclusions and 15 real results and source/partial
 states against the private originals. Disable the flag to stop new claims; retain
 results and originals. No deletion or destructive migration is part of release.
+
+## Initial live evidence
+
+Migration 0091, private hash-checked grouping and enabled local OCR were verified
+on the live service. All 15 initial real pairs produced text on both sides; none
+is certified character-complete. Initial payer excerpts appeared for 9 of 15,
+including several malformed readings that remain uncertain. Each of the 15
+visually distinct creative groups counted 1 saved submission; 5 known synthetic
+submissions were explicitly excluded. Original image and submission rows were
+unchanged by grouping and recovery.
+
+Bounded local checks of the changed reader recovered 3 readable angled disclosures,
+including a joint payer, while other malformed and clipped disclosures remained
+unresolved. After the corrected reader deploys, only the 3 proven improved sides
+are eligible for guarded recovery: private original-hash and prior-result checks,
+backup, dry run, then preserve the successful opposite side, grouping and prior
+public evidence. Do not treat processing completion as a complete transcription or
+manually fill missing words. Production recovery and final coverage remain to be
+verified; private reports retain exact quotations and remaining limits.

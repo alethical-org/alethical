@@ -41,7 +41,7 @@ from alethical.pipeline.campaign_finance_filings import (
 )
 
 logger = logging.getLogger(__name__)
-VERSION = "tesseract-english-v2"
+VERSION = "tesseract-english-v3"
 LEASE = timedelta(minutes=10)
 PAYER = re.compile(r"\b(?:prepared\s+and\s+)?paid\s+for\s+by\s+(.+)", re.I)
 
@@ -124,6 +124,43 @@ def deskew(image):
     ), angle
 
 
+def angled_disclosure_region(size, box):
+    """Keep context above/below sloped fine print, without reading the full page."""
+    width, height = size
+    x1, y1, x2, y2 = box
+    span = x2 - x1
+    left = max(0, x1 - max(600, span * 2))
+    right = min(width, x2 + max(400, span))
+    pad = max(200, int((right - left) * 0.22))
+    return (left, max(0, y1 - pad), right, min(height, y2 + pad))
+
+
+def disclosure_column(lines, start):
+    """Keep only nearby lines aligned with the disclosure, not postage columns."""
+    first = lines[start]
+    x1, y1, x2, y2 = first["box"]
+    selected = [first]
+    bottom = y2
+    line_height = max(1, y2 - y1)
+    for line in sorted(lines, key=lambda item: item["box"][1]):
+        if line is first:
+            continue
+        left, top, right, end = line["box"]
+        if top < y1 + line_height / 2 or top > bottom + line_height * 2:
+            continue
+        overlap = max(0, min(x2, right) - max(x1, left))
+        if (
+            abs(left - x1) > max(80, line_height * 2)
+            or overlap < min(x2 - x1, right - left) * 0.5
+        ):
+            continue
+        selected.append(line)
+        bottom = end
+        if len(selected) == 4:
+            break
+    return selected
+
+
 def refine_disclosure(rotated, quote, folder, deadline):
     x1, y1, x2, y2 = quote["box"]
     pad = max(12, (y2 - y1) // 2)
@@ -147,11 +184,27 @@ def refine_disclosure(rotated, quote, folder, deadline):
             min(rotated.height, y2 + 4 * (y2 - y1)),
         ),
     ]
+    # One extra sparse pass only when the normal disclosure read is unresolved
+    # or weak. It shares the existing per-image deadline and 3-anchor limit.
+    regions.append(angled_disclosure_region(rotated.size, quote["box"]))
     best = None
     try:
-        for region in regions:
+        for region_index, region in enumerate(regions):
+            sparse = region_index == len(regions) - 1
+            if (
+                sparse
+                and best is not None
+                and best[1]["confidence"] >= 90
+                and not best[1]["edge_warning"]
+            ):
+                break
             original_crop = rotated.crop(region)
-            for corrected, angle in ((original_crop, 0), deskew(original_crop)):
+            variants = (
+                (deskew(original_crop),)
+                if sparse
+                else ((original_crop, 0), deskew(original_crop))
+            )
+            for corrected, angle in variants:
                 if time.monotonic() >= deadline:
                     break
                 path = Path(folder) / "disclosure.png"
@@ -167,7 +220,7 @@ def refine_disclosure(rotated, quote, folder, deadline):
                         "-l",
                         "eng",
                         "--psm",
-                        "6",
+                        "11" if sparse else "6",
                         "tsv",
                     ],
                     capture_output=True,
@@ -182,7 +235,7 @@ def refine_disclosure(rotated, quote, folder, deadline):
                 )
                 if start is None:
                     continue
-                relevant = lines[start:]
+                relevant = disclosure_column(lines, start) if sparse else lines[start:]
                 refined = "\n".join(line["text"] for line in relevant)
                 match = PAYER.search(" ".join(refined.split()))
                 split = re.split(
@@ -221,6 +274,7 @@ def refine_disclosure(rotated, quote, folder, deadline):
                                 "width": corrected.width,
                                 "height": corrected.height,
                                 "deskew_angle": angle,
+                                "segmentation": "sparse_column" if sparse else "block",
                             },
                         },
                     )
@@ -284,7 +338,7 @@ def read_image(path: Path) -> dict:
                 # disclosure's own column so wrapped payer names stay in order.
                 for line in lines:
                     if not PAYER.search(line["text"]) and re.search(
-                        r"independent expenditure|prepared and|for by",
+                        r"\bpaid\b|\bprepared\b|\bexpenditure\b|\b(?:for|or|r)\s+by\b",
                         line["text"],
                         re.I,
                     ):

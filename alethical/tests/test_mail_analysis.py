@@ -872,3 +872,116 @@ def test_runtime_requires_english_data(monkeypatch, languages):
     else:
         with pytest.raises(RuntimeError, match="English"):
             mail_analysis.require_ocr_runtime()
+
+
+def test_sparse_disclosure_keeps_joint_payer_and_excludes_neighbor_column():
+    lines = [
+        {
+            "text": "Paid for by Republican Party of",
+            "box": [100, 100, 700, 130],
+            "confidence": 95,
+        },
+        {"text": "POSTAGE PAID", "box": [900, 100, 1100, 130], "confidence": 99},
+        {
+            "text": "Minnesota and Senate Victory Fund.",
+            "box": [102, 140, 750, 170],
+            "confidence": 96,
+        },
+        {
+            "text": "Not coordinated with any candidate",
+            "box": [101, 180, 760, 210],
+            "confidence": 94,
+        },
+    ]
+    result = mail_analysis.disclosure_column(lines, 0)
+    assert [line["text"] for line in result] == [
+        lines[0]["text"],
+        lines[2]["text"],
+        lines[3]["text"],
+    ]
+
+
+def test_angled_disclosure_region_keeps_vertical_context():
+    region = mail_analysis.angled_disclosure_region(
+        (4000, 3000), [2573, 1695, 2962, 1771]
+    )
+    assert region[0] < 2000
+    assert region[1] < 1450
+    assert region[2] > 3200
+    assert region[3] > 1950
+
+
+def test_sparse_fallback_recovers_joint_quote_without_confirming_single_payer(
+    tmp_path, monkeypatch
+):
+    import time
+    from types import SimpleNamespace
+    from PIL import Image
+
+    header = "block_num\tpar_num\tline_num\tleft\ttop\twidth\theight\tconf\ttext\n"
+    raw = (
+        header
+        + "1\t1\t1\t100\t100\t600\t30\t95\tPaid for by Republican Party of\n"
+        + "2\t1\t1\t900\t100\t200\t30\t99\tPOSTAGE PAID\n"
+        + "3\t1\t1\t102\t140\t650\t30\t96\tMinnesota and Senate Victory Fund.\n"
+        + "4\t1\t1\t100\t180\t650\t30\t95\twww.mngop.org www.senatevictoryfund.com\n"
+    ).encode()
+    modes = []
+
+    def run(command, **kwargs):
+        mode = command[command.index("--psm") + 1]
+        modes.append(mode)
+        assert kwargs["timeout"] <= 10
+        return SimpleNamespace(stdout=raw if mode == "11" else header.encode())
+
+    monkeypatch.setattr(mail_analysis.subprocess, "run", run)
+    result = mail_analysis.refine_disclosure(
+        Image.new("RGB", (1600, 1000), "white"),
+        {
+            "quote": "Or by Republican Party of",
+            "payer_text": None,
+            "confidence": 70,
+            "box": [600, 400, 1000, 430],
+            "edge_warning": False,
+        },
+        tmp_path,
+        time.monotonic() + 20,
+    )
+    assert modes.count("11") == 1
+    assert (
+        result["payer_text"] == "Republican Party of Minnesota and Senate Victory Fund"
+    )
+    assert "POSTAGE" not in result["quote"]
+    assert "www.mngop.org www.senatevictoryfund.com" in result["quote"]
+    assert result["crop"]["segmentation"] == "sparse_column"
+    assert result["confidence"] == 95.5
+    assert (
+        corroborate(
+            result["payer_text"], result["quote"], edge_warning=False, confidence=95.5
+        )
+        is None
+    )
+
+
+def test_sparse_fallback_does_not_turn_fragment_into_payer(tmp_path, monkeypatch):
+    import time
+    from types import SimpleNamespace
+    from PIL import Image
+
+    raw = b"block_num\tpar_num\tline_num\tleft\ttop\twidth\theight\tconf\ttext\n1\t1\t1\t20\t20\t300\t30\t95\tOr by Example Organization\n"
+    monkeypatch.setattr(
+        mail_analysis.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=raw),
+    )
+    quote = {
+        "quote": "Or by Example Organization",
+        "payer_text": None,
+        "confidence": 95,
+        "box": [100, 100, 400, 130],
+        "edge_warning": False,
+    }
+    result = mail_analysis.refine_disclosure(
+        Image.new("RGB", (800, 500), "white"), quote, tmp_path, time.monotonic() + 20
+    )
+    assert result["payer_text"] is None
