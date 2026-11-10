@@ -39,7 +39,11 @@ The assignment route is `PUT /api/v1/admin/mail-upload/submissions/{id}/analysis
 Its optional `matching_submission_id` points to an existing compared group; otherwise
 it assigns the submission's own stable group. `excluded_from_counts` explicitly marks
 synthetic data. `evidence` records the two-side/payer/version comparison. This does
-not establish an official payer match. Automatic creative comparison remains unfinished.
+not establish an official payer match. Identical front/back originals can inherit an existing reviewed creative decision.
+Near-image comparison is a private administrator hint only; new or ambiguous
+recaptures remain unassigned. Reviewed-reference changes recheck derived matches,
+including exclusions and contradictory groups. Reliable recapture classification
+remains unfinished.
 
 ## Public record response
 
@@ -61,3 +65,16 @@ Political Fund (26 receipt rows, no reported outgoing block, 26 independent-spen
 rows), and Heintzeman (Keri) for Senate (59 receipt rows, 8 outgoing rows, no reported
 independent-spending block). Overlapping blocks must never be added together.
 These findings do not confirm which candidate registration paid for a mailer.
+
+## Processing bounds and recovery
+
+The 30-original local evaluation took 173.6 seconds summed across photo reads
+(3.2–8.9 seconds per photo). The production worker processes one saved submission
+at a time per API process, outside upload requests; initial 15-pair processing is
+roughly 3–6 minutes including record reads, subject to host CPU/storage speed.
+No artificial wait is added. Oldest saved submissions are claimed first. A
+later OCR failure retains earlier usable text and crop evidence with a partial
+reason. Transient record failures make the result retryable without rereading
+successful photo sides. Historical scratch reads are not seeded into production:
+they lack the final reader-version and provenance checks. Exact originals remain
+unchanged. `tesseract-english-v2` identifies this reader revision.

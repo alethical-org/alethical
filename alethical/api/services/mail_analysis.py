@@ -40,7 +40,7 @@ from alethical.pipeline.campaign_finance_filings import (
 )
 
 logger = logging.getLogger(__name__)
-VERSION = "tesseract-english-v1"
+VERSION = "tesseract-english-v2"
 LEASE = timedelta(minutes=10)
 PAYER = re.compile(r"\b(?:prepared\s+and\s+)?paid\s+for\s+by\s+(.+)", re.I)
 
@@ -231,6 +231,13 @@ def refine_disclosure(rotated, quote, folder, deadline):
     return chosen
 
 
+def image_fingerprint(image):
+    """Private similarity hint only; never evidence of the same creative version."""
+    pixels = np.asarray(image.convert("L").resize((9, 8)))
+    bits = (pixels[:, 1:] > pixels[:, :-1]).flatten()
+    return format(sum(int(bit) << index for index, bit in enumerate(bits)), "016x")
+
+
 def read_image(path: Path) -> dict:
     """Bound work and memory; preserve original file, including its metadata."""
     best = None
@@ -317,6 +324,7 @@ def read_image(path: Path) -> dict:
                     "text": "\n".join(line["text"] for line in lines)[:60000],
                     "disclosures": quotes,
                     "rotation": angle,
+                    "image_fingerprint": image_fingerprint(rotated),
                     "width": rotated.width,
                     "height": rotated.height,
                     "complete": False,
@@ -510,7 +518,13 @@ def drain_once():
                     & (m.MailUploadAnalysis.started_at < now - LEASE)
                 ),
             )
-            .order_by(m.MailUploadAnalysis.submission_id)
+            .join(
+                m.MailUploadSubmission,
+                m.MailUploadSubmission.id == m.MailUploadAnalysis.submission_id,
+            )
+            .order_by(
+                m.MailUploadSubmission.saved_at, m.MailUploadAnalysis.submission_id
+            )
             .limit(1)
             .with_for_update(skip_locked=True)
         )
@@ -533,6 +547,10 @@ def drain_once():
             result = None
             status = "failed" if attempt >= 3 else "pending"
             logger.warning("Mail analysis attempt failed; private originals retained")
+        # Group assignments and this final write use the same lock order.
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext('mail_creative_assignment'))")
+        )
         # Fencing rejects a stale worker if a lease was recovered or replaced.
         row = db.scalar(
             select(m.MailUploadAnalysis)
@@ -551,6 +569,7 @@ def drain_once():
             if result is not None:
                 row.result = result
                 row.completed_at = datetime.now(timezone.utc)
+                inherit_reviewed_creative(db, row)
             db.commit()
 
 
@@ -650,9 +669,10 @@ def assign_creative(db, submission_id, *, matching_submission_id, excluded, evid
         "excluded": excluded,
         "evidence": evidence,
     }
-    if history and all(
+    same_decision = bool(history) and all(
         history[-1].get(key) == value for key, value in decision.items()
-    ):
+    )
+    if same_decision and matching_submission_id is None:
         return row
     if matching_submission_id is not None:
         other = db.get(m.MailUploadAnalysis, matching_submission_id)
@@ -666,6 +686,8 @@ def assign_creative(db, submission_id, *, matching_submission_id, excluded, evid
         ):
             raise mail_upload.fail(409, "Matching mail needs a recorded creative")
         creative_id = other.creative_id
+        if same_decision and row.creative_id == creative_id:
+            return row
     else:
         other_members = (
             db.scalar(
@@ -703,4 +725,143 @@ def assign_creative(db, submission_id, *, matching_submission_id, excluded, evid
     row.excluded_from_counts = excluded
     row.creative_evidence = {"method": "reviewed_creative", "history": history}
     db.flush()
+    reconcile_automatic_copies(db, row)
     return row
+
+
+def inherit_reviewed_creative(db, row):
+    """Copies inherit a reviewed content/version decision, never a name match.
+
+    Near images produce private administrator hints only. They cannot establish
+    unchanged wording, payer or version. Conflicting reviewed references yield no
+    automatic assignment. No other uploader's identifiers enter reader responses.
+    """
+    if row.creative_id is not None or row.excluded_from_counts:
+        return
+    sides = {side["side"]: side for side in row.result.get("sides", [])}
+    if set(sides) != {"front", "back"}:
+        return
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext('mail_creative_assignment'))")
+    )
+    base = (
+        select(m.MailUploadAnalysis)
+        .join(
+            m.MailUploadSubmission,
+            m.MailUploadSubmission.id == m.MailUploadAnalysis.submission_id,
+        )
+        .where(
+            m.MailUploadAnalysis.submission_id != row.submission_id,
+            m.MailUploadAnalysis.creative_id.is_not(None),
+            m.MailUploadAnalysis.creative_evidence["method"].astext
+            == "reviewed_creative",
+            m.MailUploadAnalysis.excluded_from_counts.is_(False),
+            m.MailUploadSubmission.saved_at.is_not(None),
+        )
+    )
+    if not all(side.get("sha256") for side in sides.values()):
+        return
+    exact_query = base.where(
+        m.MailUploadAnalysis.result["sides"].contains(
+            [{"side": side, "sha256": item["sha256"]} for side, item in sides.items()]
+        )
+    )
+    groups = list(
+        db.scalars(
+            exact_query.with_only_columns(m.MailUploadAnalysis.creative_id)
+            .distinct()
+            .limit(2)
+        )
+    )
+    if len(groups) == 1:
+        reference = db.scalar(exact_query.limit(1))
+        row.creative_id = groups[0]
+        row.creative_evidence = {
+            "method": "reviewed_creative_same_originals",
+            "automatic": True,
+            "assignment_history": row.creative_evidence.get("assignment_history", []),
+            "reference_submission_id": str(reference.submission_id),
+            "compared_at": datetime.now(timezone.utc).isoformat(),
+            "both_original_hashes_match": True,
+        }
+        return
+    references = list(
+        db.scalars(base.order_by(m.MailUploadAnalysis.completed_at.desc()).limit(500))
+    )
+    near = []
+    for reference in references:
+        if reference.creative_evidence.get("method") != "reviewed_creative":
+            continue
+        other = {side["side"]: side for side in reference.result.get("sides", [])}
+        if set(other) != {"front", "back"}:
+            continue
+        if all(
+            sides[side].get("image_fingerprint")
+            and other[side].get("image_fingerprint")
+            for side in sides
+        ):
+            distances = {
+                side: (
+                    int(sides[side]["image_fingerprint"], 16)
+                    ^ int(other[side]["image_fingerprint"], 16)
+                ).bit_count()
+                for side in sides
+            }
+            if max(distances.values()) <= 8:
+                near.append(
+                    {
+                        "submission_id": str(reference.submission_id),
+                        "distances": distances,
+                        "basis": "image_similarity_only",
+                    }
+                )
+    if near or groups:
+        row.creative_evidence = {
+            "method": "unresolved",
+            "automatic": True,
+            "assignment_history": row.creative_evidence.get("assignment_history", []),
+            "similarity_candidates": near[:10],
+            "candidate_search_limit": 500,
+            "conflicting_exact_references": len(groups) > 1,
+        }
+
+
+def reconcile_automatic_copies(db, reference):
+    """Re-check derived groups when reviewed evidence moves or conflicts."""
+    sides = reference.result.get("sides", [])
+    if len(sides) != 2 or not all(side.get("sha256") for side in sides):
+        return
+    copies = list(
+        db.scalars(
+            select(m.MailUploadAnalysis).where(
+                m.MailUploadAnalysis.submission_id != reference.submission_id,
+                m.MailUploadAnalysis.creative_evidence["automatic"]
+                .as_boolean()
+                .is_(True),
+                m.MailUploadAnalysis.result["sides"].contains(
+                    [{"side": side["side"], "sha256": side["sha256"]} for side in sides]
+                ),
+            )
+        )
+    )
+    for copy in copies:
+        history = list(copy.creative_evidence.get("assignment_history", []))
+        history.append(
+            {
+                "at": datetime.now(timezone.utc).isoformat(),
+                "previous_creative_id": str(copy.creative_id)
+                if copy.creative_id
+                else None,
+                "previous_method": copy.creative_evidence.get("method"),
+                "reason": "reviewed_reference_changed",
+            }
+        )
+        copy.creative_id = None
+        copy.creative_evidence = {
+            "method": "unresolved",
+            "automatic": True,
+            "assignment_history": history,
+        }
+        db.flush()
+        inherit_reviewed_creative(db, copy)
+    db.flush()

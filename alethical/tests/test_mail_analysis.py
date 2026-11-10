@@ -8,6 +8,26 @@ from alethical.api.services import mail_analysis
 from alethical.tests.test_mail_upload import session, draft, upload, storage as storage
 
 
+@pytest.fixture(autouse=True)
+def isolate_mail_queue(seed_database):
+    """Each test owns its disposable database's mail queue, never a live store."""
+    from sqlalchemy import delete
+    from alethical.db import models as m
+    from alethical.db.session import get_session_factory
+
+    with get_session_factory()() as db:
+        for model in (
+            m.MailUploadAnalysis,
+            m.MailUploadImage,
+            m.MailUploadSubmission,
+            m.MailUploadSession,
+            m.MailUploadInvitation,
+            m.MailUploadQuota,
+        ):
+            db.execute(delete(model))
+        db.commit()
+
+
 def test_disclosure_preserves_source_and_flags_cropped_edge():
     line = {
         "text": "Paid for by Restore Sanity. Not authorized by a candidate",
@@ -286,6 +306,21 @@ def test_creative_count_keeps_submissions_retries_and_tests_distinct(client):
         ]["count"]
         == 1
     )
+    with get_session_factory()() as db:
+        mail_analysis.assign_creative(
+            db,
+            ids[1],
+            matching_submission_id=ids[0],
+            excluded=False,
+            evidence="Same payer and substantive content on both sides",
+        )
+        db.commit()
+    assert (
+        client.get(paths[0] + "/analysis", headers=headers).json()["data"][
+            "matching_mailers"
+        ]["count"]
+        == 2
+    )
     assert (
         client.put(
             f"/api/v1/admin/mail-upload/submissions/{ids[0]}/analysis/creative",
@@ -516,3 +551,107 @@ def test_neighbor_website_is_not_attributed_to_disclosure_payer():
         "Our America",
     )
     assert result[0]["registration_number"] == "30807"
+
+
+@pytest.mark.usefixtures("storage")
+def test_reviewed_original_copies_inherit_but_similarity_never_assigns(client):
+    import uuid
+    from alethical.db import models as m
+    from alethical.db.session import get_session_factory
+
+    headers, _, _ = session(client)
+    paths = []
+    for _ in range(4):
+        path = draft(client, headers)
+        upload(client, path, headers, "front")
+        upload(client, path, headers, "back")
+        client.post(path + "/submit", headers=headers, json={"likes_ad": False})
+        paths.append(path)
+    ids = [uuid.UUID(path.rsplit("/", 1)[1]) for path in paths]
+
+    def result(prefix):
+        return {
+            "sides": [
+                {
+                    "side": side,
+                    "sha256": prefix + side,
+                    "image_fingerprint": "0000000000000000",
+                    "status": "read",
+                }
+                for side in ("front", "back")
+            ]
+        }
+
+    with get_session_factory()() as db:
+        root = mail_analysis.assign_creative(
+            db,
+            ids[0],
+            matching_submission_id=None,
+            excluded=False,
+            evidence="Both sides and payer reviewed as creative A",
+        )
+        root.result = result("same-")
+        copy = m.MailUploadAnalysis(submission_id=ids[1], result=result("same-"))
+        near = m.MailUploadAnalysis(submission_id=ids[2], result=result("different-"))
+        db.add_all([copy, near])
+        db.flush()
+        mail_analysis.inherit_reviewed_creative(db, copy)
+        assert copy.creative_id == root.creative_id
+        assert copy.creative_evidence["method"] == "reviewed_creative_same_originals"
+        mail_analysis.inherit_reviewed_creative(db, near)
+        assert near.creative_id is None
+        assert near.creative_evidence["similarity_candidates"]
+        target = mail_analysis.assign_creative(
+            db,
+            ids[3],
+            matching_submission_id=None,
+            excluded=False,
+            evidence="Both sides and payer reviewed as creative B",
+        )
+        target.result = result("target-")
+        mail_analysis.assign_creative(
+            db,
+            ids[0],
+            matching_submission_id=ids[3],
+            excluded=False,
+            evidence="Reviewed reference belongs to existing creative B",
+        )
+        db.flush()
+        db.refresh(copy)
+        assert copy.creative_id == target.creative_id
+        mail_analysis.assign_creative(
+            db,
+            ids[0],
+            matching_submission_id=ids[3],
+            excluded=True,
+            evidence="This reviewed reference is synthetic and excluded",
+        )
+        db.refresh(copy)
+        assert copy.creative_id is None
+        mail_analysis.assign_creative(
+            db,
+            ids[0],
+            matching_submission_id=ids[3],
+            excluded=False,
+            evidence="Confirmed real reference; restore comparison evidence",
+        )
+        db.refresh(copy)
+        assert copy.creative_id == target.creative_id
+        near.result = result("same-")
+        db.flush()
+        mail_analysis.assign_creative(
+            db,
+            ids[2],
+            matching_submission_id=None,
+            excluded=False,
+            evidence="Conflicting reviewed version must suspend derived matches",
+        )
+        db.refresh(copy)
+        assert copy.creative_id is None
+        assert copy.creative_evidence["conflicting_exact_references"] is True
+        assert copy.creative_evidence["assignment_history"]
+        db.commit()
+    public = client.get(paths[1] + "/analysis", headers=headers).json()["data"]
+    assert public["matching_mailers"]["count"] is None
+    assert "creative_evidence" not in public
+    assert str(ids[0]) not in str(public)

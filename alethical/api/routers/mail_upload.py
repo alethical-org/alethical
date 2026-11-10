@@ -259,7 +259,13 @@ def admin_analysis(submission_id: uuid.UUID, db: Session = Depends(get_db)):
     row = db.get(MailUploadSubmission, submission_id)
     if row is None:
         raise service.fail(404, "Mail not found")
-    return mail_analysis.response(db, row)
+    result = mail_analysis.response(db, row)
+    analysis = db.get(mail_analysis.m.MailUploadAnalysis, row.id)
+    result["data"]["creative_evidence"] = analysis.creative_evidence if analysis else {}
+    result["data"]["excluded_from_counts"] = (
+        analysis.excluded_from_counts if analysis else False
+    )
+    return result
 
 
 class CreativeAssignment(BaseModel):
