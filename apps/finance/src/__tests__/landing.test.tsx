@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SessionProvider } from '../auth/session';
 import { screensApproved } from '../config';
-import { CONNECTIONS, linePaths, type Measured } from '../landing/connections';
 import { copyDate, fetchCounts, figuresFrom, type ServedCounts } from '../landing/counts';
 import { FinanceSite, PublicSite } from '../landing/PublicSite';
 
@@ -105,22 +104,25 @@ describe('the public Finance site', () => {
     await renderAt('/');
     const text = container.textContent ?? '';
     for (const words of [
-      'Turn policy priorities into a focused giving strategy',
-      'Political intelligence for law firms and PACs',
-      'Connect money, people and policy',
-      'Printed names not yet confirmed, kept apart',
-      'Roll-call votes, by legislator',
-      'The connections we make',
-      'One record for each person and organization across elections, offices and roles',
+      'Connect political money, people and policy',
+      'Political intelligence for law firms, PACs and research teams',
+      'Start with a name, follow the connections',
+      'See who gives, who spends and who gets paid',
+      'Compare political money with election results',
+      'Put your research to work',
+      'Build on your research',
+      'Go straight to the evidence',
+      'Keep client work moving',
       'BUILT ON MINNESOTA PUBLIC RECORDS',
-      'WHAT IT DOES',
-      'Decide where to give, with evidence',
+      'Share Alethical Finance',
       'Sources and updates',
       'Minnesota Campaign Finance and Public Disclosure Board',
       'KSTP-TV, KARE and KMSP-TV, from the FCC’s public files',
     ]) {
       expect(text).toContain(words);
     }
+    expect(text).not.toContain('Printed names not yet confirmed');
+    expect(text).not.toContain('alethicalfinance.com');
     expect(document.title).toBe('Alethical Finance');
   });
 
@@ -165,7 +167,7 @@ describe('the public Finance site', () => {
     expect(text).toContain('Payment files copied Sep 1, 2026');
     expect(text).toContain('Bills updated Jul 14, 2026');
     // The station source stays named; only its unsupported date is left out.
-    expect(text).toContain('Media buys · Station files');
+    expect(text).toContain('Media buys · TV station files');
     expect(text).not.toMatch(/Station files copied/);
   });
 
@@ -298,50 +300,43 @@ describe('landing counts', () => {
 });
 
 describe('the connections diagram', () => {
-  it('draws the drawing’s 24 lines, only between neighbouring panes', () => {
-    expect(CONNECTIONS).toHaveLength(24);
-    for (const [from, to] of CONNECTIONS) {
-      expect(`${from[0]}${to[0]}`).toMatch(/^(mp|pq)$/);
-    }
-  });
-
-  const box = (left: number, top: number, width = 10, height = 10) => ({
-    left,
-    right: left + width,
-    top,
-    height,
-  });
-
-  it('runs each line from its record to the gutter and on to the target dot', () => {
-    const measured: Measured = {
-      frame: box(0, 0, 1000, 600),
-      text: () => box(20, 0, 200, 20),
-      dot: (id) =>
-        id[0] === 'm' ? box(0, 0, 7, 7) : id[0] === 'p' ? box(400, 100, 7, 7) : box(800, 200, 7, 7),
-      pane: (id) => (id === 'm' ? box(0, 0, 300, 500) : box(400, 0, 300, 500)),
-    };
-    const paths = linePaths(measured);
-    expect(paths).toHaveLength(24);
-    expect(paths[0]).toBe('M228 3.5 H306 C350.5 3.5 350.5 103.5 395 103.5');
-  });
-
-  it('starts a wrapped record’s line where its text ends, never running backwards', () => {
-    const wrapped: Measured = {
-      frame: box(0, 0, 1000, 600),
-      text: () => box(20, 0, 290, 20),
-      dot: (id) => (id[0] === 'p' || id[0] === 'q' ? box(400, 100, 7, 7) : box(0, 0, 7, 7)),
-      pane: () => box(0, 0, 300, 500),
-    };
-    expect(linePaths(wrapped)[0]).toMatch(/^M318 3\.5 H318 /);
-  });
-
-  it('draws no line when the panes are stacked', () => {
-    const stacked: Measured = {
-      frame: box(0, 0, 360, 2000),
-      text: () => box(20, 0, 200, 20),
-      dot: (id) => box(0, id[0] === 'm' ? 0 : 900, 7, 7),
-      pane: () => box(0, 0, 360, 600),
-    };
-    expect(linePaths(stacked)).toEqual([]);
+  it('names the supported paths for phone readers and assistive technology', async () => {
+    await renderAt('/');
+    const diagram = container.querySelector('figure[aria-label="Records connected"]')!;
+    const paths = [...diagram.querySelectorAll('.lp-named-paths > li')].map((row) => ({
+      sources: row.querySelector('.lp-path-source')!.textContent!.replace(/:$/, '').split(', '),
+      targets: [...row.querySelectorAll('.lp-path-targets > li')].map(
+        (target) => target.textContent,
+      ),
+    }));
+    const targetsOf = (source: string) =>
+      paths.find(({ sources }) => sources.includes(source))!.targets;
+    expect(
+      paths.reduce((sum, { sources, targets }) => sum + sources.length * targets.length, 0),
+    ).toBe(57);
+    expect(targetsOf('Contributions')).toEqual([
+      'Campaign committees',
+      'Committees and Funds',
+      'Party Units',
+    ]);
+    expect(targetsOf('Outside spending')).toEqual([
+      'Supports Candidates',
+      'Opposes Candidates',
+      'Races and results',
+    ]);
+    expect(paths).toContainEqual({
+      sources: [
+        'Campaign committees',
+        'Committees and Funds',
+        'Party Units',
+        'Media agencies',
+        'Buyers and signers',
+      ],
+      targets: ['TV ad buys'],
+    });
+    expect(paths).toContainEqual({
+      sources: ['People', 'Organizations'],
+      targets: ['Testimony', 'Documented involvement Bills', 'Issues and regulatory activity'],
+    });
   });
 });
