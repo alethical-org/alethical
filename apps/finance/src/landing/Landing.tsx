@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 
 import { useFinanceSession } from '../auth/session';
 import { Link } from '../router';
-import { PANES, linePaths, type RecordId } from './connections';
+import { Diagram } from './Diagram';
+import { LandingShare } from './LandingShare';
 import { copyDate, fetchCounts, figuresFrom, type ServedCounts } from './counts';
 import { startSilk, type Silk } from './silk';
 import './fonts.css';
@@ -14,32 +15,51 @@ import './landing.css';
  * counts and source dates are read live (./counts.ts).
  */
 
-const CONNECTIONS_WE_MAKE = [
-  'People and organizations are linked to their records by registration number or a checked confirmation with its evidence, never by a matching name alone',
-  'A TV station’s invoice is linked to the campaign payment it matches, and a station file to the committee or candidate it names',
-  'One record for each person and organization across elections, offices and roles',
-];
-
 const BENEFITS = [
   {
-    n: '01',
-    title: 'Follow political money',
+    title: 'See who gives, who spends and who gets paid',
     detail:
-      'Contributions, spending, outside spending, lobbying, media buys and who got paid, each linked to its source record',
+      'Follow contributions and payments across candidate campaigns, Committees and Funds, and Party Units. See who funds a campaign, who receives its spending and who pays for outside support or opposition.',
   },
   {
-    n: '02',
-    title: 'Check records against your priorities',
+    title: 'Understand the people behind the records',
     detail:
-      'Compare candidates’ and legislators’ records, authored bills and roll-call votes, on the issues you care about',
+      'Explore professional roles, firm ties, affiliations and political giving, including committee chairs, treasurers and officer history. Expand the connections around a profile to follow your next lead.',
   },
   {
-    n: '03',
-    title: 'Decide where to give, with evidence',
+    title: 'Put lobbying and legislation in context',
     detail:
-      'Recommendations from Alethical, linked to the records, before the election; a review of what happened after it',
+      'Connect lobbyists, firms and the clients they represent. Compare reported spending and explore documented involvement in bills, committee work and regulatory issues.',
+  },
+  {
+    title: 'See the business behind a media buy',
+    detail:
+      'Find an agency, client or station and explore the purchases that connect them. See who arranged and signed a buy, compare documented purchase amounts and commissions, and open the contracts and invoices behind them.',
+  },
+  {
+    title: 'Compare political money with election results',
+    detail:
+      'Compare campaign money and outside support or opposition with race and precinct results. See how candidates a contributor backed performed across races and election cycles.',
   },
 ];
+
+function Flow({ steps }: { steps: readonly [string, string, string] }) {
+  return (
+    <ol className="lp-flow" role="list">
+      {steps.map((step, index) => (
+        <li key={step}>
+          <span className="lp-dot" aria-hidden="true" />
+          {step}
+          {index < steps.length - 1 && (
+            <svg viewBox="0 0 24 26" width="24" height="26" aria-hidden="true" focusable="false">
+              <path d="M0 0 C0 15 24 10 24 26" />
+            </svg>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 function Mark({ size }: { size: number }) {
   return (
@@ -57,72 +77,6 @@ function Lockup({ className }: { className: string }) {
       <span className="lp-wordmark">ALETHICAL</span>
       <span className="lp-divider" aria-hidden="true" />
       <span className="lp-product">Finance</span>
-    </div>
-  );
-}
-
-function Diagram() {
-  const frame = useRef<HTMLDivElement>(null);
-  const [paths, setPaths] = useState<{
-    w: number;
-    h: number;
-    d: string[];
-  } | null>(null);
-
-  useLayoutEffect(() => {
-    const box = frame.current;
-    if (!box) return;
-    const measure = () => {
-      const f = box.getBoundingClientRect();
-      const at = (selector: string) => box.querySelector(selector)?.getBoundingClientRect() ?? null;
-      const d = linePaths({
-        frame: f,
-        text: (id: RecordId) => at(`[data-text="${id}"]`),
-        dot: (id: RecordId) => at(`[data-dot="${id}"]`),
-        pane: (id: string) => at(`[data-pane="${id}"]`),
-      });
-      setPaths((old) => {
-        const next = { w: f.width, h: f.height, d };
-        return old && old.w === next.w && old.h === next.h && old.d.join() === d.join()
-          ? old
-          : next;
-      });
-    };
-    measure();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-    observer?.observe(box);
-    window.addEventListener('resize', measure);
-    void document.fonts?.ready.then(measure);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, []);
-
-  return (
-    <div className="lp-diagram" ref={frame}>
-      {paths && paths.d.length > 0 && (
-        <svg className="lp-lines" width={paths.w} height={paths.h} aria-hidden="true">
-          {paths.d.map((d) => (
-            <path key={d} d={d} />
-          ))}
-        </svg>
-      )}
-      <ul className="lp-panes" aria-label="Records connected">
-        {PANES.map((pane) => (
-          <li key={pane.id} className="lp-pane" data-pane={pane.id}>
-            <span className="lp-eyebrow lp-eyebrow--teal">{pane.title}</span>
-            <ul className="lp-records">
-              {pane.records.map((record, index) => (
-                <li key={record} className="lp-record">
-                  <span className="lp-dot" data-dot={`${pane.id}${index}`} aria-hidden="true" />
-                  <span data-text={`${pane.id}${index}`}>{record}</span>
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -189,7 +143,7 @@ export function Landing() {
     },
     {
       name: 'KSTP-TV, KARE and KMSP-TV, from the FCC’s public files',
-      lines: [['Media buys · Station files', copyDate(counts, 'tv_station_files')]],
+      lines: [['Media buys · TV station files', copyDate(counts, 'tv_station_files')]],
     },
   ];
 
@@ -207,13 +161,18 @@ export function Landing() {
           <div className="lp-wrap">
             <header className="lp-top">
               <Lockup className="lp-lockup--hero" />
-              <Link to="/sign-in" className="lp-signin">
+              <Link
+                to="/sign-in"
+                className="lp-signin"
+                tabIndex={pastHero ? -1 : 0}
+                aria-hidden={pastHero}
+              >
                 Sign in
               </Link>
             </header>
             <div className="lp-hero-copy">
-              <h1 tabIndex={-1}>Turn policy priorities into a focused giving strategy</h1>
-              <p>Political intelligence for law firms and PACs</p>
+              <h1 tabIndex={-1}>Connect political money, people and policy</h1>
+              <p>Political intelligence for law firms, PACs and research teams</p>
               {screens && (
                 <Link className="lp-demo" to="/investor-access">
                   Investor access
@@ -222,18 +181,57 @@ export function Landing() {
             </div>
           </div>
         </div>
-        <div className="lp-light">
-          <h2>Connect money, people and policy</h2>
+        <section className="lp-story lp-wrap" aria-labelledby="lp-story-heading">
+          <h2 id="lp-story-heading">Start with a name, follow the connections</h2>
+          <p className="lp-story-intro">
+            Search across candidates, contributors, committees and organizations, then explore the
+            money, people and activity connected to them
+          </p>
           <Diagram />
-          <div className="lp-made">
-            <h3>The connections we make</h3>
-            <ul>
-              {CONNECTIONS_WE_MAKE.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
+          <div className="lp-benefits">
+            {BENEFITS.map(({ title, detail }) => (
+              <div key={title} className="lp-benefit">
+                <h3>{title}</h3>
+                <p>{detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+        <div className="lp-research">
+          <div className="lp-support lp-wrap">
+            <section aria-labelledby="lp-import-heading">
+              <h2 id="lp-import-heading">Put your research to work</h2>
+              <p>
+                Upload reports, review the evidence and add selected findings to relevant profiles
+                and records
+              </p>
+              <Flow steps={['Your reports', 'Supported findings', 'Connected records']} />
+            </section>
+            <div className="lp-support-stack">
+              <section aria-labelledby="lp-repeat-heading">
+                <h2 id="lp-repeat-heading">Build on your research</h2>
+                <p>Save sourced reports and comparisons, run them again and see what changed</p>
+              </section>
+              <section aria-labelledby="lp-evidence-heading">
+                <h2 id="lp-evidence-heading">Go straight to the evidence</h2>
+                <p>
+                  Open the filing, source document or passage behind a figure or relationship, so
+                  you can check the basis for your decisions
+                </p>
+              </section>
+            </div>
           </div>
         </div>
+        <section className="lp-support lp-service lp-wrap" aria-labelledby="lp-service-heading">
+          <div>
+            <h2 id="lp-service-heading">Keep client work moving</h2>
+            <p>
+              Bring files, research requests, feedback and approvals together in a private
+              workspace. Review and receive briefs with the sources behind them.
+            </p>
+          </div>
+          <Flow steps={['Files and requests', 'Research and review', 'Delivered briefs']} />
+        </section>
         <div className="lp-dark">
           <div className="lp-glow lp-glow--one" aria-hidden="true" />
           <div className="lp-glow lp-glow--two" aria-hidden="true" />
@@ -253,17 +251,7 @@ export function Landing() {
               </div>
             </div>
           )}
-          <div className="lp-benefits">
-            <h2 className="lp-eyebrow">WHAT IT DOES</h2>
-            {BENEFITS.map((benefit) => (
-              <div key={benefit.n} className="lp-benefit">
-                <span className="lp-benefit-line" aria-hidden="true" />
-                <div className="lp-benefit-n">{benefit.n}</div>
-                <h3>{benefit.title}</h3>
-                <p>{benefit.detail}</p>
-              </div>
-            ))}
-          </div>
+          <LandingShare />
         </div>
       </main>
       <section className="lp-sources" aria-labelledby="land-src-h">

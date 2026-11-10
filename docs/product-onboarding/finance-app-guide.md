@@ -17,14 +17,20 @@ app is its own React web app in `apps/finance`, not a mode of alethical.com's ap
 Until Finance's signed-in screens are approved, the build setting `VITE_FINANCE_SCREENS`
 stays off (anything other than `on`), and the app serves 3 addresses:
 
-- **`/`, the landing page**, from the approved Design drawing "Product Landing" in the
-  Alethical B2B project, word for word: the hero "Turn policy priorities into a focused giving
-  strategy" with "Political intelligence for law firms and PACs"; the money / people and
-  organizations / policy diagram with 24 unlabelled lines between neighbouring lists (none on a
-  phone, where the lists stack); "The connections we make" with 3 lines; 4 record counts; the 3
-  benefits under "What it does"; and "Sources and updates". The hero's background moves
-  slowly and follows the pointer; it is still for a reader who asks for reduced motion. A slim
-  bar with Sign in appears once the hero scrolls away.
+- **`/`, the expanded landing page**, follows the Product Landing drawing in Alethical B2B.
+  The hero reads “Connect political money, people and policy” and
+  “Political intelligence for law firms, PACs and research teams”. The chart directly below
+  it shows 57 supported research paths in 9 runs across money, people and organizations,
+  and policy and elections. On phones and for screen readers, the same paths are named in
+  text. The giving path links a contribution to its recipient committee, then the committee
+  to its candidate. A line does not claim influence, shared identity or a payment. Five benefits
+  follow the chart. Separate
+  visuals show research imports and client work, followed by the live figures, share action
+  and sources. The hero background moves slowly and follows the pointer; it is still for a
+  reader who asks for reduced motion. A slim bar with Sign in appears once the hero scrolls away.
+- **Share Alethical Finance** copies the canonical landing address with no account or page
+  state in it. It confirms the copy or lets the reader try again. The address is not printed
+  on the landing page.
 - **The counts** are read live from `GET /api/v1/finance/landing/counts`
   ([alethical-finance-architecture.md §9, Landing-page counts](../architecture/alethical-finance-architecture.md#9-landing-page-counts)):
   campaign money records with their years; lobbying spending reports with how many
@@ -48,6 +54,13 @@ stays off (anything other than `on`), and the app serves 3 addresses:
 With `VITE_FINANCE_SCREENS` set to `on`, the app is the signed-in site described in the rest
 of this guide. `/` stays the landing page for everyone, signed in or not, and Finance Home is
 `/home` (Design decision D20: 1 address never shows 2 pages).
+
+The [expanded landing release](https://github.com/alethical-org/alethical/issues/2936) is for
+the finished product. Keep it in review until each
+advertised workflow is available to its intended users, including profile exploration,
+election and precinct comparisons, research imports, saved research and client briefs.
+The preview and a working domain do not establish those capabilities. Verify the actual
+workflows and their evidence before merging or deploying the expanded copy.
 
 ## Ways in (screens on)
 
