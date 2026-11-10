@@ -8,19 +8,19 @@ Read both private photos, preserve the printed payer separately from any matched
 
 ## Live backend and remaining acceptance
 
-The backend is deployed at `114b7bf6ca6fa4cd4678e8480016fca10e65d494` with migration `0091_mail_analysis`. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. Analysis is temporarily disabled during that repair; those empty reads are not accepted results. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
+The backend runtime repair is live at `39779f404f58ea15fe585bb96716c1a3f191fa1b` with migration `0091_mail_analysis`, and analysis is enabled. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. The dependency is now present in the live runtime, verified through the enabled worker’s bounded startup check; initial empty reads were recovered after that proof. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
 
 Machine-read words are not checked transcriptions. A detected disclosure retains its quote, photo side, bounding box and cutoff warning; absent words are never reconstructed from the registry. Exact official-name hits are candidates, not confirmed identity. A missing number is not zero. Automatic corroboration requires independent registration, domain or address evidence from an official source; unresolved cases remain uncertain.
 
 ## Acceptance progress
 
 - Local OCR evaluated all 30 originals; detected disclosures on 9 sides in the initial pass. Final visual review found further readable disclosures, so production coverage must be compared with that private review; cropped or soft words remain unknown
-- 29 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
+- 37 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
 - Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
 - Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
 - Independent backend review passed the queue, access and matching checks; the final public-record retention correction passed its separate targeted review
 - Responsive results Design and frontend are separate work owned by the parent
-- Current-head CI passed; backend deployed, hash-checked initial groups applied and initial activation inspected. Runtime repair, targeted retry, full live result coverage and frontend acceptance remain open
+- Backend and runtime repair passed CI and deployed; hash-checked initial groups and runtime recovery are complete. Initial live coverage is recorded below. The bounded angled-disclosure correction, its targeted live recovery and final frontend acceptance remain open
 
 Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
 
@@ -71,13 +71,23 @@ These findings do not confirm which candidate registration paid for a mailer.
 The 30-original local evaluation took 173.6 seconds summed across photo reads
 (3.2–8.9 seconds per photo). The production worker processes one saved submission
 at a time per API process, outside upload requests; initial 15-pair processing is
-roughly 3–6 minutes including record reads, subject to host CPU/storage speed.
+host-dependent. The initial production batch took 607.5 seconds (10.1 minutes), with early
+pairs taking 29–46 seconds including storage and record reads.
 No artificial wait is added. Oldest saved submissions are claimed first. A
 later OCR failure retains earlier usable text and crop evidence with a partial
 reason. Transient record failures make the result retryable without rereading
 successful photo sides. A failed record refresh retains available evidence only for the same printed payer, registration, scope, source and year, with `refresh_failed: true`; its original snapshot and fetched date remain unchanged. Historical scratch reads are not seeded into production:
 they lack the final reader-version and provenance checks. Exact originals remain
-unchanged. `tesseract-english-v2` identifies this reader revision.
+unchanged. `tesseract-english-v3` adds one bounded sparse-column fallback for unresolved or
+low-confidence disclosure crops. Vertical context preserves angled lines; aligned
+continuations keep joint payer names together and omit neighboring postage columns.
+It adds at most one subprocess per anchor, bounded to 10 seconds within the same
+90-second image deadline and 3-anchor limit. Crop source bounds, deskew angle,
+segmentation mode and newly measured confidence remain attached to the quote.
+A partial hint alone never becomes a payer without a newly read paid-for-by line.
+A separately read street-address, PO-box or website line ends the extracted name;
+the full quote still retains that evidence. Number-bearing and joint payer names
+remain intact.
 
 ## Release and initial review
 
@@ -101,3 +111,22 @@ routes for the old sessions, whose private uploader tokens are not recoverable.
 Verify the initial 20 saved analysis rows, their 5 exclusions and 15 real results and source/partial
 states against the private originals. Disable the flag to stop new claims; retain
 results and originals. No deletion or destructive migration is part of release.
+
+## Initial live evidence
+
+Migration 0091, private hash-checked grouping and enabled local OCR were verified
+on the live service. All 15 initial real pairs produced text on both sides; none
+is certified character-complete. Initial payer excerpts appeared for 9 of 15,
+including several malformed readings that remain uncertain. Each of the 15
+visually distinct creative groups counted 1 saved submission; 5 known synthetic
+submissions were explicitly excluded. Original image and submission rows were
+unchanged by grouping and recovery.
+
+Bounded local checks of the changed reader recovered 3 readable angled disclosures,
+including a joint payer, while other malformed and clipped disclosures remained
+unresolved. After the corrected reader deploys, only the 3 proven improved sides
+are eligible for guarded recovery: private original-hash and prior-result checks,
+backup, dry run, then preserve the successful opposite side, grouping and prior
+public evidence. Do not treat processing completion as a complete transcription or
+manually fill missing words. Production recovery and final coverage remain to be
+verified; private reports retain exact quotations and remaining limits.
