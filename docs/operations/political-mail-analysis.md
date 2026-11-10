@@ -8,18 +8,31 @@ Read both private photos, preserve the printed payer separately from any matched
 
 ## Next design review
 
-The next results and capture changes must be drawn in `Mail upload.dc.html` in
-Alethical UX and reviewed by Eugene before application implementation. This hold
-applies to the new reading-speed work too; read-only investigation and rule updates
+Only item 6 of the current follow-up is in the design round: updated results in
+`Mail upload.dc.html` in Alethical UX, solving the reported reading delay, unclear
+source destinations and money direction, and unreadable text presentation. Eugene
+reviews the completed drawings before application implementation. This hold also
+applies to reading-speed implementation; read-only investigation and rule updates
 may proceed. The current upload and results release remains live.
 
-The design covers supplementary detail photos associated with Front or Back,
-optional signed-in history with the same upload results available to guests,
-clearer source destinations and money direction, useful results while remaining
-work finishes, and readable captured text with honest per-photo gaps and recovery.
+The design covers useful results while remaining work finishes, clear website and
+download links, contributions received versus money paid out, and readable captured
+text with honest per-photo gaps and recovery. Additional-photo controls, account
+history and file-reuse implementation are outside this drawing round.
 The public wording follows
-[reader-focused design principles](../design/design-principles.md#1-the-editorial-direction).
+[reader-focused design principles](../design/design-principles.md#1-what-alethical-should-feel-like).
 Technical labels are not required to communicate the source or uncertainty.
+
+## Follow-up roadmap
+
+Item 3, [Political mail account history](https://github.com/alethical-org/alethical/issues/2931),
+is agreed for the build roadmap, not for implementation or drawings in this
+round: optional account authentication and private upload history for signed-in
+users, while guests receive the same results without account history. Its future
+design and implementation must preserve the ownership boundary below.
+
+Supplementary Front/Back detail photos and file reuse remain follow-up work; no
+application build or deletion is authorized in this round.
 
 File reuse must preserve each fresh submission's new feedback. Identical bytes
 need one verified private original in each required store, with separate authorized
