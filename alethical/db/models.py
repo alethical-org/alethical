@@ -6497,3 +6497,34 @@ class MailUploadImage(Base):
         # in api/services/mail_upload.py, never the source archive mirror job.
         {"info": {"object_store": "private_mail"}},
     )
+
+
+class MailUploadAnalysis(Base):
+    """Private, retryable reading of a frozen submitted photo pair."""
+
+    __tablename__ = "mail_upload_analysis"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending','processing','ready','partial','failed')",
+            name="mail_analysis_status",
+        ),
+        CheckConstraint(
+            "attempts >= 0 AND attempts <= 3", name="mail_analysis_attempts"
+        ),
+    )
+    submission_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("mail_upload_submission.id"), primary_key=True
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # A creative is assigned only from a reviewed pair, never OCR/name similarity.
+    creative_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), index=True
+    )
+    confirmed_entity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("identity_entity.id")
+    )
+    confirmation_evidence: Mapped[Optional[str]] = mapped_column(Text)

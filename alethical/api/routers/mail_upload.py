@@ -19,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from alethical.api.rate_limit import rate_limit, trusted_client_ip
 from alethical.api.routers.admin import require_admin
 from alethical.api.services import mail_upload as service
+from alethical.api.services import mail_analysis
 from alethical.db.models import MailUploadImage, MailUploadSubmission
 from alethical.db.session import get_db
 
@@ -221,3 +222,33 @@ def original(
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+@router.get("/submissions/{submission_id}/analysis")
+def analysis(
+    submission_id: uuid.UUID,
+    token: str = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    row = service.owned(db, service.authorize(db, token), submission_id)
+    if row.saved_at is None:
+        raise service.fail(409, "Save this mail before reading its results")
+    return mail_analysis.response(db, row)
+
+
+@router.post("/submissions/{submission_id}/analysis/retry")
+def retry_analysis(
+    submission_id: uuid.UUID,
+    token: str = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    row = service.owned(db, service.authorize(db, token), submission_id, lock=True)
+    analysis = db.get(mail_analysis.m.MailUploadAnalysis, row.id)
+    if (
+        analysis is not None
+        and analysis.status in {"failed", "partial"}
+        and analysis.attempts < 3
+    ):
+        analysis.status = "pending"
+        db.commit()
+    return mail_analysis.response(db, row)
