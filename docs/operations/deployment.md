@@ -67,15 +67,19 @@ Use the repository `railway.json` config from the repo root. It configures a ser
 
 ### Restricted political mail activation
 
+Private analysis has a separate gate, `ALETHICAL_MAIL_ANALYSIS_ENABLED=true`, and
+additive migration `0091_mail_analysis`. The backend image includes Tesseract English.
+Enable only after [analysis acceptance](political-mail-analysis.md) passes; upload
+acceptance never waits for analysis. Disabling the gate retains existing results.
+
 The no-login mail demo is off unless `ALETHICAL_MAIL_UPLOAD_ENABLED=true`.
 Migration `0090_mail_upload` is additive and runs through the normal Railway
 before-deploy command. Its dedicated Supabase and R2 buckets must be private;
 they must not reuse the permanent public-source archive or its mirror.
 [Political mail upload](political-mail-upload.md#before-enabling) owns the exact
 settings, invitation commands, synthetic save/read-back checks and rollback.
-Check bucket privacy before enabling synthetic uploads, then verify the saved
-bytes in both stores. Real recipient mail remains held
-until retention and the related provider disclosure are settled. Reverting code
+Check bucket privacy, then verify saved bytes in both stores with controlled
+fixtures. Real mail uploads are authorized; retention duration remains unset. Reverting code
 or revoking an invitation does not erase stored originals or their backups.
 
 ### Preventing request pileups

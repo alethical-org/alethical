@@ -22,6 +22,7 @@ update work. A listed timer does not establish that its latest records are live.
 
 | Work | Starts when | What it does | Usage-based cost |
 | --- | --- | --- | --- |
+| Private mail analysis | API lifecycle, only when `ALETHICAL_MAIL_ANALYSIS_ENABLED=true` | Claims saved submissions with a fenced lease; reads originals locally, at most 90 seconds per side and 3 job attempts | No paid AI or outside OCR; existing server CPU and private-storage reads |
 | Public reader checks (`.github/workflows/reader-completion-checks.yml`) | A commit reaches `main`, a trusted caller, or by hand | Exercises real public reader actions and proves the intended website changes reached the live address | No paid AI call; existing GitHub runner usage and public GET reads |
 | Public search response checks (`.github/workflows/public-search-health.yml`) | Daily at 17:17 UTC, after successful trusted-main reader checks, or by hand; Monday samples more records | Checks public sitemaps, indexing instructions, useful initial text and separately allowed year/tab record views with bounded reads, retaining failure evidence for 35 days | No paid AI call or new service fee; existing GitHub runner usage and public GET reads |
 | Temporary page-failure evidence (`.github/workflows/page-failure-health.yml`) | Hourly, or by hand on trusted `main` | Saves bounded public-safe failure and recovery counts and types for 35 days; the daily search check detects missed or incomplete hours | No paid AI call or new service fee; standard free GitHub runner and existing Vercel read access |
@@ -115,7 +116,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 133 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 134 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -143,6 +144,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Test reader comments with a disposable database and all outgoing mail disabled | `comments_local_qa.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `record_disclosure_statement_readings.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Add, revoke or read 1 address on Alethical Finance's access list; the address comes only from the command's arguments | `finance_access.py` |
+| Validate and apply a private hash-checked creative review; dry run by default, only analysis metadata changes | `mail_analysis.py` |
 | Create or revoke a private political-mail demo invitation; secrets go to an exclusive private file outside the repo | `mail_upload.py` |
 | Create, rotate or revoke a shared Finance research login without placing passwords in command arguments | `finance_research_access.py` |
 | Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |

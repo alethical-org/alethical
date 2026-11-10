@@ -88,10 +88,12 @@ them to FastAPI. One Uvicorn process runs per container.
   per-process throttle plus hard byte, attempt and session limits locked in
   Postgres across replicas; it admits one image decode/storage operation per process.
 
-The mail demo starts a private session from the plain URL without account sign-in. Its five private tables keep credentials as digests, submission metadata,
+The mail demo starts a private session from the plain URL without account sign-in. Its private tables keep credentials as digests, submission metadata,
 reaction, optional message and original-file references. Copies are accepted only
-after Supabase and R2 read-back hashes agree. No queue or analysis service is added;
-[the mail guide](../operations/political-mail-upload.md) owns activation and limits.
+after Supabase and R2 read-back hashes agree. A separate, disabled-by-default local
+Tesseract worker reads saved originals into a private analysis table; row locks and
+fenced leases coordinate replicas. [Analysis operations](../operations/political-mail-analysis.md)
+owns its release status and bounds; [the mail guide](../operations/political-mail-upload.md) owns activation and limits.
 
 ## 3. The database
 
