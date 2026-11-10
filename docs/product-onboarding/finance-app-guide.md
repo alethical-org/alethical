@@ -55,13 +55,6 @@ With `VITE_FINANCE_SCREENS` set to `on`, the app is the signed-in site described
 of this guide. `/` stays the landing page for everyone, signed in or not, and Finance Home is
 `/home` (Design decision D20: 1 address never shows 2 pages).
 
-The [expanded landing release](https://github.com/alethical-org/alethical/issues/2936) is for
-the finished product. Keep it in review until each
-advertised workflow is available to its intended users, including profile exploration,
-election and precinct comparisons, research imports, saved research and client briefs.
-The preview and a working domain do not establish those capabilities. Verify the actual
-workflows and their evidence before merging or deploying the expanded copy.
-
 ## Ways in (screens on)
 
 - **Any Finance address.** A signed-out visitor is sent to `/sign-in`, which remembers the
