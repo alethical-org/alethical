@@ -26,6 +26,7 @@ from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.api.services import mail_upload
+from alethical.api.services.mail_public_records import public_records
 from alethical.api.services.mail_payer_sources import (
     corroborate,
     related_records,
@@ -232,70 +233,97 @@ def read_image(path: Path) -> dict:
         picture.thumbnail((4000, 4000))
         picture = picture.convert("RGB")
     with tempfile.TemporaryDirectory(prefix="mail-ocr-") as folder:
-        for angle in (0, 90, 180, 270):
-            if time.monotonic() >= deadline:
-                break
-            rotated = picture.rotate(angle, expand=True)
-            source = Path(folder) / "page.png"
-            rotated.save(source)
-            raw = subprocess.run(
-                [
-                    "tesseract",
-                    str(source.resolve()),
-                    "stdout",
-                    "-l",
-                    "eng",
-                    "--psm",
-                    "11",
-                    "tsv",
-                ],
-                capture_output=True,
-                timeout=max(0.1, min(25, deadline - time.monotonic())),
-                check=True,
-                env={**os.environ, "OMP_THREAD_LIMIT": "1"},
-            ).stdout.decode("utf-8", errors="replace")
-            lines = parse_tsv(raw)
-            quotes = disclosures(lines, *rotated.size)
-            # Sparse OCR interleaves neighboring columns. Re-read only the
-            # disclosure's own column so wrapped payer names stay in order.
-            for line in lines:
-                if not PAYER.search(line["text"]) and re.search(
-                    r"independent expenditure|prepared and|for by", line["text"], re.I
-                ):
-                    quotes.append(
-                        {
-                            "quote": line["text"],
-                            "payer_text": None,
-                            "quality": "machine_read",
-                            "edge_warning": False,
-                            "box": line["box"],
-                            "confidence": line["confidence"],
-                        }
+        try:
+            for angle in (0, 90, 180, 270):
+                if time.monotonic() >= deadline:
+                    break
+                rotated = picture.rotate(angle, expand=True)
+                source = Path(folder) / "page.png"
+                rotated.save(source)
+                raw = subprocess.run(
+                    [
+                        "tesseract",
+                        str(source.resolve()),
+                        "stdout",
+                        "-l",
+                        "eng",
+                        "--psm",
+                        "11",
+                        "tsv",
+                    ],
+                    capture_output=True,
+                    timeout=max(0.1, min(25, deadline - time.monotonic())),
+                    check=True,
+                    env={**os.environ, "OMP_THREAD_LIMIT": "1"},
+                ).stdout.decode("utf-8", errors="replace")
+                lines = parse_tsv(raw)
+                quotes = disclosures(lines, *rotated.size)
+                # Sparse OCR interleaves neighboring columns. Re-read only the
+                # disclosure's own column so wrapped payer names stay in order.
+                for line in lines:
+                    if not PAYER.search(line["text"]) and re.search(
+                        r"independent expenditure|prepared and|for by",
+                        line["text"],
+                        re.I,
+                    ):
+                        quotes.append(
+                            {
+                                "quote": line["text"],
+                                "payer_text": None,
+                                "quality": "machine_read",
+                                "edge_warning": False,
+                                "box": line["box"],
+                                "confidence": line["confidence"],
+                            }
+                        )
+                partial_reasons = []
+                refined_quotes = []
+                for quote in quotes[:3]:
+                    try:
+                        refined_quotes.append(
+                            refine_disclosure(rotated, quote, folder, deadline)
+                        )
+                    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                        refined_quotes.append(quote)
+                        partial_reasons.append("disclosure_reading_stopped")
+                quotes = refined_quotes
+                quotes = [quote for quote in quotes if quote["payer_text"]]
+                readable = [line for line in lines if line["confidence"] >= 60]
+                score = sum(len(line["text"]) for line in readable) + 1000 * len(quotes)
+                result = {
+                    "status": (
+                        "partial"
+                        if partial_reasons or any(q["edge_warning"] for q in quotes)
+                        else "read"
                     )
-            quotes = [
-                refine_disclosure(rotated, quote, folder, deadline)
-                for quote in quotes[:3]
-            ]
-            quotes = [quote for quote in quotes if quote["payer_text"]]
-            readable = [line for line in lines if line["confidence"] >= 60]
-            score = sum(len(line["text"]) for line in readable) + 1000 * len(quotes)
-            result = {
-                "status": "read" if readable else "unreadable",
-                "text": "\n".join(line["text"] for line in lines)[:60000],
-                "disclosures": quotes,
-                "rotation": angle,
-                "width": rotated.width,
-                "height": rotated.height,
-                "complete": False,
-            }
-            if best is None or score > best[0]:
-                best = (score, result)
-            # A useful upright read needs no speculative rotations. Completeness
-            # is still unknown, even when every recognized word is confident.
-            if time.monotonic() >= deadline or (
-                quotes and readable and all(q["confidence"] >= 70 for q in quotes)
-            ):
-                break
+                    if readable
+                    else "unreadable",
+                    "partial_reasons": partial_reasons
+                    + (
+                        ["disclosure_cut_off"]
+                        if any(q["edge_warning"] for q in quotes)
+                        else []
+                    ),
+                    "text": "\n".join(line["text"] for line in lines)[:60000],
+                    "disclosures": quotes,
+                    "rotation": angle,
+                    "width": rotated.width,
+                    "height": rotated.height,
+                    "complete": False,
+                }
+                if best is None or score > best[0]:
+                    best = (score, result)
+                # A useful upright read needs no speculative rotations. Completeness
+                # is still unknown, even when every recognized word is confident.
+                if time.monotonic() >= deadline or (
+                    quotes and readable and all(q["confidence"] >= 70 for q in quotes)
+                ):
+                    break
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            if best is None:
+                raise
+            best[1]["status"] = "partial"
+            best[1]["partial_reasons"] = ["reading_stopped"]
     return best[1]
 
 
@@ -389,6 +417,23 @@ def analyze(db, submission_id) -> dict:
         }
         for side, quote in quotes
     ]
+    # A candidate's public records remain under that candidate; they never
+    # establish that account paid for this piece. Bound distinct record reads.
+    records = {}
+    for payer in payers:
+        for candidate in payer["candidates"] + payer["related_records"]:
+            number = candidate["registration_number"]
+            if number not in records and len(records) < 3:
+                try:
+                    records[number] = public_records(number, submission.saved_at.year)
+                except Exception:
+                    records[number] = {
+                        "state": "unavailable",
+                        "registration_number": number,
+                    }
+            candidate["records"] = records.get(
+                number, {"state": "not_loaded", "registration_number": number}
+            )
     return {
         "version": VERSION,
         "sides": sides,
@@ -450,7 +495,7 @@ def drain_once():
             result = analyze(db, submission_id)
             status = (
                 "partial"
-                if any(side["status"] == "unreadable" for side in result["sides"])
+                if any(side["status"] != "read" for side in result["sides"])
                 else "ready"
             )
         except Exception:

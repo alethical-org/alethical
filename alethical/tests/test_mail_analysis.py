@@ -293,3 +293,66 @@ def test_creative_count_keeps_submissions_retries_and_tests_distinct(client):
         ).status_code
         == 401
     )
+
+
+def test_later_rotation_timeout_retains_useful_first_read(tmp_path, monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+    from PIL import Image
+
+    path = tmp_path / "photo.png"
+    Image.new("RGB", (100, 100), "white").save(path)
+    raw = b"block_num\tpar_num\tline_num\tleft\ttop\twidth\theight\tconf\ttext\n1\t1\t1\t20\t20\t50\t10\t90\tUseful text\n"
+    calls = 0
+
+    def run(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return SimpleNamespace(stdout=raw)
+        raise subprocess.TimeoutExpired("tesseract", 25)
+
+    monkeypatch.setattr(mail_analysis.subprocess, "run", run)
+    result = mail_analysis.read_image(path)
+    assert result["text"] == "Useful text"
+    assert result["status"] == "partial"
+    assert result["partial_reasons"] == ["reading_stopped"]
+    assert result["complete"] is False
+
+
+def test_public_record_encoding_preserves_amount_and_missing_values():
+    from datetime import date
+    from decimal import Decimal
+    from alethical.api.services.mail_public_records import serializable
+
+    encoded = serializable(
+        {
+            "amount": Decimal("9007199254740993.01"),
+            "missing": None,
+            "paid_on": date(2026, 10, 1),
+        }
+    )
+    assert encoded == {
+        "amount": "9007199254740993.01",
+        "missing": None,
+        "paid_on": "2026-10-01",
+    }
+
+
+def test_curated_candidates_remain_unconfirmed_and_keep_source_scope():
+    from alethical.api.services.mail_payer_sources import sourced_candidates
+
+    candidate = sourced_candidates("HEINTZEMAN FOR SENATE")[0]
+    assert candidate["scope"] == "candidate_record"
+    assert candidate["registration_number"] == "19205"
+    assert (
+        corroborate(
+            "HEINTZEMAN FOR SENATE",
+            "Paid for by HEINTZEMAN FOR SENATE",
+            edge_warning=False,
+            confidence=99,
+        )
+        is None
+    )
+    assert related_records("joinouramerica.org.")[0]["scope"] == "related_record"
+    assert related_records("joinouramerica.org.evil.example") == []

@@ -56,6 +56,7 @@ RELATED_RECORDS = (
         "checked_on": "2026-11-09",
         "basis": "same_website",
         "scope": "related_record",
+        "roles": [{"name": "Ed Molchany", "role": "Treasurer"}],
     },
 )
 
@@ -72,6 +73,19 @@ def related_records(quote: str) -> list[dict]:
 
 
 CANDIDATE_RECORDS = (
+    {
+        "printed_alias": "restore sanity",
+        "name": "Restore Sanity",
+        "registration_number": "41412",
+        "source_url": "https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/41412/2026/",
+        "checked_on": "2026-11-09",
+        "basis": "same_committee_name",
+        "scope": "candidate_record",
+        "roles": [
+            {"name": "Tyler Carlson", "role": "Chair"},
+            {"name": "Charles Gantt", "role": "Treasurer"},
+        ],
+    },
     {
         "printed_alias": "heintzeman for senate",
         "name": "Heintzeman (Keri) for Senate",

@@ -40,3 +40,24 @@ Its optional `matching_submission_id` points to an existing compared group; othe
 it assigns the submission's own stable group. `excluded_from_counts` explicitly marks
 synthetic data. `evidence` records the two-side/payer/version comparison. This does
 not establish an official payer match. Automatic creative comparison remains unfinished.
+
+## Public record response
+
+Each payer keeps its exact machine-read quote separate from `official_organization`,
+`candidates` and `related_records`. A checked organization is not a checked funding
+account. Each candidate/related registration may carry `records`: published snapshot,
+year, fetched date and independent `received`, `paid`, `independent_spending` blocks.
+Each block retains its existing public-reader state, official source URL, record
+numbers, payment dates, exact decimal amounts, total rows and `has_more`; only the
+latest 5 rows are embedded. An unavailable block never becomes zero. These rows
+show that registration's activity, not who funded an individual mailer. Only existing
+public campaign-money services are used; protected Finance research is not exposed.
+At most 3 registrations are read per analysis, each database statement bounded to
+10 seconds. Further alternatives say `not_loaded`.
+
+Read-only production inspection found useful 2026 records for Restore Sanity (21
+receipt rows, 71 outgoing rows, 71 independent-spending rows), Our America Minnesota
+Political Fund (26 receipt rows, no reported outgoing block, 26 independent-spending
+rows), and Heintzeman (Keri) for Senate (59 receipt rows, 8 outgoing rows, no reported
+independent-spending block). Overlapping blocks must never be added together.
+These findings do not confirm which candidate registration paid for a mailer.
