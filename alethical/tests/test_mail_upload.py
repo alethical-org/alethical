@@ -302,7 +302,7 @@ def test_admin_is_protected_and_tables_have_rls(client, storage):
                 "SELECT relname, relrowsecurity FROM pg_class WHERE relname LIKE 'mail_upload_%' AND relkind = 'r'"
             )
         ).all()
-        assert len(rows) == 5 and all(row[1] for row in rows)
+        assert len(rows) == 6 and all(row[1] for row in rows)
     from alethical.api.routers.admin import require_admin
 
     client.app.dependency_overrides[require_admin] = lambda: None

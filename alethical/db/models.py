@@ -6520,7 +6520,7 @@ class MailUploadAnalysis(Base):
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     result: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    # A creative is assigned only from a reviewed pair, never OCR/name similarity.
+    # Creative assignment retains its comparison evidence; names alone never group.
     creative_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), index=True
     )
@@ -6528,3 +6528,7 @@ class MailUploadAnalysis(Base):
         ForeignKey("identity_entity.id")
     )
     confirmation_evidence: Mapped[Optional[str]] = mapped_column(Text)
+    creative_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    excluded_from_counts: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )

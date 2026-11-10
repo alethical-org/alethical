@@ -45,3 +45,51 @@ def corroborate(
                 "scope": "organization",
             }
     return None
+
+
+RELATED_RECORDS = (
+    {
+        "name": "Our America Minnesota Political Fund",
+        "registration_number": "30807",
+        "domain": "joinouramerica.org",
+        "source_url": "https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/30807/2026/",
+        "checked_on": "2026-11-09",
+        "basis": "same_website",
+        "scope": "related_record",
+    },
+)
+
+
+def related_records(quote: str) -> list[dict]:
+    """A shared website connects records, not a particular funding account."""
+    domains = set(
+        re.findall(
+            r"(?<![a-z0-9.-])(?:https?://)?(?:www\.)?([a-z0-9-]+\.[a-z]{2,})(?![a-z0-9-]|\.[a-z0-9])",
+            quote.lower(),
+        )
+    )
+    return [dict(record) for record in RELATED_RECORDS if record["domain"] in domains]
+
+
+CANDIDATE_RECORDS = (
+    {
+        "printed_alias": "heintzeman for senate",
+        "name": "Heintzeman (Keri) for Senate",
+        "registration_number": "19205",
+        "source_url": "https://register.cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/19205/2026/",
+        "checked_on": "2026-11-09",
+        "basis": "similar_committee_name",
+        "scope": "candidate_record",
+        "person": "Keri Heintzeman",
+        "office": "Senate District 6",
+    },
+)
+
+
+def sourced_candidates(payer_text: str) -> list[dict]:
+    """Checked official alternatives retain an explicit unconfirmed scope."""
+    return [
+        {key: value for key, value in record.items() if key != "printed_alias"}
+        for record in CANDIDATE_RECORDS
+        if words(payer_text) == record["printed_alias"]
+    ]

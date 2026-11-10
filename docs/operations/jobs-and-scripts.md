@@ -22,6 +22,7 @@ update work. A listed timer does not establish that its latest records are live.
 
 | Work | Starts when | What it does | Usage-based cost |
 | --- | --- | --- | --- |
+| Private mail analysis | API lifecycle, only when `ALETHICAL_MAIL_ANALYSIS_ENABLED=true` | Claims saved submissions with a fenced lease; reads originals locally, at most 90 seconds per side and 3 job attempts | No paid AI or outside OCR; existing server CPU and private-storage reads |
 | Public reader checks (`.github/workflows/reader-completion-checks.yml`) | A commit reaches `main`, a trusted caller, or by hand | Exercises real public reader actions and proves the intended website changes reached the live address | No paid AI call; existing GitHub runner usage and public GET reads |
 | Public search response checks (`.github/workflows/public-search-health.yml`) | Daily at 17:17 UTC, after successful trusted-main reader checks, or by hand; Monday samples more records | Checks public sitemaps, indexing instructions, useful initial text and separately allowed year/tab record views with bounded reads, retaining failure evidence for 35 days | No paid AI call or new service fee; existing GitHub runner usage and public GET reads |
 | Temporary page-failure evidence (`.github/workflows/page-failure-health.yml`) | Hourly, or by hand on trusted `main` | Saves bounded public-safe failure and recovery counts and types for 35 days; the daily search check detects missed or incomplete hours | No paid AI call or new service fee; standard free GitHub runner and existing Vercel read access |

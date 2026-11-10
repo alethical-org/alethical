@@ -374,7 +374,7 @@ The profile actions and notifications are described in
 
 ### 2.11 Restricted political mail demo
 
-The no-login demo stores private originals and feedback. Its five tables are
+The no-login demo stores private originals and feedback. Its upload tables are
 `mail_upload_invitation`, `mail_upload_session`, `mail_upload_submission`,
 `mail_upload_image` and `mail_upload_quota`. They hold credential digests, tab and
 submission identifiers, timestamps, the Yes/No reaction, optional message, file
@@ -387,6 +387,11 @@ including any recipient address, barcode or photo metadata. Neither copy is part
 of the permanent public-source archive. Only the existing administrator access
 can inspect submitted originals; campaigns and the public receive no submissions.
 The approved uploader copy is “Your photos and comments stay private”.
+
+`mail_upload_analysis` additionally holds private machine-read text, disclosure crop
+coordinates, quality warnings and sourced identity evidence. It follows the same
+access and retention boundary as its submission. Local reading sends no photo or
+text to an outside OCR service.
 
 There is no automatic expiry or purge for these records or objects in this build.
 Session/invitation expiry and revocation stop access, not retention. Account deletion

@@ -15,19 +15,28 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image, ImageOps
+import numpy as np
 from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.api.services import mail_upload
-from alethical.api.services.mail_payer_sources import corroborate
+from alethical.api.services.mail_payer_sources import (
+    corroborate,
+    related_records,
+    sourced_candidates,
+)
 from alethical.db import models as m
 from alethical.db.session import get_session_factory
-from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
+from alethical.pipeline.campaign_finance_filings import (
+    live_filings_snapshot,
+    viewer_url,
+)
 
 logger = logging.getLogger(__name__)
 VERSION = "tesseract-english-v1"
@@ -66,9 +75,157 @@ def disclosures(lines: list[dict], width: int, height: int) -> list[dict]:
     return found
 
 
+def parse_tsv(raw):
+    grouped = {}
+    for word in csv.DictReader(
+        io.StringIO(raw), delimiter="\t", quoting=csv.QUOTE_NONE
+    ):
+        value = word.get("text", "").strip()
+        confidence = float(word.get("conf", "-1"))
+        if not value or confidence < 0:
+            continue
+        key = tuple(word[name] for name in ("block_num", "par_num", "line_num"))
+        x, y, w, h = (int(word[name]) for name in ("left", "top", "width", "height"))
+        grouped.setdefault(key, []).append((value, confidence, x, y, x + w, y + h))
+    return [
+        {
+            "text": " ".join(w[0] for w in words),
+            "confidence": round(sum(w[1] for w in words) / len(words), 1),
+            "box": [
+                min(w[2] for w in words),
+                min(w[3] for w in words),
+                max(w[4] for w in words),
+                max(w[5] for w in words),
+            ],
+        }
+        for words in grouped.values()
+    ]
+
+
+def deskew(image):
+    """Local projection pass on a small disclosure crop, without changing bytes."""
+    if np.median(np.asarray(image.convert("L"))) < 120:
+        image = ImageOps.invert(image)
+    sample = image.convert("L")
+    sample.thumbnail((800, 300))
+    pixels = np.asarray(sample)
+    threshold = float(np.percentile(pixels, 35))
+    mask = Image.fromarray(np.where(pixels < threshold, 255, 0).astype(np.uint8))
+    choices = []
+    for angle in range(-12, 13, 2):
+        turned = np.asarray(mask.rotate(angle, expand=False, fillcolor=0), dtype=float)
+        projection = turned.sum(axis=1)
+        choices.append((float(np.square(np.diff(projection)).sum()), angle))
+    angle = max(choices)[1]
+    return image.rotate(
+        angle, resample=Image.Resampling.BICUBIC, expand=True, fillcolor="white"
+    ), angle
+
+
+def refine_disclosure(rotated, quote, folder, deadline):
+    x1, y1, x2, y2 = quote["box"]
+    pad = max(12, (y2 - y1) // 2)
+    regions = [
+        (
+            max(0, x1 - pad),
+            max(0, y1 - pad),
+            min(rotated.width, x2 + pad),
+            min(rotated.height, y2 + 4 * (y2 - y1)),
+        ),
+        (
+            max(0, x1 - pad),
+            max(0, y1 - pad),
+            min(rotated.width, x2 + max(400, x2 - x1)),
+            min(rotated.height, y2 + 4 * (y2 - y1)),
+        ),
+        (
+            0,
+            max(0, y1 - pad),
+            min(rotated.width, x2 + pad),
+            min(rotated.height, y2 + 4 * (y2 - y1)),
+        ),
+    ]
+    best = None
+    for region in regions:
+        original_crop = rotated.crop(region)
+        for corrected, angle in ((original_crop, 0), deskew(original_crop)):
+            if time.monotonic() >= deadline:
+                break
+            path = Path(folder) / "disclosure.png"
+            corrected.save(path)
+            raw = subprocess.run(
+                [
+                    "tesseract",
+                    str(path.resolve()),
+                    "stdout",
+                    "-l",
+                    "eng",
+                    "--psm",
+                    "6",
+                    "tsv",
+                ],
+                capture_output=True,
+                check=True,
+                timeout=max(0.1, min(10, deadline - time.monotonic())),
+                env={**os.environ, "OMP_THREAD_LIMIT": "1"},
+            ).stdout.decode("utf-8", errors="replace")
+            lines = parse_tsv(raw)
+            start = next(
+                (i for i, line in enumerate(lines) if PAYER.search(line["text"])), None
+            )
+            if start is None:
+                continue
+            relevant = lines[start:]
+            refined = "\n".join(line["text"] for line in relevant)
+            match = PAYER.search(" ".join(refined.split()))
+            split = re.split(
+                r"[.;]|,?\s+https?://|,?\s+P\.?O\.?\s+Box\b|,\s+\d|\s+not\s+authorized",
+                match.group(1),
+                maxsplit=1,
+                flags=re.I,
+            )
+            payer = split[0].strip()
+            measured = relevant[: min(2, len(relevant))]
+            confidence = sum(line["confidence"] for line in measured) / len(measured)
+            edge = any(
+                line["box"][0] <= 3 or line["box"][2] >= corrected.width - 3
+                for line in measured
+            )
+            score = (
+                confidence
+                - 20 * edge
+                - 15 * (len(split) == 1)
+                - 20 * (len(payer) > 100)
+            )
+            if best is None or score > best[0]:
+                best = (
+                    score,
+                    {
+                        **quote,
+                        "quote": refined,
+                        "box": None,
+                        "payer_text": payer,
+                        "confidence": round(confidence, 1),
+                        "edge_warning": edge or quote["edge_warning"],
+                        "crop": {
+                            "source_box": list(region),
+                            "width": corrected.width,
+                            "height": corrected.height,
+                            "deskew_angle": angle,
+                        },
+                    },
+                )
+    chosen = best[1] if best else quote
+    if chosen.get("payer_text") and len(chosen["payer_text"]) > 100:
+        chosen["payer_text"] = None
+        chosen["edge_warning"] = True
+    return chosen
+
+
 def read_image(path: Path) -> dict:
     """Bound work and memory; preserve original file, including its metadata."""
     best = None
+    deadline = time.monotonic() + 90
     with Image.open(path) as original:
         original.draft("RGB", (4000, 4000))
         picture = ImageOps.exif_transpose(original)
@@ -76,6 +233,8 @@ def read_image(path: Path) -> dict:
         picture = picture.convert("RGB")
     with tempfile.TemporaryDirectory(prefix="mail-ocr-") as folder:
         for angle in (0, 90, 180, 270):
+            if time.monotonic() >= deadline:
+                break
             rotated = picture.rotate(angle, expand=True)
             source = Path(folder) / "page.png"
             rotated.save(source)
@@ -91,38 +250,11 @@ def read_image(path: Path) -> dict:
                     "tsv",
                 ],
                 capture_output=True,
-                timeout=25,
+                timeout=max(0.1, min(25, deadline - time.monotonic())),
                 check=True,
                 env={**os.environ, "OMP_THREAD_LIMIT": "1"},
             ).stdout.decode("utf-8", errors="replace")
-            grouped = {}
-            for word in csv.DictReader(
-                io.StringIO(raw), delimiter="\t", quoting=csv.QUOTE_NONE
-            ):
-                value = word.get("text", "").strip()
-                confidence = float(word.get("conf", "-1"))
-                if not value or confidence < 0:
-                    continue
-                key = tuple(word[name] for name in ("block_num", "par_num", "line_num"))
-                x, y, w, h = (
-                    int(word[name]) for name in ("left", "top", "width", "height")
-                )
-                grouped.setdefault(key, []).append(
-                    (value, confidence, x, y, x + w, y + h)
-                )
-            lines = [
-                {
-                    "text": " ".join(w[0] for w in words),
-                    "confidence": round(sum(w[1] for w in words) / len(words), 1),
-                    "box": [
-                        min(w[2] for w in words),
-                        min(w[3] for w in words),
-                        max(w[4] for w in words),
-                        max(w[5] for w in words),
-                    ],
-                }
-                for words in grouped.values()
-            ]
+            lines = parse_tsv(raw)
             quotes = disclosures(lines, *rotated.size)
             # Sparse OCR interleaves neighboring columns. Re-read only the
             # disclosure's own column so wrapped payer names stay in order.
@@ -140,48 +272,10 @@ def read_image(path: Path) -> dict:
                             "confidence": line["confidence"],
                         }
                     )
-            for quote in quotes:
-                x1, y1, x2, y2 = quote["box"]
-                pad = max(12, (y2 - y1) // 2)
-                region = (
-                    max(0, x1 - pad),
-                    max(0, y1 - pad),
-                    min(rotated.width, x2 + pad),
-                    min(rotated.height, y2 + 4 * (y2 - y1)),
-                )
-                crop = Path(folder) / "disclosure.png"
-                rotated.crop(region).save(crop)
-                refined = (
-                    subprocess.run(
-                        [
-                            "tesseract",
-                            str(crop.resolve()),
-                            "stdout",
-                            "-l",
-                            "eng",
-                            "--psm",
-                            "6",
-                        ],
-                        capture_output=True,
-                        timeout=10,
-                        check=True,
-                        env={**os.environ, "OMP_THREAD_LIMIT": "1"},
-                    )
-                    .stdout.decode("utf-8", errors="replace")
-                    .strip()
-                )
-                flattened = " ".join(refined.split())
-                match = PAYER.search(flattened)
-                if match:
-                    # Preserve the full machine quote; punctuation marks the end
-                    # of the printed name. Never complete words from a registry.
-                    quote["quote"] = refined
-                    quote["payer_text"] = re.split(
-                        r"[.;]|,?\s+https?://|,?\s+P\.?O\.?\s+Box\b|,\s+\d|\s+not\s+authorized",
-                        match.group(1),
-                        maxsplit=1,
-                        flags=re.I,
-                    )[0].strip()
+            quotes = [
+                refine_disclosure(rotated, quote, folder, deadline)
+                for quote in quotes[:3]
+            ]
             quotes = [quote for quote in quotes if quote["payer_text"]]
             readable = [line for line in lines if line["confidence"] >= 60]
             score = sum(len(line["text"]) for line in readable) + 1000 * len(quotes)
@@ -198,15 +292,18 @@ def read_image(path: Path) -> dict:
                 best = (score, result)
             # A useful upright read needs no speculative rotations. Completeness
             # is still unknown, even when every recognized word is confident.
-            if quotes and readable and all(q["confidence"] >= 70 for q in quotes):
+            if time.monotonic() >= deadline or (
+                quotes and readable and all(q["confidence"] >= 70 for q in quotes)
+            ):
                 break
     return best[1]
 
 
 def candidate_records(db, payer: str) -> list[dict]:
     snapshot = live_filings_snapshot(db)
+    curated = sourced_candidates(payer)
     if snapshot is None:
-        return []
+        return curated
     # Exact case-insensitive spelling only. A candidate is not a confirmed match.
     rows = db.scalars(
         select(m.CampaignFinanceFiler)
@@ -221,29 +318,49 @@ def candidate_records(db, payer: str) -> list[dict]:
             "name": row.name,
             "registration_number": row.registration_number,
             "snapshot_id": str(snapshot.id),
-            "source_url": "https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/",
+            "source_url": viewer_url(row.kind).removesuffix("api")
+            + row.registration_number
+            + "/",
         }
         for row in rows
-    ]
+        if row.registration_number
+        not in {item["registration_number"] for item in curated}
+    ] + curated
 
 
 def analyze(db, submission_id) -> dict:
     submission = db.get(m.MailUploadSubmission, submission_id)
     images = mail_upload.selected_images(db, submission)
     primary, _ = mail_upload.stores()
+    previous = db.get(m.MailUploadAnalysis, submission_id)
+    prior_sides = (
+        {side["side"]: side for side in (previous.result or {}).get("sides", [])}
+        if previous
+        else {}
+    )
     sides = []
     with tempfile.TemporaryDirectory(prefix="mail-analysis-") as folder:
         for side in ("front", "back"):
             row = images.get(side)
             if row is None or row.verified_at is None:
                 raise ValueError("Unverified image")
+            prior = prior_sides.get(side)
+            if (
+                prior
+                and prior.get("sha256") == row.sha256
+                and prior.get("status") == "read"
+            ):
+                sides.append(prior)
+                continue
             path = Path(folder) / side
-            primary.get(row.object_key, path, max_bytes=mail_upload.MAX_IMAGE_BYTES)
-            if hashlib.sha256(path.read_bytes()).hexdigest() != row.sha256:
-                raise ValueError("Image verification failed")
             try:
+                primary.get(row.object_key, path, max_bytes=mail_upload.MAX_IMAGE_BYTES)
+                if hashlib.sha256(path.read_bytes()).hexdigest() != row.sha256:
+                    raise ValueError("Image verification failed")
                 result = read_image(path)
-            except (subprocess.SubprocessError, OSError, ValueError):
+            except Exception:
+                # Failed storage/reading affects only this side. Keep the other
+                # successful side for the next bounded attempt; no provider body.
                 result = {
                     "status": "unreadable",
                     "text": "",
@@ -262,6 +379,7 @@ def analyze(db, submission_id) -> dict:
             "side": side,
             **quote,
             "candidates": candidate_records(db, quote["payer_text"]),
+            "related_records": related_records(quote["quote"]),
             "official_organization": corroborate(
                 quote["payer_text"],
                 quote["quote"],
@@ -372,42 +490,30 @@ def response(db, submission):
                 "matching_mailers": {"count": None},
             }
         }
-    # Exact-pair count is explicitly scoped to the same photos. It does not
-    # establish creative identity across recaptures, distinct people or reach.
-    images = mail_upload.selected_images(db, submission)
-    hashes = {image.sha256 for image in images.values()}
-    matching = (
-        select(m.MailUploadImage.submission_id)
-        .join(
-            m.MailUploadSubmission,
-            m.MailUploadSubmission.id == m.MailUploadImage.submission_id,
-        )
-        .where(
-            m.MailUploadSubmission.saved_at.is_not(None),
-            m.MailUploadImage.selected.is_(True),
-            m.MailUploadImage.sha256.in_(hashes),
-        )
-        .group_by(m.MailUploadImage.submission_id)
-        .having(
-            func.count() == 2,
-            func.count(func.distinct(m.MailUploadImage.sha256)) == len(hashes),
-        )
-        .subquery()
-    )
-    count = (
-        db.scalar(select(func.count()).select_from(matching))
-        if len(images) == 2
-        else None
-    )
-
     return {
         "data": {
             **row.result,
             "status": row.status,
             "can_retry": row.status in {"failed", "partial"} and row.attempts < 3,
             "matching_mailers": {
-                "count": count,
-                "basis": "same_photo_pair" if count is not None else None,
+                "count": db.scalar(
+                    select(func.count())
+                    .select_from(m.MailUploadAnalysis)
+                    .join(
+                        m.MailUploadSubmission,
+                        m.MailUploadSubmission.id == m.MailUploadAnalysis.submission_id,
+                    )
+                    .where(
+                        m.MailUploadSubmission.saved_at.is_not(None),
+                        m.MailUploadAnalysis.creative_id == row.creative_id,
+                        m.MailUploadAnalysis.excluded_from_counts.is_(False),
+                    )
+                )
+                if row.creative_id and not row.excluded_from_counts
+                else None,
+                "basis": row.creative_evidence.get("method")
+                if row.creative_id and not row.excluded_from_counts
+                else None,
             },
             "confirmed_entity_id": str(row.confirmed_entity_id)
             if row.confirmed_entity_id
@@ -439,3 +545,54 @@ async def mail_analysis_lifespan(app):
     finally:
         stop.set()
         await task
+
+
+def assign_creative(db, submission_id, *, matching_submission_id, excluded, evidence):
+    """Record an administrator's comparison of both sides and payer/version.
+
+    A separate submission of the same creative counts once; a network retry keeps
+    its original submission id. Test exclusions are explicit, never inferred from
+    a reaction, recipient, filename or date.
+    """
+    import uuid
+
+    submission = db.get(m.MailUploadSubmission, submission_id)
+    if submission is None or submission.saved_at is None:
+        raise mail_upload.fail(404, "Saved mail not found")
+    row = db.get(m.MailUploadAnalysis, submission_id)
+    if row is None:
+        row = m.MailUploadAnalysis(submission_id=submission_id)
+        db.add(row)
+        db.flush()
+    if matching_submission_id is not None:
+        other = db.get(m.MailUploadAnalysis, matching_submission_id)
+        other_submission = db.get(m.MailUploadSubmission, matching_submission_id)
+        if (
+            other is None
+            or other.creative_id is None
+            or other.excluded_from_counts
+            or other_submission is None
+            or other_submission.saved_at is None
+        ):
+            raise mail_upload.fail(409, "Matching mail needs a recorded creative")
+        creative_id = other.creative_id
+    else:
+        creative_id = uuid.uuid5(uuid.NAMESPACE_URL, f"mail-creative:{submission_id}")
+    history = list((row.creative_evidence or {}).get("history", []))
+    history.append(
+        {
+            "at": datetime.now(timezone.utc).isoformat(),
+            "previous_creative_id": str(row.creative_id) if row.creative_id else None,
+            "creative_id": str(creative_id),
+            "matching_submission_id": str(matching_submission_id)
+            if matching_submission_id
+            else None,
+            "excluded": excluded,
+            "evidence": evidence,
+        }
+    )
+    row.creative_id = creative_id
+    row.excluded_from_counts = excluded
+    row.creative_evidence = {"method": "reviewed_creative", "history": history}
+    db.flush()
+    return row

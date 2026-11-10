@@ -14,7 +14,8 @@ Machine-read words are not checked transcriptions. A detected disclosure retains
 
 ## Remaining acceptance
 
-- Evaluate all 30 supplied originals and retain private per-side findings; especially cropped disclosure on pair 3 back
+- Improved local OCR evaluated all 30 originals, finding disclosure candidates on 9 sides; fine print and cropped words remain incomplete, especially pair 3 back
+- 27 focused extraction, ownership, retry and upload tests pass; successful-side text is retained on retry
 - Add source-corroborated matches and useful existing-record connections; verify matches against official evidence
 - Establish explicit matching-creative evidence and counts; do not count name matches or people
 - Complete independent correctness/security review and queue recovery tests
@@ -22,3 +23,20 @@ Machine-read words are not checked transcriptions. A detected disclosure retains
 - Run current-main checks, merge, deploy, enable and verify actual private results
 
 Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
+
+## Creative counts
+
+A creative/version group counts saved submissions, excluding explicitly tagged
+synthetic records. Network retries reuse the submission identifier; separate
+submissions remain separate counts. This is not a count of people, households,
+physical pieces or delivered mail. Both sides and substantive content must agree;
+a changed payer or substantive version stays separate. A missing group has an
+unknown count, not zero. The private administrator assignment route retains its
+comparison evidence and change history. The initial 15 pairs were visually reviewed
+as distinct; their actual assignments and live counts remain release work.
+
+The assignment route is `PUT /api/v1/admin/mail-upload/submissions/{id}/analysis/creative`.
+Its optional `matching_submission_id` points to an existing compared group; otherwise
+it assigns the submission's own stable group. `excluded_from_counts` explicitly marks
+synthetic data. `evidence` records the two-side/payer/version comparison. This does
+not establish an official payer match. Automatic creative comparison remains unfinished.

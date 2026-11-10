@@ -183,13 +183,16 @@ including failures. Administrator inspection uses the existing administrator che
 | `GET /mail-upload/submissions/{id}` | Session; read only its own saved or unfinished submission |
 | `PUT /mail-upload/submissions/{id}/images/{front\|back}` | Session; bounded raw image body, accepted after both private copies pass read-back checks |
 | `POST /mail-upload/submissions/{id}/submit` | Session; save both photos, required reaction and optional message; identical retries reuse the result |
+| `GET /mail-upload/submissions/{id}/analysis` | Session; private analysis of its own saved submission |
+| `POST /mail-upload/submissions/{id}/analysis/retry` | Session; retry failed sides within the attempt bound |
+| `GET /admin/mail-upload/submissions/{id}/analysis` | Administrator; inspect private analysis |
 | `GET /admin/mail-upload/submissions` | Administrator; latest 100 records |
 | `GET /admin/mail-upload/submissions/{id}/images/{front\|back}` | Administrator; private original attachment with a hash check |
 
 All paths above follow `/api/v1`. The [political mail operations guide](../operations/political-mail-upload.md)
 owns request fields, byte and attempt limits, retry behavior, private storage and
-activation. This build collects uploads and feedback; extraction and record matching
-wait for sample mail. Real recipient collection waits for the retention decision.
+activation. [Private analysis](../operations/political-mail-analysis.md) owns the
+separate local OCR worker, evidence rules and release status. Real recipient collection waits for the retention decision.
 
 ## Editorial comments
 

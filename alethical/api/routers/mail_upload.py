@@ -252,3 +252,35 @@ def retry_analysis(
         analysis.status = "pending"
         db.commit()
     return mail_analysis.response(db, row)
+
+
+@admin_router.get("/submissions/{submission_id}/analysis")
+def admin_analysis(submission_id: uuid.UUID, db: Session = Depends(get_db)):
+    row = db.get(MailUploadSubmission, submission_id)
+    if row is None:
+        raise service.fail(404, "Mail not found")
+    return mail_analysis.response(db, row)
+
+
+class CreativeAssignment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    matching_submission_id: uuid.UUID | None = None
+    excluded_from_counts: StrictBool = False
+    evidence: str = Field(min_length=20, max_length=2000)
+
+
+@admin_router.put("/submissions/{submission_id}/analysis/creative")
+def assign_mail_creative(
+    submission_id: uuid.UUID,
+    body: CreativeAssignment,
+    db: Session = Depends(get_db),
+):
+    mail_analysis.assign_creative(
+        db,
+        submission_id,
+        matching_submission_id=body.matching_submission_id,
+        excluded=body.excluded_from_counts,
+        evidence=body.evidence,
+    )
+    db.commit()
+    return mail_analysis.response(db, db.get(MailUploadSubmission, submission_id))

@@ -3,7 +3,7 @@
 import pytest
 
 from alethical.api.services.mail_analysis import disclosures
-from alethical.api.services.mail_payer_sources import corroborate
+from alethical.api.services.mail_payer_sources import corroborate, related_records
 from alethical.api.services import mail_analysis
 from alethical.tests.test_mail_upload import session, draft, upload, storage as storage
 
@@ -86,7 +86,7 @@ def test_owned_results_queue_and_retry(client, monkeypatch):
     assert result["status"] == "ready"
     assert len(result["sides"]) == 2
     assert result["payer_status"] == "not_found"
-    assert result["matching_mailers"] == {"count": 1, "basis": "same_photo_pair"}
+    assert result["matching_mailers"] == {"count": None, "basis": None}
     assert result["confirmed_entity_id"] is None
     assert "object_key" not in response.text
     # Completed analyses are never silently run again.
@@ -146,4 +146,150 @@ def test_failed_worker_recovers_without_unbounded_retries(client, monkeypatch):
     assert (
         client.post(path + "/analysis/retry", headers=headers).json()["data"]["status"]
         == "failed"
+    )
+
+
+def test_related_website_record_does_not_claim_the_funding_account():
+    records = related_records("Paid for by Our America https://joinouramerica.org")
+    assert records[0]["scope"] == "related_record"
+    assert records[0]["registration_number"] == "30807"
+    assert related_records("https://joinouramerica.org.attacker.example") == []
+    assert related_records("https://notjoinouramerica.org") == []
+
+
+@pytest.mark.usefixtures("storage")
+def test_partial_retry_preserves_successful_side(client, monkeypatch):
+    headers, _, _ = session(client)
+    path = draft(client, headers)
+    upload(client, path, headers, "front")
+    upload(client, path, headers, "back")
+    client.post(path + "/submit", headers=headers, json={"likes_ad": True})
+    calls = []
+
+    def first_read(path):
+        calls.append(path.name)
+        if path.name == "back":
+            raise ValueError("unreadable")
+        return {
+            "status": "read",
+            "text": "front text",
+            "disclosures": [],
+            "complete": False,
+        }
+
+    monkeypatch.setattr(mail_analysis, "read_image", first_read)
+    mail_analysis.drain_once()
+    assert calls == ["front", "back"]
+    assert (
+        client.get(path + "/analysis", headers=headers).json()["data"]["status"]
+        == "partial"
+    )
+    client.post(path + "/analysis/retry", headers=headers)
+    calls.clear()
+
+    def recovered(path):
+        calls.append(path.name)
+        return {
+            "status": "read",
+            "text": "back text",
+            "disclosures": [],
+            "complete": False,
+        }
+
+    monkeypatch.setattr(mail_analysis, "read_image", recovered)
+    mail_analysis.drain_once()
+    assert calls == ["back"]
+    result = client.get(path + "/analysis", headers=headers).json()["data"]
+    assert result["status"] == "ready"
+    assert result["sides"][0]["text"] == "front text"
+
+
+@pytest.mark.usefixtures("storage")
+def test_analysis_admin_route_keeps_existing_auth_boundary(client):
+    import uuid
+
+    assert (
+        client.get(
+            f"/api/v1/admin/mail-upload/submissions/{uuid.uuid4()}/analysis"
+        ).status_code
+        == 401
+    )
+
+
+@pytest.mark.usefixtures("storage")
+def test_creative_count_keeps_submissions_retries_and_tests_distinct(client):
+    import uuid
+    from alethical.db.session import get_session_factory
+
+    headers, _, _ = session(client)
+    paths = []
+    for _ in range(3):
+        path = draft(client, headers)
+        upload(client, path, headers, "front")
+        upload(client, path, headers, "back")
+        for _ in range(2):
+            assert (
+                client.post(
+                    path + "/submit", headers=headers, json={"likes_ad": False}
+                ).status_code
+                == 200
+            )
+        paths.append(path)
+    ids = [uuid.UUID(path.rsplit("/", 1)[1]) for path in paths]
+    with get_session_factory()() as db:
+        first = mail_analysis.assign_creative(
+            db,
+            ids[0],
+            matching_submission_id=None,
+            excluded=False,
+            evidence="Both sides compared; this is a distinct creative version",
+        )
+        group = first.creative_id
+        mail_analysis.assign_creative(
+            db,
+            ids[0],
+            matching_submission_id=None,
+            excluded=False,
+            evidence="Both sides compared; this is a distinct creative version",
+        )
+        assert first.creative_id == group
+        mail_analysis.assign_creative(
+            db,
+            ids[1],
+            matching_submission_id=ids[0],
+            excluded=False,
+            evidence="Same payer and substantive content on both sides",
+        )
+        mail_analysis.assign_creative(
+            db,
+            ids[2],
+            matching_submission_id=ids[0],
+            excluded=True,
+            evidence="Explicit synthetic verification submission",
+        )
+        db.commit()
+    result = client.get(paths[0] + "/analysis", headers=headers).json()["data"]
+    assert result["matching_mailers"] == {"count": 2, "basis": "reviewed_creative"}
+    assert "history" not in result
+    with get_session_factory()() as db:
+        mail_analysis.assign_creative(
+            db,
+            ids[1],
+            matching_submission_id=None,
+            excluded=False,
+            evidence="Changed substantive content; split into a distinct version",
+        )
+        db.commit()
+    assert (
+        client.get(paths[0] + "/analysis", headers=headers).json()["data"][
+            "matching_mailers"
+        ]["count"]
+        == 1
+    )
+    assert (
+        client.put(
+            f"/api/v1/admin/mail-upload/submissions/{ids[0]}/analysis/creative",
+            json={"evidence": "Unauthorized attempt to group private mail"},
+        ).status_code
+        == 401
     )

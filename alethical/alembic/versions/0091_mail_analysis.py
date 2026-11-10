@@ -31,6 +31,13 @@ def upgrade():
             sa.ForeignKey("identity_entity.id"),
         ),
         sa.Column("confirmation_evidence", sa.Text()),
+        sa.Column("creative_evidence", pg.JSONB(), nullable=False, server_default="{}"),
+        sa.Column(
+            "excluded_from_counts",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
         sa.CheckConstraint(
             "status IN ('pending','processing','ready','partial','failed')",
             name="mail_analysis_status",
