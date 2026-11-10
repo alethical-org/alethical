@@ -19,7 +19,7 @@ Machine-read words are not checked transcriptions. A detected disclosure retains
 - Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
 - Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
 - Independent backend review passed the queue, access and matching checks; the final public-record retention correction passed its separate targeted review
-- Responsive results Design and frontend are live; final integration acceptance is owned by the parent
+- Responsive results Design and frontend are live. Independent live review verified upload, results, reset and the corrected official-source link; parent retains integration acceptance
 - Backend, runtime repair and bounded disclosure corrections passed CI and independent review, then deployed. Hash-checked initial groups, targeted live recovery and guarded rollback dry run passed; live coverage is recorded below
 
 Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
@@ -140,7 +140,9 @@ excluded synthetic submissions. There were 14 unsaved drafts. Initial-pair cover
 is distinct from this timestamped aggregate; new submissions need a fresh count.
 The 2 final controlled UI fixtures are excluded by exact original hashes, save
 windows and test comments. Their private session results remain accessible only
-through the existing ownership boundary.
+through the existing ownership boundary. The corrected second fixture displayed the
+matched organization and address; its official Minnesota Secretary of State source
+opened in a new tab without private data in the address.
 
 Delivery folders and private evidence are retained for follow-up. Remaining limits
 include the unresolved readings above and reliable recapture classification; neither
