@@ -79,6 +79,29 @@ async function captureReview(page: Page, info: TestInfo, name: string) {
   });
 }
 
+async function expectSuccessButtonInsidePadding(page: Page) {
+  const box = await page
+    .getByRole('button', { name: 'Upload another', exact: true })
+    .evaluate((button) => {
+      const card = button.closest('.success')!;
+      const bounds = card.getBoundingClientRect();
+      const style = getComputedStyle(card);
+      const control = button.getBoundingClientRect();
+      return {
+        left: control.left,
+        right: control.right,
+        contentLeft:
+          bounds.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft),
+        contentRight:
+          bounds.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight),
+        fitsText: button.scrollWidth <= button.clientWidth,
+      };
+    });
+  expect(box.left).toBeGreaterThanOrEqual(box.contentLeft - 1);
+  expect(box.right).toBeLessThanOrEqual(box.contentRight + 1);
+  expect(box.fitsText).toBe(true);
+}
+
 async function savedMail(page: Page, initial: MailAnalysis | null = result) {
   const base = new URL(test.info().project.use.baseURL!);
   if (!['localhost', '127.0.0.1'].includes(base.hostname))
@@ -856,7 +879,10 @@ for (const { width, scale } of [
     });
     await expect(page.getByText('Reading the front', { exact: true })).toBeVisible();
     await expect(page.getByText('Reading the back', { exact: true })).toHaveCount(0);
-    if (scale === 2) expect(await doubleAllText(page)).toEqual([]);
+    if (scale === 2) {
+      expect(await doubleAllText(page)).toEqual([]);
+      await expectSuccessButtonInsidePadding(page);
+    }
     await page.locator('.mail-results').scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
@@ -894,7 +920,10 @@ for (const { width, scale } of [
       payers: [],
     });
     await page.getByRole('button', { name: 'Back', exact: true }).click();
-    if (scale === 2) expect(await doubleAllText(page)).toEqual([]);
+    if (scale === 2) {
+      expect(await doubleAllText(page)).toEqual([]);
+      await expectSuccessButtonInsidePadding(page);
+    }
     await page.locator('.mail-results').scrollIntoViewIfNeeded();
     await expect(page.locator('.reading-notice')).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Front', exact: true })).toHaveCount(0);
