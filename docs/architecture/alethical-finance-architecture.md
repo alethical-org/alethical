@@ -7,9 +7,9 @@ political committees. It runs on the same records, database, server and product 
 alethical.com; only its screens are separate. Ordinary accounts have the same access; shared research accounts can only read, nothing in Finance links back to alethical.com, and every research tool lives in
 Finance.
 
-Finance's address is alethicalfinance.com, connected at launch. Until then it runs at
-finance.alethical.com, which serves only the public landing page and sign-in until the
-signed-in screens are approved.
+Finance's primary address is [alethicalfinance.com](https://alethicalfinance.com).
+Links to [finance.alethical.com](https://finance.alethical.com) redirect to the same
+page on the primary address.
 
 ## 1. Built once, used by both sites
 
@@ -465,7 +465,7 @@ of approval to build the graph frontend.
   ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
   An account that signs in but is not on the list sees the no-access state. Google returns
   to the page's own address, so Supabase's list of allowed return addresses needs
-  finance.alethical.com now and alethicalfinance.com at launch.
+  `https://alethicalfinance.com/**`.
 - **The server checks the list on every Finance request.** A request carrying an
   Authorization header is never marked cacheable (`default_public_cache` in
   `alethical/api/main.py`), so 1 account's response never reaches another.
