@@ -74,6 +74,7 @@ beforeEach(() => {
     result: structuredClone(result),
     error: null,
     retrying: false,
+    refreshing: false,
     retry: vi.fn(),
     refresh: vi.fn(),
   };
@@ -115,6 +116,22 @@ it('moves focus from a disappearing retry to the result heading only while that 
   current.result = { ...result, status: 'ready', can_retry: false };
   await render();
   expect(document.activeElement).toBe(photo);
+});
+
+it('returns a focused network recovery to Reading your mail when results are still queued', async () => {
+  current.result = null;
+  current.error = 'unavailable';
+  await render();
+  (container.querySelector('button.results-retry') as HTMLButtonElement).focus();
+  current.refreshing = true;
+  await render();
+  expect(document.activeElement?.textContent).toBe('Trying again…');
+  current.error = null;
+  current.refreshing = false;
+  current.result = { ...result, status: 'pending', payers: [], sides: [] };
+  await render();
+  expect(document.activeElement).toBe(container.querySelector('.reading'));
+  expect(document.activeElement?.textContent).toBe('Reading your mail');
 });
 
 it('keeps exact machine-read evidence separate from possible and related identities', async () => {

@@ -7,8 +7,15 @@ type State = {
   result: MailAnalysis | null;
   error: 'expired' | 'unavailable' | null;
   retrying: boolean;
+  refreshing: boolean;
 };
-const empty: State = { identity: null, result: null, error: null, retrying: false };
+const empty: State = {
+  identity: null,
+  result: null,
+  error: null,
+  retrying: false,
+  refreshing: false,
+};
 const working = (result: MailAnalysis) =>
   result.status === 'pending' || result.status === 'processing';
 
@@ -42,12 +49,12 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
     };
     setState({ ...empty, identity: key });
 
-    const load = async (retry = false) => {
+    const load = async (retry = false, refresh = false) => {
       if (!current() || busy || expired || (retry && !latest?.can_retry)) return;
       busy = true;
       if (retry) retryCycle = true;
       clearTimeout(timer);
-      update({ error: null, retrying: retryCycle });
+      update({ ...(refresh ? {} : { error: null }), retrying: retryCycle, refreshing: refresh });
       try {
         const next = await (retry ? retryMailAnalysis : getMailAnalysis)(token, id, {
           signal: controller.signal,
@@ -65,7 +72,7 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
                 payers: next.payers?.length ? next.payers : latest.payers,
               }
             : next;
-        update({ result: latest });
+        update({ result: latest, error: null });
         if (working(next)) timer = setTimeout(() => void load(), 2000);
         else retryCycle = false;
       } catch (error) {
@@ -78,7 +85,7 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
         });
       } finally {
         busy = false;
-        update({ retrying: retryCycle });
+        update({ retrying: retryCycle, refreshing: false });
       }
     };
     actions.current = {
@@ -86,7 +93,7 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
         void load(true);
       },
       refresh: () => {
-        void load();
+        void load(false, true);
       },
     };
     void load();
@@ -102,6 +109,7 @@ export function useMailAnalysis(submission: Pick<SavedMailSubmission, 'id' | 'to
     result: visible.result,
     error: visible.error,
     retrying: visible.retrying,
+    refreshing: visible.refreshing,
     retry: () => actions.current.retry(),
     refresh: () => actions.current.refresh(),
   };

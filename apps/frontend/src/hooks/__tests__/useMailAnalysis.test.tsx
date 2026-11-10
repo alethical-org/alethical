@@ -158,10 +158,19 @@ it('retains results on a network failure and refreshes without spending an analy
   });
   expect(hook.error).toBe('unavailable');
   expect(hook.result).toEqual(pending);
-  calls.get.mockResolvedValueOnce(partial);
-  await act(async () => hook.refresh());
+  const refresh = deferred<MailAnalysis>();
+  calls.get.mockReturnValueOnce(refresh.promise);
+  await act(async () => {
+    hook.refresh();
+    hook.refresh();
+  });
+  expect(hook.error).toBe('unavailable');
+  expect(hook.refreshing).toBe(true);
+  expect(calls.get).toHaveBeenCalledTimes(3);
+  await act(async () => refresh.resolve(partial));
   expect(hook.result).toEqual(partial);
   expect(hook.error).toBeNull();
+  expect(hook.refreshing).toBe(false);
   expect(calls.retry).not.toHaveBeenCalled();
 });
 

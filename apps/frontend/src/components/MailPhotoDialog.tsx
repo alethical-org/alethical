@@ -98,15 +98,10 @@ export function MailPhotoDialog({
         const controls = [
           ...event.currentTarget.querySelectorAll<HTMLElement>('button, [tabindex="0"]'),
         ];
-        const first = controls[0];
-        const last = controls.at(-1);
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last?.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first?.focus();
-        }
+        const index = controls.indexOf(document.activeElement as HTMLElement);
+        const next = (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+        event.preventDefault();
+        controls[next]?.focus();
       }}
       onCancel={(event) => {
         event.preventDefault();
@@ -245,18 +240,39 @@ export function MailPhotoDialog({
           }}
         >
           {unavailable ? (
-            <p role="alert" className="mail-photo-error">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <div className="mail-photo-failed">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect
+                  x="3.5"
+                  y="4.5"
+                  width="17"
+                  height="15"
+                  rx="2.5"
+                  stroke="#4f5651"
+                  strokeWidth="1.8"
+                />
+                <circle cx="9" cy="9.5" r="1.8" stroke="#4f5651" strokeWidth="1.6" />
                 <path
-                  d="M12 8V13M12 16.5V16.6M4 20H20L13.7 5A2 2 0 0 0 10.3 5Z"
-                  stroke="#a76a1a"
-                  strokeWidth="2"
+                  d="M4 17L9.5 12.5L13 15.5L16 13L20 16.5"
+                  stroke="#4f5651"
+                  strokeWidth="1.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>We couldn’t open this photo</span>
-            </p>
+              <div role="alert" className="mail-photo-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M12 8V13M12 16.5V16.6M4 20H20L13.7 5A2 2 0 0 0 10.3 5Z"
+                    stroke="#a76a1a"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span>We couldn’t open this photo</span>
+              </div>
+            </div>
           ) : (
             <>
               {!ready && <p role="status">Loading photo</p>}

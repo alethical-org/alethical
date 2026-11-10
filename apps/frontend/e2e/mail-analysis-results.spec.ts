@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import type { MailAnalysis } from '../src/data/mailAnalysis';
 
 // Synthetic image and isolated responses. Never upload to a real service.
@@ -191,6 +191,64 @@ test('a completed retry keeps evidence and returns focus to its related result',
   await expect(page.getByRole('heading', { name: 'Machine-read text', exact: true })).toBeFocused();
 });
 
+test('a browser photo decode failure leaves Close and the unavailable controls reachable', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await savedMail(page);
+  await page.getByRole('button', { name: 'View front photo', exact: true }).first().click();
+  await page.locator('.mail-photo-image-area img').evaluate((image) => {
+    (image as HTMLImageElement).src = 'data:image/png;base64,broken';
+  });
+  await expect(page.getByRole('alert')).toHaveText('We couldn’t open this photo');
+  for (const label of ['Zoom out', 'Zoom in', 'Fit photo'])
+    await expect(page.getByRole('button', { name: label, exact: true })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  await page.screenshot({ path: info.outputPath('photo-failed.png') });
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Upload another', exact: true })).toBeVisible();
+});
+
+test('GET recovery keeps focused busy and failed buttons, then focuses the retained result', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await savedMail(page, { ...result, status: 'pending' });
+  let hold = false;
+  let waiting: Route | null = null;
+  let retries = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/analysis/retry')) retries++;
+  });
+  await page.route('**/api/v1/mail-upload/submissions/*/analysis', (route) => {
+    if (hold) {
+      waiting = route;
+      return;
+    }
+    return route.fulfill({ status: 503, json: { detail: 'Synthetic transport failure' } });
+  });
+  const retry = page.getByRole('button', { name: 'Try again', exact: true });
+  await expect(retry).toBeVisible();
+  hold = true;
+  await retry.focus();
+  await page.keyboard.press('Enter');
+  const busy = page.getByRole('button', { name: 'Trying again…', exact: true });
+  await expect(busy).toBeFocused();
+  await expect.poll(() => waiting !== null).toBe(true);
+  await waiting!.fulfill({ status: 503, json: { detail: 'Synthetic transport failure' } });
+  waiting = null;
+  await expect(retry).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(busy).toBeFocused();
+  await expect.poll(() => waiting !== null).toBe(true);
+  await waiting!.fulfill({ json: { data: result } });
+  await expect(page.getByRole('heading', { name: 'Machine-read text', exact: true })).toBeFocused();
+  expect(retries).toBe(0);
+});
+
 // Enlarge every HTML node's actual computed text size and line height. This
 // tests text-only enlargement, including nested labels, dates and modal tools;
 // it is separate from the narrow CSS viewport/browser-zoom reflow checks.
@@ -240,7 +298,6 @@ for (const width of [320, 390]) {
     );
     await page.screenshot({ path: info.outputPath('money-text-200.png') });
     // Open a fresh page so every size doubles once, including the newly mounted dialog.
-    await page.reload();
     await savedMail(page);
     await page.getByRole('button', { name: 'View front photo', exact: true }).first().click();
     await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();

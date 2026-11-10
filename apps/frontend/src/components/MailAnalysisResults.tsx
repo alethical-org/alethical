@@ -31,7 +31,7 @@ const css = `
 .mail-results .view-photo svg{flex:none}.mail-results .reading{display:flex;align-items:center;gap:12px}.mail-results .reading-dot{width:12px;height:12px;border-radius:50%;background:#2ed47e;flex:none}
 .mail-upload .mail-photo-dialog{position:fixed;inset:10px;margin:0;padding:0;border:0;border-radius:20px;width:calc(100vw - 20px);height:calc(100dvh - 20px);max-width:none;max-height:none;color:#11150f;background:#fff;font-family:'Libre Franklin',sans-serif;overflow:visible;box-shadow:0 1px 2px rgba(17,21,15,.1),0 12px 26px rgba(17,21,15,.16),0 40px 80px rgba(17,21,15,.3)}
 .mail-photo-dialog::backdrop{background:rgba(17,21,15,.42)}.mail-photo-panel{padding:10px;box-sizing:border-box;height:100%;display:flex;flex-direction:column;gap:10px}
-.mail-photo-heading{display:flex;flex:none;align-items:center;justify-content:space-between;gap:12px;padding-left:8px}.mail-upload .mail-photo-heading h2{font-size:19px;line-height:1.25;font-weight:800;margin:0}.mail-photo-image-area{position:relative;flex:1;min-height:0;overflow:hidden;text-align:center;background:#e4e8e6;border-radius:12px;touch-action:none;user-select:none}.mail-photo-image-area img{position:absolute;left:50%;top:50%;max-width:none;max-height:none;object-fit:contain;transform-origin:center;pointer-events:none}.mail-photo-image-area p{padding:16px}.mail-photo-image-area .mail-photo-error{display:flex;align-items:flex-start;justify-content:center;gap:7px;color:#8f5a12;font-size:14px;line-height:1.45;font-weight:600}.mail-photo-error svg{flex:none;margin-top:2px}
+.mail-photo-heading{display:flex;flex:none;align-items:center;justify-content:space-between;gap:12px;padding-left:8px}.mail-upload .mail-photo-heading h2{font-size:19px;line-height:1.25;font-weight:800;margin:0}.mail-photo-image-area{position:relative;flex:1;min-height:0;overflow:hidden;text-align:center;background:#e4e8e6;border-radius:12px;touch-action:none;user-select:none}.mail-photo-image-area img{position:absolute;left:50%;top:50%;max-width:none;max-height:none;object-fit:contain;transform-origin:center;pointer-events:none}.mail-photo-image-area p{padding:16px}.mail-photo-failed{position:absolute;inset:0;background:#f5f6f7;border:1px solid #e0b673;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px}.mail-photo-image-area .mail-photo-error{display:flex;align-items:flex-start;gap:7px;color:#8f5a12;font-size:14.5px;line-height:1.45;font-weight:600;text-wrap:pretty}.mail-photo-error svg{flex:none;margin-top:2px}
 .mail-upload .mail-photo-dialog button{font:700 15px/1.3 'Libre Franklin',sans-serif;border:1px solid rgba(17,21,15,.16);border-radius:10px;background:#fff;min-height:44px;padding:0 14px 0 11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}.mail-upload .mail-photo-dialog button svg{flex:none;color:#4f5651}.mail-upload .mail-photo-dialog button:hover:not([aria-disabled="true"]){background:#f7f8fa;border-color:rgba(17,21,15,.3)}.mail-upload .mail-photo-dialog button[aria-disabled="true"]{border-color:rgba(17,21,15,.12);color:#8a908a;background:#fff;opacity:1;cursor:not-allowed}.mail-upload .mail-photo-dialog button[aria-disabled="true"] svg{color:#8a908a}.mail-upload .mail-photo-dialog .mail-photo-close{width:44px;height:44px;flex:none;justify-content:center;padding:0;border-radius:11px}.mail-photo-tools{display:flex;flex:none;flex-wrap:wrap;justify-content:center;gap:8px}.mail-upload .mail-photo-dialog button:focus-visible,.mail-photo-image-area:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}
 @media(max-width:1099px){.mail-upload .saved-results{grid-template-columns:minmax(0,1fr);gap:32px}.mail-upload .saved-results>.success{margin-top:0}}
 .mail-results .record-basis{font-size:15px;line-height:1.45;font-weight:600;color:#4f5651}
@@ -85,7 +85,12 @@ function PhotoButton({ side, open }: { side: MailImageSide; open: (side: MailIma
     <button
       type="button"
       className="view-photo"
-      onClick={() => open(side)}
+      onClick={(event) => {
+        // Safari does not focus buttons on pointer activation. Establish this
+        // trigger before the modal captures where Escape/Close should return.
+        event.currentTarget.focus({ preventScroll: true });
+        open(side);
+      }}
       aria-label={`View ${side} photo`}
     >
       <svg
@@ -142,7 +147,7 @@ function Retry({ busy, onClick }: { busy: boolean; onClick: () => void }) {
         const destination = heading?.isConnected
           ? heading
           : (results.querySelector<HTMLElement>('#mail-machine-text') ??
-            results.querySelector<HTMLElement>('h2'));
+            results.querySelector<HTMLElement>('h2, [role="status"][tabindex]'));
         destination?.focus({ preventScroll: true });
       });
     },
@@ -366,7 +371,7 @@ export function MailAnalysisResults({
         {announcement}
       </p>
       {reading && !analysis.retrying && !analysis.error && (
-        <section role="status" className="result-card reading">
+        <section role="status" tabIndex={-1} className="result-card reading">
           <Spinner />
           Reading your mail
         </section>
@@ -378,13 +383,13 @@ export function MailAnalysisResults({
               ? 'This upload session is no longer available'
               : 'We couldn’t load these results'}
           </Failure>
-          <button
-            type="button"
-            className="results-retry"
-            onClick={analysis.error === 'expired' ? onStartAgain : analysis.refresh}
-          >
-            {analysis.error === 'expired' ? 'Start again' : 'Try again'}
-          </button>
+          {analysis.error === 'expired' ? (
+            <button type="button" className="results-retry" onClick={onStartAgain}>
+              Start again
+            </button>
+          ) : (
+            <Retry busy={analysis.refreshing} onClick={analysis.refresh} />
+          )}
         </section>
       )}
       {result?.status === 'failed' && !retained && !analysis.error && (
