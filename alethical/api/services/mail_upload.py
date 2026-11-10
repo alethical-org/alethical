@@ -31,7 +31,8 @@ from alethical.db.models import (
 from alethical.pipeline.raw_file_store import RawFileStore, REQUIRED_ENV
 
 MAX_IMAGE_BYTES = 15 * 1024 * 1024
-MAX_PIXELS = 48_000_000
+# 50 MP camera output can be 8192 x 6144 (50,331,648 pixels).
+MAX_PIXELS = 51_000_000
 GLOBAL_BYTE_LIMIT = 2 * 1024 * 1024 * 1024
 GLOBAL_ATTEMPT_LIMIT = 2000
 INVITATION_ATTEMPT_LIMIT = 400

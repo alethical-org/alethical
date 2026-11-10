@@ -465,7 +465,7 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
                   h(
                     'p',
                     { className: 'helper', id: 'mail-helper' },
-                    'e.g. your feelings about this mail or how our tool could be more helpful',
+                    'e.g. thoughts about this mail or how our tool could be helpful',
                   ),
                   h('textarea', {
                     id: 'mail-comment',
@@ -521,7 +521,7 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
           h(
             'p',
             { className: 'intro' },
-            'See who paid for this mail and what public records show about them',
+            'See who paid for this and what public records show about them',
           ),
           content,
         )}
