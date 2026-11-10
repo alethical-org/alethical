@@ -46,6 +46,16 @@ credibility first.
   information available as text and usable with a screen reader without announcing the
   same chart data twice. This rule was approved on 26 September 2026; wording guidance
   is in [ui-copy-guide.md](ui-copy-guide.md#avoid-redundant-nearby-text).
+- **Describe the reader's result.** Use familiar labels for what people receive, keeping
+  technical machinery out unless it helps them decide or act. Political-mail text is a
+  case: use a reader-facing heading such as “Text from your mail”, not “Machine-read
+  text”. Reading copy may omit clear extraction artifacts, but keeps meaningful words,
+  numbers and qualifications. Never guess missing words or silently repair uncertain
+  readings. Keep source quotations exact, raw extraction privately, and source photos
+  within their access boundary. Mark unreadable gaps beside the affected photo; name
+  glare, cropping or another cause only when evidence supports it. A software failure
+  must not become an unsupported claim that the person took a poor photo. Design
+  handoffs and reviews check the result, gaps and useful recovery together.
 - **Neutral by construction.** Layout, color, and emphasis describe records; they never editorialize.
   We don't use visual weight to imply a position (see `grounded-answers.md` rule 3, grounded
   neutrality). Green is the brand, not a partisan signal.

@@ -6,6 +6,48 @@ Implementation owner: [Political mail text and evidence results](https://github.
 
 Read both private photos, preserve the printed payer separately from any matched official identity, count saved submissions for each matching creative version without claiming unique people or physical pieces, and show source-supported records and connections. The 15 supplied mailer pairs allow extraction work to proceed. Recipient details and originals stay private. Existing upload wording and behavior remain unchanged.
 
+## Next design review
+
+Only item 6 of the current follow-up is in the design round: updated results in
+`Mail upload.dc.html` in Alethical UX, solving the reported reading delay, unclear
+source destinations and money direction, and unreadable text presentation. Eugene
+reviews the completed drawings before application implementation. This hold also
+applies to reading-speed implementation; read-only investigation and rule updates
+may proceed. The current upload and results release remains live.
+
+The design covers useful results while remaining work finishes, clear website and
+download links, contributions received versus money paid out, and readable captured
+text with honest per-photo gaps and recovery. Additional-photo controls, account
+history and file-reuse implementation are outside this drawing round.
+The public wording follows
+[reader-focused design principles](../design/design-principles.md#1-what-alethical-should-feel-like).
+Technical labels are not required to communicate the source or uncertainty.
+
+## Follow-up roadmap
+
+Item 3, [Political mail account history](https://github.com/alethical-org/alethical/issues/2931),
+is agreed for the build roadmap, not for implementation or drawings in this
+round: optional account authentication and private upload history for signed-in
+users, while guests receive the same results without account history. Its future
+design and implementation must preserve the ownership boundary below.
+
+Supplementary Front/Back detail photos and file reuse remain follow-up work; no
+application build or deletion is authorized in this round.
+
+File reuse must preserve each fresh submission's new feedback. Identical bytes
+need one verified private original in each required store, with separate authorized
+submission references; a retry must not create another submission. Rephotographed
+mail requires a substantive two-side/version comparison, not matching payer text
+alone. Complementary images can supply missing evidence; redundant images add no
+new evidence. Removing a stored image requires proving that no retained submission
+or evidence reference needs it and coordinating both stores. No live deletion is
+authorized by this design review.
+
+Signing in cannot establish ownership of an earlier anonymous upload by itself.
+History needs an authenticated ownership link; any claim of a current guest upload
+must use its existing private access. Another person's comments, recipient details
+or original photos must never become visible through file or mailer matching.
+
 ## Live backend and remaining acceptance
 
 The corrected backend is live at `9d0f06115b8d34ebb125adaba21a015ba4195407` with migration `0091_mail_analysis`, and analysis is enabled. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. The dependency is now present in the live runtime, verified through the enabled worker’s bounded startup check; initial empty reads were recovered after that proof. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
@@ -73,7 +115,10 @@ The 30-original local evaluation took 173.6 seconds summed across photo reads
 at a time per API process, outside upload requests; initial 15-pair processing is
 host-dependent. The initial production batch took 607.5 seconds (10.1 minutes), with early
 pairs taking 29–46 seconds including storage and record reads.
-No artificial wait is added. Oldest saved submissions are claimed first. A
+The worker waits 5 seconds after each job; the browser polls every 2 seconds.
+Front and Back are read in sequence and results are written after both sides and
+public-record queries finish. These waits and delivery stages are targets of the
+next design review, not a measured speed improvement. Oldest saved submissions are claimed first. A
 later OCR failure retains earlier usable text and crop evidence with a partial
 reason. Transient record failures make the result retryable without rereading
 successful photo sides. A failed record refresh retains available evidence only for the same printed payer, registration, scope, source and year, with `refresh_failed: true`; its original snapshot and fetched date remain unchanged. Historical scratch reads are not seeded into production:
