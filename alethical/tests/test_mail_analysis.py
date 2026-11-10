@@ -814,3 +814,61 @@ def test_review_manifest_checks_hashes_and_does_not_mutate_originals(client):
             for side, row in mail_upload.selected_images(db, submission).items()
         }
         assert after == before
+
+
+def test_production_runtime_installs_local_ocr():
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    config = json.loads((root / "railpack.json").read_text())
+    assert {"tesseract-ocr", "tesseract-ocr-eng"} <= set(
+        config["deploy"]["aptPackages"]
+    )
+
+
+def test_missing_ocr_runtime_leaves_queue_unclaimed(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    monkeypatch.setenv("ALETHICAL_MAIL_ANALYSIS_ENABLED", "true")
+    monkeypatch.setattr(
+        mail_analysis,
+        "require_ocr_runtime",
+        lambda: (_ for _ in ()).throw(RuntimeError("missing OCR")),
+        raising=False,
+    )
+    calls = []
+    monkeypatch.setattr(mail_analysis, "drain_once", lambda: calls.append(True))
+
+    async def run():
+        async with mail_analysis.mail_analysis_lifespan(
+            SimpleNamespace(state=SimpleNamespace())
+        ):
+            await asyncio.sleep(0.02)
+
+    asyncio.run(run())
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "languages",
+    [
+        "List of available languages (1):\neng\n",
+        "List of available languages (1):\nfra\n",
+    ],
+)
+def test_runtime_requires_english_data(monkeypatch, languages):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(mail_analysis.shutil, "which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(
+        mail_analysis.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=languages),
+    )
+    if "eng" in languages.splitlines():
+        mail_analysis.require_ocr_runtime()
+    else:
+        with pytest.raises(RuntimeError, match="English"):
+            mail_analysis.require_ocr_runtime()

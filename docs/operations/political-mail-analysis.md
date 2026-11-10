@@ -6,21 +6,21 @@ Implementation owner: [Political mail text and evidence results](https://github.
 
 Read both private photos, preserve the printed payer separately from any matched official identity, count matching mailers separately from submissions or people, and show source-supported records and connections. The 15 supplied mailer pairs allow extraction work to proceed. Recipient details and originals stay private. Existing upload wording and behavior remain unchanged.
 
-## Build in progress
+## Live backend and remaining acceptance
 
-The `codex/mail-analysis` branch contains an additive private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. These changes are not deployed or enabled. Set `ALETHICAL_MAIL_ANALYSIS_ENABLED=true` only after migration and release checks. No request waits for OCR. No external OCR provider receives photos.
+The backend is deployed at `114b7bf6ca6fa4cd4678e8480016fca10e65d494` with migration `0091_mail_analysis`. It includes a private analysis table, local Tesseract extraction, bounded rotated/cropped reads, a durable background queue and owned results/retry routes. Initial activation exposed a missing production OCR dependency: Railway uses Railpack, not the local Dockerfile. Analysis is temporarily disabled during that repair; those empty reads are not accepted results. The active Railpack configuration includes Tesseract English, and the enabled worker checks the executable and language data before claiming work. A missing reader leaves the queue unclaimed and uploads available. No request waits for OCR. No external OCR provider receives photos.
 
 Machine-read words are not checked transcriptions. A detected disclosure retains its quote, photo side, bounding box and cutoff warning; absent words are never reconstructed from the registry. Exact official-name hits are candidates, not confirmed identity. A missing number is not zero. Automatic corroboration requires independent registration, domain or address evidence from an official source; unresolved cases remain uncertain.
 
 ## Acceptance progress
 
 - Local OCR evaluated all 30 originals; detected disclosures on 9 sides in the initial pass. Final visual review found further readable disclosures, so production coverage must be compared with that private review; cropped or soft words remain unknown
-- 25 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
+- 29 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
 - Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
 - Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
-- Independent backend review passed the queue, access and matching checks; the final public-record retention correction has a bounded follow-up review
+- Independent backend review passed the queue, access and matching checks; the final public-record retention correction passed its separate targeted review
 - Responsive results Design and frontend are separate work owned by the parent
-- Current-head checks, disabled backend deployment, hash-checked initial group assignments, activation and live result coverage remain release work
+- Current-head CI passed; backend deployed, hash-checked initial groups applied and initial activation inspected. Runtime repair, targeted retry, full live result coverage and frontend acceptance remain open
 
 Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
 
@@ -33,7 +33,7 @@ physical pieces or delivered mail. Both sides and substantive content must agree
 a changed payer or substantive version stays separate. A missing group has an
 unknown count, not zero. The private administrator assignment route retains its
 comparison evidence and change history. The initial 15 pairs were visually reviewed
-as distinct; their actual assignments and live counts remain release work.
+as distinct and assigned separate groups after all saved original hashes matched. Five known synthetic submissions are explicitly excluded. The application preserved the original upload rows; private before/after evidence and a guarded grouping rollback remain available.
 
 The assignment route is `PUT /api/v1/admin/mail-upload/submissions/{id}/analysis/creative`.
 Its optional `matching_submission_id` points to an existing compared group; otherwise
@@ -93,8 +93,9 @@ for hash-checked dry run, then the same command with `--apply`. It validates eve
 saved/verified pair before writing only analysis grouping metadata in one transaction.
 It never writes image rows, bytes, reaction or comments. Repeating a decision is
 idempotent; correction history remains private. Keep the private manifest as evidence.
-Keep analysis disabled until the results interface is ready and the parent owner
-gives the enable signal. Then enable `ALETHICAL_MAIL_ANALYSIS_ENABLED=true`; saved rows are queued automatically,
+After backend checks, live migration verification and the hash-checked manifest pass,
+analysis may activate while the results interface finishes. Enable
+`ALETHICAL_MAIL_ANALYSIS_ENABLED=true`; saved rows are queued automatically,
 so no separate OCR backfill command is needed. Use existing administrator result
 routes for the old sessions, whose private uploader tokens are not recoverable.
 Verify the initial 20 saved analysis rows, their 5 exclusions and 15 real results and source/partial
