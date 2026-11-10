@@ -161,6 +161,22 @@ def disclosure_column(lines, start):
     return selected
 
 
+def payer_context(quote):
+    """Stop a name at a separately read address/site line; retain the full quote."""
+    kept = []
+    for line in quote.splitlines():
+        if kept and re.search(
+            r"^\s*(?:https?://|www\.|P\.?\s*O\.?\s+Box\b|"
+            r"\d{1,6}\s+.+\b(?:street|st|avenue|ave|boulevard|blvd|road|rd|"
+            r"lane|ln|drive|dr|way|court|ct|highway|hwy)\b)",
+            line,
+            re.I,
+        ):
+            break
+        kept.append(line)
+    return " ".join(" ".join(kept).split())
+
+
 def refine_disclosure(rotated, quote, folder, deadline):
     x1, y1, x2, y2 = quote["box"]
     pad = max(12, (y2 - y1) // 2)
@@ -237,7 +253,7 @@ def refine_disclosure(rotated, quote, folder, deadline):
                     continue
                 relevant = disclosure_column(lines, start) if sparse else lines[start:]
                 refined = "\n".join(line["text"] for line in relevant)
-                match = PAYER.search(" ".join(refined.split()))
+                match = PAYER.search(payer_context(refined))
                 split = re.split(
                     r"[.;]|,?\s+https?://|,?\s+P\.?O\.?\s+Box\b|,\s+\d|\s+not\s+authorized",
                     match.group(1),

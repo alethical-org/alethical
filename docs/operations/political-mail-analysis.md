@@ -15,7 +15,7 @@ Machine-read words are not checked transcriptions. A detected disclosure retains
 ## Acceptance progress
 
 - Local OCR evaluated all 30 originals; detected disclosures on 9 sides in the initial pass. Final visual review found further readable disclosures, so production coverage must be compared with that private review; cropped or soft words remain unknown
-- 33 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
+- 37 analysis tests pass, including useful text and records retained after failed retries; 22 upload tests passed with the prior analysis head
 - Official-source corroboration and existing public receipt/payment records are implemented, with uncertain registration matches kept separate
 - Reviewed creative groups and exact-original inheritance are implemented; near-image hints cannot establish a group
 - Independent backend review passed the queue, access and matching checks; the final public-record retention correction passed its separate targeted review
@@ -85,6 +85,9 @@ It adds at most one subprocess per anchor, bounded to 10 seconds within the same
 90-second image deadline and 3-anchor limit. Crop source bounds, deskew angle,
 segmentation mode and newly measured confidence remain attached to the quote.
 A partial hint alone never becomes a payer without a newly read paid-for-by line.
+A separately read street-address, PO-box or website line ends the extracted name;
+the full quote still retains that evidence. Number-bearing and joint payer names
+remain intact.
 
 ## Release and initial review
 

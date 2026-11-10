@@ -985,3 +985,50 @@ def test_sparse_fallback_does_not_turn_fragment_into_payer(tmp_path, monkeypatch
         Image.new("RGB", (800, 500), "white"), quote, tmp_path, time.monotonic() + 20
     )
     assert result["payer_text"] is None
+
+
+def test_address_line_does_not_become_payer_name(tmp_path, monkeypatch):
+    import time
+    from types import SimpleNamespace
+    from PIL import Image
+
+    raw = b"block_num\tpar_num\tline_num\tleft\ttop\twidth\theight\tconf\ttext\n1\t1\t1\t20\t20\t480\t20\t97\tPaid for by the Republican Party of Minnesota\n1\t1\t2\t20\t50\t470\t20\t97\t7400 Metro Blvd Ste 424, Edina MN 55439\n1\t1\t3\t20\t80\t200\t20\t97\twww.mngop.org\n"
+    monkeypatch.setattr(
+        mail_analysis.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=raw),
+    )
+    quote = {
+        "quote": "Paid for by the Republican Party of Minnesota",
+        "payer_text": "the Republican Party of Minnesota",
+        "confidence": 97,
+        "box": [60, 300, 570, 330],
+        "edge_warning": False,
+    }
+    result = mail_analysis.refine_disclosure(
+        Image.new("RGB", (900, 600), "white"), quote, tmp_path, time.monotonic() + 20
+    )
+    assert result["payer_text"] == "the Republican Party of Minnesota"
+    assert "7400 Metro Blvd Ste 424, Edina MN 55439\nwww.mngop.org" in result["quote"]
+    assert (
+        corroborate(
+            result["payer_text"],
+            result["quote"],
+            edge_warning=False,
+            confidence=result["confidence"],
+        )["scope"]
+        == "organization"
+    )
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "350 Action",
+        "District 6 Committee",
+        "Republican Party of\nMinnesota and Senate Victory Fund",
+    ],
+)
+def test_payer_context_preserves_numbered_and_joint_names(name):
+    quote = "Paid for by " + name + "\n7400 Metro Blvd, Edina MN 55439\nwww.mngop.org"
+    assert mail_analysis.payer_context(quote) == "Paid for by " + " ".join(name.split())
