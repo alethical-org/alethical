@@ -386,7 +386,7 @@ Cloudflare R2 bucket holds the verified backup. Originals preserve all bytes,
 including any recipient address, barcode or photo metadata. Neither copy is part
 of the permanent public-source archive. Only the existing administrator access
 can inspect submitted originals; campaigns and the public receive no submissions.
-The approved uploader copy is “Your photos and comments stay private to Alethical”.
+The approved uploader copy is “Your photos and comments stay private”.
 
 There is no automatic expiry or purge for these records or objects in this build.
 Session/invitation expiry and revocation stop access, not retention. Account deletion

@@ -497,11 +497,7 @@ export function MailUploadScreen({ navigation }: RootScreenProps<'MailUpload'>) 
                           ? 'Try again'
                           : 'Submit',
                     ),
-                    h(
-                      'p',
-                      { className: 'privacy' },
-                      'Your photos and comments stay private to Alethical',
-                    ),
+                    h('p', { className: 'privacy' }, 'Your photos and comments stay private'),
                   ),
                 ),
               ),
