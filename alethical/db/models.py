@@ -6458,7 +6458,7 @@ class MailUploadSubmission(Base):
 
 
 class MailUploadImage(Base):
-    """Immutable originals; only a verified version can become the selected side."""
+    """Owned references to private originals, shared only for identical bytes."""
 
     __tablename__ = "mail_upload_image"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -6473,14 +6473,18 @@ class MailUploadImage(Base):
     content_type: Mapped[str] = mapped_column(String(32), nullable=False)
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
-    object_key: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    verification_generation: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     selected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     __table_args__ = (
         UniqueConstraint("submission_id", "side", "sha256"),
+        Index("ix_mail_upload_image_sha256", "sha256"),
         CheckConstraint("side IN ('front', 'back')", name="side"),
         CheckConstraint("byte_count > 0 AND byte_count <= 15728640", name="byte_limit"),
         CheckConstraint(

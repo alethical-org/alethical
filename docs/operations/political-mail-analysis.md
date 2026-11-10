@@ -6,47 +6,75 @@ Implementation owner: [Political mail text and evidence results](https://github.
 
 Read both private photos, preserve the printed payer separately from any matched official identity, count saved submissions for each matching creative version without claiming unique people or physical pieces, and show source-supported records and connections. The 15 supplied mailer pairs allow extraction work to proceed. Recipient details and originals stay private. Existing upload wording and behavior remain unchanged.
 
-## Next design review
+## Approved results build
 
-Only item 6 of the current follow-up is in the design round: updated results in
-`Mail upload.dc.html` in Alethical UX, solving the reported reading delay, unclear
-source destinations and money direction, and unreadable text presentation. Eugene
-reviews the completed drawings before application implementation. This hold also
-applies to reading-speed implementation; read-only investigation and rule updates
-may proceed. The current upload and results release remains live.
+Section 09 of `Mail upload.dc.html` in [Alethical UX](https://claude.ai/design/p/e592f874-1b47-4dda-a8d9-2e9f086f2bac?file=Mail+upload.dc.html)
+is the approved results drawing. Section 08 remains its live baseline. Implementation
+includes the results presentation and exact-file reuse; deployment follows the
+focused tests, independent review and live checks. Processing-speed changes remain
+on the roadmap, including the progressive-result states drawn in section 09.
 
-The design covers useful results while remaining work finishes, clear website and
-download links, contributions received versus money paid out, and readable captured
-text with honest per-photo gaps and recovery. Additional-photo controls, account
-history and file-reuse implementation are outside this drawing round.
+The results identify the source photo with “From the front” or “From the back”,
+retain the printed payer quote exactly, and remove the visible matching-mailer count.
+Internal creative grouping and counts remain available. A related record is never
+promoted to a confirmed payer merely because its website matches.
+
+For Our America Minnesota Political Fund, the approved summary appears only when
+its attached records support every stated contributor, vendor, purpose and candidate:
+“Records show contributions from Our America and payments to Bilander Media for
+digital ads and texts supporting Lisa Demuth. They don’t identify who produced this
+mailer.” Another registration never receives this example's claim. A printed and
+source-checked website is a visible new-tab link, not the phrase “Same website”.
+
+“Contributions received” explains money or donated goods and services given to the
+fund (or committee). Its expandable “What counts as a contribution?” explains an
+organization's allocation to its own political fund, supported by
+[Minnesota Statutes 10A.01, subdivision 11](https://www.revisor.mn.gov/statutes/cite/10A.01#stat.10A.01.11).
+This general definition does not establish an internal transfer in any particular row.
+Common contributor, vendor and candidate context appears once above the rows only
+when it applies to every displayed row. Full row dates carry the year; empty or
+otherwise ambiguous groups retain their period. Distinct money directions stay
+separate and their totals are never added together.
+
+Known state CSV links state the download format, all-filer scope and potential wait.
+Unknown source formats remain source links without an invented download promise.
+Shared retrieval dates appear once; differing dates remain beside their groups.
+“Text from your mail” retains meaningful words, numbers and qualifications. The
+reading view replaces isolated extraction noise and unrenderable characters with
+explicit unreadable gaps, keeping raw extraction and exact payer quotations private
+and unchanged. Uncertain wordlike text stays as read, without dictionary repair.
+Per-photo notices stay cause-neutral unless independent evidence proves a cause.
+Existing saved results receive the same presentation without rereading their photos.
+Side and record failures retain useful evidence with recovery beside the affected
+content. This release retains the current whole-result delivery timing.
+
 The public wording follows
 [reader-focused design principles](../design/design-principles.md#1-what-alethical-should-feel-like).
-Technical labels are not required to communicate the source or uncertainty.
 
 ## Follow-up roadmap
 
-Item 3, [Political mail account history](https://github.com/alethical-org/alethical/issues/2931),
-is agreed for the build roadmap, not for implementation or drawings in this
-round: optional account authentication and private upload history for signed-in
-users, while guests receive the same results without account history. Its future
-design and implementation must preserve the ownership boundary below.
+[Political mail account history](https://github.com/alethical-org/alethical/issues/2931)
+is agreed for the roadmap: optional sign-in and private upload history, while guests
+receive the same results without account history. Signing in cannot establish
+ownership of an earlier anonymous upload by itself. Claiming a current guest upload
+requires its existing private access. File or mailer matching never exposes another
+person's comments, recipient details or photos.
 
-Supplementary Front/Back detail photos and file reuse remain follow-up work; no
-application build or deletion is authorized in this round.
+Reading-speed work measures image preparation, queue wait, each side's reading,
+record lookup and delivery separately. Progressive results, fewer worker/polling
+waits, bounded parallel reads and correctly scoped reading/record reuse stay on this
+roadmap. No new vendor, paid run or transfer of private photos is authorized.
 
-File reuse must preserve each fresh submission's new feedback. Identical bytes
-need one verified private original in each required store, with separate authorized
-submission references; a retry must not create another submission. Rephotographed
-mail requires a substantive two-side/version comparison, not matching payer text
-alone. Complementary images can supply missing evidence; redundant images add no
-new evidence. Removing a stored image requires proving that no retained submission
-or evidence reference needs it and coordinating both stores. No live deletion is
-authorized by this design review.
+Supplementary Front/Back detail photos and recognition of different photos of the
+same mailer need separate design and implementation. Recaptures require substantive
+two-side/version comparison, not matching payer text alone. Complementary images
+can provide missing evidence; redundant images add no new evidence. Deleting a
+stored image requires proving no retained submission or evidence reference needs
+it and coordinating both stores. No live image deletion is authorized.
 
-Signing in cannot establish ownership of an earlier anonymous upload by itself.
-History needs an authenticated ownership link; any claim of a current guest upload
-must use its existing private access. Another person's comments, recipient details
-or original photos must never become visible through file or mailer matching.
+Exact-file reuse is part of the approved build, owned by
+[private upload storage](political-mail-upload.md). Fresh submissions retain new
+feedback and private access; retries retain their submission identifier.
 
 ## Live backend and remaining acceptance
 
@@ -64,7 +92,7 @@ Machine-read words are not checked transcriptions. A detected disclosure retains
 - Responsive results Design and frontend are live. Independent live review verified upload, results, reset and the corrected official-source link; parent retains integration acceptance
 - Backend, runtime repair and bounded disclosure corrections passed CI and independent review, then deployed. Hash-checked initial groups, targeted live recovery and guarded rollback dry run passed; live coverage is recorded below
 
-Parent owns final acceptance and Design coordination. Separate upload-speed work owns the storage implementation; this build does not alter it.
+Parent owns final acceptance and Design coordination. Exact-file reuse is included in the approved results build; reading-speed work stays on the roadmap.
 
 ## Creative counts
 

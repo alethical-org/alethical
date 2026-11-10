@@ -29,7 +29,11 @@ from alethical.db.models import (
     MailUploadSession as UploadSession,
     MailUploadSubmission as Submission,
 )
-from alethical.pipeline.raw_file_store import RawFileStore, REQUIRED_ENV
+from alethical.pipeline.raw_file_store import (
+    RawFileStore,
+    REQUIRED_ENV,
+    StorageIntegrityError,
+)
 
 MAX_IMAGE_BYTES = 15 * 1024 * 1024
 # 50 MP camera output can be 8192 x 6144 (50,331,648 pixels).
@@ -354,6 +358,40 @@ def validate_image(body: bytes, declared: str):
     return mime, width, height
 
 
+def invalidate_corrupt_draft_references(db: Session, key: str):
+    """Withdraw proven-bad receipts without changing files or saved history."""
+    # submit() locks this same row. Ordered locks avoid deadlocks when two
+    # corrupt originals belong to the same drafts. A concurrent save that already
+    # won its lock remains historical; no saved submission is rewritten here.
+    draft_ids = list(
+        db.scalars(
+            select(Submission.id)
+            .where(
+                Submission.saved_at.is_(None),
+                select(ImageRow.id)
+                .where(
+                    ImageRow.submission_id == Submission.id,
+                    ImageRow.object_key == key,
+                )
+                .exists(),
+            )
+            .order_by(Submission.id)
+            .with_for_update()
+        )
+    )
+    if draft_ids:
+        db.execute(
+            update(ImageRow)
+            .where(ImageRow.submission_id.in_(draft_ids), ImageRow.object_key == key)
+            .values(
+                selected=False,
+                verified_at=None,
+                verification_generation=ImageRow.verification_generation + 1,
+            )
+        )
+    db.commit()
+
+
 def save_image(
     db: Session,
     token: str,
@@ -384,8 +422,6 @@ def save_image(
             ImageRow.sha256 == sha,
         )
     )
-    if image is not None and image.selected and image.verified_at:
-        return response(db, row)
     if quota is None:
         raise fail(503, "Mail upload is unavailable")
     if (
@@ -394,12 +430,35 @@ def save_image(
     ):
         raise fail(429, "The demo upload limit has been reached", "mail-upload-limit")
     if image is None:
+        # Logical reservations deliberately ignore reuse. Discounting a shared
+        # file would let capacity responses reveal somebody else's private upload,
+        # including through the shared plain-URL invitation. Retries reuse their
+        # own reference and reservation; every fresh side reserves its full bytes.
         if (
             quota.reserved_bytes + len(body) > GLOBAL_BYTE_LIMIT
             or invite.reserved_bytes + len(body) > invite.max_bytes
         ):
             raise fail(
                 429, "The demo storage limit has been reached", "mail-upload-limit"
+            )
+        # The global quota lock serializes allocation across API replicas. Commit
+        # this reference before I/O so concurrent/retried requests share even a
+        # partially written original. Legacy duplicate keys remain untouched;
+        # fresh references consistently choose the oldest retained original.
+        original = db.scalar(
+            select(ImageRow)
+            .where(ImageRow.sha256 == sha)
+            .order_by(ImageRow.created_at, ImageRow.id)
+            .limit(1)
+        )
+        if original is not None and (
+            original.byte_count != len(body)
+            or original.content_type != mime
+            or original.width != width
+            or original.height != height
+        ):
+            raise fail(
+                503, "We couldn’t save this photo. Try again", "mail-upload-storage"
             )
         image_id = uuid.uuid4()
         image = ImageRow(
@@ -411,7 +470,11 @@ def save_image(
             content_type=mime,
             width=width,
             height=height,
-            object_key=f"originals/{row.id}/{image_id}",
+            object_key=(
+                original.object_key
+                if original is not None
+                else f"originals/{row.id}/{image_id}"
+            ),
         )
         db.add(image)
         quota.reserved_bytes += len(body)
@@ -419,7 +482,11 @@ def save_image(
     quota.storage_attempts += 1
     invite.storage_attempts += 1
     db.commit()  # Durable pending object and quotas; no DB connection during remote I/O.
-    image_id, key = image.id, image.object_key
+    image_id, key, generation = (
+        image.id,
+        image.object_key,
+        image.verification_generation,
+    )
     db.commit()
     try:
         primary, mirror = stores()
@@ -429,13 +496,28 @@ def save_image(
             # Each store has its own client/file handle. Keep the source and the
             # image gate alive until both bounded storage operations finish,
             # including when either one fails. Selection still requires both.
+            # Always read back both copies, including reuse and selected retries.
+            # Missing copies are repaired from the exact incoming bytes; corrupt
+            # existing copies fail closed in put_and_verify, never overwritten.
             with ThreadPoolExecutor(max_workers=2) as copies:
                 verified = [
                     copies.submit(store.put_and_verify, key, handle.name, sha)
                     for store in (primary, mirror)
                 ]
-                for copied in verified:
-                    copied.result()
+                errors = [copied.exception() for copied in verified]
+                # Inspect both outcomes: a temporary failure in one store must
+                # not hide a proven hash mismatch reported by the other store.
+                for error in errors:
+                    if isinstance(error, StorageIntegrityError):
+                        raise error
+                for error in errors:
+                    if error is not None:
+                        raise error
+    except StorageIntegrityError:
+        invalidate_corrupt_draft_references(db, key)
+        raise fail(
+            503, "We couldn’t save this photo. Try again", "mail-upload-storage"
+        ) from None
     except Exception:
         # Private keys/provider errors never enter logs or response bodies.
         raise fail(
@@ -445,6 +527,11 @@ def save_image(
     row = owned(db, session, submission_id, lock=True)
     if row.saved_at:
         raise fail(409, "This submission is already saved", "mail-upload-saved")
+    image = db.get(ImageRow, image_id, populate_existing=True)
+    if image.verification_generation != generation:
+        # Another worker proved these bytes corrupt after this attempt started.
+        # Its withdrawal wins even if our earlier read-back had already passed.
+        raise fail(503, "We couldn’t save this photo. Try again", "mail-upload-storage")
     db.execute(
         update(ImageRow)
         .where(
@@ -454,7 +541,6 @@ def save_image(
         )
         .values(selected=False)
     )
-    image = db.get(ImageRow, image_id)
     image.verified_at = now()
     image.selected = True
     db.commit()

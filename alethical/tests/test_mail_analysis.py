@@ -94,7 +94,7 @@ def test_owned_results_queue_and_retry(client, monkeypatch):
         "read_image",
         lambda _: {
             "status": "read",
-            "text": "Paid for by Example",
+            "text": "Paid for by Example\n| \\ _\nNot authorized by a candidate",
             "disclosures": [],
             "complete": False,
         },
@@ -108,6 +108,13 @@ def test_owned_results_queue_and_retry(client, monkeypatch):
     assert result["payer_status"] == "not_found"
     assert result["matching_mailers"] == {"count": None, "basis": None}
     assert result["confirmed_entity_id"] is None
+    assert result["sides"][0]["display_text"] == (
+        "Paid for by Example\n[Unreadable]\nNot authorized by a candidate"
+    )
+    assert result["sides"][0]["text"] == (
+        "Paid for by Example\n| \\ _\nNot authorized by a candidate"
+    )
+    assert result["sides"][0]["reading_notice"] == "Some text could not be read"
     assert "object_key" not in response.text
     # Completed analyses are never silently run again.
     monkeypatch.setattr(

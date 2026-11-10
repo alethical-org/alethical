@@ -58,6 +58,10 @@ MIRROR_REQUIRED_ENV = (
 )
 
 
+class StorageIntegrityError(RuntimeError):
+    """Read-back bytes provably differ from the expected original."""
+
+
 def sha256_of_file(path: str) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -156,7 +160,7 @@ class RawFileStore:
         finally:
             body.close()
         if stored.hexdigest() != expected_sha256:
-            raise RuntimeError(
+            raise StorageIntegrityError(
                 f"{self.bucket}/{key} read back as {stored.hexdigest()} but the bytes "
                 f"we uploaded hash to {expected_sha256}. Refusing to record a row that "
                 "points at a body we cannot vouch for. If the object was already "

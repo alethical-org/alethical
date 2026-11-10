@@ -193,7 +193,9 @@ test('a completed retry keeps evidence and returns focus to its related result',
   await expect(page.locator('blockquote')).toHaveText('“Paid for by Example committee”');
   response.finish();
   await expect(page.getByRole('button', { name: 'Trying again…', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Printed payer', exact: true })).toBeFocused();
+  await expect(
+    page.getByRole('heading', { name: 'Text from your mail', exact: true }),
+  ).toBeFocused();
 });
 
 test('a browser photo decode failure leaves Close and the unavailable controls reachable', async ({
@@ -309,7 +311,7 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await savedMail(page);
     await expect(page.locator('.payment-amount')).toHaveText('$1,234,567');
-    await expect(page.getByText('Latest 1 of 8 records · 2026', { exact: true })).toBeVisible();
+    await expect(page.getByText('Latest 1 of 8 records', { exact: true })).toBeVisible();
     expect(await doubleAllText(page)).toEqual([]);
     await page.locator('.payment-amount').scrollIntoViewIfNeeded();
     expect(
@@ -390,4 +392,294 @@ test('touch pinch, drag and double tap change only the photo view', async ({
   await expect(viewport.locator('img')).toHaveAttribute('src', /^blob:/);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+for (const { width, scale } of [
+  { width: 320, scale: 1 },
+  { width: 320, scale: 2 },
+  { width: 800, scale: 1 },
+  { width: 1280, scale: 1 },
+]) {
+  test(`contribution explanation uses keyboard and fits ${width}px at ${scale * 100}% text`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    await savedMail(page);
+    await expect(
+      page.getByText('Money or donated goods and services given to this committee', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    const toggle = page.getByRole('button', {
+      name: 'What counts as a contribution?',
+      exact: true,
+    });
+    const answer = page.locator('.contribution-answer');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(answer).toBeHidden();
+    if (scale === 2) expect(await doubleAllText(page)).toEqual([]);
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(toggle).toBeFocused();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(answer).toBeVisible();
+    await expect(answer).toHaveText(
+      'An organization can also assign its own money to its political fund. Minnesota records this as a contribution.',
+    );
+    const measurement = await toggle.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      const textRects = [...node.childNodes]
+        .filter((child) => child.nodeType === Node.TEXT_NODE)
+        .flatMap((child) => {
+          const range = document.createRange();
+          range.selectNode(child);
+          return [...range.getClientRects()].map((rect) => ({
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+          }));
+        });
+      const style = getComputedStyle(node);
+      return {
+        height: box.height,
+        left: box.left,
+        right: box.right,
+        bottom: box.bottom,
+        top: box.top,
+        textRects,
+        outline: style.outlineStyle,
+        outlineWidth: style.outlineWidth,
+        outlineOffset: style.outlineOffset,
+      };
+    });
+    expect(measurement.height).toBeGreaterThanOrEqual(44);
+    expect(measurement.outline).toBe('solid');
+    expect(measurement.outlineWidth).toBe('2px');
+    expect(measurement.outlineOffset).toBe('4px');
+    for (const rect of measurement.textRects) {
+      expect(rect.left).toBeGreaterThanOrEqual(measurement.left);
+      expect(rect.right).toBeLessThanOrEqual(measurement.right + 0.5);
+      expect(rect.top).toBeGreaterThanOrEqual(measurement.top);
+      expect(rect.bottom).toBeLessThanOrEqual(measurement.bottom + 0.5);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    const answerBox = (await answer.boundingBox())!;
+    expect(answerBox.x).toBeLessThanOrEqual(measurement.left + 4);
+    expect(answerBox.y - measurement.bottom).toBeGreaterThanOrEqual(8);
+    await page.screenshot({
+      path: info.outputPath('contribution-explanation-open.png'),
+      fullPage: true,
+    });
+    await page.keyboard.press('Space');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toBeFocused();
+    await expect(answer).toBeHidden();
+    await toggle.hover();
+    await expect(toggle).toHaveCSS('background-color', 'rgb(241, 243, 242)');
+  });
+}
+
+test('source downloads describe file type and scope without becoming section headings', async ({
+  page,
+}) => {
+  const sourceResult = structuredClone(result);
+  sourceResult.payers[0].candidates[0].records!.received!.source_url =
+    'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252';
+  await savedMail(page, sourceResult);
+  await expect(
+    page.getByRole('heading', { name: 'Contributions received', exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('.record-group h4 a')).toHaveCount(0);
+  const download = page.getByRole('link', {
+    name: 'Download contributions (CSV), Minnesota Campaign Finance Board, opens in a new tab',
+    exact: true,
+  });
+  await expect(download).toHaveAttribute(
+    'href',
+    sourceResult.payers[0].candidates[0].records!.received!.source_url!,
+  );
+  await expect(download).toHaveAttribute('target', '_blank');
+  await expect(download).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(download).toHaveAccessibleDescription(
+    'State files cover all filers from 2015 to present. Downloads may take a moment.',
+  );
+  await expect(page.getByRole('heading', { name: 'Matching mailers', exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Text from your mail', exact: true }),
+  ).toBeVisible();
+});
+
+// Public CFB records checked November 10, 2026. The photo and printed text remain
+// synthetic; no private mail evidence or authenticated upload is used in this test.
+function publicFundResults(): MailAnalysis {
+  const fixture = structuredClone(result);
+  const entries = [
+    { amount: '5945.8500', date: '2026-10-19', receipt: 487344, spending: 23758, text: false },
+    { amount: '6143.2400', date: '2026-10-18', receipt: 349548, spending: 34449, text: false },
+    { amount: '21719.8800', date: '2026-10-17', receipt: 489262, spending: 34448, text: true },
+    { amount: '5542.1700', date: '2026-10-17', receipt: 486137, spending: 23757, text: false },
+    { amount: '11977.5700', date: '2026-10-16', receipt: 489261, spending: 24578, text: false },
+  ];
+  const block = {
+    state: 'reported' as const,
+    has_more: true,
+    total_payments: 26,
+    fetched_at: '2026-11-10T00:17:45Z',
+  };
+  fixture.payers[0].quote = 'Synthetic test: Paid for by Our America';
+  fixture.payers[0].candidates = [];
+  fixture.payers[0].related_records = [
+    {
+      name: 'Our America Minnesota Political Fund',
+      registration_number: '30807',
+      scope: 'related_record',
+      basis: 'same_website',
+      domain: 'joinouramerica.org',
+      checked_on: '2026-11-09',
+      source_url:
+        'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/30807/2026/',
+      roles: [{ role: 'Treasurer', name: 'Ed Molchany' }],
+      records: {
+        state: 'available',
+        registration_number: '30807',
+        year: 2026,
+        received: {
+          ...block,
+          source_url:
+            'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252',
+          payments: entries.map((row) => ({
+            amount: row.amount,
+            record_number: row.receipt,
+            received_on: row.date,
+            contributor: 'Our America',
+            receipt_type: 'Contribution',
+          })),
+        },
+        paid: {
+          state: 'not_reported',
+          payments: [],
+          total_payments: null,
+          has_more: false,
+          source_url: null,
+          fetched_at: null,
+        },
+        independent_spending: {
+          ...block,
+          source_url:
+            'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497',
+          payments: entries.map((row) => ({
+            amount: row.amount,
+            unpaid_amount: '0.0000',
+            record_number: row.spending,
+            paid_on: row.date,
+            vendor_name: 'Bilander Media',
+            affected_committee_name: 'Demuth, Lisa Gov Committee',
+            stance: 'For',
+            expenditure_type: 'Independent Expenditure',
+            purpose: row.text
+              ? 'Telephone: Texting - Lisa Demuth for Governor'
+              : 'Advertising - general: Digital Advertising Service',
+          })),
+        },
+      },
+    },
+  ];
+  fixture.sides[1] = {
+    ...fixture.sides[1],
+    status: 'partial',
+    display_text:
+      'Synthetic reading example\n[Unreadable]\nThe rest of the printed words stay in order',
+    reading_notice: 'Some text could not be read',
+  };
+  fixture.status = 'partial';
+  fixture.can_retry = true;
+  return fixture;
+}
+
+for (const { width, scale } of [
+  { width: 390, scale: 1 },
+  { width: 834, scale: 1 },
+  { width: 1440, scale: 1 },
+  { width: 320, scale: 1 },
+  { width: 320, scale: 2 },
+]) {
+  test(`public fund results visual coverage ${width}px ${scale * 100}%`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await savedMail(page, publicFundResults());
+    await expect(page.locator('.record-summary')).toContainText(
+      'They don’t identify who produced this mailer.',
+    );
+    await expect(page.locator('.payment-row')).toHaveCount(10);
+    await page.getByRole('button', { name: 'What counts as a contribution?', exact: true }).click();
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    if (scale === 2) expect(await doubleAllText(page)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    const scroll = await page.locator('.mail-results').evaluate((node) => {
+      let owner = node.parentElement;
+      while (
+        owner &&
+        !(
+          owner.scrollHeight > owner.clientHeight &&
+          /auto|scroll/.test(getComputedStyle(owner).overflowY)
+        )
+      )
+        owner = owner.parentElement;
+      owner ??= document.scrollingElement as HTMLElement;
+      owner.setAttribute('data-mail-review-scroll', 'true');
+      const box = owner.getBoundingClientRect();
+      const results = node.getBoundingClientRect();
+      return {
+        start: Math.max(0, owner.scrollTop + results.top - box.top - 16),
+        end: Math.min(
+          owner.scrollHeight - owner.clientHeight,
+          owner.scrollTop + results.bottom - box.top - owner.clientHeight + 16,
+        ),
+        step: owner.clientHeight * 0.8,
+      };
+    });
+    const positions: number[] = [];
+    for (let position = scroll.start; position < scroll.end; position += scroll.step)
+      positions.push(position);
+    positions.push(scroll.end);
+    for (let index = 0; index < positions.length; index++) {
+      const viewport = page.locator('[data-mail-review-scroll]');
+      // React Native Web attaches its own scrollTo({y, animated}) to this DOM
+      // node. Set scrollTop directly, then prove the viewport reached the target.
+      await viewport.evaluate((node, top) => {
+        node.scrollTop = top;
+      }, positions[index]);
+      await expect
+        .poll(async () =>
+          Math.abs((await viewport.evaluate((node) => node.scrollTop)) - positions[index]),
+        )
+        .toBeLessThan(1);
+      await page.screenshot({
+        path: info.outputPath(`results-page-${String(index + 1).padStart(2, '0')}.png`),
+      });
+    }
+  });
+}
+
+test.describe('touch contribution explanation', () => {
+  test.use({ hasTouch: true });
+  test('opens by tap without keeping a hover highlight', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await savedMail(page);
+    const toggle = page.getByRole('button', {
+      name: 'What counts as a contribution?',
+      exact: true,
+    });
+    await toggle.tap();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.contribution-answer')).toBeVisible();
+    expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true);
+    await expect(toggle).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await toggle.tap();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
 });

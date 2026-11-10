@@ -33,6 +33,8 @@ export interface MailReadSide {
   side: MailImageSide;
   status: 'read' | 'partial' | 'unreadable';
   text: string;
+  display_text?: string;
+  reading_notice?: 'Some text could not be read' | 'We couldn’t read this photo';
   complete: false;
   disclosures: MailDisclosure[];
   partial_reasons?: string[];
@@ -81,6 +83,7 @@ export interface MailOrganization {
   scope: 'organization';
 }
 export interface MailRegistration {
+  domain?: string;
   name: string;
   registration_number: string;
   scope: 'candidate_record' | 'related_record';

@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from alethical.api.services import mail_upload
 from alethical.api.services.mail_public_records import public_records
+from alethical.api.services.mail_reading_copy import reading_copy
 from alethical.api.services.mail_payer_sources import (
     corroborate,
     related_records,
@@ -693,6 +694,7 @@ def response(db, submission):
     return {
         "data": {
             **row.result,
+            "sides": [reading_copy(side) for side in row.result.get("sides", [])],
             "status": row.status,
             "can_retry": row.status in {"failed", "partial"} and row.attempts < 3,
             "matching_mailers": {
