@@ -854,6 +854,97 @@ def test_local_coverage_does_not_compare_county_to_municipal_jurisdiction(
     assert _data(finance_api)["candidates"][1]["finance_coverage"]["state"] == "matched"
 
 
+@pytest.mark.parametrize(
+    "source_party,result_party,local,expected",
+    [
+        (None, "NP", True, "matched"),
+        (None, "DFL", True, "candidate_identity_mismatch"),
+        ("R", "NP", True, "candidate_identity_mismatch"),
+        (None, "NP", False, "candidate_identity_mismatch"),
+    ],
+)
+def test_local_roster_without_party_keeps_result_nonpartisan_designation(
+    finance_api, finance_db, comparison, source_party, result_party, local, expected
+):
+    # LocalCandTbl has no party field; the matching official result says NP.
+    # This establishes filing-authority coverage, never a campaign account link.
+    race = comparison["race"]
+    payload = deepcopy(race.payload)
+    candidate = payload["candidates"][1]
+    stable = candidate["candidate_stable_id"]
+    if local:
+        stable = "local_cand:" + stable.split(":", 1)[1]
+    candidate.update(candidate_stable_id=stable, party=result_party)
+    race.payload = payload
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    coverage = deepcopy(collection.coverage)
+    coverage["candidates"][1].update(
+        stable_id=stable, party=source_party, authority="county_local"
+    )
+    collection.coverage = coverage
+    finance_db.commit()
+    actual = _data(finance_api)["candidates"][1]
+    assert actual["finance_coverage"]["state"] == expected
+    assert actual["party"] == result_party
+    assert actual["accounts"] == []
+    if expected == "matched":
+        assert actual["finance_coverage"]["party"] is None
+        assert actual["report_state"] == "not_collected"
+
+
+def test_public_account_name_keeps_exact_reviewed_register_value():
+    account = {
+        "registration_number": "-101",
+        "evidence": [
+            {
+                "kind": "committee_register",
+                "literal_fields": {
+                    "RegisteredEntityID": "-101",
+                    "RegisteredEntityFullName": "Filed committee",
+                    "private_note": "do not expose",
+                },
+            },
+            {
+                "kind": "report_cover",
+                "literal_fields": {"committee_name": "Cover name"},
+            },
+        ],
+    }
+    public = reads._public_account(None, account)
+    assert public["committee_name"] == "Filed committee"
+    assert all("literal_fields" not in item for item in public["evidence"])
+    account["evidence"][0]["literal_fields"]["RegisteredEntityID"] = "different"
+    assert reads._public_account(None, account)["committee_name"] is None
+
+
+@pytest.mark.parametrize(
+    "category,direction,expected",
+    [
+        ("PCF", "For", [1, 2, 9]),
+        ("PCF", "Against", []),
+        ("PTU", "For", []),
+    ],
+)
+def test_candidate_payment_groups_page_only_the_attributed_position(
+    finance_api, comparison, category, direction, expected
+):
+    context = _data(finance_api)
+    response = finance_api.get(
+        f"{URL}/candidates/a/outside-spending",
+        params={
+            "snapshot_id": context["snapshot_id"],
+            "version": context["version"],
+            "spender_type": category,
+            "direction": direction,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert [r["row_number"] for r in data["rows"]] == expected
+    assert data["page"]["total"] == len(expected)
+    assert data["filters"] == {"spender_type": category, "direction": direction}
+
+
 def test_published_historical_raw_sources_lines_auth_and_corruption(
     finance_api, finance_db, comparison, monkeypatch
 ):
@@ -1000,3 +1091,52 @@ def test_review_source_from_another_published_election_keeps_its_address(
         finance_api.get(correct, params={"collection_id": historical}).status_code
         == 404
     )
+
+
+def test_unknown_candidate_stays_not_found_when_payment_release_missing(
+    finance_api, finance_db, comparison
+):
+    finance_db.get(m.CampaignFinanceCurrentRelease, True).release_id = None
+    finance_db.commit()
+    data = _data(finance_api)
+    response = finance_api.get(
+        f"{URL}/candidates/foreign-candidate/outside-spending",
+        params={"snapshot_id": data["snapshot_id"], "version": data["version"]},
+    )
+    assert response.status_code == 404
+
+
+def test_received_date_is_report_cover_fact_not_cutoff(
+    finance_api, finance_db, comparison
+):
+    report = finance_db.query(m.ElectionFinanceReport).first()
+    payload = deepcopy(report.payload)
+    payload["cover"] = {"received_date": "2026-10-26"}
+    report.payload = payload
+    finance_db.commit()
+    reports = _data(finance_api)["candidates"][0]["accounts"][0]["reports"]
+    found = next(item for item in reports if item["report_key"] == report.report_key)
+    assert found["received_date"] == "2026-10-26"
+    assert found["period_end"] == payload["period_end"]
+
+
+@pytest.mark.parametrize("kind", ["candidate_roster", "local_candidate_roster"])
+def test_both_official_rosters_keep_windows_1252_source_lines(
+    finance_api, finance_db, comparison, monkeypatch, kind
+):
+    store = MemoryStore()
+    original = "Candidate;Renée\r\n".encode("cp1252")
+    fingerprint = archive_source(finance_db, store, original)
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    collection.sources = [*collection.sources, {"sha256": fingerprint, "kind": kind}]
+    finance_db.commit()
+    monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
+    response = finance_api.get(
+        f"{BASE}/finance/sources/{fingerprint}/lines",
+        params={"collection_id": COLLECTION, "start": 1, "limit": 1},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["encoding"] == "windows-1252"
+    assert response.json()["data"]["lines"] == [
+        {"number": 1, "text": "Candidate;Renée"}
+    ]

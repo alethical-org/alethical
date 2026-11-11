@@ -295,7 +295,23 @@ def _public_account(db, account):
             else:
                 public["source_state"] = "unavailable"
         evidence.append(public)
-    return {**account, "evidence": evidence}
+    # The reviewed register's name belongs to this exact account. Report-cover
+    # names may differ and must not silently replace the registered name.
+    names = {
+        item["literal_fields"]["RegisteredEntityFullName"]
+        for item in account["evidence"]
+        if item.get("kind") == "committee_register"
+        and isinstance(item.get("literal_fields"), dict)
+        and item["literal_fields"].get("RegisteredEntityID")
+        == account["registration_number"]
+        and isinstance(item["literal_fields"].get("RegisteredEntityFullName"), str)
+        and item["literal_fields"]["RegisteredEntityFullName"].strip()
+    }
+    return {
+        **account,
+        "committee_name": next(iter(names)) if len(names) == 1 else None,
+        "evidence": evidence,
+    }
 
 
 def _accounts(db, election_key, race, candidate):
@@ -347,6 +363,7 @@ def _report(db, election_key, race, candidate, account, report):
         "period_start": start,
         "period_end": end,
         "period_basis": payload.get("period_basis"),
+        "received_date": payload.get("cover", {}).get("received_date"),
         "attribution": attribution,
         "figure_status": "source_verified" if figures else "unavailable",
         "source_figure_status": payload.get("figure_status"),
@@ -493,19 +510,25 @@ def _candidate_coverage(collection, race, candidate):
         return {"state": "roster_source_unavailable"}
     if row.get("source_sha256") != race.payload.get("candidate_source_sha256"):
         return {"state": "roster_version_mismatch"}
+    # LocalCandTbl has no party column; local result files explicitly say NP.
+    # Preserve both source values. This narrow allowance supplies filing-authority
+    # coverage only and cannot confirm a candidate-to-account relationship.
+    party_matches = row.get("party") == candidate.get("party") or (
+        stable_id.startswith("local_cand:")
+        and row.get("party") is None
+        and candidate.get("party") == "NP"
+    )
     if (
         row.get("candidate_id"),
         row.get("name"),
-        row.get("party"),
         row.get("office_id"),
         row.get("office"),
     ) != (
         candidate.get("candidate_id"),
         candidate.get("name"),
-        candidate.get("party"),
         race.office_id,
         race.payload.get("office_name"),
-    ):
+    ) or not party_matches:
         return {"state": "candidate_identity_mismatch"}
     fields = {
         "candidate_id",
@@ -626,18 +649,20 @@ def outside_records(
     version,
     limit,
     offset,
+    spender_type=None,
+    direction=None,
 ):
     context, election, race, _, _, release = _context(
         db, election_key, race_id, snapshot_id, version
     )
-    if release is None:
-        _unavailable()
     candidate = next(
         (c for c in race.payload["candidates"] if c["candidate_id"] == candidate_id),
         None,
     )
     if candidate is None:
         _missing()
+    if release is None:
+        _unavailable()
     links = _accounts(db, election_key, race, candidate)
     source_hashes = {
         item.get("sha256")
@@ -650,6 +675,10 @@ def outside_records(
     filters = _attribution_filters(
         release, election.election_date.year, links["accounts"]
     )
+    if spender_type is not None:
+        filters.append(outside._category() == spender_type)
+    if direction is not None:
+        filters.append(outside._direction() == direction)
     total = db.execute(select(func.count()).select_from(R).where(*filters)).scalar_one()
     rows = db.scalars(
         select(R).where(*filters).order_by(R.row_number).limit(limit).offset(offset)
@@ -659,6 +688,7 @@ def outside_records(
         **context,
         "candidate_id": candidate_id,
         "account_state": links["state"],
+        "filters": {"spender_type": spender_type, "direction": direction},
         "rows": [
             {**outside._record(row), "resolution": "checked_account_and_period"}
             for row in rows
@@ -744,7 +774,11 @@ def source_lines(
         collection_id=collection_id,
         source_hash=source_hash,
     )
-    encoding = "windows-1252" if metadata.get("kind") == "candidate_roster" else "utf-8"
+    encoding = (
+        "windows-1252"
+        if metadata.get("kind") in {"candidate_roster", "local_candidate_roster"}
+        else "utf-8"
+    )
     try:
         lines = body.decode(encoding, errors="strict").splitlines()
     except UnicodeDecodeError as error:

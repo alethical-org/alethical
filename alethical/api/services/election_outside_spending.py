@@ -9,6 +9,10 @@ keep their own meaning; unpaid is already part of the reported amount.
 from __future__ import annotations
 
 from decimal import Decimal
+import gzip
+import hashlib
+from pathlib import Path
+import tempfile
 from typing import NoReturn
 from uuid import UUID
 
@@ -21,6 +25,7 @@ from alethical.api.services.election_comparison_reads import snapshot
 from alethical.db import models as m
 from alethical.pipeline import campaign_finance_reader as reader
 from alethical.pipeline.campaign_finance import INDEPENDENT_COLUMNS
+from alethical.pipeline.raw_file_store import raw_file_store_from_env
 
 R = m.CampaignFinanceIndependentExpenditureRow
 DATASET = m.CampaignFinanceDataset.independent_expenditures
@@ -185,6 +190,56 @@ def _context(
             "record_number_basis": "1-based CSV record, not physical line",
         },
     }, release
+
+
+def source_body(
+    db: Session, *, election_key, election_snapshot_id, version, release_id
+):
+    """Return the exact published CSV, not a newly ordered vendor download."""
+    context, release = _context(
+        db,
+        election_key=election_key,
+        election_snapshot_id=election_snapshot_id,
+        version=version,
+        release_id=release_id,
+    )
+    original = db.get(
+        m.CampaignFinanceSnapshot, release.independent_expenditures.snapshot_id
+    )
+    if original is None:
+        _unavailable()
+    retained = db.get(m.CampaignFinanceSnapshotBody, original.id)
+    if retained is None or retained.compression != "gzip":
+        _unavailable()
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="election-spending-source-"
+        ) as directory:
+            path = Path(directory) / "source.csv.gz"
+            raw_file_store_from_env().get(
+                retained.object_key, str(path), max_bytes=retained.compressed_byte_size
+            )
+            compressed = path.read_bytes()
+            if (
+                len(compressed) != retained.compressed_byte_size
+                or hashlib.sha256(compressed).hexdigest() != retained.compressed_hash
+            ):
+                _unavailable()
+            with gzip.open(path, "rb") as handle:
+                body = handle.read(original.byte_size + 1)
+        if (
+            len(body) != original.byte_size
+            or hashlib.sha256(body).hexdigest() != original.content_hash
+        ):
+            _unavailable()
+    except Exception as error:
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            "This retained source is unavailable. Try again.",
+        ) from error
+    finance_versions.check(db, context["version"], "money")
+    return body
 
 
 def _filters(

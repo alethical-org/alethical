@@ -48,7 +48,7 @@ Additional report measures remain open. The comparison can proceed independently
 
 ## Status
 
-In progress: source recovery and backend implementation. No production data import
+In progress: comparison UI, browser acceptance and release preparation. No production data import
 or comparison UI release has occurred. The official return files reconcile 5,023
 races, 8,002 named candidacies and 140,815 precinct/race records within their feeds.
 84 single-seat precinct/race totals exceed the separately reported voter count;
@@ -60,37 +60,55 @@ The complete candidacy inventory routes own-campaign reports to 523 state Board,
 Board-reported outside spending remain separate coverage lanes. A retained scoped
 collection holds 400 latest committee PDFs and 842 catalogue reports; the remaining
 442 catalogue entries have explicit figure gaps. This is source availability, not
-400 confirmed candidate links or complete election spending. Actual report periods,
+400 confirmed candidate links or complete election spending. Explicit review has
+confirmed 389 candidacy/account relationships; 134 Board candidacies retain
+unresolved or unrecovered account evidence. Actual report periods,
 effective amendments, original bytes and source locators remain separate from
 explicit account-review decisions. Matching names never confirms a relationship.
 
 Versioned result storage, scoped financial collection storage and authenticated
-read APIs passed 239 focused backend tests. An actual disposable PostgreSQL/API
-run checked all 5,023 race counts, all 4,105 attorney-general precincts, 19 retained
-source downloads and access boundaries. These checks used real retained sources,
-not production publication. Account reviews are append-only, require retained ballot,
-Board-directory and report-cover evidence, preserve predecessor decisions and
-dated attribution, and explicitly handle withdrawal and compatible candidacies.
-Read versions use the full set of visible relevant decisions, not a maximum sequence
-ID that can miss a late-committing review. Source archives and exact original
-reports stay available through authenticated evidence routes.
+read APIs passed 251 focused backend tests before the latest UI source routes.
+The latest report/outside-read checks passed 71 tests, including received dates,
+local roster encoding, absent candidates, filtered payments and original CSV
+access. The Finance suite passes 970 tests; the production bundle compiles.
+These checks do not establish browser or live acceptance.
 
-Design completed a read-only intake in the existing Alethical B2B project. The
-owning file remains Money by Race.dc.html. The full source-grounded drawing brief
-was sent with checked attorney-general totals, report periods, outside-spending
-groups and precinct examples. The first drawing and notes were reviewed, including
-desktop, phone and phone report evidence. Corrections are in progress for additive
-currency precision, clearing searches, exact source labels and missing failure
-states. Historical
-calendar-year access stays available, and global navigation remains outside scope.
-Dependent UI awaits reviewed drawings. Current source artifacts, failed-source
-attempts and detailed audit records remain in private task scratch storage.
+An actual disposable PostgreSQL/API run checked all 5,023 race counts, all 4,105
+attorney-general precincts and the 19 retained result sources. A separate full
+finance run verified all 400 original PDFs, 894 supporting sources, 842 stored
+report versions and all 389 reviewed candidacy/account links. Repeated staging and
+review requests did not duplicate records. Each linked candidate read returned
+exact stored figures, the reviewed directory name, actual report dates and received
+date. No production migration, account decision or publication has occurred.
 
-Remaining work: finish independent backend checks and source-gap handling; complete
-explicit account reviews; obtain and review the drawing; build and test the reader
-journey; stage retained sources; independently audit actual imported coverage;
-release scoped result/report pointers and verify live. Federal reports and local
-portal records not yet collected remain uncollected, not unavailable or zero.
+Account reviews are append-only, require retained ballot, Board-directory and
+report-cover evidence, preserve predecessor decisions and dated attribution, and
+explicitly handle withdrawal and compatible candidacies. Read versions use all
+visible relevant decisions, not a maximum sequence ID that misses late commits.
+Original evidence remains behind Finance authentication.
+
+Design's second drawing and final notes were received from the existing Alethical
+B2B project, in Money by Race.dc.html. The remaining wording decisions are resolved:
+account cards use directory names; payment evidence may use plain labels while the
+original CSV preserves exact columns and values. The new UI uses exact report
+cents, separate support/opposition groups, paged precincts, retained-source panels,
+explicit gaps and the existing calendar-year entry. Browser acceptance against
+actual staged data and the reviewed drawing is in progress. Global navigation and
+Angel's future repeatable report layouts remain outside this build.
+
+The production outside-spending snapshot and the retained research CSV have the
+same parsed record-set hash and 45,741 records, including 4,961 for 2026. Their byte
+hashes differ. Reuse the current publication and its own retained original; do not
+replace the global money release solely to match research download bytes. The
+production schema remains at 0092_mail_file_reuse, so migration 0093 is still needed.
+
+Remaining work: finish the real outside-spending and browser journeys; review each
+changed state across the three layout bands; obtain independent final review;
+release the code, stage retained sources and explicit reviewed decisions, publish
+scoped pointers with restoration receipts, and verify live. Federal reports and
+local portal records not yet collected remain uncollected, not unavailable or zero.
+Current source artifacts, failed attempts and detailed audit records remain in
+private task scratch storage.
 
 The [source and release operating contract](../operations/election-finance-comparison.md)
 owns staging, explicit account decisions, publication and restoration commands.

@@ -109,6 +109,67 @@ def _page(client, context, **params):
     )
 
 
+def test_retained_csv_download_checks_bytes_scope_and_access(
+    finance_api, finance_db, spending, monkeypatch
+):
+    import gzip
+    import hashlib
+    from alethical.api.services import election_outside_spending as reads
+    from alethical.tests.test_election_comparison_storage import MemoryStore
+
+    store = MemoryStore()
+    body = b'Spender,Amount\r\n"A, B",10.00\r\n'
+    compressed = gzip.compress(body, mtime=0)
+    original = spending.independent
+    original.content_hash = hashlib.sha256(body).hexdigest()
+    original.byte_size = len(body)
+    key = "retained/independent.csv.gz"
+    store.objects[key] = compressed
+    retained = m.CampaignFinanceSnapshotBody(
+        snapshot_id=original.id,
+        object_key=key,
+        compression="gzip",
+        compressed_hash=hashlib.sha256(compressed).hexdigest(),
+        compressed_byte_size=len(compressed),
+    )
+    finance_db.add(retained)
+    finance_db.commit()
+    monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
+    context = _data(finance_api)
+    params = {
+        "election_snapshot_id": context["election_snapshot_id"],
+        "version": context["version"],
+        "release_id": context["release_id"],
+    }
+    response = finance_api.get(BASE + "/source", params=params)
+    assert response.status_code == 200
+    assert response.content == body
+    assert "private" in response.headers["cache-control"]
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert (
+        finance_api.get(
+            BASE + "/source", params=params, headers={"Authorization": ""}
+        ).status_code
+        == 401
+    )
+    assert (
+        finance_api.get(
+            BASE + "/source", params={**params, "version": "0" * 16}
+        ).status_code
+        == 409
+    )
+    store.objects[key] = b"corrupt"
+    assert finance_api.get(BASE + "/source", params=params).status_code == 503
+    store.objects[key] = gzip.compress(body + b"changed", mtime=0)
+    retained.compressed_hash = hashlib.sha256(store.objects[key]).hexdigest()
+    retained.compressed_byte_size = len(store.objects[key])
+    finance_db.commit()
+    assert finance_api.get(BASE + "/source", params=params).status_code == 503
+    finance_db.delete(retained)
+    finance_db.commit()
+    assert finance_api.get(BASE + "/source", params=params).status_code == 503
+
+
 def test_inventory_partitions_years_and_keeps_missing_amounts(finance_api, spending):
     data = _data(finance_api)
     inventory = data["inventory"]

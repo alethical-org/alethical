@@ -3,7 +3,7 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 from sqlalchemy.orm import Session
 
 from alethical.api.schemas import DetailResponse
@@ -15,6 +15,31 @@ ELECTION = r"^mn-\d{4}-\d{2}-\d{2}-(general|primary|special)$"
 HASH = r"^[a-f0-9]{64}$"
 VERSION = r"^[a-f0-9]{16}$"
 TEXT = r"^[^\x00]*$"
+
+
+@router.get("/elections/{election_key}/outside-spending/source")
+def source_body(
+    election_key: str = Path(pattern=ELECTION),
+    election_snapshot_id: str = Query(pattern=HASH),
+    version: str = Query(pattern=VERSION),
+    release_id: UUID = Query(),
+    db: Session = Depends(get_db),
+):
+    body = reads.source_body(
+        db,
+        election_key=election_key,
+        election_snapshot_id=election_snapshot_id,
+        version=version,
+        release_id=release_id,
+    )
+    return Response(
+        content=body,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": 'attachment; filename="independent-spending.csv"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/elections/{election_key}/outside-spending", response_model=DetailResponse)

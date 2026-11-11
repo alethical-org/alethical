@@ -37,6 +37,7 @@ import { DATE_MISSING, sumAmounts } from './committee/data';
 import { MediaBuysCard, raceTarget } from './media/MediaBuysCard';
 import './raceAndRecipients.css';
 import './moneyByRace.css';
+import { ElectionComparison } from './elections/Comparison';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 
@@ -692,6 +693,11 @@ const NOT_HELD = 'Not held';
  */
 export function MoneyByRace({ match }: { match: RouteMatch }) {
   const location = useLocation();
+  return location.searchParams.has('election') ? <ElectionComparison /> : <HistoricalMoneyByRace match={match} />;
+}
+
+function HistoricalMoneyByRace({ match }: { match: RouteMatch }) {
+  const location = useLocation();
   const here = location.pathname + location.search;
   // With no usable earlier page, the drawing's named parent: Campaign money.
   const back =
@@ -827,6 +833,7 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
             One office, district and year. Candidate committees’ own filings sit apart from what
             outside groups reported spending about the race.
           </p>
+          <Link className="ec-link" to={`${location.pathname}?${new URLSearchParams({ election: 'mn-2026-11-03-general', ...Object.fromEntries(['year', 'office', 'district', 'osView', 'from', 'fromq'].flatMap((key) => location.searchParams.has(key) ? [[key, location.searchParams.get(key)!]] : [])) })}`}>Compare election results →</Link>
         </header>
 
         {shown && (
