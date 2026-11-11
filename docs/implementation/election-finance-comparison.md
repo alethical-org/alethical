@@ -172,8 +172,8 @@ and Meg Luger-Nikolai's excluded February 9 payment. Parent review checked the l
 report open/close and focus return, unknown-race handling, restored totals,
 signed-out access and noindex headers. Downloaded report and CSV hashes match the
 retained originals. Source evidence uses production record 1619 for the excluded
-payment; the research copy's record 1650 contains the same 19 fields in another
-order. No material defect remained in these checked journeys.
+payment; the research copy's record 1650 has identical values in all 19 fields.
+The downloads order their records differently. No material defect remained in these checked journeys.
 
 Live review used the existing desktop browser at 125% zoom. Phone/tablet layout,
 independent failures, retry and changed-version recovery were checked before release;
