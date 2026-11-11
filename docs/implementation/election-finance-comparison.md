@@ -1,0 +1,93 @@
+# Election finance comparison
+
+Authorized November 11, 2026: deliver Minnesota election/race comparisons through
+source collection, reviewed Design drawings, implementation, safe release and live
+verification. Owner: Election finance comparison, Codex chat
+`01a1b12c-cb88-7112-a09f-36ca15693289`.
+
+## Required outcome
+
+Readers select an exact election and race, see every candidate and reported votes
+down to the precinct, then compare separately labelled direct contributions,
+campaign expenditure and documented outside support/opposition. Each figure opens
+its source and retains its period, version and availability. Missing is not zero.
+No calculation claims spending caused an outcome. A factual support/outcome count
+counts distinct candidacies, preserves pending outcomes and defines its scope.
+
+Initial source scope is the November 3, 2026 Minnesota general election. Recover
+officially available candidate and result records for that election. Financial
+coverage follows each actual filing authority and available period; do not claim
+state Board files cover federal or every local campaign. Do not expand historical
+coverage or invent further reports from Angel's still-pending research.
+
+## Ownership and open choices
+
+Reuse supported filing import/reconciliation functions. This task owns the minimum
+durable candidacy/account review contract needed by the comparison; the navigation
+task will reuse it. Their broader builds remain stopped. This task may implement
+and run the bounded source work needed for this comparison; it does not redesign global navigation, rich profiles,
+committee officers, general uploads or Media Buys.
+
+The transition into Currently elected, its certification threshold, departure and
+appointment rules remain product decisions. Store supported outcome and term facts
+without resolving those categories or calling incoming winners already serving.
+Additional report measures remain open. The comparison can proceed independently.
+
+## Delivery sequence and evidence
+
+1. Inventory official and held sources, preserve originals and hashes, reconcile
+   all available race/precinct records and record gaps and source dates.
+2. Define repeat-safe, versioned election/result storage and exact identity links;
+   reuse finance periods and amendment rules. Validate source bytes before release.
+3. Supply source-checked content to the existing Alethical B2B Design project in a
+   fresh chat. Review drawings, states, notes and rules before dependent UI work.
+4. Build the comparison and source drilldowns; test source failures, corrections,
+   overlapping filings, zeros, missing values and ambiguous links.
+5. Validate a real race end to end, independently review, release with a concrete
+   restore path, and verify live access and the full reader journey.
+
+## Status
+
+In progress: source recovery and backend implementation. No production data import
+or comparison UI release has occurred. The official return files reconcile 5,023
+races, 8,002 named candidacies and 140,815 precinct/race records within their feeds.
+84 single-seat precinct/race totals exceed the separately reported voter count;
+preserve those figures and scoped discrepancies. Within-feed agreement does not
+establish independent canvass validation or certification.
+
+The complete candidacy inventory routes own-campaign reports to 523 state Board,
+21 federal and 7,458 local filing authorities. Local candidate reports and
+Board-reported outside spending remain separate coverage lanes. A retained scoped
+collection holds 300 latest committee PDFs and 632 catalogue reports; the remaining
+332 catalogue entries have explicit figure gaps. This is source availability, not
+300 confirmed candidate links or complete election spending. Actual report periods,
+effective amendments, original bytes and source locators remain separate from
+explicit account-review decisions. Matching names never confirms a relationship.
+
+Versioned result storage, scoped financial collection storage and authenticated
+read APIs are under test. Account reviews are append-only, require retained ballot,
+Board-directory and report-cover evidence, preserve predecessor decisions and
+dated attribution, and explicitly handle withdrawal and compatible candidacies.
+Read versions use the full set of visible relevant decisions, not a maximum sequence
+ID that can miss a late-committing review. Source archives and exact original
+reports stay available through authenticated evidence routes.
+
+Design completed a read-only intake in the existing Alethical B2B project. The
+owning file remains Money by Race.dc.html. The full source-grounded drawing brief
+was sent with checked attorney-general totals, report periods, outside-spending
+groups and precinct examples; the drawing turn is running. Historical
+calendar-year access stays available, and global navigation remains outside scope.
+Dependent UI awaits reviewed drawings. Current source artifacts, failed-source
+attempts and detailed audit records remain in private task scratch storage.
+
+Remaining work: finish independent backend checks and source-gap handling; complete
+explicit account reviews; obtain and review the drawing; build and test the reader
+journey; stage retained sources; independently audit actual imported coverage;
+release scoped result/report pointers and verify live. Federal reports and local
+portal records not yet collected remain uncollected, not unavailable or zero.
+
+Completion requires expected-versus-held coverage by election, race, jurisdiction,
+precinct and filing period; duplicates, missing files, unresolved matches and
+unpublished sources; reproducible displayed figures; current-head checks; reviewed
+Design and live verification. A successful download or passing tests alone do not
+establish completeness.
