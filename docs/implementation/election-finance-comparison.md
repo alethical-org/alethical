@@ -48,8 +48,11 @@ Additional report measures remain open. The comparison can proceed independently
 
 ## Status
 
-In progress: comparison UI, browser acceptance and release preparation. No production data import
-or comparison UI release has occurred. The official return files reconcile 5,023
+The comparison code merged in [PR 2944](https://github.com/alethical-org/alethical/pull/2944).
+The production API runs merge `be942f16` with migration `0093_election_comparison`.
+The source collections are published and the Finance build is live at
+[alethicalfinance.com](https://alethicalfinance.com/money/races/attorney-general?election=mn-2026-11-03-general&race=dc88f14ef11f28d4e295a4a63037a0d11a280df59304c670c9116102b1cf37f7).
+Authenticated live acceptance passed on November 11, 2026. The official return files reconcile 5,023
 races, 8,002 named candidacies and 140,815 precinct/race records within their feeds.
 84 single-seat precinct/race totals exceed the separately reported voter count;
 preserve those figures and scoped discrepancies. Within-feed agreement does not
@@ -71,7 +74,7 @@ read APIs passed 251 focused backend tests before the latest UI source routes.
 The latest report/outside-read checks passed 71 tests, including received dates,
 local roster encoding, absent candidates, filtered payments and original CSV
 access. The Finance suite passes 976 tests; the production bundle compiles.
-These checks do not establish browser or live acceptance.
+These checks are separate from the browser and live acceptance recorded below.
 
 An actual disposable PostgreSQL/API run checked all 5,023 race counts, all 4,105
 attorney-general precincts and the 19 retained result sources. A separate full
@@ -79,7 +82,8 @@ finance run verified all 400 original PDFs, 894 supporting sources, 842 stored
 report versions and all 389 reviewed candidacy/account links. Repeated staging and
 review requests did not duplicate records. Each linked candidate read returned
 exact stored figures, the reviewed directory name, actual report dates and received
-date. No production migration, account decision or publication has occurred.
+date. Production staging and publication now retain those generations and all 389 reviewed
+account decisions. All 1,311 unique originals have hash-verified primary and mirror copies.
 
 Account reviews are append-only, require retained ballot, Board-directory and
 report-cover evidence, preserve predecessor decisions and dated attribution, and
@@ -93,22 +97,28 @@ account cards use directory names; payment evidence may use plain labels while t
 original CSV preserves exact columns and values. The new UI uses exact report
 cents, separate support/opposition groups, paged precincts, retained-source panels,
 explicit gaps and the existing calendar-year entry. Browser acceptance against
-actual staged data and the reviewed drawing is in progress. Global navigation and
+actual retained data and the reviewed drawing passed before release. Global navigation and
 Angel's future repeatable report layouts remain outside this build.
 
 The production outside-spending snapshot and the retained research CSV have the
 same parsed record-set hash and 45,741 records, including 4,961 for 2026. Their byte
 hashes differ. Reuse the current publication and its own retained original; do not
-replace the global money release solely to match research download bytes. The
-production schema remains at 0092_mail_file_reuse, so migration 0093 is still needed.
+replace the global money release solely to match research download bytes. Production has migration `0093_election_comparison`.
 
-Remaining work: finish the real outside-spending and browser journeys; review each
-changed state across the three layout bands; obtain independent final review;
-release the code, stage retained sources and explicit reviewed decisions, publish
-scoped pointers with restoration receipts, and verify live. Federal reports and
-local portal records not yet collected remain uncollected, not unavailable or zero.
-Current source artifacts, failed attempts and detailed audit records remain in
-private task scratch storage.
+The production row audit accounts for all 4,961 reported 2026 outside-spending
+records exactly once: 4,243 attributed records ($61,022,940.25), 717 records without
+a confirmed account ($2,265,348.44), and 1 record outside the checked account period
+($249.29). The buckets total $63,288,537.98, with no missing amounts or overlapping
+claims. These amounts include political committees/funds and party units; they are
+not a PAC-only or complete election-cycle total. All 45,741 records in the retained
+CSV were compared field by field with their stored source record numbers. Source
+downloads can order the same records differently: evidence uses each retained
+original's own record numbers.
+
+The prepared Finance build was promoted after source publication. The scoped
+withdrawal dry run matched both published pointers and preserved history. Federal
+reports and local portal records not yet collected remain uncollected, not
+unavailable or zero. Detailed source, review and release receipts remain private.
 
 The [source and release operating contract](../operations/election-finance-comparison.md)
 owns staging, explicit account decisions, publication and restoration commands.
@@ -121,7 +131,7 @@ establish completeness.
 
 ### Independent review corrections, November 11, 2026
 
-The build remains unreleased. Source availability for every referenced account
+The merged build includes these independently accepted corrections. Source availability for every referenced account
 review now participates in comparison versions, including historical and
 supplemental evidence. Dated payments outside checked account intervals have a
 separate source drilldown and remain excluded from attributed totals. Typed ballot,
@@ -155,4 +165,17 @@ panels, and pagination focus. Real touch and a screen-reader session are not
 claimed. Independent review also reproduced a campaign-report opening crash caused by
 conditional hooks in the evidence builder. Those unused hooks were removed; the
 open/close regression now keeps the comparison mounted and its vote figures intact.
-Current-head CI, production release and live verification remain outstanding.
+Current-head CI passed and Finance is live. A fresh independent browser review
+verified Attorney General totals, report evidence and original downloads, precinct
+source lines, paging, live search, Ada's multi-seat totals and local filing gaps,
+and Meg Luger-Nikolai's excluded February 9 payment. Parent review checked the live
+report open/close and focus return, unknown-race handling, restored totals,
+signed-out access and noindex headers. Downloaded report and CSV hashes match the
+retained originals. Source evidence uses production record 1619 for the excluded
+payment; the research copy's record 1650 has identical values in all 19 fields.
+The downloads order their records differently. No material defect remained in these checked journeys.
+
+Live review used the existing desktop browser at 125% zoom. Phone/tablet layout,
+independent failures, retry and changed-version recovery were checked before release;
+production fault injection, real touch and a screen-reader session are not claimed.
+Delivery complete; chat, working folder and local branches retained for follow-up.
