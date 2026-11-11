@@ -1596,8 +1596,6 @@ function evidenceFor(
     .find((a) => a.registration_number === registration);
   if (!account) return null;
   if (kind === 'report') {
-    const [filingsOpen, setFilingsOpen] = useState(false);
-    const filingsId = useId();
     const report = account.reports?.find((r) => r.report_key === key);
     if (!report) return null;
     return {

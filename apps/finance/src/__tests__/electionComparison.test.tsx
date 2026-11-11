@@ -336,3 +336,15 @@ it('reloads the election snapshot when precinct pagination reports changed recor
   expect(new URLSearchParams(window.location.search).get('ppage')).toBe('2');
   expect(new URLSearchParams(window.location.search).get('race')).toBe(race);
 });
+
+it('opens and closes a campaign report without crashing the comparison', async () => {
+  await render();
+  expect(buttons('View report').length).toBeGreaterThan(0);
+  await click(buttons('View report')[0]);
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Reporting period');
+  await act(async () =>
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+  );
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(container.textContent).toContain('1,521,032');
+});

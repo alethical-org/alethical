@@ -70,7 +70,7 @@ Versioned result storage, scoped financial collection storage and authenticated
 read APIs passed 251 focused backend tests before the latest UI source routes.
 The latest report/outside-read checks passed 71 tests, including received dates,
 local roster encoding, absent candidates, filtered payments and original CSV
-access. The Finance suite passes 975 tests; the production bundle compiles.
+access. The Finance suite passes 976 tests; the production bundle compiles.
 These checks do not establish browser or live acceptance.
 
 An actual disposable PostgreSQL/API run checked all 5,023 race counts, all 4,105
@@ -131,14 +131,13 @@ once against current applicable decisions. Independent review accepted these bac
 comparison of every payment row against an independent audit.
 
 154 focused backend tests passed after the source and interval fixes; the added
-partition test passed separately. The 10 comparison UI tests pass, including the
+partition test passed separately. The 11 comparison UI tests pass, including the
 excluded-payment source, failed source restoration, nearby live-search results and
 pagination focus. A reproduced changed-snapshot failure now reloads the election
 and precinct reads together while retaining the selected race and page.
-The production bundle compiles. The fresh full-corpus run has 61 passing checks, including revalidation of all 389
+The production bundle compiles. The fresh full-corpus run has 62 passing checks, including revalidation of all 389
 account requests and an exact partition of all 4,961 current-year payment rows.
-Its API remains running for browser acceptance; the receipt is deliberately not
-yet marked complete.
+The full-corpus receipt passed and its owned disposable database was removed.
 
 Design reviewed desktop, tablet and phone built screens. Accepted corrections
 restore the About section, group files beneath their publishers, preserve separate
@@ -146,10 +145,14 @@ copy dates, avoid repeated chart labels, keep dates and precinct names intact, a
 use shared chevrons. Payments outside checked dates appear separately by candidate;
 only individual rows show amounts, so support and opposition are not combined.
 The last visual correction adds a clear fixed-column boundary when the precinct
-table scrolls. Final Design confirmation of that correction remains pending.
+table scrolls. A reproduced page-overflow defect was fixed by containing hidden
+source labels inside that scroll region. Design accepted the corrected build with
+no material visual defects remaining.
 
 Browser checks verified independent precinct and finance failures and recovery,
 exact payment-source restoration, keyboard table scrolling, live search, source
 panels, and pagination focus. Real touch and a screen-reader session are not
-claimed. Current-head CI, completion of the retained-data receipt, production
-release and live verification remain outstanding.
+claimed. Independent review also reproduced a campaign-report opening crash caused by
+conditional hooks in the evidence builder. Those unused hooks were removed; the
+open/close regression now keeps the comparison mounted and its vote figures intact.
+Current-head CI, production release and live verification remain outstanding.
