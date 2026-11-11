@@ -303,6 +303,7 @@
   font-size: 14px;
 }
 .ec-table-wrap {
+  position: relative;
   overflow-x: auto;
   border: 1px solid rgb(20 27 34 / 12%);
   border-radius: 10px;
