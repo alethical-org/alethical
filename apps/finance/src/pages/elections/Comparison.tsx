@@ -913,6 +913,7 @@ function PrecinctResults({
   onSource: (value: string) => void;
 }) {
   const band = useBand();
+  const [scrolled, setScrolled] = useState(false);
   const total = (precinct: d.Precinct) =>
     precinct.rows.length && precinct.rows.every((r) => r.votes != null)
       ? precinct.rows.reduce((sum, r) => sum + r.votes!, 0)
@@ -956,7 +957,14 @@ function PrecinctResults({
       </div>
     );
   return (
-    <div className="ec-table-wrap" tabIndex={0} role="region" aria-label="Precinct results">
+    <div
+      className="ec-table-wrap"
+      tabIndex={0}
+      role="region"
+      aria-label="Precinct results"
+      data-scrolled={scrolled || undefined}
+      onScroll={(event) => setScrolled(event.currentTarget.scrollLeft > 0)}
+    >
       <table className="ec-table ec-precinct-table">
         <thead>
           <tr>
@@ -964,7 +972,7 @@ function PrecinctResults({
             <th scope="col">County</th>
             {race.candidates.map((c, i) => (
               <th scope="col" key={c.candidate_order_code ?? i}>
-                {c.name}
+                <span className={c.is_write_in_aggregate ? 'ec-number' : undefined}>{c.name}</span>
               </th>
             ))}
             <th scope="col">Total votes</th>

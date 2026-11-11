@@ -703,3 +703,19 @@
 .ec-link svg {
   flex: none;
 }
+
+.ec-precinct-table th:first-child::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgb(20 27 34 / 12%);
+}
+.ec-table-wrap[data-scrolled] .ec-precinct-table th:first-child::after {
+  box-shadow: 3px 0 6px rgb(20 27 34 / 18%);
+}
+.ec-precinct-table .ec-link {
+  white-space: nowrap;
+}
