@@ -11,7 +11,7 @@ import {
 import { Link } from '../router';
 import { WithArrow } from './parts';
 
-function Caret({ up = false }: { up?: boolean }) {
+export function Caret({ up = false }: { up?: boolean }) {
   return (
     <svg
       width="16"

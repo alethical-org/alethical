@@ -405,6 +405,9 @@
 .ec-outside-group {
   margin-top: 16px;
 }
+.ec-outside-group > .ec-card {
+  margin-top: 10px;
+}
 .ec-outside-card {
   margin-top: 10px;
   background: #fff;
@@ -592,6 +595,17 @@
   font-size: 14px;
   font-weight: 600;
 }
+.ec-sources ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  padding: 0;
+  margin: 2px 0 0;
+}
+.ec-sources > .ec-link {
+  overflow-wrap: anywhere;
+}
 .ec-sources p {
   margin: 6px 0 0;
 }
@@ -661,4 +675,31 @@
 .ec-table-wrap:focus-visible {
   outline: 2px solid #7c5cff;
   outline-offset: 2px;
+}
+
+.ec-about {
+  max-width: 760px;
+}
+.ec-about p {
+  color: #4a5661;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.ec-date,
+.ec-precinct-name {
+  white-space: nowrap;
+}
+.ec-precinct-table th:first-child {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 1;
+}
+.ec-precinct-table .ec-warning {
+  white-space: normal;
+  min-width: 180px;
+  max-width: 260px;
+}
+.ec-link svg {
+  flex: none;
 }

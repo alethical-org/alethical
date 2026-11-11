@@ -5,7 +5,7 @@ import { returnTarget } from '../../returnContext';
 import { hrefFor } from '../../routes';
 import { useLiveSearch } from '../../search/useLiveSearch';
 import { useAddressState } from '../../ui/addressState';
-import { Refused, Updating } from '../../ui/controls';
+import { Caret, Refused, Updating } from '../../ui/controls';
 import { BackLink, LoadingLine } from '../../ui/parts';
 import { formatMoney } from '../../ui/money';
 import { useBand } from '../../ui/band';
@@ -178,7 +178,9 @@ function SearchField({
 export function ElectionComparison() {
   const location = useLocation();
   const [address, setAddress] = useAddressState(defaults);
-  const elections = useRead<d.ElectionsAnswer>(d.electionsPath(), { keepPrevious: true });
+  const elections = useRead<d.ElectionsAnswer>(d.electionsPath(), {
+    keepPrevious: true,
+  });
   const selected = elections.data?.elections.find((item) => item.election_key === address.election);
   const back = returnTarget(location.search) ?? {
     to: hrefFor('campaign-money'),
@@ -450,7 +452,7 @@ function RaceComparison({
         <div>
           <h2>{raceName(race)}</h2>
           <p>
-            {detail.election_date.slice(0, 4)} {detail.stage} election ·{' '}
+            {detail.stage[0].toUpperCase() + detail.stage.slice(1)} election ·{' '}
             {dateLabel(detail.election_date)}
           </p>
           <strong>{statusLabel(race.result_status)}</strong>
@@ -485,7 +487,9 @@ function RaceComparison({
                   <div>
                     <span>
                       <strong>{candidateLabel(c)}</strong>
-                      {c.party && <span className="ec-muted"> · {c.party}</span>}
+                      {c.party && !c.is_write_in_aggregate && (
+                        <span className="ec-muted"> · {c.party}</span>
+                      )}
                     </span>
                     <span className="ec-number">
                       <strong>{count(c.votes)}</strong>
@@ -527,7 +531,7 @@ function RaceComparison({
                 {sortedCandidates.map((c, i) => (
                   <tr key={c.candidate_id ?? i}>
                     <th scope="row">{candidateLabel(c)}</th>
-                    <td>{c.party ?? 'Not reported'}</td>
+                    <td>{c.is_write_in_aggregate ? '' : (c.party ?? 'Not reported')}</td>
                     <td className="ec-number">{count(c.votes)}</td>
                     <td className="ec-number">
                       {c.votes != null && voteTotal != null && voteTotal > 0
@@ -551,8 +555,8 @@ function RaceComparison({
         )}
         {race.seats_to_elect && race.seats_to_elect > 1 && (
           <p className="ec-muted">
-            Elect {race.seats_to_elect} · Shares use votes cast for candidates, not the number of
-            voters
+            {!/\bElect\s+\d+\b/i.test(race.label) && <>Elect {race.seats_to_elect} · </>}
+            Shares use votes cast for candidates, not the number of voters
           </p>
         )}
         {race.diagnostics.length > 0 && (
@@ -643,49 +647,6 @@ function RaceComparison({
                 </p>
               ) : null;
             })}
-            {candidates.map((candidate) => {
-              const excluded = candidate.outside_spending.excluded_outside_reviewed_period;
-              if (!excluded?.record_count || !candidate.candidate_id) return null;
-              const key = `${candidate.candidate_id}:excluded`;
-              const open = address.pay === key;
-              return (
-                <div key={key}>
-                  <p className="ec-muted">
-                    {candidate.name}: {count(excluded.record_count)}{' '}
-                    {excluded.record_count === 1 ? 'payment record names' : 'payment records name'}{' '}
-                    the linked account ({exactMoney(excluded.amount)}). These payments fall outside
-                    its checked dates and are excluded from this candidate’s totals.
-                  </p>
-                  <button
-                    className="ec-link"
-                    aria-expanded={open}
-                    onClick={() => setAddress({ pay: open ? '' : key, paypage: '1', source: '' })}
-                  >
-                    View excluded payments · {count(excluded.record_count)}
-                  </button>
-                  {open && (
-                    <Payments
-                      key={`${key}:${data.version}`}
-                      detail={detail}
-                      data={data}
-                      candidateId={candidate.candidate_id}
-                      scope="outside_reviewed_period"
-                      revision={revision}
-                      page={pageNumber(address.paypage)}
-                      onPage={(page) => setAddress({ paypage: String(page), source: '' })}
-                      onRecord={(row) => {
-                        setPaymentEvidence({ version: data.version, row });
-                        selectSource(`payment:${row.row_number}`);
-                      }}
-                      source={address.source}
-                      onRestore={restorePayment}
-                      onSourceState={setPaymentSourceState}
-                      reload={reload}
-                    />
-                  )}
-                </div>
-              );
-            })}
             {(['PCF', 'PTU', 'other'] as const).map((category) => (
               <OutsideGroup
                 key={category}
@@ -705,6 +666,68 @@ function RaceComparison({
                 reload={reload}
               />
             ))}
+            {candidates.some(
+              (candidate) =>
+                candidate.outside_spending.excluded_outside_reviewed_period?.record_count,
+            ) && (
+              <section className="ec-outside-group" aria-labelledby="ec-excluded">
+                <h4 id="ec-excluded">Payments outside checked dates</h4>
+                {candidates.map((candidate) => {
+                  const excluded = candidate.outside_spending.excluded_outside_reviewed_period;
+                  if (!excluded?.record_count || !candidate.candidate_id) return null;
+                  const key = `${candidate.candidate_id}:excluded`;
+                  const open = address.pay === key;
+                  return (
+                    <article className="ec-card" key={key}>
+                      <h5>{candidate.name}</h5>
+                      <p className="ec-muted">
+                        {count(excluded.record_count)}{' '}
+                        {excluded.record_count === 1
+                          ? 'payment record names'
+                          : 'payment records name'}{' '}
+                        the linked account.{' '}
+                        {excluded.record_count === 1 ? 'This payment is' : 'These payments are'}{' '}
+                        excluded from this candidate’s totals.
+                      </p>
+                      <button
+                        className="ec-link"
+                        aria-expanded={open}
+                        onClick={() =>
+                          setAddress({
+                            pay: open ? '' : key,
+                            paypage: '1',
+                            source: '',
+                          })
+                        }
+                      >
+                        <Caret up={open} />
+                        View excluded payments · {count(excluded.record_count)}
+                      </button>
+                      {open && (
+                        <Payments
+                          key={`${key}:${data.version}`}
+                          detail={detail}
+                          data={data}
+                          candidateId={candidate.candidate_id}
+                          scope="outside_reviewed_period"
+                          revision={revision}
+                          page={pageNumber(address.paypage)}
+                          onPage={(page) => setAddress({ paypage: String(page), source: '' })}
+                          onRecord={(row) => {
+                            setPaymentEvidence({ version: data.version, row });
+                            selectSource(`payment:${row.row_number}`);
+                          }}
+                          source={address.source}
+                          onRestore={restorePayment}
+                          onSourceState={setPaymentSourceState}
+                          reload={reload}
+                        />
+                      )}
+                    </article>
+                  );
+                })}
+              </section>
+            )}
             <p className="ec-footnote">
               Outside spending is reported by the spender. For and Against preserve the position in
               that filing.
@@ -748,8 +771,27 @@ function RaceComparison({
           </>
         )}
       </section>
+      <section className="ec-section ec-about" aria-labelledby="ec-about">
+        <h3 id="ec-about">About these records</h3>
+        <p>
+          Results and campaign reports can cover different periods. Read the dates beside each
+          figure before comparing.
+        </p>
+        <p>
+          Spending and election outcomes are shown together. These records alone do not show whether
+          spending changed an outcome.
+        </p>
+        <p>
+          Outside spending shown here comes from itemized reports to the Minnesota Campaign Finance
+          and Public Disclosure Board. Candidate campaign reports may be filed with a different
+          authority.
+        </p>
+      </section>
       <section className="ec-sources">
         <h3>Sources and updates</h3>
+        <p>
+          <strong>{SOS}</strong> · Copied {dateLabel(detail.copied_at)}
+        </p>
         <ul>
           {detail.sources
             .filter((source) =>
@@ -770,34 +812,20 @@ function RaceComparison({
               </li>
             ))}
         </ul>
+        {(data?.copied_at || data?.payment_source) && (
+          <p>
+            <strong>{BOARD}</strong>
+          </p>
+        )}
+        {data?.copied_at && <p>Campaign reports · Copied {dateLabel(data.copied_at)}</p>}
+        {data?.payment_source?.copied_at && (
+          <p>Outside spending · Copied {dateLabel(data.payment_source.copied_at)}</p>
+        )}
         {data?.payment_source && (
           <button className="ec-link" onClick={() => selectSource('outside-file')}>
-            Itemized independent expenditures CSV
+            All - Itemized Independent Expenditures Of Over $200 - Campaign Finance.csv
           </button>
         )}
-        <p>
-          Election results: {SOS} · Copied {dateLabel(detail.copied_at)} ·{' '}
-          {statusLabel(race.result_status)}
-        </p>
-        {data?.copied_at && (
-          <p>
-            Campaign reports: {BOARD} · Copied {dateLabel(data.copied_at)}
-          </p>
-        )}
-        {data?.payment_source?.copied_at && (
-          <p>
-            Outside spending: {BOARD} · Copied {dateLabel(data.payment_source.copied_at)}
-          </p>
-        )}
-        <p>
-          Outside spending shown here comes from itemized reports to the Minnesota Campaign Finance
-          and Public Disclosure Board. Candidate campaign reports may be filed with a different
-          authority.
-        </p>
-        <p>
-          Reports keep their own dates. Available reports may not cover all spending through
-          election day. These comparisons do not measure whether spending changed the result.
-        </p>
       </section>
       {address.source && (
         <RetainedEvidence
@@ -929,7 +957,7 @@ function PrecinctResults({
     );
   return (
     <div className="ec-table-wrap" tabIndex={0} role="region" aria-label="Precinct results">
-      <table className="ec-table">
+      <table className="ec-table ec-precinct-table">
         <thead>
           <tr>
             <th scope="col">Precinct</th>
@@ -947,7 +975,7 @@ function PrecinctResults({
           {precincts.map((precinct) => (
             <tr key={precinct.key}>
               <th scope="row">
-                {precinct.name}
+                <span className="ec-precinct-name">{precinct.name}</span>
                 <span className="ec-muted ec-precinct-id">{precinct.key}</span>
                 {note(precinct)}
               </th>
@@ -982,6 +1010,8 @@ function AccountCard({
   sharedPeriod: string | null;
   onSource: (source: string) => void;
 }) {
+  const [filingsOpen, setFilingsOpen] = useState(false);
+  const filingsId = useId();
   const report = account.reports?.find(
     (item) => item.report_key === account.latest_report.report_key,
   );
@@ -1043,9 +1073,17 @@ function AccountCard({
         </div>
       )}
       {(account.reports?.length ?? 0) > 1 && (
-        <details className="ec-report-history">
-          <summary>Available filings ({account.reports!.length})</summary>
-          <ul>
+        <div className="ec-report-history">
+          <button
+            className="ec-link"
+            aria-expanded={filingsOpen}
+            aria-controls={filingsId}
+            onClick={() => setFilingsOpen(!filingsOpen)}
+          >
+            <Caret up={filingsOpen} />
+            Available filings ({account.reports!.length})
+          </button>
+          <ul id={filingsId} hidden={!filingsOpen}>
             {account.reports!.map((r) => (
               <li key={r.report_key}>
                 <button
@@ -1063,7 +1101,7 @@ function AccountCard({
               </li>
             ))}
           </ul>
-        </details>
+        </div>
       )}
     </div>
   );
@@ -1117,6 +1155,7 @@ function OutsideGroup({
         key: `${candidate.candidate_id}:${category}:${direction}`,
       }));
     });
+  const firstBar = rows.find((row) => row.group.state !== 'no_records')?.key;
   const maximum = Math.max(
     1,
     ...rows.map(({ group }) => Math.max(0, Number(d.reportedAmount(group) ?? 0))),
@@ -1142,7 +1181,7 @@ function OutsideGroup({
               <span className="ec-number">
                 {amount == null
                   ? group.state === 'no_records'
-                    ? 'No payments held for this position'
+                    ? 'No payments within the checked account dates'
                     : 'Amount not available'
                   : formatMoney(amount)}
               </span>
@@ -1151,7 +1190,9 @@ function OutsideGroup({
               )}
               {group.first_known_date && (
                 <span className="ec-muted">
-                  Payments dated {periodLabel(group.first_known_date, group.last_known_date)}
+                  Payments dated{' '}
+                  <span className="ec-date">{dateLabel(group.first_known_date)}</span> to{' '}
+                  <span className="ec-date">{dateLabel(group.last_known_date)}</span>
                 </span>
               )}
               {group.date_coverage === 'incomplete' && (
@@ -1173,8 +1214,8 @@ function OutsideGroup({
                 <p>
                   <strong>{position}</strong> ·{' '}
                   {category === 'PTU'
-                    ? 'No party-unit payments held for this position'
-                    : 'No payments held for this position'}
+                    ? 'No party-unit payments within the checked account dates'
+                    : 'No payments within the checked account dates'}
                 </p>
               ) : (
                 <>
@@ -1183,10 +1224,12 @@ function OutsideGroup({
                       <strong>{position}</strong>
                       <div className="ec-outside-chart">
                         <div>
-                          <div className="ec-split-labels" aria-hidden="true">
-                            <span>Against</span>
-                            <span>For</span>
-                          </div>
+                          {key === firstBar && (
+                            <div className="ec-split-labels" aria-hidden="true">
+                              <span>Against</span>
+                              <span>For</span>
+                            </div>
+                          )}
                           <div className="ec-split" aria-hidden="true">
                             <span>
                               <i
@@ -1231,6 +1274,7 @@ function OutsideGroup({
                       })
                     }
                   >
+                    <Caret up={open} />
                     View payments · {count(group.record_count)}{' '}
                     {group.record_count === 1 ? 'payment' : 'payments'}
                   </button>
@@ -1342,9 +1386,21 @@ function Payments({
             {read.data.rows.map((row) => (
               <li key={row.row_number}>
                 <span>
-                  {dateLabel(row.fields.Date)} ·{' '}
+                  <span className="ec-date">{dateLabel(row.fields.Date)}</span> ·{' '}
                   <strong>{row.fields.Spender ?? 'Spender not reported'}</strong> ·{' '}
                   <span className="ec-number">{exactMoney(row.fields.Amount)}</span>
+                  {scope === 'outside_reviewed_period' && (
+                    <span className="ec-muted">
+                      {' '}
+                      ·{' '}
+                      {row.fields['Spender type'] === 'PTU'
+                        ? 'Party unit'
+                        : row.fields['Spender type'] === 'PCF'
+                          ? 'Political committee or fund'
+                          : (row.fields['Spender type'] ?? 'Filer type not reported')}{' '}
+                      · {row.fields['For /Against'] ?? 'Position not reported'}
+                    </span>
+                  )}
                 </span>
                 <button className="ec-link" onClick={() => onRecord(row)}>
                   View source
@@ -1532,6 +1588,8 @@ function evidenceFor(
     .find((a) => a.registration_number === registration);
   if (!account) return null;
   if (kind === 'report') {
+    const [filingsOpen, setFilingsOpen] = useState(false);
+    const filingsId = useId();
     const report = account.reports?.find((r) => r.report_key === key);
     if (!report) return null;
     return {
@@ -1545,7 +1603,7 @@ function evidenceFor(
           },
           { label: 'Registration number', value: registration },
           {
-            label: 'Report period',
+            label: 'Reporting period',
             value: periodLabel(report.period_start, report.period_end),
           },
           { label: 'Received', value: dateLabel(report.received_date) },

@@ -212,7 +212,9 @@ it('restores a shared payment-source link and keeps unsupported positions distin
       (url) => url.includes('/outside-spending/source?') && url.includes('release_id='),
     ),
   ).toBe(true);
-  expect(container.textContent).toContain('No party-unit payments held for this position');
+  expect(container.textContent).toContain(
+    'No party-unit payments within the checked account dates',
+  );
 });
 
 it('opens precise precinct source lines and closes evidence without changing the race', async () => {
@@ -284,7 +286,9 @@ it('keeps payments outside checked dates separate and opens their source without
   const candidate = finance.candidates.find((c) => c.accounts.length)!;
   candidate.outside_spending.excluded_outside_reviewed_period = { ...group, amount: '249.2900' };
   await render();
-  expect(container.textContent).toContain('$249.29');
+  // An excluded subtotal can mix For and Against; only individual rows show amounts.
+  expect(container.textContent).not.toContain('$249.29');
+  expect(container.textContent).toContain('Payments outside checked dates');
   expect(container.textContent).toContain('excluded from this candidate’s totals');
   await click(buttons('View excluded payments')[0]);
   expect(requests.some((url) => url.includes('scope=outside_reviewed_period'))).toBe(true);
