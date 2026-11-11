@@ -18,7 +18,7 @@ from alethical.db import models as m
 from alethical.db.session import get_engine
 from alethical.api.services import finance_versions
 from alethical.pipeline import election_account_reviews as reviews
-from alethical.pipeline.election_comparison import archive_source
+from alethical.pipeline.election_comparison import archive_source, ComparisonImportError
 from alethical.tests.test_election_comparison_storage import MemoryStore
 from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F401
 from alethical.tests.test_election_outside_spending import spending  # noqa: F401
@@ -942,7 +942,11 @@ def test_candidate_payment_groups_page_only_the_attributed_position(
     data = response.json()["data"]
     assert [r["row_number"] for r in data["rows"]] == expected
     assert data["page"]["total"] == len(expected)
-    assert data["filters"] == {"spender_type": category, "direction": direction}
+    assert data["filters"] == {
+        "spender_type": category,
+        "direction": direction,
+        "scope": "attributed",
+    }
 
 
 def test_published_historical_raw_sources_lines_auth_and_corruption(
@@ -1059,7 +1063,8 @@ def test_review_source_from_another_published_election_keeps_its_address(
         },
     )
     finance_db.commit()
-    account = _data(finance_api)["candidates"][0]["accounts"][0]
+    before = _data(finance_api)
+    account = before["candidates"][0]["accounts"][0]
     register = next(
         item for item in account["evidence"] if item["kind"] == "committee_register"
     )
@@ -1087,6 +1092,13 @@ def test_review_source_from_another_published_election_keeps_its_address(
     assert register["source_state"] == "unavailable"
     assert "retained_source_url" not in register
     assert "source_election_key" not in register
+    assert (
+        finance_api.get(
+            URL,
+            params={"version": before["version"], "snapshot_id": before["snapshot_id"]},
+        ).status_code
+        == 409
+    )
     assert (
         finance_api.get(correct, params={"collection_id": historical}).status_code
         == 404
@@ -1140,3 +1152,222 @@ def test_both_official_rosters_keep_windows_1252_source_lines(
     assert response.json()["data"]["lines"] == [
         {"number": 1, "text": "Candidate;Renée"}
     ]
+
+
+def test_removed_supplemental_evidence_invalidates_comparison_and_payment_pages(
+    finance_api, finance_db, comparison
+):
+    store = MemoryStore()
+    body = b"Additional retained source reviewed with this account"
+    fingerprint = archive_source(finance_db, store, body)
+    evidence = deepcopy(comparison["args"]["evidence"]) + [
+        {"kind": "supplemental", "sha256": fingerprint}
+    ]
+    reviews.record_decision(
+        finance_db,
+        **{
+            **comparison["args"],
+            "evidence": evidence,
+            "expected_previous_id": comparison["decision"].id,
+            "reason": "Additional identity evidence reviewed",
+        },
+    )
+    finance_db.commit()
+    before = _data(finance_api)
+    candidate = before["candidates"][0]
+    assert candidate["account_state"] == "checked"
+    payment_url = URL + "/candidates/" + candidate["candidate_id"] + "/outside-spending"
+    # Changes to unrelated retained sources must not invalidate this comparison.
+    unrelated = archive_source(finance_db, store, b"Unrelated evidence")
+    finance_db.commit()
+    assert _data(finance_api)["version"] == before["version"]
+    finance_db.delete(finance_db.get(m.ElectionResultSource, unrelated))
+    finance_db.commit()
+    assert _data(finance_api)["version"] == before["version"]
+    finance_db.delete(finance_db.get(m.ElectionResultSource, fingerprint))
+    finance_db.commit()
+    missing = _data(finance_api)
+    assert missing["candidates"][0]["account_state"] == "unavailable"
+    for url in (URL, payment_url):
+        assert (
+            finance_api.get(
+                url,
+                params={
+                    "version": before["version"],
+                    "snapshot_id": before["snapshot_id"],
+                },
+            ).status_code
+            == 409
+        )
+    archive_source(finance_db, store, body)
+    finance_db.commit()
+    restored = _data(finance_api)
+    assert restored["candidates"][0]["account_state"] == "checked"
+    assert restored["version"] == before["version"]
+    for url in (URL, payment_url):
+        assert (
+            finance_api.get(
+                url,
+                params={
+                    "version": missing["version"],
+                    "snapshot_id": missing["snapshot_id"],
+                },
+            ).status_code
+            == 409
+        )
+
+
+def test_dated_payments_outside_reviewed_period_stay_traceable_but_unattributed(
+    finance_api, comparison
+):
+    data = _data(finance_api)
+    outside = data["candidates"][0]["outside_spending"]
+    assert outside["excluded_outside_reviewed_period"]["record_count"] == 1
+    assert outside["excluded_outside_reviewed_period"]["amount"] == "2.0000"
+    response = finance_api.get(
+        f"{URL}/candidates/a/outside-spending",
+        params={
+            "snapshot_id": data["snapshot_id"],
+            "version": data["version"],
+            "scope": "outside_reviewed_period",
+        },
+    )
+    assert response.status_code == 200
+    excluded = response.json()["data"]
+    assert excluded["page"]["total"] == 1
+    assert excluded["rows"][0]["row_number"] == 10
+    assert excluded["rows"][0]["resolution"] == "outside_checked_period"
+    assert excluded["rows"][0]["fields"]["Amount"] == "2.0000"
+    assert excluded["filters"]["scope"] == "outside_reviewed_period"
+    assert excluded["payment_source"] == data["payment_source"]
+    # The ordinary attributed payment page keeps its original four records.
+    attributed = finance_api.get(
+        f"{URL}/candidates/a/outside-spending",
+        params={"snapshot_id": data["snapshot_id"], "version": data["version"]},
+    ).json()["data"]
+    assert attributed["page"]["total"] == 4
+    assert 10 not in [row["row_number"] for row in attributed["rows"]]
+
+
+def test_typed_register_name_requires_a_matching_retained_source(
+    finance_db, comparison
+):
+    evidence = deepcopy(comparison["args"]["evidence"])
+    register = next(item for item in evidence if item["kind"] == "committee_register")
+    register["literal_fields"] = {
+        "RegisteredEntityID": "-101",
+        "RegisteredEntityFullName": "A name never printed in the retained source",
+    }
+    with pytest.raises(ComparisonImportError, match="register"):
+        reviews.record_decision(
+            finance_db,
+            **{
+                **comparison["args"],
+                "evidence": evidence,
+                "expected_previous_id": comparison["decision"].id,
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    "change", [None, "name", "columns", "locator", "account", "corrupt"]
+)
+def test_register_quotes_are_checked_against_exact_retained_bytes(
+    finance_db, comparison, monkeypatch, change
+):
+    import json
+
+    store = MemoryStore()
+    columns = ["RegisteredEntityID", "RegisteredEntityFullName"]
+    fields = {
+        "RegisteredEntityID": "-101",
+        "RegisteredEntityFullName": "Filed committee",
+    }
+    body = json.dumps(
+        {"cols": columns, "data": {"-101": [["-101", "Filed committee"]]}}
+    ).encode()
+    fingerprint = archive_source(finance_db, store, body)
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    collection.sources = [
+        *collection.sources,
+        {
+            "sha256": fingerprint,
+            "kind": "candidate_directory",
+            "url": "https://cfb.mn.gov/reports/api/",
+        },
+    ]
+    evidence = deepcopy(comparison["args"]["evidence"])
+    register = next(item for item in evidence if item["kind"] == "committee_register")
+    register.update(
+        sha256=fingerprint,
+        column_names=columns,
+        literal_fields=fields,
+        locator="/data/-101/0",
+    )
+    monkeypatch.setattr(reviews, "raw_file_store_from_env", lambda: store)
+    if change == "name":
+        fields["RegisteredEntityFullName"] = "Invented name"
+    if change == "columns":
+        register["column_names"] = list(reversed(columns))
+    if change == "locator":
+        register["locator"] = "/data/-101/1"
+    if change == "account":
+        register["locator"] = "/data/another/0"
+    if change == "corrupt":
+
+        def broken(*args, **kwargs):
+            raise OSError("missing source")
+
+        monkeypatch.setattr(store, "get", broken)
+    args = {
+        **comparison["args"],
+        "evidence": evidence,
+        "expected_previous_id": comparison["decision"].id,
+    }
+    if change:
+        with pytest.raises(ComparisonImportError, match="register"):
+            reviews.record_decision(finance_db, **args)
+    else:
+        row = reviews.record_decision(finance_db, **args)
+        assert row.evidence == evidence
+        public = reads._public_account(
+            finance_db, {"registration_number": "-101", "evidence": row.evidence}
+        )
+        assert public["committee_name"] == "Filed committee"
+
+
+def test_report_cover_quote_cannot_override_retained_parsed_fields(
+    finance_db, comparison
+):
+    evidence = deepcopy(comparison["args"]["evidence"])
+    cover = next(item for item in evidence if item["kind"] == "report_cover")
+    cover["literal_fields"] = {"committee_name": "Invented cover"}
+    with pytest.raises(ComparisonImportError, match="Report-cover quotes"):
+        reviews.record_decision(
+            finance_db,
+            **{
+                **comparison["args"],
+                "evidence": evidence,
+                "expected_previous_id": comparison["decision"].id,
+            },
+        )
+
+
+def test_release_audit_partitions_each_source_row_once_with_nulls_and_duplicates(
+    finance_db, comparison
+):
+    from scripts.audit_election_attribution import audit
+
+    receipt = audit(finance_db, KEY)
+    assert receipt["count"] == 8
+    assert receipt["known_amount"] == "51.0000"
+    assert receipt["missing_amount_count"] == 1
+    assert receipt["each_row_exactly_once"] is True
+    assert {key: value["count"] for key, value in receipt["buckets"].items()} == {
+        "attributed": 4,
+        "no_confirmed_account": 2,
+        "missing_date": 1,
+        "outside_reviewed_period": 1,
+    }
+    assert {row["row_number"] for row in receipt["rows"]} == {1, 2, 3, 4, 7, 8, 9, 10}
+    assert receipt["decision_ids"] == [comparison["decision"].id]

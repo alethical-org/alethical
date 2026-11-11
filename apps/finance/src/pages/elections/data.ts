@@ -292,7 +292,7 @@ export interface PaymentFields {
 }
 export interface PaymentRecord {
   row_number: number;
-  resolution: 'not_attributed' | 'checked_account_and_period';
+  resolution: 'not_attributed' | 'checked_account_and_period' | 'outside_checked_period';
   fields: PaymentFields;
 }
 export interface OutsideRecordsAnswer extends OutsideContext {
@@ -424,6 +424,7 @@ export interface CandidateOutsideSpending {
   reason?: string;
   excluded_missing_date?: SpendingMeasure;
   excluded_missing_year?: SpendingMeasure;
+  excluded_outside_reviewed_period?: SpendingMeasure;
   scope?: string;
   complete_election_spending?: false;
 }
@@ -581,6 +582,7 @@ export function candidateOutsideRecordsPath(
     version: string;
     spenderType?: SpenderType;
     direction?: SpendingDirection;
+    scope?: 'attributed' | 'outside_reviewed_period';
   },
 ) {
   return apiPath(
@@ -590,6 +592,7 @@ export function candidateOutsideRecordsPath(
       version: options.version,
       spender_type: options.spenderType,
       direction: options.direction,
+      scope: options.scope,
       limit: options.limit,
       offset: options.offset,
     },

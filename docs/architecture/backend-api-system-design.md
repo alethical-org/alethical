@@ -24,6 +24,30 @@ Both return separately named records, never an inferred identity or combined mon
 The [Finance architecture](alethical-finance-architecture.md#similar-printed-names)
 owns their matching, counts, paging versions, source evidence and failure contracts.
 
+## Private Finance election comparisons
+
+Finance access protects all `GET /api/v1/finance/elections` reads, including original
+source downloads. `/elections/{election_key}/races` lists the published generation;
+`/races/{race_id}` and `/races/{race_id}/precincts` return the exact contest and paged
+precinct records. Result reads accept a pinned `snapshot_id` and refuse a changed
+current generation. Election source bytes and bounded line windows live under
+`/elections/{election_key}/sources/{source_hash}` and its `/lines` suffix.
+
+`/elections/{election_key}/races/{race_id}/finance` combines independently available
+report collections and outside-spending records through explicit account decisions.
+Its `/candidates/{candidate_id}/outside-spending` suffix pages one candidate's
+payments, with `spender_type`, `direction` and version checks. Election-wide outside
+spending and paged records use `/elections/{election_key}/outside-spending` and its
+`/records` suffix; original CSV access uses `/source` with the result snapshot,
+money version and release ID pinned together.
+
+Report PDFs and supporting raw bytes/line windows use
+`/elections/{election_key}/finance/sources/{hash}` with `collection_id`; supporting
+sources add `/raw` or `/lines`. Unknown scopes return 404, changed views 409, and
+unavailable retained bytes 503. A failed or absent source never becomes zero money.
+The [source operating contract](../operations/election-finance-comparison.md) owns
+staging, explicit relationship decisions and separate publication pointers.
+
 ## Goal
 
 Design a REST API for Alethical v1 that:
@@ -3070,3 +3094,9 @@ read-only; explicit stop and RFC8058 one-click POSTs stop emails without closing
 account. All subscription responses, including errors, are private and uncached.
 [Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md) owns
 copy, consent rules, data retention fields, delivery gates and completion checks.
+
+The candidate outside-payment page accepts `scope=outside_reviewed_period` for
+source-dated records naming a linked account outside its reviewed intervals. These
+rows stay outside candidate totals and carry `resolution=outside_checked_period`.
+Their source links use the same pinned original and version checks. Missing-date
+and missing-year counts remain separate from this dated exclusion.

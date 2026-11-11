@@ -7,12 +7,18 @@ It never imports a matcher score or turns a unique name into a confirmation.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+import json
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
-from alethical.pipeline.election_comparison import ComparisonImportError, digest
+from alethical.pipeline.election_comparison import (
+    ComparisonImportError,
+    digest,
+    read_source,
+)
+from alethical.pipeline.raw_file_store import raw_file_store_from_env
 
 
 def candidate_identity(race: m.ElectionComparisonRace, candidate: dict) -> dict:
@@ -33,6 +39,90 @@ def _candidate(race: m.ElectionComparisonRace, candidate_id: str) -> dict:
     if len(found) != 1 or found[0]["is_write_in_aggregate"]:
         raise ComparisonImportError("A review must identify one named candidacy")
     return found[0]
+
+
+def _validate_quotes(db: Session, item: dict, registration_number: str) -> None:
+    """Check supplied literal claims against retained source data, not typed notes."""
+    kind = item.get("kind")
+    fields = item.get("literal_fields")
+    literal_row = item.get("literal_row")
+    if fields is None and literal_row is None:
+        return
+    if kind == "report_cover":
+        reports = db.scalars(
+            select(m.ElectionFinanceReport).where(
+                m.ElectionFinanceReport.document_hash == item["sha256"],
+                m.ElectionFinanceReport.registration_number == registration_number,
+            )
+        ).all()
+        if (
+            item.get("page") != 1
+            or not reports
+            or any(report.payload.get("cover") != fields for report in reports)
+        ):
+            raise ComparisonImportError(
+                "Report-cover quotes differ from retained parsed evidence"
+            )
+        return
+    if kind not in {"ballot", "committee_register"}:
+        raise ComparisonImportError("Quoted fields need a supported source adapter")
+    if kind == "committee_register" and (
+        not isinstance(fields, dict)
+        or not isinstance(item.get("locator"), str)
+        or not isinstance(item.get("column_names"), list)
+    ):
+        raise ComparisonImportError(
+            "Committee register quotes need the retained row locator and columns"
+        )
+    source = db.get(m.ElectionResultSource, item["sha256"])
+    if source is None:
+        raise ComparisonImportError("Quoted source is not retained")
+    try:
+        body = read_source(raw_file_store_from_env(), source)
+        if kind == "ballot":
+            try:
+                content = body.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                content = body.decode("cp1252")
+            number = item.get("row_number")
+            if (
+                type(number) is not int
+                or number < 1
+                or content.splitlines()[number - 1] != literal_row
+            ):
+                raise ComparisonImportError(
+                    "Ballot quote differs from the retained row"
+                )
+        else:
+            payload = json.loads(body)
+            columns = payload["cols"]
+            locator = item["locator"].split("/")
+            if (
+                len(locator) != 4
+                or locator[:2] != ["", "data"]
+                or locator[2] != registration_number
+            ):
+                raise ComparisonImportError(
+                    "Committee register locator differs from this account"
+                )
+            index = int(locator[3])
+            if index < 0 or str(index) != locator[3]:
+                raise ComparisonImportError("Committee register row locator is invalid")
+            actual = dict(
+                zip(columns, payload["data"][registration_number][index], strict=True)
+            )
+            if (
+                columns != item["column_names"]
+                or actual != fields
+                or actual.get("RegisteredEntityID") != registration_number
+            ):
+                raise ComparisonImportError(
+                    "Committee register quotes differ from the retained row"
+                )
+    except (OSError, ValueError, TypeError, KeyError, IndexError) as error:
+        raise ComparisonImportError(
+            f"Could not validate retained {kind} quotes"
+        ) from error
 
 
 def record_decision(
@@ -139,6 +229,7 @@ def record_decision(
             raise ComparisonImportError(
                 "Ballot evidence is for another candidate register"
             )
+        _validate_quotes(db, item, registration_number)
     # Serialize the account across all candidacies and elections, so parallel
     # reviews cannot each miss an overlapping claim made by the other.
     key = f"{authority}:{registration_number}"

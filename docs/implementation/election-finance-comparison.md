@@ -118,3 +118,20 @@ precinct and filing period; duplicates, missing files, unresolved matches and
 unpublished sources; reproducible displayed figures; current-head checks; reviewed
 Design and live verification. A successful download or passing tests alone do not
 establish completeness.
+
+### Independent review corrections, November 11, 2026
+
+The build remains unreleased. Source availability for every referenced account
+review now participates in comparison versions, including historical and
+supplemental evidence. Dated payments outside checked account intervals have a
+separate source drilldown and remain excluded from attributed totals. Typed ballot,
+register and cover quotes are validated against retained evidence before recording
+a decision. A repeatable read-only release audit accounts for every spending row
+once against current applicable decisions. Independent review must rerun these
+corrections before release.
+
+154 focused backend tests passed after the source and interval fixes; the added
+partition test passed separately. The 9 comparison UI tests pass, including the
+excluded-payment source, failed source restoration, nearby live-search results and
+pagination focus. The production bundle compiles. A fresh full-corpus run and
+Design review of the built screens are underway; neither is yet final acceptance.

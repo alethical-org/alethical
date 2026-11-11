@@ -154,10 +154,33 @@ def _review_ids(db, election_key, race_id):
     )
 
 
-def _version_token(snapshot_id, collection_id, review_ids, payments):
+def _version_token(
+    snapshot_id, collection_id, review_ids, payments, account_state=None
+):
     return hashlib.sha256(
-        json.dumps([snapshot_id, collection_id, review_ids, payments]).encode()
+        json.dumps(
+            [snapshot_id, collection_id, review_ids, payments, account_state]
+        ).encode()
     ).hexdigest()[:16]
+
+
+def _account_evidence_state(db, election_key, race):
+    # A review can cite an older collection or supplemental source outside the
+    # current report collection. Pin the same attribution and public locators
+    # that readers use, not a second, narrower definition of retained evidence.
+    state = []
+    for candidate in race.payload["candidates"]:
+        links = _accounts(db, election_key, race, candidate)
+        state.append(
+            {
+                "candidate_id": candidate["candidate_id"],
+                **links,
+                "accounts": [
+                    _public_account(db, account) for account in links["accounts"]
+                ],
+            }
+        )
+    return state
 
 
 def _components(db, election_key, snapshot_id):
@@ -221,7 +244,13 @@ def _context(db, election_key, race_id, snapshot_id, version):
         _components(db, election_key, election.id)
     )
     review_ids = _review_ids(db, election_key, race_id)
-    token = _version_token(election.id, stamps[0], review_ids, stamps[1])
+    token = _version_token(
+        election.id,
+        stamps[0],
+        review_ids,
+        stamps[1],
+        _account_evidence_state(db, election_key, race),
+    )
     if version is not None and token != version:
         _changed()
     context = {
@@ -256,7 +285,18 @@ def _context(db, election_key, race_id, snapshot_id, version):
 def _check_end_version(db, context):
     *_, stamps = _components(db, context["election_key"], context["snapshot_id"])
     review_ids = _review_ids(db, context["election_key"], context["race_id"])
-    token = _version_token(context["snapshot_id"], stamps[0], review_ids, stamps[1])
+    race = db.get(
+        m.ElectionComparisonRace, (context["snapshot_id"], context["race_id"])
+    )
+    if race is None:
+        _changed()
+    token = _version_token(
+        context["snapshot_id"],
+        stamps[0],
+        review_ids,
+        stamps[1],
+        _account_evidence_state(db, context["election_key"], race),
+    )
     if token != context["version"]:
         _changed()
 
@@ -483,9 +523,24 @@ def _outside(db, release, year, account_state):
             db, *target, R.year == year, R.transaction_date.is_(None)
         ),
         "excluded_missing_year": outside._aggregate(db, *target, R.year.is_(None)),
+        "excluded_outside_reviewed_period": outside._aggregate(
+            db, *_outside_reviewed_period_filters(release, year, accounts)
+        ),
         "scope": "Source reported calendar year and exact checked account dates",
         "complete_election_spending": False,
     }
+
+
+def _outside_reviewed_period_filters(release, year, accounts):
+    return [
+        R.snapshot_id == release.independent_expenditures.snapshot_id,
+        R.year == year,
+        R.affected_committee_reg_num.in_(
+            [a["registration_number"] for a in accounts if a["authority"] == "mn_cfb"]
+        ),
+        R.transaction_date.is_not(None),
+        ~and_(*_attribution_filters(release, year, accounts)),
+    ]
 
 
 def _candidate_coverage(collection, race, candidate):
@@ -651,6 +706,7 @@ def outside_records(
     offset,
     spender_type=None,
     direction=None,
+    scope="attributed",
 ):
     context, election, race, _, _, release = _context(
         db, election_key, race_id, snapshot_id, version
@@ -672,9 +728,11 @@ def outside_records(
     context["sources"] = [
         source for source in context["sources"] if source.get("sha256") in source_hashes
     ]
-    filters = _attribution_filters(
-        release, election.election_date.year, links["accounts"]
-    )
+    filters = (
+        _outside_reviewed_period_filters
+        if scope == "outside_reviewed_period"
+        else _attribution_filters
+    )(release, election.election_date.year, links["accounts"])
     if spender_type is not None:
         filters.append(outside._category() == spender_type)
     if direction is not None:
@@ -688,9 +746,18 @@ def outside_records(
         **context,
         "candidate_id": candidate_id,
         "account_state": links["state"],
-        "filters": {"spender_type": spender_type, "direction": direction},
+        "filters": {
+            "spender_type": spender_type,
+            "direction": direction,
+            "scope": scope,
+        },
         "rows": [
-            {**outside._record(row), "resolution": "checked_account_and_period"}
+            {
+                **outside._record(row),
+                "resolution": "outside_checked_period"
+                if scope == "outside_reviewed_period"
+                else "checked_account_and_period",
+            }
             for row in rows
         ],
         "page": {

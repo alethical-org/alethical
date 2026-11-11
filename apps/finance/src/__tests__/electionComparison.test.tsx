@@ -28,6 +28,7 @@ let container: HTMLDivElement, root: Root;
 let finance: ElectionFinanceAnswer;
 let requests: string[];
 let failFinance = false;
+let failPayments = false;
 const payment: PaymentRecord = {
   row_number: 6835,
   resolution: 'checked_account_and_period',
@@ -99,6 +100,7 @@ beforeEach(() => {
   finance = structuredClone(fixture.finance) as unknown as ElectionFinanceAnswer;
   requests = [];
   failFinance = false;
+  failPayments = false;
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -122,10 +124,20 @@ beforeEach(() => {
           headers: { 'Content-Type': 'application/octet-stream' },
         });
       if (endpoint.includes('/candidates/') && endpoint.endsWith('/outside-spending'))
-        return json({
-          rows: [payment],
-          page: { total: 1, offset: 0, limit: 50, has_more: false },
-        });
+        return failPayments
+          ? new Response('failed', { status: 500 })
+          : json({
+              rows: [
+                {
+                  ...payment,
+                  resolution:
+                    url.searchParams.get('scope') === 'outside_reviewed_period'
+                      ? 'outside_checked_period'
+                      : payment.resolution,
+                },
+              ],
+              page: { total: 1, offset: 0, limit: 50, has_more: false },
+            });
       if (endpoint.endsWith('/finance'))
         return failFinance ? new Response('failed', { status: 500 }) : json(finance);
       if (endpoint.endsWith('/precincts')) return json(fixture.precincts);
@@ -221,4 +233,58 @@ it('keeps decimal precision beyond cents and separate physical source lines', ()
   expect(exactMoney('-0.00')).toBe('$0.00');
   expect(exactMoney(null)).toBe('Not available');
   expect(lineLabel([29, 28, 30, 114, 114, 116])).toBe('Lines 28–30, 114, 116');
+});
+
+it('moves focus to the precinct heading on page change and preserves the race', async () => {
+  await render();
+  const next = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Precinct pages"] button:last-child',
+  )!;
+  await click(next);
+  expect(document.activeElement?.id).toBe('ec-precincts');
+  expect(new URLSearchParams(window.location.search).get('ppage')).toBe('2');
+  expect(new URLSearchParams(window.location.search).get('race')).toBe(race);
+});
+
+it('keeps race search results beside the finder before the existing comparison', async () => {
+  await render(`${path}&q=Attorney&list=1`);
+  const races = container.querySelector('#ec-races-heading');
+  const votes = container.querySelector('#ec-votes');
+  expect(races).not.toBeNull();
+  expect(votes).not.toBeNull();
+  expect(races!.compareDocumentPosition(votes!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('keeps a failed shared payment read distinct from a missing source', async () => {
+  failPayments = true;
+  finance.outside_spending_availability = { state: 'available', reason: null };
+  const candidate = finance.candidates.find((c) => c.name === 'Ronald J. Schutz')!;
+  candidate.outside_spending.groups = [group];
+  await render(
+    `${path}&pay=${encodeURIComponent(`${candidate.candidate_id}:PTU:For`)}&source=payment%3A6835`,
+  );
+  const dialog = document.querySelector('[role="dialog"]')!;
+  expect(dialog.textContent).toContain('We couldn’t load this payment source');
+  expect(dialog.textContent).not.toContain('not held');
+  expect(dialog.textContent).toContain('Reload comparison');
+});
+
+it('keeps payments outside checked dates separate and opens their source without claiming attribution', async () => {
+  finance.outside_spending_availability = { state: 'available', reason: null };
+  finance.payment_release_id = '00000000-0000-0000-0000-000000000123';
+  finance.payment_version = '0123456789abcdef';
+  const candidate = finance.candidates.find((c) => c.accounts.length)!;
+  candidate.outside_spending.excluded_outside_reviewed_period = { ...group, amount: '249.2900' };
+  await render();
+  expect(container.textContent).toContain('$249.29');
+  expect(container.textContent).toContain('excluded from this candidate’s totals');
+  await click(buttons('View excluded payments')[0]);
+  expect(requests.some((url) => url.includes('scope=outside_reviewed_period'))).toBe(true);
+  await click(container.querySelector<HTMLButtonElement>('.ec-payments button')!);
+  expect(document.body.textContent).toContain(
+    'Outside checked account dates; excluded from candidate totals',
+  );
+  expect(document.body.textContent).not.toContain(
+    'Account relationship and reporting period checked',
+  );
 });

@@ -229,7 +229,10 @@ def test_execute_checks_sources_and_retry_keeps_original_receipt(
     assert command.main(argv) == 0
     first = json.loads(capsys.readouterr().out)
     assert first["executed"] is True
-    assert first["source_validation"] == "retained_evidence_checked"
+    assert (
+        first["source_validation"]
+        == "retained_source_references_and_supplied_quotes_checked"
+    )
     assert first["history_status"] == "current"
     assert first["previous_decision_id"] is None
     assert count_decisions(db) == 1
@@ -396,7 +399,8 @@ def test_execute_candidate_identity_citation_checks_exact_retained_account(
     captured = capsys.readouterr()
     if expected == 0:
         assert (
-            json.loads(captured.out)["source_validation"] == "retained_evidence_checked"
+            json.loads(captured.out)["source_validation"]
+            == "retained_source_references_and_supplied_quotes_checked"
         )
         assert count_decisions(db) == 1
     else:

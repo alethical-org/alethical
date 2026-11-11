@@ -392,7 +392,7 @@ def test_the_failed_action_name_is_what_the_report_counts(db, tmp_path) -> None:
 
 
 def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None:
-    """The 6 kinds of body we keep today, discovered rather than listed.
+    """Every retained public-source body is discovered rather than listed.
 
     This job was written for ``cf_snapshot_body`` alone. By the time anybody checked,
     ``cf_filing_snapshot`` held 2 totals archives with 0 rows recording a second copy,
@@ -414,6 +414,7 @@ def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None
 
     assert found == {
         "fcc_source_body",
+        "election_result_source",
         "lobbyist_donation_evidence",
         "cf_snapshot_body",
         "cf_filing_snapshot",

@@ -233,7 +233,7 @@ def execute_request(request, target):
             )
             receipt = {
                 "executed": True,
-                "source_validation": "retained_evidence_checked",
+                "source_validation": "retained_source_references_and_supplied_quotes_checked",
                 "decision_id": row.id,
                 "previous_decision_id": row.previous_decision_id,
                 "current_decision_id": current_id,

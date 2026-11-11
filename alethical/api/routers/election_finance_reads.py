@@ -48,6 +48,7 @@ def outside_records(
     version: str = Query(pattern=VERSION),
     spender_type: Literal["PCF", "PTU", "other"] | None = None,
     direction: Literal["For", "Against", "unknown"] | None = None,
+    scope: Literal["attributed", "outside_reviewed_period"] = "attributed",
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0, le=2147483647),
     db: Session = Depends(get_db),
@@ -62,6 +63,7 @@ def outside_records(
             version=version,
             spender_type=spender_type,
             direction=direction,
+            scope=scope,
             limit=limit,
             offset=offset,
         )

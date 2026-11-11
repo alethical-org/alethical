@@ -95,7 +95,11 @@ shape offline; it does **not** validate retained evidence. `--target production
 --execute` validates evidence, locks the account, checks the expected predecessor
 and commits the append-only decision. A repeated request returns its original
 decision and whether a newer decision has superseded it. It never reactivates an
-old confirmation. Keep reviewer identity and private reasoning out of public copy.
+old confirmation. Supplied ballot rows are checked at their retained line;
+committee-register quotes must match the original JSON columns and exact account
+row; report-cover quotes must match retained parsed cover fields. These checks do
+not replace the accountable identity decision. Keep reviewer identity and private
+reasoning out of public copy.
 
 ## Publish and restore
 
@@ -132,7 +136,15 @@ or previously published source access.
    Check exact candidacy, office, jurisdiction, stage, dates and account decisions.
 3. Account for every outside-spending source row once, including unknown targets,
    missing amounts/dates and legitimate duplicate-looking rows. Keep party units
-   separate from political committees/funds and candidate campaign spending.
+   separate from political committees/funds and candidate campaign spending. Run
+   `uv run python scripts/audit_election_attribution.py --election ELECTION_KEY
+   --target production --output NEW_PRIVATE_RECEIPT.json` against the published
+   sources and current reviews. The read-only audit retains every row number,
+   current decision IDs and source versions, separates unlinked accounts, missing
+   dates and dates outside reviewed intervals, and fails on multiple current
+   candidacy claims or unreconciled counts/amounts. Repeat after source or review
+   changes; a previous receipt does not cover a new publication. Reconcile its
+   row IDs and exact amounts with the retained original before acceptance.
 4. Verify authenticated source access, historical versions, sign-out boundaries,
    independent result/report/outside-source failures, retry and changed-version
    handling. No figure becomes zero because its source is missing or unavailable.

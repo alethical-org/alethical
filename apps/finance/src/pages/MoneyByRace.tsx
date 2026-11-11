@@ -693,7 +693,11 @@ const NOT_HELD = 'Not held';
  */
 export function MoneyByRace({ match }: { match: RouteMatch }) {
   const location = useLocation();
-  return location.searchParams.has('election') ? <ElectionComparison /> : <HistoricalMoneyByRace match={match} />;
+  return location.searchParams.has('election') ? (
+    <ElectionComparison />
+  ) : (
+    <HistoricalMoneyByRace match={match} />
+  );
 }
 
 function HistoricalMoneyByRace({ match }: { match: RouteMatch }) {
@@ -833,7 +837,12 @@ function HistoricalMoneyByRace({ match }: { match: RouteMatch }) {
             One office, district and year. Candidate committees’ own filings sit apart from what
             outside groups reported spending about the race.
           </p>
-          <Link className="ec-link" to={`${location.pathname}?${new URLSearchParams({ election: 'mn-2026-11-03-general', ...Object.fromEntries(['year', 'office', 'district', 'osView', 'from', 'fromq'].flatMap((key) => location.searchParams.has(key) ? [[key, location.searchParams.get(key)!]] : [])) })}`}>Compare election results →</Link>
+          <Link
+            className="ec-link"
+            to={`${location.pathname}?${new URLSearchParams({ election: 'mn-2026-11-03-general', ...Object.fromEntries(['year', 'office', 'district', 'osView', 'from', 'fromq'].flatMap((key) => (location.searchParams.has(key) ? [[key, location.searchParams.get(key)!]] : []))) })}`}
+          >
+            Compare election results →
+          </Link>
         </header>
 
         {shown && (

@@ -32,6 +32,11 @@ const defaults = {
   source: '',
 };
 type Address = typeof defaults;
+type PaymentSourceState = {
+  source: string;
+  version: string;
+  state: 'loading' | 'failed' | 'changed' | 'missing' | 'ready';
+};
 type SetAddress = (changes: Partial<Address>, options?: { replace?: boolean }) => void;
 const byVotes = (a: d.ResultCandidate, b: d.ResultCandidate) => (b.votes ?? -1) - (a.votes ?? -1);
 const candidateLabel = (candidate: d.ResultCandidate) =>
@@ -93,12 +98,23 @@ function Pager({
 }) {
   if (page.total <= page.limit && page.offset === 0) return null;
   const current = Math.floor(page.offset / page.limit) + 1;
+  function move(button: HTMLButtonElement, next: number) {
+    onChange(next);
+    const scope = button.closest('.ec-payments') ?? button.closest('section');
+    const heading = scope?.querySelector<HTMLElement>('h2, h3, h5');
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+      heading.scrollIntoView?.({ block: 'start' });
+    }
+  }
+
   return (
     <nav className="ec-pager" aria-label={label}>
       <button
         className="ec-button"
         disabled={disabled || current <= 1}
-        onClick={() => onChange(current - 1)}
+        onClick={(event) => move(event.currentTarget, current - 1)}
       >
         Previous
       </button>
@@ -108,7 +124,7 @@ function Pager({
       <button
         className="ec-button"
         disabled={disabled || !page.has_more}
-        onClick={() => onChange(current + 1)}
+        onClick={(event) => move(event.currentTarget, current + 1)}
       >
         Next
       </button>
@@ -311,7 +327,7 @@ function ElectionBody({
   );
   return (
     <>
-      {!address.race && list}
+      {list}
       {address.race && (
         <Notice
           read={selectedRead}
@@ -328,7 +344,6 @@ function ElectionBody({
           refreshResults={refreshResults}
         />
       )}
-      {address.race && list}
     </>
   );
 }
@@ -369,6 +384,7 @@ function RaceComparison({
     version: string;
     row: d.PaymentRecord;
   } | null>(null);
+  const [paymentSourceState, setPaymentSourceState] = useState<PaymentSourceState | null>(null);
   const closeEvidence = useCallback(() => setAddress({ source: '' }), [setAddress]);
   const reload = () => {
     setRevision((value) => value + 1);
@@ -437,7 +453,10 @@ function RaceComparison({
           <button className="ec-button" onClick={() => void copyLink()}>
             {copy === 'done' ? 'Link copied' : copy === 'failed' ? 'Try again' : 'Copy link'}
           </button>
-          <span role={copy === 'failed' ? 'alert' : 'status'}>
+          <span
+            className={copy === 'done' ? 'ec-sr-only' : undefined}
+            role={copy === 'failed' ? 'alert' : 'status'}
+          >
             {copy === 'failed' ? 'Couldn’t copy link' : copy === 'done' ? 'Link copied' : ''}
           </span>
         </div>
@@ -618,6 +637,48 @@ function RaceComparison({
                 </p>
               ) : null;
             })}
+            {candidates.map((candidate) => {
+              const excluded = candidate.outside_spending.excluded_outside_reviewed_period;
+              if (!excluded?.record_count || !candidate.candidate_id) return null;
+              const key = `${candidate.candidate_id}:excluded`;
+              const open = address.pay === key;
+              return (
+                <div key={key}>
+                  <p className="ec-muted">
+                    {candidate.name}: {count(excluded.record_count)}{' '}
+                    {excluded.record_count === 1 ? 'payment record names' : 'payment records name'}{' '}
+                    the linked account ({exactMoney(excluded.amount)}). These payments fall outside
+                    its checked dates and are excluded from this candidate’s totals.
+                  </p>
+                  <button
+                    className="ec-link"
+                    aria-expanded={open}
+                    onClick={() => setAddress({ pay: open ? '' : key, paypage: '1', source: '' })}
+                  >
+                    View excluded payments · {count(excluded.record_count)}
+                  </button>
+                  {open && (
+                    <Payments
+                      key={`${key}:${data.version}`}
+                      detail={detail}
+                      data={data}
+                      candidateId={candidate.candidate_id}
+                      scope="outside_reviewed_period"
+                      page={pageNumber(address.paypage)}
+                      onPage={(page) => setAddress({ paypage: String(page), source: '' })}
+                      onRecord={(row) => {
+                        setPaymentEvidence({ version: data.version, row });
+                        selectSource(`payment:${row.row_number}`);
+                      }}
+                      source={address.source}
+                      onRestore={restorePayment}
+                      onSourceState={setPaymentSourceState}
+                      reload={reload}
+                    />
+                  )}
+                </div>
+              );
+            })}
             {(['PCF', 'PTU', 'other'] as const).map((category) => (
               <OutsideGroup
                 key={category}
@@ -628,6 +689,7 @@ function RaceComparison({
                 address={address}
                 setAddress={setAddress}
                 onRestore={restorePayment}
+                onSourceState={setPaymentSourceState}
                 onRecord={(row) => {
                   setPaymentEvidence({ version: data.version, row });
                   selectSource(`payment:${row.row_number}`);
@@ -743,11 +805,30 @@ function RaceComparison({
                     value:
                       finance.loading || precincts.loading
                         ? 'Loading source evidence…'
-                        : 'This source is not held in the current comparison',
+                        : address.source.startsWith('payment:') && address.pay
+                          ? paymentSourceState?.source !== address.source ||
+                            paymentSourceState.version !== data?.version ||
+                            paymentSourceState.state === 'loading'
+                            ? 'Loading payment evidence…'
+                            : paymentSourceState.state === 'failed'
+                              ? 'We couldn’t load this payment source'
+                              : paymentSourceState.state === 'changed'
+                                ? 'These records changed'
+                                : 'This payment is not held on the selected page'
+                          : 'This source is not held in the current comparison',
                   },
                 ],
               },
               attachment: null,
+              children:
+                address.source.startsWith('payment:') &&
+                paymentSourceState?.source === address.source &&
+                (paymentSourceState.state === 'failed' ||
+                  paymentSourceState.state === 'changed') ? (
+                  <button className="ec-button" onClick={reload}>
+                    Reload comparison
+                  </button>
+                ) : undefined,
             }
           }
           onClose={closeEvidence}
@@ -989,6 +1070,7 @@ function OutsideGroup({
   setAddress,
   onRecord,
   onRestore,
+  onSourceState,
   reload,
 }: {
   category: d.SpenderType;
@@ -999,6 +1081,7 @@ function OutsideGroup({
   setAddress: SetAddress;
   onRecord: (row: d.PaymentRecord) => void;
   onRestore: (row: d.PaymentRecord) => void;
+  onSourceState: (state: PaymentSourceState) => void;
   reload: () => void;
 }) {
   const rows = data.candidates
@@ -1154,6 +1237,7 @@ function OutsideGroup({
                       onRecord={onRecord}
                       source={address.source}
                       onRestore={onRestore}
+                      onSourceState={onSourceState}
                       reload={reload}
                     />
                   )}
@@ -1168,6 +1252,7 @@ function OutsideGroup({
 }
 
 function Payments({
+  scope = 'attributed',
   detail,
   data,
   candidateId,
@@ -1178,18 +1263,21 @@ function Payments({
   onRecord,
   source,
   onRestore,
+  onSourceState,
   reload,
 }: {
   detail: d.RaceAnswer;
   data: d.ElectionFinanceAnswer;
   candidateId: string;
-  category: d.SpenderType;
-  direction: d.SpendingDirection;
+  category?: d.SpenderType;
+  direction?: d.SpendingDirection;
+  scope?: 'attributed' | 'outside_reviewed_period';
   page: number;
   onPage: (page: number) => void;
   onRecord: (record: d.PaymentRecord) => void;
   source: string;
   onRestore: (record: d.PaymentRecord) => void;
+  onSourceState: (state: PaymentSourceState) => void;
   reload: () => void;
 }) {
   const read = useRead<d.CandidateOutsideRecordsAnswer>(
@@ -1198,6 +1286,7 @@ function Payments({
       version: data.version,
       spenderType: category,
       direction,
+      scope,
       limit: SIZE,
       offset: (page - 1) * SIZE,
     }),
@@ -1205,9 +1294,33 @@ function Payments({
   useEffect(() => {
     const row = read.data?.rows.find((item) => source === `payment:${item.row_number}`);
     if (row) onRestore(row);
-  }, [read.data, source, onRestore]);
+    if (source.startsWith('payment:'))
+      onSourceState({
+        source,
+        version: data.version,
+        state: read.changed
+          ? 'changed'
+          : read.failed
+            ? 'failed'
+            : read.loading
+              ? 'loading'
+              : row
+                ? 'ready'
+                : 'missing',
+      });
+  }, [
+    read.data,
+    read.changed,
+    read.failed,
+    read.loading,
+    source,
+    data.version,
+    onRestore,
+    onSourceState,
+  ]);
   return (
     <div className="ec-payments">
+      <h5>Payments</h5>
       <Notice read={read} message="We couldn’t load payments" reload={reload} />
       {read.data && (
         <>
@@ -1384,7 +1497,10 @@ function evidenceFor(
         })),
         quoteLabel: 'SOURCE RECORD',
         quote: `Record ${payment.row_number}`,
-        checked: 'Account relationship and reporting period checked',
+        checked:
+          payment.resolution === 'outside_checked_period'
+            ? 'Outside checked account dates; excluded from candidate totals'
+            : 'Account relationship and reporting period checked',
       },
       attachment: finance.payment_release_id
         ? d.spendingSourcePath(
