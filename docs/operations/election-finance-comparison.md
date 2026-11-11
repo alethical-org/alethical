@@ -144,7 +144,10 @@ or previously published source access.
    dates and dates outside reviewed intervals, and fails on multiple current
    candidacy claims or unreconciled counts/amounts. Repeat after source or review
    changes; a previous receipt does not cover a new publication. Reconcile its
-   row IDs and exact amounts with the retained original before acceptance.
+   row IDs and exact amounts with the retained original before acceptance. Downloads
+   with the same parsed record-set hash can have different row orders. Resolve each
+   record number against its own retained snapshot, rather than reusing a research
+   download's ordinal.
 4. Verify authenticated source access, historical versions, sign-out boundaries,
    independent result/report/outside-source failures, retry and changed-version
    handling. No figure becomes zero because its source is missing or unavailable.
