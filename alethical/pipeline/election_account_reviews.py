@@ -121,6 +121,17 @@ def record_decision(
                 raise ComparisonImportError(
                     "Committee register evidence needs the retained Board directory in a retained collection"
                 )
+        if item.get("kind") == "candidate_identity":
+            collection = db.get(m.ElectionFinanceCollection, item.get("collection_id"))
+            if collection is None or not any(
+                source.get("sha256") == fingerprint
+                and source.get("kind") == "candidate_identity"
+                and source.get("registration_number") == registration_number
+                for source in collection.sources
+            ):
+                raise ComparisonImportError(
+                    "Candidate identity evidence needs a retained source for this account"
+                )
         if (
             item.get("kind") == "ballot"
             and fingerprint != race.payload["candidate_source_sha256"]

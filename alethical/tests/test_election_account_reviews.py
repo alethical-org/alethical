@@ -147,6 +147,40 @@ def test_stale_decision_cannot_fork_the_history(db, review_context):
         )
 
 
+@pytest.mark.parametrize("mismatch", ["kind", "registration", "collection", None])
+def test_supplemental_identity_evidence_belongs_to_exact_account(
+    db, review_context, mismatch
+):
+    args = review_context[3]
+    collection = db.get(m.ElectionFinanceCollection, "c" * 64)
+    fingerprint = args["evidence"][1]["sha256"]
+    collection.sources = [
+        *collection.sources,
+        {
+            "sha256": fingerprint,
+            "kind": "catalogue" if mismatch == "kind" else "candidate_identity",
+            "registration_number": "other" if mismatch == "registration" else "19399",
+            "url": "https://cfb.mn.gov/reports/api/",
+        },
+    ]
+    db.flush()
+    evidence = [
+        *args["evidence"],
+        {
+            "kind": "candidate_identity",
+            "sha256": fingerprint,
+            "collection_id": "missing" if mismatch == "collection" else "c" * 64,
+            "locator": "CandidateFullName",
+        },
+    ]
+    if mismatch:
+        with pytest.raises(storage.ComparisonImportError, match="identity evidence"):
+            reviews.record_decision(db, **{**args, "evidence": evidence})
+    else:
+        decision = reviews.record_decision(db, **{**args, "evidence": evidence})
+        assert decision.evidence[-1]["kind"] == "candidate_identity"
+
+
 def test_identity_changes_block_attribution_but_vote_changes_do_not(db, review_context):
     reviews.record_decision(db, **review_context[3])
     candidate = review_context[2]

@@ -58,14 +58,17 @@ establish independent canvass validation or certification.
 The complete candidacy inventory routes own-campaign reports to 523 state Board,
 21 federal and 7,458 local filing authorities. Local candidate reports and
 Board-reported outside spending remain separate coverage lanes. A retained scoped
-collection holds 300 latest committee PDFs and 632 catalogue reports; the remaining
-332 catalogue entries have explicit figure gaps. This is source availability, not
-300 confirmed candidate links or complete election spending. Actual report periods,
+collection holds 400 latest committee PDFs and 842 catalogue reports; the remaining
+442 catalogue entries have explicit figure gaps. This is source availability, not
+400 confirmed candidate links or complete election spending. Actual report periods,
 effective amendments, original bytes and source locators remain separate from
 explicit account-review decisions. Matching names never confirms a relationship.
 
 Versioned result storage, scoped financial collection storage and authenticated
-read APIs are under test. Account reviews are append-only, require retained ballot,
+read APIs passed 239 focused backend tests. An actual disposable PostgreSQL/API
+run checked all 5,023 race counts, all 4,105 attorney-general precincts, 19 retained
+source downloads and access boundaries. These checks used real retained sources,
+not production publication. Account reviews are append-only, require retained ballot,
 Board-directory and report-cover evidence, preserve predecessor decisions and
 dated attribution, and explicitly handle withdrawal and compatible candidacies.
 Read versions use the full set of visible relevant decisions, not a maximum sequence
@@ -75,7 +78,10 @@ reports stay available through authenticated evidence routes.
 Design completed a read-only intake in the existing Alethical B2B project. The
 owning file remains Money by Race.dc.html. The full source-grounded drawing brief
 was sent with checked attorney-general totals, report periods, outside-spending
-groups and precinct examples; the drawing turn is running. Historical
+groups and precinct examples. The first drawing and notes were reviewed, including
+desktop, phone and phone report evidence. Corrections are in progress for additive
+currency precision, clearing searches, exact source labels and missing failure
+states. Historical
 calendar-year access stays available, and global navigation remains outside scope.
 Dependent UI awaits reviewed drawings. Current source artifacts, failed-source
 attempts and detailed audit records remain in private task scratch storage.
@@ -85,6 +91,9 @@ explicit account reviews; obtain and review the drawing; build and test the read
 journey; stage retained sources; independently audit actual imported coverage;
 release scoped result/report pointers and verify live. Federal reports and local
 portal records not yet collected remain uncollected, not unavailable or zero.
+
+The [source and release operating contract](../operations/election-finance-comparison.md)
+owns staging, explicit account decisions, publication and restoration commands.
 
 Completion requires expected-versus-held coverage by election, race, jurisdiction,
 precinct and filing period; duplicates, missing files, unresolved matches and
