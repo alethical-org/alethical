@@ -70,6 +70,12 @@ before execution, can overwrite an existing file, and is not a success receipt.
 Capture standard output separately; only the post-commit receipt's `executed: true`
 establishes successful staging.
 
+Optional `--identity-manifest PATH` retains additional Board candidate-information
+or economic-interest responses. A registered campaign site may support an exact
+name variation only through its retained Board officers link and original bytes.
+These sources supplement the required directory and report cover; they never
+confirm a candidate relationship automatically.
+
 ```sh
 uv run python scripts/stage_election_finance.py prepare \
   --directory "$finance_sources" --roster-directory "$result_sources" \

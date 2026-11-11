@@ -1,0 +1,1002 @@
+"""A comparison requires current account review and the report's actual dates."""
+
+# ruff: noqa: F811
+from copy import deepcopy
+from contextlib import ExitStack
+from datetime import date
+import gzip
+import hashlib
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+from sqlalchemy import event, text, delete
+from sqlalchemy.orm import Session
+
+from alethical.api.services import election_finance_reads as reads
+from alethical.db import models as m
+from alethical.db.session import get_engine
+from alethical.api.services import finance_versions
+from alethical.pipeline import election_account_reviews as reviews
+from alethical.pipeline.election_comparison import archive_source
+from alethical.tests.test_election_comparison_storage import MemoryStore
+from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F401
+from alethical.tests.test_election_outside_spending import spending  # noqa: F401
+from alethical.tests.test_committee_finance import Published
+from alethical.tests.test_election_comparison_reads import (
+    KEY,
+    RACE,
+    SOURCE,
+    WHEN,
+    _race,
+    _snapshot,
+    _current,
+)
+
+BASE = f"/api/v1/finance/elections/{KEY}"
+URL = f"{BASE}/races/{RACE}/finance"
+COLLECTION = "e" * 64
+
+
+def _document(db, report_type):
+    body = b"%PDF-1.4\nSynthetic retained fixture " + report_type.encode()
+    compressed = gzip.compress(body, mtime=0)
+    fingerprint = hashlib.sha256(body).hexdigest()
+    db.add(
+        m.CampaignFinanceReportDocument(
+            document_hash=fingerprint,
+            object_key=f"reports/{fingerprint}.gz",
+            byte_size=len(body),
+            compressed_hash=hashlib.sha256(compressed).hexdigest(),
+            compressed_byte_size=len(compressed),
+            registration_number="-101",
+            filing_year=2026,
+            report_type=report_type,
+            amendment_index=0,
+            special_election=False,
+        )
+    )
+    db.flush()
+    return fingerprint, body, compressed
+
+
+def _report(
+    db,
+    key,
+    report_type,
+    cutoff,
+    *,
+    document_hash=None,
+    amount="0.00",
+    status="source_verified",
+):
+    cash = amount
+    figures = (
+        {
+            "contributions_received": dict(
+                cash=cash,
+                in_kind="0.00",
+                total=cash,
+                source_page=2,
+                source_lines=[2, 3, 4, 5, 6],
+            ),
+            "campaign_expenditures": dict(
+                cash="0.00",
+                unpaid="4.00",
+                in_kind="3.00",
+                total="7.00",
+                source_page=2,
+                source_lines=[11],
+            ),
+            "total_expenditures": dict(
+                cash="1.00",
+                unpaid="4.00",
+                in_kind="3.00",
+                total="8.00",
+                source_page=2,
+                source_lines=[19],
+            ),
+        }
+        if status == "source_verified"
+        else None
+    )
+    row = m.ElectionFinanceReport(
+        collection_id=COLLECTION,
+        registration_number="-101",
+        report_key=key,
+        document_hash=document_hash,
+        payload={
+            "filing": dict(
+                registration_number="-101",
+                filing_year=2026,
+                report_type=report_type,
+                report_name=report_type,
+                cut_off_date=cutoff,
+                special_election=False,
+                effective_amendment_index=0,
+                amendment_count=1,
+                termination_date=None,
+            ),
+            "figures": figures,
+            "figure_status": status,
+            "period_start": "2026-01-01",
+            "period_end": cutoff,
+            "period_basis": "calendar_year_to_date",
+            "document": {"sha256": document_hash, "local_file": "/private/source.pdf"},
+            "catalogue_source": {
+                "sha256": SOURCE,
+                "url": "https://cfb.mn.gov/catalogue",
+            },
+            "unavailable_reason": "PDF not held" if figures is None else None,
+        },
+    )
+    db.add(row)
+    db.flush()
+    return row
+
+
+@pytest.fixture()
+def comparison(finance_db, spending):
+    race = _race(finance_db)
+    payload = deepcopy(race.payload)
+    payload["office_name"] = "Attorney General"
+    payload["candidate_source_sha256"] = SOURCE
+    for candidate in payload["candidates"]:
+        candidate["party"] = "TEST"
+        candidate["candidate_stable_id"] = (
+            None
+            if candidate["is_write_in_aggregate"]
+            else f"state:201:2026-11-03:general:88:0335:{candidate['candidate_id']}"
+        )
+    race.payload = payload
+    finance_db.add(
+        m.ElectionFinanceCollection(
+            id=COLLECTION,
+            election_key=KEY,
+            copied_at=WHEN,
+            first_published_at=WHEN,
+            sources=[
+                {
+                    "sha256": SOURCE,
+                    "url": "https://cfb.mn.gov/reports/api/",
+                    "kind": "candidate_directory",
+                    "private_path": "/secret",
+                }
+            ],
+            coverage={
+                "reports": 2,
+                "candidates": [
+                    {
+                        "candidate_id": c["candidate_id"],
+                        "stable_id": c["candidate_stable_id"],
+                        "name": c["name"],
+                        "party": c["party"],
+                        "office_id": "0335",
+                        "office": "Attorney General",
+                        "county_id": "88",
+                        "source_sha256": SOURCE,
+                        "source_row": 1,
+                        "authority": "board",
+                        "authority_scope": "candidate_own_campaign_reports",
+                        "outside_support_scope": "available itemized sources",
+                        "link_state": "not_confirmed_by_collection",
+                        "gap": "Candidate-to-committee confirmation is separate",
+                    }
+                    for c in payload["candidates"]
+                    if not c["is_write_in_aggregate"]
+                ],
+            },
+        )
+    )
+    finance_db.flush()
+    finance_db.add(m.ElectionFinanceCurrent(election_key=KEY, collection_id=COLLECTION))
+    current_doc = _document(finance_db, "E")
+    prior_doc = _document(finance_db, "P")
+    _report(finance_db, "1" * 64, "E", "2026-10-19", document_hash=current_doc[0])
+    _report(
+        finance_db,
+        "2" * 64,
+        "P",
+        "2026-08-01",
+        document_hash=prior_doc[0],
+        amount="500.00",
+    )
+    finance_db.flush()
+    args = dict(
+        snapshot_id="a" * 64,
+        race_id=RACE,
+        candidate_id="a",
+        registration_number="-101",
+        decision="confirmed",
+        identity=reviews.candidate_identity(race, payload["candidates"][0]),
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 10, 19),
+        evidence=[
+            {"kind": "ballot", "sha256": SOURCE},
+            {
+                "kind": "committee_register",
+                "sha256": SOURCE,
+                "collection_id": COLLECTION,
+            },
+            {"kind": "report_cover", "sha256": current_doc[0], "page": 1},
+        ],
+        reason="Exact synthetic account and report",
+        reviewed_by="private-reviewer",
+        expected_previous_id=None,
+    )
+    decision = reviews.record_decision(finance_db, **args)
+    finance_db.commit()
+    return dict(args=args, decision=decision, doc=current_doc, race=race)
+
+
+def _data(client, **params):
+    response = client.get(URL, params=params)
+    assert response.status_code == 200, response.text
+    return response.json()["data"]
+
+
+def test_actual_periods_separate_figures_and_every_candidate(finance_api, comparison):
+    data = _data(finance_api)
+    assert len(data["candidates"]) == 3
+    candidate, unmatched, write_in = data["candidates"]
+    assert candidate["votes"] == 7
+    assert unmatched["votes"] is None
+    assert write_in["votes"] == 0
+    assert all(c["outcome"] is None for c in data["candidates"])
+    assert unmatched["account_state"] == "no_confirmed_link"
+    assert write_in["account_state"] == "write_in_aggregate"
+    account = candidate["accounts"][0]
+    assert account["period_end"] == "2026-10-19"
+    assert len(account["reports"]) == 2
+    latest = account["latest_report"]
+    assert latest["state"] == "reported"
+    assert latest["figures"]["contributions_received"]["total"] == "0.00"
+    assert latest["figures"]["campaign_expenditures"]["total"] == "7.00"
+    assert latest["figures"]["all_disbursements"]["total"] == "8.00"
+    assert "local_file" not in account["reports"][0]["document"]
+    assert "private_path" not in data["sources"][0]
+    assert "candidates" not in data["coverage"]
+    assert "private-reviewer" not in str(data)
+
+
+def test_outside_money_requires_exact_account_dates_and_retains_missing_values(
+    finance_api, comparison
+):
+    data = _data(finance_api)
+    outside = data["candidates"][0]["outside_spending"]
+    groups = {(row["category"], row["direction"]): row for row in outside["groups"]}
+    assert groups[("PCF", "For")]["amount"] == "20.0000"
+    assert groups[("PCF", "For")]["record_count"] == 3
+    assert outside["total"]["amount"] is None
+    assert outside["excluded_missing_date"]["amount"] == "4.0000"
+    assert outside["excluded_missing_year"]["amount"] == "7.0000"
+    params = {
+        "version": data["version"],
+        "snapshot_id": data["snapshot_id"],
+        "limit": 2,
+    }
+    response = finance_api.get(f"{URL}/candidates/a/outside-spending", params=params)
+    assert response.status_code == 200
+    page = response.json()["data"]
+    assert page["page"]["total"] == 4
+    assert [row["row_number"] for row in page["rows"]] == [1, 2]
+    assert all(
+        row["resolution"] == "checked_account_and_period" for row in page["rows"]
+    )
+    assert page["payment_source"] == data["payment_source"]
+
+
+def test_withdrawal_invalidates_version_and_removes_attribution(
+    finance_api, finance_db, comparison
+):
+    old = _data(finance_api)
+    reviews.record_decision(
+        finance_db,
+        **{
+            **comparison["args"],
+            "decision": "withdrawn",
+            "expected_previous_id": comparison["decision"].id,
+            "reason": "New evidence withdraws review",
+        },
+    )
+    finance_db.commit()
+    assert finance_api.get(URL, params={"version": old["version"]}).status_code == 409
+    data = _data(finance_api)
+    assert data["candidates"][0]["accounts"] == []
+    assert data["candidates"][0]["account_gaps"][0]["state"] == "withdrawn"
+    assert data["candidates"][0]["outside_spending"]["total"] is None
+
+
+def test_late_visible_lower_decision_id_changes_version(
+    finance_api, finance_db, comparison
+):
+    # Reserve an earlier sequence value, then make a later decision visible.
+    # This models independent transactions committing in reverse allocation
+    # order without claiming this rollback-isolated fixture uses two sessions.
+    reserved = finance_db.execute(
+        text(
+            "SELECT nextval(pg_get_serial_sequence('election_campaign_account_decision', 'id'))"
+        )
+    ).scalar_one()
+    later = reviews.record_decision(
+        finance_db,
+        **{
+            **comparison["args"],
+            "expected_previous_id": comparison["decision"].id,
+            "reason": "Later allocated review",
+        },
+    )
+    finance_db.commit()
+    old = _data(finance_api)
+    assert later.id > reserved
+
+    def use_reserved(mapper, connection, target):
+        target.id = reserved
+
+    event.listen(m.ElectionCampaignAccountDecision, "before_insert", use_reserved)
+    try:
+        candidate = comparison["race"].payload["candidates"][1]
+        reviews.record_decision(
+            finance_db,
+            **{
+                **comparison["args"],
+                "candidate_id": candidate["candidate_id"],
+                "registration_number": "-102",
+                "decision": "rejected",
+                "identity": reviews.candidate_identity(comparison["race"], candidate),
+                "evidence": comparison["args"]["evidence"][:2],
+                "reason": "Earlier allocated review becomes visible last",
+            },
+        )
+        finance_db.commit()
+    finally:
+        event.remove(m.ElectionCampaignAccountDecision, "before_insert", use_reserved)
+    new = _data(finance_api)
+    assert old["review_decision_id"] == new["review_decision_id"]
+    assert old["version"] != new["version"]
+    assert finance_api.get(URL, params={"version": old["version"]}).status_code == 409
+    assert new["candidates"][1]["account_gaps"][0]["state"] == "rejected"
+
+
+@pytest.mark.parametrize("rows", [False, True])
+def test_same_transaction_review_mutation_refuses_mixed_response(
+    finance_api, finance_db, comparison, monkeypatch, rows
+):
+    # finance_db uses REPEATABLE READ. External commits remain invisible for the
+    # whole request and invalidate the next page. This deliberate mutation inside
+    # the same transaction exercises the additional end-of-read guard.
+    context = _data(finance_api)
+    original = reads._accounts
+    changed = False
+
+    def withdraw_then_read(db, election_key, race, candidate):
+        nonlocal changed
+        if not changed:
+            changed = True
+            reviews.record_decision(
+                db,
+                **{
+                    **comparison["args"],
+                    "decision": "withdrawn",
+                    "expected_previous_id": comparison["decision"].id,
+                    "reason": "Changed during same transaction",
+                },
+            )
+        return original(db, election_key, race, candidate)
+
+    monkeypatch.setattr(reads, "_accounts", withdraw_then_read)
+    response = (
+        finance_api.get(
+            f"{URL}/candidates/a/outside-spending",
+            params={
+                "version": context["version"],
+                "snapshot_id": context["snapshot_id"],
+            },
+        )
+        if rows
+        else finance_api.get(URL)
+    )
+    assert response.status_code == 409
+
+
+def test_reader_evidence_does_not_include_internal_notes(
+    finance_api, finance_db, comparison
+):
+    evidence = deepcopy(comparison["args"]["evidence"])
+    evidence[0]["internal_notes"] = "private account discussion"
+    reviews.record_decision(
+        finance_db,
+        **{
+            **comparison["args"],
+            "evidence": evidence,
+            "expected_previous_id": comparison["decision"].id,
+            "reason": "Additional internal detail",
+        },
+    )
+    finance_db.commit()
+    data = _data(finance_api)
+    public = data["candidates"][0]["accounts"][0]["evidence"]
+    assert public[0] == {"kind": "ballot", "sha256": SOURCE}
+    assert "private account discussion" not in str(data)
+
+
+def test_primary_does_not_borrow_general_report_series(
+    finance_api, finance_db, comparison
+):
+    finance_db.get(m.ElectionComparisonSnapshot, "a" * 64).stage = "primary"
+    finance_db.commit()
+    assert finance_api.get(URL).status_code == 422
+
+
+def test_report_outside_review_period_is_not_prorated(
+    finance_api, finance_db, comparison
+):
+    reviews.record_decision(
+        finance_db,
+        **{
+            **comparison["args"],
+            "period_start": date(2026, 9, 1),
+            "expected_previous_id": comparison["decision"].id,
+            "reason": "Only September onward is checked",
+        },
+    )
+    finance_db.commit()
+    candidate = _data(finance_api)["candidates"][0]
+    assert candidate["account_state"] == "checked"
+    assert candidate["accounts"][0]["period_start"] == "2026-09-01"
+    assert all(
+        report["figures"] is None for report in candidate["accounts"][0]["reports"]
+    )
+    assert candidate["accounts"][0]["latest_report"]["state"] == "unavailable"
+    assert candidate["outside_spending"]["total"]["record_count"] == 4
+
+
+def test_newer_missing_pdf_does_not_fall_back_to_older_totals(
+    finance_api, finance_db, comparison
+):
+    _report(finance_db, "3" * 64, "G", "2026-11-04", status="unavailable")
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    collection.coverage = {"reports": 3}
+    finance_db.commit()
+    latest = _data(finance_api)["candidates"][0]["accounts"][0]["latest_report"]
+    assert latest["state"] == "unavailable"
+    assert latest["report_key"] == "3" * 64
+    assert latest["figures"] is None
+
+
+def test_checked_account_with_no_report_is_distinct(
+    finance_api, finance_db, comparison
+):
+    for row in list(finance_db.query(m.ElectionFinanceReport)):
+        finance_db.delete(row)
+    finance_db.get(m.ElectionFinanceCollection, COLLECTION).coverage = {"reports": 0}
+    finance_db.commit()
+    candidate = _data(finance_api)["candidates"][0]
+    assert candidate["account_state"] == "checked"
+    assert candidate["accounts"][0]["latest_report"]["state"] == "no_held_report"
+
+
+def test_amendment_numbers_do_not_rank_different_report_types(
+    finance_api, finance_db, comparison
+):
+    report = _report(finance_db, "3" * 64, "G", "2026-10-19", status="unavailable")
+    payload = deepcopy(report.payload)
+    payload["filing"]["effective_amendment_index"] = 8
+    report.payload = payload
+    finance_db.get(m.ElectionFinanceCollection, COLLECTION).coverage = {"reports": 3}
+    finance_db.commit()
+    latest = _data(finance_api)["candidates"][0]["accounts"][0]["latest_report"]
+    assert latest["state"] == "ambiguous_latest_report"
+    assert latest["figures"] is None
+
+
+def test_partial_collection_loss_is_unavailable(finance_api, finance_db, comparison):
+    finance_db.delete(
+        finance_db.get(m.ElectionFinanceReport, (COLLECTION, "-101", "2" * 64))
+    )
+    finance_db.commit()
+    data = _data(finance_api)
+    assert data["report_availability"]["state"] == "unavailable"
+    assert data["candidates"][0]["accounts"][0]["reports"] is None
+    assert data["candidates"][0]["outside_spending"]["total"]["record_count"] == 4
+
+
+@pytest.mark.parametrize("changed", ["results", "reports", "payments"])
+def test_each_source_version_change_requires_restart(
+    finance_api, finance_db, comparison, changed
+):
+    old = _data(finance_api)
+    if changed == "results":
+        _snapshot(finance_db, "d" * 64)
+        race = comparison["race"]
+        finance_db.add(
+            m.ElectionComparisonRace(
+                snapshot_id="d" * 64,
+                id=race.id,
+                label=race.label,
+                office_id=race.office_id,
+                jurisdiction=race.jurisdiction,
+                result_status=race.result_status,
+                payload=race.payload,
+            )
+        )
+        _current(finance_db, "d" * 64)
+    elif changed == "reports":
+        previous = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+        finance_db.add(
+            m.ElectionFinanceCollection(
+                id="f" * 64,
+                election_key=KEY,
+                copied_at=WHEN,
+                first_published_at=WHEN,
+                sources=previous.sources,
+                coverage=previous.coverage,
+            )
+        )
+        finance_db.flush()
+        for report in list(finance_db.query(m.ElectionFinanceReport)):
+            finance_db.add(
+                m.ElectionFinanceReport(
+                    collection_id="f" * 64,
+                    registration_number=report.registration_number,
+                    report_key=report.report_key,
+                    document_hash=report.document_hash,
+                    payload=report.payload,
+                )
+            )
+        finance_db.get(m.ElectionFinanceCurrent, KEY).collection_id = "f" * 64
+    else:
+        Published(finance_db)
+    finance_db.commit()
+    assert finance_api.get(URL, params={"version": old["version"]}).status_code == 409
+    assert _data(finance_api)["version"] != old["version"]
+
+
+def test_missing_catalogue_source_is_unavailable(finance_api, finance_db, comparison):
+    finance_db.delete(finance_db.get(m.ElectionResultSource, SOURCE))
+    finance_db.commit()
+    data = _data(finance_api)
+    assert data["report_availability"]["state"] == "unavailable"
+    assert data["candidates"][0]["account_state"] == "unavailable"
+
+
+def test_unpublished_collection_is_hidden(finance_api, finance_db, comparison):
+    finance_db.get(m.ElectionFinanceCollection, COLLECTION).first_published_at = None
+    finance_db.commit()
+    data = _data(finance_api)
+    assert data["collection_id"] is None
+    assert data["coverage"] is None
+    assert data["report_availability"]["state"] == "unavailable"
+    assert (
+        finance_api.get(
+            f"{BASE}/finance/sources/{comparison['doc'][0]}",
+            params={"collection_id": COLLECTION},
+        ).status_code
+        == 404
+    )
+
+
+def test_pdf_checks_membership_and_raw_fingerprint(
+    finance_api, finance_db, comparison, monkeypatch
+):
+    fingerprint, body, compressed = comparison["doc"]
+
+    class Store:
+        def get(self, key, destination):
+            Path(destination).write_bytes(compressed)
+
+    monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: Store())
+    url = f"{BASE}/finance/sources/{fingerprint}"
+    response = finance_api.get(url, params={"collection_id": COLLECTION})
+    assert response.status_code == 200
+    assert response.content == body
+    assert response.headers["content-type"] == "application/octet-stream"
+    assert "attachment" in response.headers["content-disposition"]
+    assert response.headers["x-content-type-options"] == "nosniff"
+    foreign = _document(finance_db, "X")[0]
+    finance_db.commit()
+    assert (
+        finance_api.get(
+            f"{BASE}/finance/sources/{foreign}", params={"collection_id": COLLECTION}
+        ).status_code
+        == 404
+    )
+    assert (
+        finance_api.get(
+            f"{BASE}/finance/sources/{'f' * 64}", params={"collection_id": COLLECTION}
+        ).status_code
+        == 404
+    )
+    monkeypatch.setattr(reads, "read_document", lambda *args: b"%PDF wrong bytes")
+    assert finance_api.get(url, params={"collection_id": COLLECTION}).status_code == 503
+
+
+def test_routes_inherit_private_access(finance_api, comparison):
+    data = _data(finance_api)
+    for url, params in (
+        (URL, {}),
+        (
+            f"{URL}/candidates/a/outside-spending",
+            {"version": data["version"], "snapshot_id": data["snapshot_id"]},
+        ),
+    ):
+        response = finance_api.get(url, params=params)
+        assert "private" in response.headers["cache-control"]
+        assert "no-store" in response.headers["cache-control"]
+        assert (
+            finance_api.get(
+                url, params=params, headers={"Authorization": ""}
+            ).status_code
+            == 401
+        )
+    assert (
+        finance_api.get(
+            f"{BASE}/finance/sources/{comparison['doc'][0]}",
+            params={"collection_id": COLLECTION},
+            headers={"Authorization": ""},
+        ).status_code
+        == 401
+    )
+
+
+def test_real_independent_commits_in_reverse_id_order_change_next_snapshot(
+    seed_database,
+):
+    # Real independent commits, isolated in an owned schema of pytest's temporary
+    # database. No append-only receipts leak into another test's public tables.
+    schema = "review_visibility_" + uuid4().hex
+    engine = get_engine()
+    election_key, race_id = "test-election", "f" * 64
+    with engine.begin() as connection:
+        connection.execute(text(f"CREATE SCHEMA {schema}"))
+        m.ElectionCampaignAccountDecision.__table__.create(
+            connection.execution_options(schema_translate_map={None: schema})
+        )
+
+    def decision(registration):
+        return m.ElectionCampaignAccountDecision(
+            request_key=hashlib.sha256(str(uuid4()).encode()).hexdigest(),
+            authority="mn_cfb",
+            election_key=election_key,
+            race_id=race_id,
+            candidate_id="a",
+            registration_number=registration,
+            decision="rejected",
+            period_start=date(2026, 1, 1),
+            period_end=date(2026, 12, 31),
+            identity={},
+            evidence=[{"kind": "fixture"}],
+            reason="Concurrent version fixture",
+            reviewed_by="fixture",
+            reviewed_at=WHEN,
+        )
+
+    try:
+        with ExitStack() as stack:
+
+            def session():
+                connection = stack.enter_context(
+                    engine.connect().execution_options(
+                        schema_translate_map={None: schema},
+                        isolation_level="REPEATABLE READ",
+                    )
+                )
+                return stack.enter_context(Session(bind=connection))
+
+            first, second, pinned = session(), session(), session()
+            earlier, later = decision("first"), decision("second")
+            first.add(earlier)
+            first.flush()
+            earlier_id = earlier.id
+            second.add(later)
+            second.flush()
+            later_id = later.id
+            second.commit()
+            finance_versions.pin(pinned)
+            old_ids = reads._review_ids(pinned, election_key, race_id)
+            assert old_ids == [later_id]
+            first.commit()
+            assert reads._review_ids(pinned, election_key, race_id) == old_ids
+            next_request = session()
+            finance_versions.pin(next_request)
+            new_ids = reads._review_ids(next_request, election_key, race_id)
+            assert new_ids == [earlier_id, later_id]
+            assert max(old_ids) == max(new_ids)
+            assert reads._version_token(
+                "results", "reports", old_ids, "payments"
+            ) != reads._version_token("results", "reports", new_ids, "payments")
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f"DROP SCHEMA {schema} CASCADE"))
+
+
+def test_pruned_payments_preserve_reports_and_invalidate_old_version(
+    finance_api, finance_db, comparison
+):
+    previous = _data(finance_api)
+    source_id = previous["payment_source"]["snapshot_id"]
+    finance_db.execute(
+        delete(m.CampaignFinanceIndependentExpenditureRow).where(
+            m.CampaignFinanceIndependentExpenditureRow.snapshot_id == source_id,
+            m.CampaignFinanceIndependentExpenditureRow.row_number == 1,
+        )
+    )
+    finance_db.commit()
+    assert (
+        finance_api.get(URL, params={"version": previous["version"]}).status_code == 409
+    )
+    data = _data(finance_api)
+    candidate = data["candidates"][0]
+    assert data["report_availability"]["state"] == "available"
+    assert (
+        candidate["accounts"][0]["latest_report"]["figures"]["campaign_expenditures"][
+            "total"
+        ]
+        == "7.00"
+    )
+    assert candidate["outside_spending"] == {
+        "state": "unavailable",
+        "groups": None,
+        "total": None,
+        "reason": "retained_payment_source_unavailable",
+    }
+    assert (
+        finance_api.get(
+            f"{URL}/candidates/a/outside-spending",
+            params={"version": data["version"], "snapshot_id": data["snapshot_id"]},
+        ).status_code
+        == 503
+    )
+
+
+def test_no_current_report_collection_preserves_checked_outside_money(
+    finance_api, finance_db, comparison
+):
+    finance_db.delete(finance_db.get(m.ElectionFinanceCurrent, KEY))
+    finance_db.commit()
+    data = _data(finance_api)
+    candidate = data["candidates"][0]
+    assert data["report_availability"]["reason"] == "no_published_collection"
+    assert candidate["accounts"][0]["reports"] is None
+    assert candidate["accounts"][0]["latest_report"]["state"] == "unavailable"
+    assert candidate["outside_spending"]["total"]["record_count"] == 4
+
+
+def test_missing_report_only_source_preserves_account_evidence(
+    finance_api, finance_db, comparison
+):
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    collection.sources = [
+        *collection.sources,
+        {
+            "sha256": "0" * 64,
+            "kind": "catalogue",
+            "url": "https://cfb.mn.gov/reports/api/",
+        },
+    ]
+    finance_db.commit()
+    data = _data(finance_api)
+    assert data["report_availability"]["state"] == "unavailable"
+    assert data["candidates"][0]["account_state"] == "checked"
+    assert data["candidates"][0]["outside_spending"]["total"]["record_count"] == 4
+
+
+def test_component_recovery_does_not_swallow_programming_errors(
+    finance_api, comparison, monkeypatch
+):
+    def broken(*args):
+        raise RuntimeError("unexpected programming failure")
+
+    monkeypatch.setattr(reads, "_held_reports", broken)
+    with pytest.raises(RuntimeError, match="unexpected programming failure"):
+        finance_api.get(URL)
+
+
+@pytest.mark.parametrize(
+    "change,state",
+    [
+        ({"stable_id": "local:other:0335:a"}, "not_in_collection_roster"),
+        ({"source_sha256": "0" * 64}, "roster_version_mismatch"),
+        ({"name": "Different person"}, "candidate_identity_mismatch"),
+        ({"office_id": "9999"}, "candidate_identity_mismatch"),
+    ],
+)
+def test_coverage_never_joins_on_name_or_raw_id_alone(
+    finance_api, finance_db, comparison, change, state
+):
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    coverage = deepcopy(collection.coverage)
+    coverage["candidates"][0].update(change)
+    collection.coverage = coverage
+    finance_db.commit()
+    assert _data(finance_api)["candidates"][0]["finance_coverage"]["state"] == state
+
+
+def test_duplicate_coverage_key_is_ambiguous(finance_api, finance_db, comparison):
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    coverage = deepcopy(collection.coverage)
+    coverage["candidates"].append(coverage["candidates"][0])
+    collection.coverage = coverage
+    finance_db.commit()
+    assert (
+        _data(finance_api)["candidates"][0]["finance_coverage"]["state"]
+        == "ambiguous_coverage"
+    )
+
+
+@pytest.mark.parametrize("authority", ["federal", "county_local"])
+def test_exact_coverage_preserves_foreign_or_local_collection_gap(
+    finance_api, finance_db, comparison, authority
+):
+    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    coverage = deepcopy(collection.coverage)
+    gap = (
+        "Finance sources for this authority have not been recovered in this collection"
+    )
+    coverage["candidates"][1].update(authority=authority, gap=gap)
+    collection.coverage = coverage
+    finance_db.commit()
+    candidate = _data(finance_api)["candidates"][1]
+    assert candidate["account_state"] == "no_confirmed_link"
+    assert candidate["finance_coverage"]["state"] == "matched"
+    assert candidate["finance_coverage"]["authority"] == authority
+    assert candidate["report_state"] == "not_collected"
+    assert candidate["finance_coverage"]["gap"] == gap
+    assert candidate["finance_coverage"]["source_sha256"] == SOURCE
+
+
+def test_local_coverage_does_not_compare_county_to_municipal_jurisdiction(
+    finance_api, finance_db, comparison
+):
+    race = comparison["race"]
+    race.jurisdiction = "municipality:12345"
+    finance_db.commit()
+    assert _data(finance_api)["candidates"][1]["finance_coverage"]["state"] == "matched"
+
+
+def test_published_historical_raw_sources_lines_auth_and_corruption(
+    finance_api, finance_db, comparison, monkeypatch
+):
+    store = MemoryStore()
+    body = b'{"name":"<script>"}\n{"amount":"0.00"}\n'
+    fingerprint = archive_source(finance_db, store, body)
+    historical = "7" * 64
+    finance_db.add(
+        m.ElectionFinanceCollection(
+            id=historical,
+            election_key=KEY,
+            copied_at=WHEN,
+            first_published_at=WHEN,
+            sources=[
+                {
+                    "sha256": fingerprint,
+                    "url": "https://cfb.mn.gov/reports/api/",
+                    "kind": "catalogue",
+                    "request_method": "POST",
+                    "request_form": {"id": "-101", "tabname": "reports_data"},
+                    "private_path": "/not-public",
+                }
+            ],
+            coverage={"reports": 0},
+        )
+    )
+    finance_db.commit()
+    monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
+    base = f"{BASE}/finance/sources/{fingerprint}"
+    params = {"collection_id": historical}
+    response = finance_api.get(f"{base}/raw", params=params)
+    assert response.status_code == 200
+    assert response.content == body
+    assert response.headers["content-type"] == "application/octet-stream"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert "private" in response.headers["cache-control"]
+    response = finance_api.get(
+        f"{base}/lines", params={**params, "start": 2, "limit": 1}
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["lines"] == [{"number": 2, "text": '{"amount":"0.00"}'}]
+    assert data["source"]["request_form"] == {"id": "-101", "tabname": "reports_data"}
+    assert "private_path" not in data["source"]
+    assert data["source"]["collection_id"] == historical
+    assert (
+        finance_api.get(f"{base}/raw", params={"collection_id": COLLECTION}).status_code
+        == 404
+    )
+    for path in (f"{base}/raw", f"{base}/lines"):
+        assert (
+            finance_api.get(
+                path, params=params, headers={"Authorization": ""}
+            ).status_code
+            == 401
+        )
+    assert (
+        finance_api.get(f"{base}/lines", params={**params, "limit": 101}).status_code
+        == 422
+    )
+    assert (
+        finance_api.get(f"{base}/lines", params={**params, "start": 0}).status_code
+        == 422
+    )
+    row = finance_db.get(m.ElectionResultSource, fingerprint)
+    store.objects[row.object_key] = b"corrupt"
+    assert finance_api.get(f"{base}/raw", params=params).status_code == 503
+    finance_db.get(m.ElectionFinanceCollection, historical).first_published_at = None
+    finance_db.commit()
+    assert finance_api.get(f"{base}/raw", params=params).status_code == 404
+
+
+def test_account_evidence_keeps_original_collection_locator(finance_api, comparison):
+    evidence = _data(finance_api)["candidates"][0]["accounts"][0]["evidence"]
+    register = next(item for item in evidence if item["kind"] == "committee_register")
+    assert register["collection_id"] == COLLECTION
+
+
+def test_review_source_from_another_published_election_keeps_its_address(
+    finance_api, finance_db, comparison, monkeypatch
+):
+    store = MemoryStore()
+    body = b'{"committee":"retained directory"}\n'
+    fingerprint = archive_source(finance_db, store, body)
+    historical, other_election = "8" * 64, "mn-2024-11-05-general"
+    finance_db.add(
+        m.ElectionFinanceCollection(
+            id=historical,
+            election_key=other_election,
+            copied_at=WHEN,
+            first_published_at=WHEN,
+            sources=[
+                {
+                    "sha256": fingerprint,
+                    "kind": "candidate_directory",
+                    "url": "https://cfb.mn.gov/reports/api/",
+                }
+            ],
+            coverage={"reports": 0},
+        )
+    )
+    finance_db.flush()
+    evidence = deepcopy(comparison["args"]["evidence"])
+    evidence[1].update(collection_id=historical, sha256=fingerprint)
+    reviews.record_decision(
+        finance_db,
+        **{
+            **comparison["args"],
+            "evidence": evidence,
+            "expected_previous_id": comparison["decision"].id,
+            "reason": "Retained directory from another published collection",
+        },
+    )
+    finance_db.commit()
+    account = _data(finance_api)["candidates"][0]["accounts"][0]
+    register = next(
+        item for item in account["evidence"] if item["kind"] == "committee_register"
+    )
+    assert register["source_election_key"] == other_election
+    assert register["collection_id"] == historical
+    monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
+    correct = (
+        f"/api/v1/finance/elections/{other_election}/finance/sources/{fingerprint}/raw"
+    )
+    assert register["source_state"] == "available"
+    assert finance_api.get(register["retained_source_url"]).content == body
+    assert (
+        finance_api.get(correct, params={"collection_id": historical}).content == body
+    )
+    wrong = f"{BASE}/finance/sources/{fingerprint}/raw"
+    assert (
+        finance_api.get(wrong, params={"collection_id": historical}).status_code == 404
+    )
+    finance_db.get(m.ElectionFinanceCollection, historical).first_published_at = None
+    finance_db.commit()
+    account = _data(finance_api)["candidates"][0]["accounts"][0]
+    register = next(
+        item for item in account["evidence"] if item["kind"] == "committee_register"
+    )
+    assert register["source_state"] == "unavailable"
+    assert "retained_source_url" not in register
+    assert "source_election_key" not in register
+    assert (
+        finance_api.get(correct, params={"collection_id": historical}).status_code
+        == 404
+    )
