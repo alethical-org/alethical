@@ -267,6 +267,14 @@ it('keeps a failed shared payment read distinct from a missing source', async ()
   expect(dialog.textContent).toContain('We couldn’t load this payment source');
   expect(dialog.textContent).not.toContain('not held');
   expect(dialog.textContent).toContain('Reload comparison');
+  failPayments = false;
+  await click(
+    [...dialog.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Reload comparison',
+    )!,
+  );
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Record 6835');
+  expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('We couldn’t load');
 });
 
 it('keeps payments outside checked dates separate and opens their source without claiming attribution', async () => {

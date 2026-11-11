@@ -285,6 +285,11 @@ function ElectionBody({
       ? d.electionRacePath(election.election_key, address.race, election.snapshot_id)
       : null,
   );
+  const reloadResults = () => {
+    refreshResults();
+    races.retry();
+    selectedRead.retry();
+  };
   function raceHref(id: string) {
     const params = new URLSearchParams(location.search);
     params.set('race', id);
@@ -332,7 +337,7 @@ function ElectionBody({
         <Notice
           read={selectedRead}
           message="We couldn’t load election results"
-          reload={refreshResults}
+          reload={reloadResults}
         />
       )}
       {selectedRead.data && (
@@ -341,7 +346,7 @@ function ElectionBody({
           detail={selectedRead.data}
           address={address}
           setAddress={setAddress}
-          refreshResults={refreshResults}
+          refreshResults={reloadResults}
         />
       )}
     </>
@@ -375,7 +380,7 @@ function RaceComparison({
       offset: (pageNumber(address.ppage) - 1) * SIZE,
       limit: SIZE,
     }),
-    { keepPrevious: true },
+    { revision, keepPrevious: true },
   );
   const [votesView, setVotesView] = useView('votesView');
   const [outView, setOutView] = useView('outView');
@@ -389,6 +394,7 @@ function RaceComparison({
   const reload = () => {
     setRevision((value) => value + 1);
     setPaymentEvidence(null);
+    setPaymentSourceState(null);
     refreshResults();
   };
   const data = finance.data;
@@ -664,6 +670,7 @@ function RaceComparison({
                       data={data}
                       candidateId={candidate.candidate_id}
                       scope="outside_reviewed_period"
+                      revision={revision}
                       page={pageNumber(address.paypage)}
                       onPage={(page) => setAddress({ paypage: String(page), source: '' })}
                       onRecord={(row) => {
@@ -683,6 +690,7 @@ function RaceComparison({
               <OutsideGroup
                 key={category}
                 category={category}
+                revision={revision}
                 data={data}
                 detail={detail}
                 view={outView}
@@ -1062,6 +1070,7 @@ function AccountCard({
 }
 
 function OutsideGroup({
+  revision,
   category,
   data,
   detail,
@@ -1074,6 +1083,7 @@ function OutsideGroup({
   reload,
 }: {
   category: d.SpenderType;
+  revision: number;
   data: d.ElectionFinanceAnswer;
   detail: d.RaceAnswer;
   view: 'chart' | 'table';
@@ -1231,6 +1241,7 @@ function OutsideGroup({
                       data={data}
                       candidateId={candidate.candidate_id}
                       category={category}
+                      revision={revision}
                       direction={group.direction}
                       page={pageNumber(address.paypage)}
                       onPage={(page) => setAddress({ paypage: String(page), source: '' })}
@@ -1252,6 +1263,7 @@ function OutsideGroup({
 }
 
 function Payments({
+  revision,
   scope = 'attributed',
   detail,
   data,
@@ -1272,6 +1284,7 @@ function Payments({
   category?: d.SpenderType;
   direction?: d.SpendingDirection;
   scope?: 'attributed' | 'outside_reviewed_period';
+  revision: number;
   page: number;
   onPage: (page: number) => void;
   onRecord: (record: d.PaymentRecord) => void;
@@ -1290,6 +1303,7 @@ function Payments({
       limit: SIZE,
       offset: (page - 1) * SIZE,
     }),
+    { revision },
   );
   useEffect(() => {
     const row = read.data?.rows.find((item) => source === `payment:${item.row_number}`);
