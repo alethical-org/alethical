@@ -1132,9 +1132,9 @@ def main() -> int:
         )
     if args.online or args.security_only:
         report += (
-            "\nNode-forge 1.4.2 uses the published fixes and retains the exact "
+            "\nNode-forge 1.4.3 uses the published fixes and retains the exact "
             "GHSA-86w9-cpqp-85rv nested signature repair. Frozen installation, "
-            "patch and installed rsa.js fingerprints, and behavior checks "
+            "patch and installed RSA/Ed25519/HTTP/TLS fingerprints, and behavior checks "
             "through both Expo consumers are required. No Forge audit finding is suppressed.\n"
             "\nLocal security repair: braces 3.0.3 retains the raw "
             "GHSA-vfj7-8cjw-p6xm warning. It passes only after frozen installation, "

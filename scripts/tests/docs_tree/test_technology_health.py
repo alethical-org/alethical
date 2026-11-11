@@ -455,6 +455,10 @@ def test_deepmerge_repair_check_decides_whether_its_finding_blocks_release(
         ("GHSA-6qrw-m8cv-hcxf", "high"),
         ("GHSA-jc66-7q78-782g", "high"),
         ("GHSA-2vgq-wchc-25w7", "low"),
+        ("GHSA-6889-vf6x-f3g5", "low"),
+        ("GHSA-6cv4-p8m7-4r25", "moderate"),
+        ("GHSA-j8rw-jp99-435v", "moderate"),
+        ("GHSA-w4xr-hqv8-ch44", "moderate"),
     ],
 )
 def test_node_forge_findings_block_release(advisory_id: str, severity: str) -> None:
