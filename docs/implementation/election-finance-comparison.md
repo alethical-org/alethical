@@ -70,7 +70,7 @@ Versioned result storage, scoped financial collection storage and authenticated
 read APIs passed 251 focused backend tests before the latest UI source routes.
 The latest report/outside-read checks passed 71 tests, including received dates,
 local roster encoding, absent candidates, filtered payments and original CSV
-access. The Finance suite passes 974 tests; the production bundle compiles.
+access. The Finance suite passes 975 tests; the production bundle compiles.
 These checks do not establish browser or live acceptance.
 
 An actual disposable PostgreSQL/API run checked all 5,023 race counts, all 4,105
@@ -131,9 +131,11 @@ once against current applicable decisions. Independent review accepted these bac
 comparison of every payment row against an independent audit.
 
 154 focused backend tests passed after the source and interval fixes; the added
-partition test passed separately. The 9 comparison UI tests pass, including the
+partition test passed separately. The 10 comparison UI tests pass, including the
 excluded-payment source, failed source restoration, nearby live-search results and
-pagination focus. The production bundle compiles. The fresh full-corpus run has 61 passing checks, including revalidation of all 389
+pagination focus. A reproduced changed-snapshot failure now reloads the election
+and precinct reads together while retaining the selected race and page.
+The production bundle compiles. The fresh full-corpus run has 61 passing checks, including revalidation of all 389
 account requests and an exact partition of all 4,961 current-year payment rows.
 Its API remains running for browser acceptance; the receipt is deliberately not
 yet marked complete.

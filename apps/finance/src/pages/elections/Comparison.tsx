@@ -301,7 +301,7 @@ function ElectionBody({
   const list = showList && (
     <section className="ec-section" aria-labelledby="ec-races-heading">
       <h2 id="ec-races-heading">Races{races.data ? ` (${count(races.data.page.total)})` : ''}</h2>
-      <Notice read={races} message="We couldn’t load races" />
+      <Notice read={races} message="We couldn’t load races" reload={reloadResults} />
       {races.data && (
         <>
           {races.data.query !== address.q && (
@@ -747,7 +747,7 @@ function RaceComparison({
           here={location.pathname + location.search}
           commit={(pq) => setAddress({ pq, ppage: '1' })}
         />
-        <Notice read={precincts} message="We couldn’t load precinct results" />
+        <Notice read={precincts} message="We couldn’t load precinct results" reload={reload} />
         {precincts.data && (
           <>
             {precincts.data.query !== address.pq && (

@@ -29,6 +29,7 @@ let finance: ElectionFinanceAnswer;
 let requests: string[];
 let failFinance = false;
 let failPayments = false;
+let currentSnapshot = fixture.detail.snapshot_id;
 const payment: PaymentRecord = {
   row_number: 6835,
   resolution: 'checked_account_and_period',
@@ -101,6 +102,7 @@ beforeEach(() => {
   requests = [];
   failFinance = false;
   failPayments = false;
+  currentSnapshot = fixture.detail.snapshot_id;
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -118,7 +120,19 @@ beforeEach(() => {
       requests.push(input);
       const url = new URL(input);
       const endpoint = url.pathname;
-      if (endpoint.endsWith(`/elections`)) return json({ elections: [fixture.detail] });
+      if (endpoint.endsWith(`/elections`))
+        return json({ elections: [{ ...fixture.detail, snapshot_id: currentSnapshot }] });
+      if (
+        url.searchParams.has('snapshot_id') &&
+        url.searchParams.get('snapshot_id') !== currentSnapshot
+      )
+        return new Response(
+          JSON.stringify({
+            type: 'https://api.alethical.com/problems/records-changed',
+            status: 409,
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        );
       if (endpoint.endsWith('/outside-spending/source'))
         return new Response('source bytes', {
           headers: { 'Content-Type': 'application/octet-stream' },
@@ -146,7 +160,8 @@ beforeEach(() => {
         return new Response('source bytes', {
           headers: { 'Content-Type': 'application/octet-stream' },
         });
-      if (endpoint.endsWith(`/races/${race}`)) return json(fixture.detail);
+      if (endpoint.endsWith(`/races/${race}`))
+        return json({ ...fixture.detail, snapshot_id: currentSnapshot });
       if (endpoint.endsWith('/races'))
         return json({
           ...fixture.detail,
@@ -270,6 +285,7 @@ it('keeps a failed shared payment read distinct from a missing source', async ()
   expect(dialog.textContent).not.toContain('not held');
   expect(dialog.textContent).toContain('Reload comparison');
   failPayments = false;
+  currentSnapshot = fixture.detail.snapshot_id;
   await click(
     [...dialog.querySelectorAll('button')].find(
       (button) => button.textContent === 'Reload comparison',
@@ -299,4 +315,24 @@ it('keeps payments outside checked dates separate and opens their source without
   expect(document.body.textContent).not.toContain(
     'Account relationship and reporting period checked',
   );
+});
+
+it('reloads the election snapshot when precinct pagination reports changed records', async () => {
+  await render();
+  currentSnapshot = 'b'.repeat(64);
+  await click(
+    container.querySelector<HTMLButtonElement>('[aria-label="Precinct pages"] button:last-child')!,
+  );
+  expect(container.textContent).toContain('These records changed');
+  await click(buttons('Reload comparison')[0]);
+  expect(container.textContent).not.toContain('These records changed');
+  expect(
+    requests.some(
+      (url) =>
+        url.includes('/precincts?') &&
+        new URL(url).searchParams.get('snapshot_id') === currentSnapshot,
+    ),
+  ).toBe(true);
+  expect(new URLSearchParams(window.location.search).get('ppage')).toBe('2');
+  expect(new URLSearchParams(window.location.search).get('race')).toBe(race);
 });
