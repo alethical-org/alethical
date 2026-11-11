@@ -1,0 +1,1276 @@
+{
+  "detail": {
+    "election_key": "mn-2026-11-03-general",
+    "election_date": "2026-11-03",
+    "stage": "general",
+    "snapshot_id": "d35d714c45e190328a285d22ae315f17185c57dfcce678088af83b0116ea6775",
+    "copied_at": "2026-11-11T15:38:38.992083+00:00",
+    "first_published_at": "2026-11-11T16:09:21.642085+00:00",
+    "race": {
+      "race_id": "election:201:jurisdiction:88:office:0335",
+      "coverage": {},
+      "district": null,
+      "office_id": "0335",
+      "candidates": [
+        {
+          "name": "Ronald J. Schutz",
+          "party": "R",
+          "votes": 1276217,
+          "outcome": null,
+          "candidate_id": "03350302",
+          "candidate_stable_id": "cand:201:2026-11-03:general:88:0335:03350302",
+          "candidate_order_code": "0302",
+          "is_write_in_aggregate": false
+        },
+        {
+          "name": "Keith Ellison",
+          "party": "DFL",
+          "votes": 1521032,
+          "outcome": null,
+          "candidate_id": "03350401",
+          "candidate_stable_id": "cand:201:2026-11-03:general:88:0335:03350401",
+          "candidate_order_code": "0401",
+          "is_write_in_aggregate": false
+        },
+        {
+          "name": "WRITE-IN",
+          "party": "WI",
+          "votes": 4206,
+          "outcome": null,
+          "candidate_id": null,
+          "candidate_stable_id": null,
+          "candidate_order_code": "9901",
+          "is_write_in_aggregate": true
+        }
+      ],
+      "election_id": "201",
+      "office_name": "Attorney General",
+      "total_votes": 2801455,
+      "roster_state": "registered_candidates",
+      "result_status": "unofficial",
+      "source_sha256": "55d306308d9c098a7c7d33ddad69ce66fd3cb76a9b871b05be87b0a3379815df",
+      "source_status": "unofficial",
+      "jurisdiction_id": "88",
+      "jurisdiction_kind": "statewide_or_multicounty",
+      "summary_source_sha256": "7a618fed3febeadc8fc3499b46c67d52aed5e4ac146aa18e7a8782ab08ef1d19",
+      "candidate_source_sha256": "b31eac36b60745638cc1c59f7246452b3836379811aa1f72cf07bf86a86c86ee",
+      "expected_certification_authority": {
+        "name": "Minnesota State Canvassing Board",
+        "level": "state",
+        "reason": "General-election office and county extent matched to the retained canvass statute",
+        "status": "expected",
+        "evidence": [
+          {
+            "locator": "stat.204C.33.3",
+            "source_url": "https://www.revisor.mn.gov/statutes/2026/cite/204C.33#stat.204C.33.3",
+            "source_sha256": "c6b4541dc68749dc8a0aa2cbaf316079653113276c7e3402fcf71a370521cbb0"
+          },
+          {
+            "locator": "county extent in this race's precinct rows",
+            "row_numbers": [
+              28,
+              4344,
+              16347,
+              20559,
+              25619,
+              27988,
+              29564,
+              33572,
+              35897,
+              38593,
+              41789,
+              47608,
+              49332,
+              51749,
+              56641,
+              59135,
+              60096,
+              62170,
+              67134,
+              79007,
+              80471,
+              83700,
+              86110,
+              88474,
+              91338,
+              94715,
+              96336,
+              134404,
+              136327,
+              139423,
+              141341,
+              148032,
+              150017,
+              152026,
+              155168,
+              158285,
+              160262,
+              162171,
+              163413,
+              164803,
+              167047,
+              168557,
+              170846,
+              173247,
+              174799,
+              179925,
+              182742,
+              184686,
+              186821,
+              191125,
+              193767,
+              195910,
+              197766,
+              200560,
+              203257,
+              211381,
+              219290,
+              221805,
+              226526,
+              228087,
+              234688,
+              236933,
+              248117,
+              249884,
+              253088,
+              255374,
+              257435,
+              259181,
+              262765,
+              274187,
+              278603,
+              282188,
+              284356,
+              293358,
+              295119,
+              296805,
+              298833,
+              302517,
+              303924,
+              306185,
+              308387,
+              310003,
+              318104,
+              319657,
+              321732,
+              325335,
+              330366
+            ],
+            "source_sha256": "55d306308d9c098a7c7d33ddad69ce66fd3cb76a9b871b05be87b0a3379815df"
+          }
+        ],
+        "county_ids": [
+          "01",
+          "02",
+          "03",
+          "04",
+          "05",
+          "06",
+          "07",
+          "08",
+          "09",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15",
+          "16",
+          "17",
+          "18",
+          "19",
+          "20",
+          "21",
+          "22",
+          "23",
+          "24",
+          "25",
+          "26",
+          "27",
+          "28",
+          "29",
+          "30",
+          "31",
+          "32",
+          "33",
+          "34",
+          "35",
+          "36",
+          "37",
+          "38",
+          "39",
+          "40",
+          "41",
+          "42",
+          "43",
+          "44",
+          "45",
+          "46",
+          "47",
+          "48",
+          "49",
+          "50",
+          "51",
+          "52",
+          "53",
+          "54",
+          "55",
+          "56",
+          "57",
+          "58",
+          "59",
+          "60",
+          "61",
+          "62",
+          "63",
+          "64",
+          "65",
+          "66",
+          "67",
+          "68",
+          "69",
+          "70",
+          "71",
+          "72",
+          "73",
+          "74",
+          "75",
+          "76",
+          "77",
+          "78",
+          "79",
+          "80",
+          "81",
+          "82",
+          "83",
+          "84",
+          "85",
+          "86",
+          "87"
+        ],
+        "certification_observed": false
+      },
+      "id": "dc88f14ef11f28d4e295a4a63037a0d11a280df59304c670c9116102b1cf37f7",
+      "label": "Attorney General",
+      "jurisdiction": "88",
+      "county_name": null,
+      "diagnostics": [
+        {
+          "excess": 2,
+          "race_id": "election:201:jurisdiction:88:office:0335",
+          "county_id": "07",
+          "office_id": "0335",
+          "office_name": "Attorney General",
+          "precinct_id": "0260",
+          "total_voted": 125,
+          "office_votes": 127,
+          "result_row_numbers": [
+            33500,
+            33501,
+            33502
+          ],
+          "statistics_row_number": 394
+        },
+        {
+          "excess": 2,
+          "race_id": "election:201:jurisdiction:88:office:0335",
+          "county_id": "24",
+          "office_id": "0335",
+          "office_name": "Attorney General",
+          "precinct_id": "0140",
+          "total_voted": 153,
+          "office_votes": 155,
+          "result_row_numbers": [
+            90204,
+            90205,
+            90206
+          ],
+          "statistics_row_number": 1113
+        },
+        {
+          "excess": 1,
+          "race_id": "election:201:jurisdiction:88:office:0335",
+          "county_id": "70",
+          "office_id": "0335",
+          "office_name": "Attorney General",
+          "precinct_id": "0165",
+          "total_voted": 14,
+          "office_votes": 15,
+          "result_row_numbers": [
+            278520,
+            278521,
+            278522
+          ],
+          "statistics_row_number": 3459
+        },
+        {
+          "excess": 16,
+          "race_id": "election:201:jurisdiction:88:office:0335",
+          "county_id": "82",
+          "office_id": "0335",
+          "office_name": "Attorney General",
+          "precinct_id": "0102",
+          "total_voted": 353,
+          "office_votes": 369,
+          "result_row_numbers": [
+            311642,
+            311643,
+            311644
+          ],
+          "statistics_row_number": 3856
+        },
+        {
+          "excess": 4,
+          "race_id": "election:201:jurisdiction:88:office:0335",
+          "county_id": "85",
+          "office_id": "0335",
+          "office_name": "Attorney General",
+          "precinct_id": "0115",
+          "total_voted": 254,
+          "office_votes": 258,
+          "result_row_numbers": [
+            323496,
+            323497,
+            323498
+          ],
+          "statistics_row_number": 4000
+        },
+        {
+          "excess": 2,
+          "race_id": "election:201:jurisdiction:88:office:0335",
+          "county_id": "87",
+          "office_id": "0335",
+          "office_name": "Attorney General",
+          "precinct_id": "0075",
+          "total_voted": 22,
+          "office_votes": 24,
+          "result_row_numbers": [
+            331097,
+            331098,
+            331099
+          ],
+          "statistics_row_number": 4087
+        }
+      ],
+      "precinct_voter_bound_status": "discrepancies"
+    },
+    "sources": [],
+    "coverage": {}
+  },
+  "finance": {
+    "election_key": "mn-2026-11-03-general",
+    "race_id": "dc88f14ef11f28d4e295a4a63037a0d11a280df59304c670c9116102b1cf37f7",
+    "snapshot_id": "d35d714c45e190328a285d22ae315f17185c57dfcce678088af83b0116ea6775",
+    "collection_id": "9af5200ab51af647bb0be9a081a6db4f4e2c9a0cbd52ba27a30e2b1a809b224c",
+    "version": "10562e9830da7ada",
+    "review_decision_id": 2,
+    "report_availability": {
+      "state": "available",
+      "reason": null
+    },
+    "outside_spending_availability": {
+      "state": "unavailable",
+      "reason": "retained_payment_source_unavailable"
+    },
+    "payment_release_id": null,
+    "payment_version": "1666de4db8188a4a",
+    "payment_source": null,
+    "copied_at": "2026-11-11T16:16:03.079113+00:00",
+    "currency": "USD",
+    "complete_election_spending": false,
+    "sources": [
+      {
+        "url": "https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/api",
+        "kind": "catalogue",
+        "sha256": "c95d662e7ed63a63b8f9d58f31307fa6e823a7eae81d6471b5ab8cade4ed021f",
+        "copied_at": "2026-11-11T15:33:37.927879+00:00",
+        "archive_line": 85,
+        "request_form": {
+          "id": "18336",
+          "year": "2027",
+          "tabname": "reports_data",
+          "year_data[ElectionSegmentEndDate]": "2027",
+          "year_data[ElectionSegmentStartDate]": "2026"
+        },
+        "request_method": "POST"
+      },
+      {
+        "url": "https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/api",
+        "kind": "financial",
+        "sha256": "063097be3575ff9137d9c154859a7d6293664bf439de382cca01d939a8fe676a",
+        "copied_at": "2026-11-11T15:33:38.413632+00:00",
+        "archive_line": 86,
+        "request_form": {
+          "id": "18336",
+          "year": "2027",
+          "tabname": "financial",
+          "year_data[ElectionSegmentEndDate]": "2027",
+          "year_data[ElectionSegmentStartDate]": "2026"
+        },
+        "request_method": "POST"
+      },
+      {
+        "url": "https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/api",
+        "kind": "catalogue",
+        "sha256": "4773cfd299b846a3cb4b550264f1c33828db785a4eb34101eb730181a07bff03",
+        "copied_at": "2026-11-11T15:50:47.391932+00:00",
+        "archive_line": 877,
+        "request_form": {
+          "id": "19261",
+          "year": "2027",
+          "tabname": "reports_data",
+          "year_data[ElectionSegmentEndDate]": "2027",
+          "year_data[ElectionSegmentStartDate]": "2026"
+        },
+        "request_method": "POST"
+      },
+      {
+        "url": "https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/api",
+        "kind": "financial",
+        "sha256": "1ea2df87c2aca54393a2cc12fcf6771c8aa46e83768cb80b6c4909db44ab5035",
+        "copied_at": "2026-11-11T15:50:47.872036+00:00",
+        "archive_line": 878,
+        "request_form": {
+          "id": "19261",
+          "year": "2027",
+          "tabname": "financial",
+          "year_data[ElectionSegmentEndDate]": "2027",
+          "year_data[ElectionSegmentStartDate]": "2026"
+        },
+        "request_method": "POST"
+      },
+      {
+        "url": "https://electionresultsfiles.sos.mn.gov/20261103/cand.txt",
+        "kind": "candidate_roster",
+        "sha256": "b31eac36b60745638cc1c59f7246452b3836379811aa1f72cf07bf86a86c86ee",
+        "copied_at": "2026-11-11T15:17:41.709581+00:00"
+      },
+      {
+        "url": "https://cfb.mn.gov/reports/api/",
+        "kind": "candidate_directory",
+        "sha256": "1ff48de2bde9454c670b9c66f8d122f0d49ea935e2bcc5f5c987762abff2a3f8",
+        "copied_at": "2026-11-11 15:20:39.000590+00:00",
+        "request_form": {
+          "action": "grid_data",
+          "data[type]": "current-lists",
+          "data[action]": "all-registered-candidates",
+          "data[params][0]": "all"
+        },
+        "request_method": "POST"
+      }
+    ],
+    "coverage": {},
+    "race_label": "Attorney General",
+    "result_status": "unofficial",
+    "candidates": [
+      {
+        "name": "Ronald J. Schutz",
+        "party": "R",
+        "votes": 1276217,
+        "outcome": null,
+        "candidate_id": "03350302",
+        "candidate_stable_id": "cand:201:2026-11-03:general:88:0335:03350302",
+        "candidate_order_code": "0302",
+        "is_write_in_aggregate": false,
+        "account_state": "checked",
+        "account_gaps": [],
+        "accounts": [
+          {
+            "registration_number": "19261",
+            "authority": "mn_cfb",
+            "decision_id": 2,
+            "period_start": "2026-01-01",
+            "period_end": "2026-10-19",
+            "checked_on": "2026-11-11",
+            "evidence": [],
+            "committee_name": "Schutz, Ronald Atty Gen Committee",
+            "reports": [
+              {
+                "report_key": "48434964bb51b1039f082a1f87eaf245e9e25608f6a13c4662d0bd03a8e522ec",
+                "registration_number": "19261",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 Pre-General Report",
+                  "report_type": "E",
+                  "cut_off_date": "2026-10-19",
+                  "amendment_count": 1,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "19261",
+                  "effective_amendment_index": 0
+                },
+                "document_hash": "d07e0a2e7763db81b86e2541678f6c477c0e44f48a5cfa2b30ad4d3fe7d3b11b",
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": "2026-01-01",
+                "period_end": "2026-10-19",
+                "period_basis": "calendar_year_to_date",
+                "received_date": "2026-10-26",
+                "attribution": "checked",
+                "figure_status": "source_verified",
+                "source_figure_status": "source_verified",
+                "figures": {
+                  "contributions_received": {
+                    "cash": "903809.59",
+                    "total": "924911.39",
+                    "in_kind": "21101.80",
+                    "source_page": 2,
+                    "source_lines": [
+                      2,
+                      3,
+                      4,
+                      5,
+                      6
+                    ]
+                  },
+                  "campaign_expenditures": {
+                    "cash": "389208.44",
+                    "total": "410310.24",
+                    "unpaid": "0.00",
+                    "in_kind": "21101.80",
+                    "source_page": 2,
+                    "source_lines": [
+                      11
+                    ]
+                  },
+                  "all_disbursements": {
+                    "cash": "1275288.50",
+                    "total": "1296390.30",
+                    "unpaid": "0.00",
+                    "in_kind": "21101.80",
+                    "source_page": 2,
+                    "source_lines": [
+                      19
+                    ]
+                  }
+                },
+                "unavailable_reason": null,
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "f88a4be400d922a69c86966c47728920a9a755784a41c44c1fd2ed873401e5b7",
+                "registration_number": "19261",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 September Report",
+                  "report_type": "D",
+                  "cut_off_date": "2026-09-15",
+                  "amendment_count": 3,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "19261",
+                  "effective_amendment_index": 2
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "379ea8675d9a58cd53d088713d27c28e141ecb077c44f8b9fe809d8e1b19c1bc",
+                "registration_number": "19261",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 Pre-Primary Report",
+                  "report_type": "C",
+                  "cut_off_date": "2026-07-20",
+                  "amendment_count": 3,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "19261",
+                  "effective_amendment_index": 2
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "3201d76021853c342c18a679f8eee9533544002bcc000209b309d2dcba78287d",
+                "registration_number": "19261",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 June Report",
+                  "report_type": "B",
+                  "cut_off_date": "2026-05-31",
+                  "amendment_count": 2,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "19261",
+                  "effective_amendment_index": 1
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "ef3cc9b8cb7dae400fb230b2266fca9c2f5a89af8d2381c411d0062ca080cc12",
+                "registration_number": "19261",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 1st Quarter Report",
+                  "report_type": "A",
+                  "cut_off_date": "2026-03-31",
+                  "amendment_count": 2,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "19261",
+                  "effective_amendment_index": 1
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              }
+            ],
+            "latest_report": {
+              "state": "reported",
+              "report_key": "48434964bb51b1039f082a1f87eaf245e9e25608f6a13c4662d0bd03a8e522ec",
+              "figures": {
+                "contributions_received": {
+                  "cash": "903809.59",
+                  "total": "924911.39",
+                  "in_kind": "21101.80",
+                  "source_page": 2,
+                  "source_lines": [
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                  ]
+                },
+                "campaign_expenditures": {
+                  "cash": "389208.44",
+                  "total": "410310.24",
+                  "unpaid": "0.00",
+                  "in_kind": "21101.80",
+                  "source_page": 2,
+                  "source_lines": [
+                    11
+                  ]
+                },
+                "all_disbursements": {
+                  "cash": "1275288.50",
+                  "total": "1296390.30",
+                  "unpaid": "0.00",
+                  "in_kind": "21101.80",
+                  "source_page": 2,
+                  "source_lines": [
+                    19
+                  ]
+                }
+              },
+              "period_start": "2026-01-01",
+              "period_end": "2026-10-19"
+            }
+          }
+        ],
+        "finance_coverage": {
+          "state": "matched",
+          "authority": "board"
+        },
+        "report_state": "checked",
+        "outside_spending": {
+          "state": "unavailable",
+          "groups": null,
+          "total": null,
+          "reason": "retained_payment_source_unavailable"
+        }
+      },
+      {
+        "name": "Keith Ellison",
+        "party": "DFL",
+        "votes": 1521032,
+        "outcome": null,
+        "candidate_id": "03350401",
+        "candidate_stable_id": "cand:201:2026-11-03:general:88:0335:03350401",
+        "candidate_order_code": "0401",
+        "is_write_in_aggregate": false,
+        "account_state": "checked",
+        "account_gaps": [],
+        "accounts": [
+          {
+            "registration_number": "18336",
+            "authority": "mn_cfb",
+            "decision_id": 1,
+            "period_start": "2026-01-01",
+            "period_end": "2026-10-19",
+            "checked_on": "2026-11-11",
+            "evidence": [],
+            "committee_name": "Ellison, Keith Atty Gen Committee",
+            "reports": [
+              {
+                "report_key": "68eea1ea577280149520a19a1034402318cff8086b0ce1f612575124bf2bba94",
+                "registration_number": "18336",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 Pre-General Report",
+                  "report_type": "E",
+                  "cut_off_date": "2026-10-19",
+                  "amendment_count": 2,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "18336",
+                  "effective_amendment_index": 1
+                },
+                "document_hash": "8ee27f311148fa118d24be96ad43305bf529003ace8905da33f413b7e4cf96eb",
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": "2026-01-01",
+                "period_end": "2026-10-19",
+                "period_basis": "calendar_year_to_date",
+                "received_date": "2026-10-26",
+                "attribution": "checked",
+                "figure_status": "source_verified",
+                "source_figure_status": "source_verified",
+                "figures": {
+                  "contributions_received": {
+                    "cash": "1515176.53",
+                    "total": "4327206.21",
+                    "in_kind": "2812029.68",
+                    "source_page": 2,
+                    "source_lines": [
+                      2,
+                      3,
+                      4,
+                      5,
+                      6
+                    ]
+                  },
+                  "campaign_expenditures": {
+                    "cash": "972759.97",
+                    "total": "3784789.65",
+                    "unpaid": "0.00",
+                    "in_kind": "2812029.68",
+                    "source_page": 2,
+                    "source_lines": [
+                      11
+                    ]
+                  },
+                  "all_disbursements": {
+                    "cash": "1673956.74",
+                    "total": "4485986.42",
+                    "unpaid": "0.00",
+                    "in_kind": "2812029.68",
+                    "source_page": 2,
+                    "source_lines": [
+                      19
+                    ]
+                  }
+                },
+                "unavailable_reason": null,
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "345a6d4103a705331c88de8bad0f932c79661e85177d2b8089690002de099066",
+                "registration_number": "18336",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 September Report",
+                  "report_type": "D",
+                  "cut_off_date": "2026-09-15",
+                  "amendment_count": 1,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "18336",
+                  "effective_amendment_index": 0
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "20645ce5ba004712c29b202dfee5e32571f9575a4792a93b52221dec86654df0",
+                "registration_number": "18336",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 Pre-Primary Report",
+                  "report_type": "C",
+                  "cut_off_date": "2026-07-20",
+                  "amendment_count": 2,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "18336",
+                  "effective_amendment_index": 1
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "482208e95da583e124443b02711fb922e11dabc282ed89cc5c7484786ff9eedf",
+                "registration_number": "18336",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 June Report",
+                  "report_type": "B",
+                  "cut_off_date": "2026-05-31",
+                  "amendment_count": 2,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "18336",
+                  "effective_amendment_index": 1
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              },
+              {
+                "report_key": "82c901bfb250d627c417e16c0778cde0e38824c9227a8d75d4bd7654354f7890",
+                "registration_number": "18336",
+                "filing": {
+                  "filing_year": 2026,
+                  "report_name": "2026 1st Quarter Report",
+                  "report_type": "A",
+                  "cut_off_date": "2026-03-31",
+                  "amendment_count": 2,
+                  "special_election": false,
+                  "termination_date": null,
+                  "registration_number": "18336",
+                  "effective_amendment_index": 1
+                },
+                "document_hash": null,
+                "document": {},
+                "catalogue_source": {},
+                "financial_source": {},
+                "period_start": null,
+                "period_end": null,
+                "period_basis": null,
+                "received_date": null,
+                "attribution": "period_unavailable",
+                "figure_status": "unavailable",
+                "source_figure_status": "unavailable",
+                "figures": null,
+                "unavailable_reason": "This catalogue report document has not been recovered",
+                "complete_election_spending": false
+              }
+            ],
+            "latest_report": {
+              "state": "reported",
+              "report_key": "68eea1ea577280149520a19a1034402318cff8086b0ce1f612575124bf2bba94",
+              "figures": {
+                "contributions_received": {
+                  "cash": "1515176.53",
+                  "total": "4327206.21",
+                  "in_kind": "2812029.68",
+                  "source_page": 2,
+                  "source_lines": [
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                  ]
+                },
+                "campaign_expenditures": {
+                  "cash": "972759.97",
+                  "total": "3784789.65",
+                  "unpaid": "0.00",
+                  "in_kind": "2812029.68",
+                  "source_page": 2,
+                  "source_lines": [
+                    11
+                  ]
+                },
+                "all_disbursements": {
+                  "cash": "1673956.74",
+                  "total": "4485986.42",
+                  "unpaid": "0.00",
+                  "in_kind": "2812029.68",
+                  "source_page": 2,
+                  "source_lines": [
+                    19
+                  ]
+                }
+              },
+              "period_start": "2026-01-01",
+              "period_end": "2026-10-19"
+            }
+          }
+        ],
+        "finance_coverage": {
+          "state": "matched",
+          "authority": "board"
+        },
+        "report_state": "checked",
+        "outside_spending": {
+          "state": "unavailable",
+          "groups": null,
+          "total": null,
+          "reason": "retained_payment_source_unavailable"
+        }
+      },
+      {
+        "name": "WRITE-IN",
+        "party": "WI",
+        "votes": 4206,
+        "outcome": null,
+        "candidate_id": null,
+        "candidate_stable_id": null,
+        "candidate_order_code": "9901",
+        "is_write_in_aggregate": true,
+        "account_state": "write_in_aggregate",
+        "account_gaps": [],
+        "accounts": [],
+        "finance_coverage": {
+          "state": "matched",
+          "authority": "board"
+        },
+        "report_state": "write_in_aggregate",
+        "outside_spending": {
+          "state": "unavailable",
+          "groups": null,
+          "total": null,
+          "reason": "retained_payment_source_unavailable"
+        }
+      }
+    ],
+    "measure_note": "Each report keeps its own dates and totals; overlapping reports and accounts are not added together"
+  },
+  "precincts": {
+    "election_key": "mn-2026-11-03-general",
+    "snapshot_id": "d35d714c45e190328a285d22ae315f17185c57dfcce678088af83b0116ea6775",
+    "race_id": "dc88f14ef11f28d4e295a4a63037a0d11a280df59304c670c9116102b1cf37f7",
+    "query": "",
+    "county": null,
+    "result_status": "unofficial",
+    "precincts": [
+      {
+        "rows": [
+          {
+            "party": "DFL",
+            "state": "MN",
+            "votes": 384,
+            "suffix": "",
+            "raw_row": "MN;01;0005;0335;Attorney General;;0401;Keith Ellison;;;DFL;1;1;384;42.29;908",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 28,
+            "office_name": "Attorney General",
+            "precinct_id": "0005",
+            "total_votes": 908,
+            "candidate_name": "Keith Ellison",
+            "incumbent_code": "",
+            "vote_percentage": "42.29",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "0401",
+            "is_write_in_aggregate": false
+          },
+          {
+            "party": "R",
+            "state": "MN",
+            "votes": 524,
+            "suffix": "",
+            "raw_row": "MN;01;0005;0335;Attorney General;;0302;Ronald J. Schutz;;;R;1;1;524;57.71;908",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 29,
+            "office_name": "Attorney General",
+            "precinct_id": "0005",
+            "total_votes": 908,
+            "candidate_name": "Ronald J. Schutz",
+            "incumbent_code": "",
+            "vote_percentage": "57.71",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "0302",
+            "is_write_in_aggregate": false
+          },
+          {
+            "party": "WI",
+            "state": "MN",
+            "votes": 0,
+            "suffix": "",
+            "raw_row": "MN;01;0005;0335;Attorney General;;9901;WRITE-IN;;;WI;1;1;0;0.00;908",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 30,
+            "office_name": "Attorney General",
+            "precinct_id": "0005",
+            "total_votes": 908,
+            "candidate_name": "WRITE-IN",
+            "incumbent_code": "",
+            "vote_percentage": "0.00",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "9901",
+            "is_write_in_aggregate": true
+          }
+        ],
+        "source_sha256": "55d306308d9c098a7c7d33ddad69ce66fd3cb76a9b871b05be87b0a3379815df",
+        "key": "01:0005",
+        "name": "AITKIN",
+        "county": "01",
+        "county_name": "Aitkin",
+        "diagnostics": []
+      },
+      {
+        "rows": [
+          {
+            "party": "DFL",
+            "state": "MN",
+            "votes": 150,
+            "suffix": "",
+            "raw_row": "MN;01;0010;0335;Attorney General;;0401;Keith Ellison;;;DFL;1;1;150;30.43;493",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 114,
+            "office_name": "Attorney General",
+            "precinct_id": "0010",
+            "total_votes": 493,
+            "candidate_name": "Keith Ellison",
+            "incumbent_code": "",
+            "vote_percentage": "30.43",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "0401",
+            "is_write_in_aggregate": false
+          },
+          {
+            "party": "R",
+            "state": "MN",
+            "votes": 343,
+            "suffix": "",
+            "raw_row": "MN;01;0010;0335;Attorney General;;0302;Ronald J. Schutz;;;R;1;1;343;69.57;493",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 115,
+            "office_name": "Attorney General",
+            "precinct_id": "0010",
+            "total_votes": 493,
+            "candidate_name": "Ronald J. Schutz",
+            "incumbent_code": "",
+            "vote_percentage": "69.57",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "0302",
+            "is_write_in_aggregate": false
+          },
+          {
+            "party": "WI",
+            "state": "MN",
+            "votes": 0,
+            "suffix": "",
+            "raw_row": "MN;01;0010;0335;Attorney General;;9901;WRITE-IN;;;WI;1;1;0;0.00;493",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 116,
+            "office_name": "Attorney General",
+            "precinct_id": "0010",
+            "total_votes": 493,
+            "candidate_name": "WRITE-IN",
+            "incumbent_code": "",
+            "vote_percentage": "0.00",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "9901",
+            "is_write_in_aggregate": true
+          }
+        ],
+        "source_sha256": "55d306308d9c098a7c7d33ddad69ce66fd3cb76a9b871b05be87b0a3379815df",
+        "key": "01:0010",
+        "name": "AITKIN TWP",
+        "county": "01",
+        "county_name": "Aitkin",
+        "diagnostics": []
+      },
+      {
+        "rows": [
+          {
+            "party": "DFL",
+            "state": "MN",
+            "votes": 53,
+            "suffix": "",
+            "raw_row": "MN;01;0015;0335;Attorney General;;0401;Keith Ellison;;;DFL;1;1;53;38.13;139",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 200,
+            "office_name": "Attorney General",
+            "precinct_id": "0015",
+            "total_votes": 139,
+            "candidate_name": "Keith Ellison",
+            "incumbent_code": "",
+            "vote_percentage": "38.13",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "0401",
+            "is_write_in_aggregate": false
+          },
+          {
+            "party": "R",
+            "state": "MN",
+            "votes": 86,
+            "suffix": "",
+            "raw_row": "MN;01;0015;0335;Attorney General;;0302;Ronald J. Schutz;;;R;1;1;86;61.87;139",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 201,
+            "office_name": "Attorney General",
+            "precinct_id": "0015",
+            "total_votes": 139,
+            "candidate_name": "Ronald J. Schutz",
+            "incumbent_code": "",
+            "vote_percentage": "61.87",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "0302",
+            "is_write_in_aggregate": false
+          },
+          {
+            "party": "WI",
+            "state": "MN",
+            "votes": 0,
+            "suffix": "",
+            "raw_row": "MN;01;0015;0335;Attorney General;;9901;WRITE-IN;;;WI;1;1;0;0.00;139",
+            "district": "",
+            "county_id": "01",
+            "office_id": "0335",
+            "row_number": 202,
+            "office_name": "Attorney General",
+            "precinct_id": "0015",
+            "total_votes": 139,
+            "candidate_name": "WRITE-IN",
+            "incumbent_code": "",
+            "vote_percentage": "0.00",
+            "precincts_expected": 1,
+            "precincts_reporting": 1,
+            "candidate_order_code": "9901",
+            "is_write_in_aggregate": true
+          }
+        ],
+        "source_sha256": "55d306308d9c098a7c7d33ddad69ce66fd3cb76a9b871b05be87b0a3379815df",
+        "key": "01:0015",
+        "name": "BALL BLUFF TWP",
+        "county": "01",
+        "county_name": "Aitkin",
+        "diagnostics": []
+      }
+    ],
+    "page": {
+      "total": 4105,
+      "limit": 50,
+      "offset": 0,
+      "has_more": true
+    }
+  },
+  "sourceLines": {
+    "election_key": "mn-2026-11-03-general",
+    "snapshot_id": "d35d714c45e190328a285d22ae315f17185c57dfcce678088af83b0116ea6775",
+    "source": {
+      "url": "https://electionresultsfiles.sos.mn.gov/20261103/allracesbyprecinct.txt",
+      "file": "allracesbyprecinct.txt",
+      "bytes": 28131278,
+      "sha256": "55d306308d9c098a7c7d33ddad69ce66fd3cb76a9b871b05be87b0a3379815df",
+      "fetched_at": "2026-11-11T15:17:38.435387+00:00",
+      "content_type": "text/plain",
+      "last_modified": "Tue, 10 Nov 2026 21:08:30 GMT"
+    },
+    "encoding": "windows-1252",
+    "lines": [
+      {
+        "number": 28,
+        "text": "MN;01;0005;0335;Attorney General;;0401;Keith Ellison;;;DFL;1;1;384;42.29;908"
+      },
+      {
+        "number": 29,
+        "text": "MN;01;0005;0335;Attorney General;;0302;Ronald J. Schutz;;;R;1;1;524;57.71;908"
+      },
+      {
+        "number": 30,
+        "text": "MN;01;0005;0335;Attorney General;;9901;WRITE-IN;;;WI;1;1;0;0.00;908"
+      }
+    ],
+    "page": {
+      "total": 332337,
+      "start": 28,
+      "limit": 3,
+      "has_more": true
+    }
+  }
+}

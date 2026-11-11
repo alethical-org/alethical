@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const checkerPath = 'apps/frontend/scripts/check-node-forge-security.mjs';
-const patchPath = 'patches/node-forge@1.4.2.patch';
+const patchPath = 'patches/node-forge@1.4.3.patch';
 const forgeDirectory = dirname(require.resolve('node-forge/package.json'));
 const repairedCondition =
   "obj.value.length !== 2 ||\n            obj.value[0].value.length !==\n              (('parameters' in capture) ? 2 : 1)) {";
@@ -24,7 +24,13 @@ const iterationGuard =
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'alethical-forge-security-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  for (const path of [checkerPath, patchPath, 'pnpm-workspace.yaml', 'pnpm-lock.yaml']) {
+  for (const path of [
+    checkerPath,
+    'apps/frontend/scripts/node-forge-advisory-probes.mjs',
+    patchPath,
+    'pnpm-workspace.yaml',
+    'pnpm-lock.yaml',
+  ]) {
     mkdirSync(dirname(join(directory, path)), { recursive: true });
     cpSync(join(root, path), join(directory, path));
   }
@@ -61,7 +67,7 @@ test('the exact installed repair passes for both Expo consumers', (t) => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /exact installed repair, valid\/malformed signatures, PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC and CA-store checks passed/,
+    /exact installed repair, valid\/malformed signatures, PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC, CA-store, Ed25519, HTTP whitespace and TLS session\/compression checks passed/,
   );
 });
 
@@ -76,7 +82,7 @@ const rejectedFixtures = [
     'missing workspace patch binding',
     (directory) =>
       change(directory, 'pnpm-workspace.yaml', (text) =>
-        text.replace(/^  node-forge@1\.4\.2: patches\/node-forge@1\.4\.2\.patch\n/m, ''),
+        text.replace(/^  node-forge@1\.4\.3: patches\/node-forge@1\.4\.3\.patch\n/m, ''),
       ),
     /AssertionError/,
   ],
@@ -84,7 +90,7 @@ const rejectedFixtures = [
     'changed lock patch hash',
     (directory) =>
       change(directory, 'pnpm-lock.yaml', (text) =>
-        text.replace(/(  node-forge@1\.4\.2:\n    hash: )[a-f0-9]+/, `$1${'0'.repeat(64)}`),
+        text.replace(/(  node-forge@1\.4\.3:\n    hash: )[a-f0-9]+/, `$1${'0'.repeat(64)}`),
       ),
     /AssertionError/,
   ],
@@ -210,4 +216,99 @@ test('default verification accepts valid forms and blocks both malformed forms o
       .replace(canonicalCheck, 'if(false) {'),
   );
   assert.deepEqual(probe(), [true, true, true, true]);
+});
+
+// Each behavior check must detect removing its own upstream fix. These use
+// isolated copies and public APIs; production dependencies are never modified.
+const advisoryMutations = [
+  [
+    'Ed25519 small-order keys',
+    'ed25519.js',
+    (text) => text.replace('if(_isSmallOrder(q)) {', 'if(false) {'),
+    'checkEd25519',
+    /small-order identity key/,
+  ],
+  [
+    'TLS messages without a session',
+    'tls.js',
+    (text) =>
+      text.replace(
+        'if(type in hsTable[c.entity][c.expect] &&\n    (c.session || c.entity === tls.ConnectionEnd.server)) {',
+        'if(type in hsTable[c.entity][c.expect]) {',
+      ),
+    'checkTlsWithoutSession',
+    /Got unwanted exception/,
+  ],
+  [
+    'TLS unsupported compression',
+    'tls.js',
+    (text) =>
+      text.replace('if(msg.compression_method !== tls.CompressionMethod.none) {', 'if(false) {'),
+    'checkTlsCompression',
+    /Unsupported compression method/,
+  ],
+];
+
+for (const [name, file, mutate, functionName, failure] of advisoryMutations) {
+  test(`${name}: public API probe fails when the upstream guard is removed`, (t) => {
+    const directory = fixture(t);
+    const packageDirectory = join(directory, 'node_modules/node-forge');
+    const probe = `
+      import { createRequire } from 'node:module';
+      import { generateKeyPairSync } from 'node:crypto';
+      import { ${functionName} as check } from ${JSON.stringify(new URL('./node-forge-advisory-probes.mjs', import.meta.url).href)};
+      const forge = createRequire(import.meta.url)(${JSON.stringify(packageDirectory)});
+      const { privateKey } = generateKeyPairSync('rsa', {
+        modulusLength: 1024,
+        privateKeyEncoding: { type: 'pkcs1', format: 'pem' },
+        publicKeyEncoding: { type: 'pkcs1', format: 'pem' },
+      });
+      check(forge, forge.pki.privateKeyFromPem(privateKey));
+    `;
+    const run = () =>
+      spawnSync(process.execPath, ['--input-type=module', '-e', probe], {
+        encoding: 'utf8',
+        timeout: 15000,
+      });
+    const valid = run();
+    assert.equal(valid.error, undefined);
+    assert.equal(valid.status, 0, valid.stderr);
+    change(packageDirectory, `lib/${file}`, mutate);
+    const broken = run();
+    assert.equal(broken.error, undefined);
+    assert.equal(broken.status, 1);
+    assert.match(broken.stderr, failure);
+    assert.equal(
+      runChecker(directory).status,
+      1,
+      'Installed-source drift must also block the gate',
+    );
+  });
+}
+
+test('HTTP header and cookie parsing completes, but the old quadratic trim times out', async (t) => {
+  const { httpProbe } = await import('./node-forge-advisory-probes.mjs');
+  const directory = fixture(t);
+  const packageDirectory = join(directory, 'node_modules/node-forge');
+  const run = (timeout) =>
+    spawnSync(process.execPath, ['-e', httpProbe, join(packageDirectory, 'lib/index.js')], {
+      encoding: 'utf8',
+      timeout,
+    });
+  const fixed = run(10000);
+  assert.equal(fixed.error, undefined);
+  assert.equal(fixed.status, 0, fixed.stderr);
+  assert.deepEqual(JSON.parse(fixed.stdout), { header: true, cookie: true, ordinary: true });
+  change(packageDirectory, 'lib/http.js', (text) =>
+    text.replace(
+      /var _trimString = function\(str\) \{[\s\S]*?\n\};/,
+      String.raw`var _trimString = function(str) {
+  return str.replace(/^\s*/, '').replace(/\s*$/, '');
+};`,
+    ),
+  );
+  const broken = run(3000);
+  assert.equal(broken.error?.code, 'ETIMEDOUT');
+  assert.equal(broken.status, null);
+  assert.equal(runChecker(directory).status, 1);
 });

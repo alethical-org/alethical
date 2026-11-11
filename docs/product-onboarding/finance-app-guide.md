@@ -484,6 +484,23 @@ an unavailable source is not a no-match result.
   figures on screen under their own year, dimmed with "Updating results…" while the next
   answer loads, and with "We couldn’t update these results" and Try again when it fails.
   With no earlier page in the address, the return link reads "Back to Campaign money".
+- **Election comparison (`/money/races/:id?election=&race=`)**: choose a held election
+  and search its races, including statewide, legislative and local contests. Search
+  results appear below the finder while the selected comparison stays available.
+  Reported votes include write-ins, result status and source discrepancies. Precinct
+  results are searchable and paged; candidate columns use source identifiers.
+  Candidate reports show exact cash, in-kind and unpaid figures, actual periods,
+  received dates, amendments and held filings. Contributions received and campaign
+  spending remain separate. Outside spending preserves For and Against, separates
+  political committees/funds from party units, and opens the underlying payments.
+  Unconfirmed account relationships, uncollected federal/local reports and missing
+  amounts stay explicit. Every source panel opens retained original bytes within
+  Finance access; shared links restore the selected race and evidence, with no
+  account token or private return context. Changed records require a reload; failed
+  sections offer retry without replacing available figures with zeros. The existing
+  calendar-year view remains available. The comparison does not infer winners or
+  measure whether spending caused an outcome. The [source operating contract](../operations/election-finance-comparison.md)
+  owns collection, account review, publication and restoration.
 - **Lobbying (`/lobbying`)**: browse Lobbyists or Who lobbyists represent. Name search
   searches both groups, regardless of the earlier browsing tab, with 5-row previews and
   View all for each full 50-row list. Each group keeps its own year, sort, page, count

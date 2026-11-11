@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-decode-uri-security.mjs apps/frontend/scripts/test-decode-uri-security.mjs apps/frontend/scripts/check-glob-security.mjs apps/frontend/scripts/check-minimatch-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.2.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch patches/decode-uri-component@0.5.0.patch patches/glob@13.0.6.patch patches/minimatch@10.2.5.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/node-forge-advisory-probes.mjs apps/frontend/scripts/test-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-decode-uri-security.mjs apps/frontend/scripts/test-decode-uri-security.mjs apps/frontend/scripts/check-glob-security.mjs apps/frontend/scripts/check-minimatch-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.3.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch patches/decode-uri-component@0.5.0.patch patches/glob@13.0.6.patch patches/minimatch@10.2.5.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -230,23 +230,27 @@ alias for Pillow 13.0.0 with an explicitly empty fixed-version list can meet the
 exception, and only after all checks pass. The raw audit report remains visible.
 Other findings, new aliases and missing or changed fix data still block release.
 
-The website build tools use the published node-forge 1.4.2 release, admitted by
-the unchanged 7-day package gate. Both Expo consumers resolve that version. It
-replaces the old 1.4.0 backport with the registry release and includes the PEM
-Buffer fix added in 1.4.2. The published 1.4.1 fixes also cover the additional
-[padding](https://github.com/advisories/GHSA-2vgq-wchc-25w7),
-[signature](https://github.com/advisories/GHSA-6qrw-m8cv-hcxf),
-[certificate signature](https://github.com/advisories/GHSA-9wg5-mj3p-v49q),
-[certificate chain](https://github.com/advisories/GHSA-h46v-rmh6-fq4f) and
-[ASN.1](https://github.com/advisories/GHSA-rhr8-3pm8-cq29) findings.
+The website build tools use published node-forge 1.4.3 in both Expo consumers.
+The [npm registry](https://registry.npmjs.org/node-forge) records publication at
+2026-11-04 01:06:47 UTC, so the unchanged 7-day package gate admitted it on
+2026-11-11 01:06:47 UTC. The release fixes
+[small-order Ed25519 keys](https://github.com/digitalbazaar/forge/security/advisories/GHSA-6889-vf6x-f3g5),
+[HTTP whitespace parsing](https://github.com/digitalbazaar/forge/security/advisories/GHSA-6cv4-p8m7-4r25),
+[TLS messages without a session](https://github.com/digitalbazaar/forge/security/advisories/GHSA-j8rw-jp99-435v) and
+[unsupported TLS compression](https://github.com/digitalbazaar/forge/security/advisories/GHSA-w4xr-hqv8-ch44).
+It retains the published 1.4.1 and 1.4.2 security fixes.
 
 Keep the single nested signature validation repair from
 [upstream pull request 1152](https://github.com/digitalbazaar/forge/pull/1152)
 at `ceba34402e329f0365134f23fe19898756527d65`. The frozen install and
 `check-node-forge-security.mjs` verify the patch binding and installed `rsa.js`
-fingerprint in both Expo consumers. The behavior checks continue to exercise
+fingerprint plus the published Ed25519, HTTP and TLS file fingerprints in both
+Expo consumers. The behavior checks exercise
 ordinary and malformed signatures, PKCS#12 MAC forgery, PEM, modular inverse,
-OID encoding, GCM, CBC and certificate store handling. No node-forge finding
+OID encoding, GCM, CBC, certificate stores, small-order Ed25519 keys, long HTTP
+header/cookie whitespace and local TLS handshakes. Focused tests reverse each
+new upstream guard and confirm its behavior check fails; the slow HTTP case
+runs in a child process with a timeout. No node-forge finding
 is removed from the registry audit. A failed installed repair or a new registry
 finding still blocks release. The remaining build-tool upgrades are tracked in
 [issue #2812](https://github.com/alethical-org/alethical/issues/2812).

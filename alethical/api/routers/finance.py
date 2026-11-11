@@ -24,6 +24,13 @@ from alethical.api.routers.finance_name_discovery import (
 )
 from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.finance_money_reads import router as money_router
+from alethical.api.routers.election_comparison import router as election_router
+from alethical.api.routers.election_finance_reads import (
+    router as election_finance_router,
+)
+from alethical.api.routers.election_outside_spending import (
+    router as election_spending_router,
+)
 from alethical.api.problems import problem_exception, problem_payload
 from alethical.api.serializers import companion_payload, sponsor_payloads
 from alethical.api.services import (
@@ -40,6 +47,9 @@ from alethical.db.session import get_db
 
 router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_access)])
 router.include_router(money_router)
+router.include_router(election_router)
+router.include_router(election_finance_router)
+router.include_router(election_spending_router)
 router.include_router(name_discovery_router)
 
 

@@ -6,9 +6,16 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  checkEd25519,
+  checkTlsWithoutSession,
+  checkTlsCompression,
+  httpProbe,
+} from './node-forge-advisory-probes.mjs';
+
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
-const patchPath = 'patches/node-forge@1.4.2.patch';
+const patchPath = 'patches/node-forge@1.4.3.patch';
 const patchHash = '26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952';
 // The only local repair is the exact nested DigestAlgorithm check in rsa.js.
 const rsaHash = '97027a525106f7c1cade09b5032ca31cf3e8a55078cd6d34f7a4265cd549f5f0';
@@ -20,12 +27,12 @@ const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 assert.equal(sha256(readFileSync(join(root, patchPath))), patchHash);
 assert.match(
   readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'),
-  /^  node-forge@1\.4\.2: patches\/node-forge@1\.4\.2\.patch$/m,
+  /^  node-forge@1\.4\.3: patches\/node-forge@1\.4\.3\.patch$/m,
 );
 assert.match(
   readFileSync(join(root, 'pnpm-lock.yaml'), 'utf8'),
   new RegExp(
-    `^  node-forge@1\\.4\\.2:\\n    hash: ${patchHash}\\n    path: ${patchPath.replaceAll('.', '\\.')}\\n`,
+    `^  node-forge@1\\.4\\.3:\\n    hash: ${patchHash}\\n    path: ${patchPath.replaceAll('.', '\\.')}\\n`,
     'm',
   ),
 );
@@ -64,11 +71,38 @@ const boundedProbe = String.raw`
 for (const consumer of ['@expo/cli', '@expo/code-signing-certificates']) {
   const consumerRequire = createRequire(require.resolve(`${consumer}/package.json`));
   const manifest = consumerRequire('node-forge/package.json');
-  assert.equal(manifest.version, '1.4.2');
+  assert.equal(manifest.version, '1.4.3');
   const forgeRequire = createRequire(consumerRequire.resolve('node-forge'));
   assert.equal(sha256(readFileSync(forgeRequire.resolve('./rsa'))), rsaHash, 'lib/rsa.js');
+  // Exact published security fixes from the npm 1.4.3 tarball.
+  assert.equal(
+    sha256(readFileSync(forgeRequire.resolve('./ed25519'))),
+    '1b2e4cf0cd4f89647f667dc2ab77912ea2e434e57f87cdd094420afbad5b0175',
+    'lib/ed25519.js',
+  );
+  assert.equal(
+    sha256(readFileSync(forgeRequire.resolve('./http'))),
+    '9d5ab17ac2735014373cb5dcec93a9ffc36f236843d4aff64969cff326de2b14',
+    'lib/http.js',
+  );
+  assert.equal(
+    sha256(readFileSync(forgeRequire.resolve('./tls'))),
+    '3250a1cc7d0017e7d3328d14c6f92945fcdc54480709c55ab418e64f90803e09',
+    'lib/tls.js',
+  );
   const forge = consumerRequire('node-forge');
+  checkEd25519(forge);
+  checkTlsWithoutSession(forge);
+  const httpResult = spawnSync(
+    process.execPath,
+    ['-e', httpProbe, forgeRequire.resolve('./index')],
+    { encoding: 'utf8', timeout: 10000 },
+  );
+  assert.equal(httpResult.error, undefined, 'HTTP whitespace parsing must finish');
+  assert.equal(httpResult.status, 0, httpResult.stderr);
+  assert.deepEqual(JSON.parse(httpResult.stdout), { header: true, cookie: true, ordinary: true });
   const privateKey = forge.pki.privateKeyFromPem(pem);
+  checkTlsCompression(forge, privateKey);
   const publicKey = forge.pki.rsa.setPublicKey(privateKey.n, privateKey.e);
   const md = forge.md.sha256.create().update('Alethical signature regression');
   const digest = md.digest().getBytes();
@@ -290,5 +324,5 @@ for (const consumer of ['@expo/cli', '@expo/code-signing-certificates']) {
 }
 
 console.log(
-  'node-forge 1.4.2 with GHSA-86w9-cpqp-85rv repair: exact installed repair, valid/malformed signatures, PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC and CA-store checks passed for both Expo consumers',
+  'node-forge 1.4.3 with GHSA-86w9-cpqp-85rv repair: exact installed repair, valid/malformed signatures, PKCS#12 forgery, PEM, modInverse, OID, GCM, CBC, CA-store, Ed25519, HTTP whitespace and TLS session/compression checks passed for both Expo consumers',
 );

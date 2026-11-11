@@ -442,6 +442,17 @@ Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
 `ALETHICAL_ADDRESS_SUGGESTION_RATE_PER_MIN`. CLI:
 `python -m alethical.api.services.representative_lookup "<address>" --json`.
 
+## Election results and scoped campaign reports
+
+The Finance comparison imports retained official main and local election files into
+versioned result generations. Candidate report catalogues, PDFs and supporting
+identity sources form separate financial collections; they do not replace the
+global campaign-money release. A candidacy/account relationship requires an explicit
+source-backed review before money appears beside that candidate. Names alone never
+confirm it. The [election comparison operating contract](../operations/election-finance-comparison.md)
+owns the three operator commands, required evidence, publication, restoration and
+coverage acceptance. These commands have no automatic schedule or paid AI step.
+
 ## H — Campaign finance (MN Campaign Finance Board)
 
 _Verified against the code and the live source on 2026-08-11

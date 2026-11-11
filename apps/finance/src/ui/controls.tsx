@@ -11,7 +11,7 @@ import {
 import { Link } from '../router';
 import { WithArrow } from './parts';
 
-function Caret({ up = false }: { up?: boolean }) {
+export function Caret({ up = false }: { up?: boolean }) {
   return (
     <svg
       width="16"
@@ -399,9 +399,11 @@ export interface Evidence {
 export function EvidencePanel({
   evidence,
   onClose,
+  children,
 }: {
   evidence: Evidence | null;
   onClose: () => void;
+  children?: ReactNode;
 }) {
   const panel = useRef<HTMLElement>(null);
   const close = useRef<HTMLButtonElement>(null);
@@ -521,6 +523,7 @@ export function EvidencePanel({
               </blockquote>
             </figure>
           )}
+          {children}
           <div className="f-evidence-checked">
             {checked !== 'Not checked' && (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
