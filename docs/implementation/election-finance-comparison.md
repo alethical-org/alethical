@@ -226,9 +226,11 @@ The expanded expense, public-subsidy, payee, funder and mixed-authority report
 paths are implemented on the build branch, not released. Checked visible source
 readings have a separate append-only history; blanks, redactions, unreadable fields
 and unknown report versions remain explicit and nonadditive. The current local
-context adapter covers the checked Crow Wing form structure. Reusable recipient
-and publisher proofs, separate report sections inside bundled PDFs, and evidenced
-local amendment decisions remain required work before full local coverage.
+context adapter covers the checked Crow Wing form structure. Independent sections
+inside bundled PDFs and bounded large-file preparation/replay are implemented and
+tested locally. Reusable recipient and publisher proofs are in progress; their
+integration, actual section acceptance and evidenced local amendment decisions
+remain required work before full local coverage.
 
 The combined disposable-database check reproduces the published result fingerprint,
 5,023 races and 140,815 precinct/race records, then replays 389 existing Board

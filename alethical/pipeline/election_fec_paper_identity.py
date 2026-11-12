@@ -6,6 +6,7 @@ printed image number and inspected label/field positions. Other layouts fail
 closed, and later pages are not claimed to be read by a page1 extraction.
 """
 
+from contextlib import ExitStack
 from copy import deepcopy
 from datetime import date
 from functools import lru_cache
@@ -119,7 +120,7 @@ def _stop_reader(process):
 
 
 def _run_native_reader(
-    body: bytes,
+    body,
     *,
     command=None,
     max_stdout=2 * 1024 * 1024,
@@ -139,11 +140,21 @@ def _run_native_reader(
         command = ["pdftotext", "-f", "1", "-l", "1", "-bbox-layout", "-", "-"]
     process = None
     deadline = time.monotonic() + timeout
-    # A bounded anonymous input file avoids the stdin-write/stdout-read pipe
-    # deadlock. It is never a caller-selected path and closes on every outcome.
-    with tempfile.TemporaryFile() as source, selectors.DefaultSelector() as selector:
-        source.write(body)
-        source.seek(0)
+    # Input is either an anonymous byte spool or a freshly verified owned file.
+    # Neither route opens a caller-selected path or copies a large PDF into RAM.
+    from alethical.pipeline.election_source_files import VerifiedSourceFile
+
+    with ExitStack() as owned, selectors.DefaultSelector() as selector:
+        if isinstance(body, VerifiedSourceFile):
+            source = owned.enter_context(body.open())
+        else:
+            if not isinstance(body, bytes):
+                raise FecPaperIdentityError(
+                    "Native input needs bytes or a verified file"
+                )
+            source = owned.enter_context(tempfile.TemporaryFile())
+            source.write(body)
+            source.seek(0)
         try:
             process = subprocess.Popen(
                 [

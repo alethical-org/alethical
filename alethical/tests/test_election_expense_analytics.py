@@ -2077,6 +2077,22 @@ def test_external_exclusion_pagination_csv_and_original_dates(db, own_external):
     assert len([r for r in rows if r["Row type"] == "External memo detail"]) == 1
 
 
+def test_paged_expense_results_do_not_repeat_all_candidate_coverage(db, own_external):
+    args = {"election_key": own_external.g["election_key"]}
+    first = s.report(db, **args, limit=1)
+    assert first["candidates"][0]["external_coverage"]["status"]
+    assert "external_coverage" not in first["coverage"]
+    assert "external_coverage" not in s.payees(db, **args, limit=1)["coverage"]
+    assert "external_coverage" not in s.payments(db, **args, limit=1)["coverage"]
+    body, _ = s.export(db, **args, format="csv")
+    rows = list(csv.DictReader(io.StringIO(body)))
+    coverage = [r for r in rows if r["Row type"] == "External coverage"]
+    assert len(coverage) == first["coverage"]["scoped_candidacies"]
+    assert all(
+        r["Figure status"] == "account confirmed" and r["Gaps"] == "" for r in coverage
+    )
+
+
 def test_external_source_loss_changes_composite_pin_and_never_becomes_zero(
     db, own_external
 ):

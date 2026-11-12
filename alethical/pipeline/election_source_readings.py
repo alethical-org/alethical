@@ -25,8 +25,16 @@ from alethical.pipeline.election_comparison import (
     read_source,
 )
 from alethical.pipeline.election_fec_paper_identity import _run_native_reader
+from alethical.pipeline.election_source_files import (
+    CHUNK_BYTES,
+    SourceFileError,
+    SourceFileLimitError,
+    VerifiedSourceFile,
+    verified_source_files,
+)
 
 SCHEMA = "mn-local-source-reading:v1"
+SECTION_SCHEMA = "mn-local-source-reading:v2"
 RENDER_PROFILE = "pdftoppm:png:200dpi:max2600:v1"
 MAX_ORIGINAL_BYTES = 16 * 1024 * 1024
 MAX_CLOSURE_BYTES = 64 * 1024 * 1024
@@ -74,6 +82,15 @@ _CONTEXT_SEAL = object()
 def require(ok, message):
     if not ok:
         raise ComparisonImportError(message)
+
+
+def _require_current_heads(db):
+    # A waited advisory lock cannot refresh a Repeatable Read snapshot. Writes
+    # and publication must see the last committed head after taking their locks.
+    require(
+        db.connection().get_isolation_level() == "READ COMMITTED",
+        "Reading review and publication require READ COMMITTED isolation",
+    )
 
 
 def _hash(value):
@@ -159,11 +176,41 @@ def field_proposal(
     )
 
 
-def _pdf_info(body):
+def _source_identity(body):
+    if isinstance(body, VerifiedSourceFile):
+        return body.content_hash
     require(
-        isinstance(body, bytes)
-        and 0 < len(body) <= MAX_ORIGINAL_BYTES
-        and body.startswith(b"%PDF-"),
+        isinstance(body, bytes) and 0 < len(body) <= MAX_ORIGINAL_BYTES,
+        "Reading needs bounded original bytes or a verified file",
+    )
+    return hashlib.sha256(body).hexdigest()
+
+
+def _source_startswith(body, prefix):
+    if isinstance(body, VerifiedSourceFile):
+        with body.open() as handle:
+            return handle.read(len(prefix)) == prefix
+    return isinstance(body, bytes) and body.startswith(prefix)
+
+
+def _source_contains(body, literal):
+    if isinstance(body, VerifiedSourceFile):
+        # Keep enough overlap to find a quotation spanning consecutive chunks.
+        tail = b""
+        with body.open() as handle:
+            while chunk := handle.read(CHUNK_BYTES):
+                value = tail + chunk
+                if literal in value:
+                    return True
+                tail = value[-(len(literal) - 1) :] if len(literal) > 1 else b""
+        return False
+    return literal in body
+
+
+def _pdf_info(body):
+    _source_identity(body)
+    require(
+        _source_startswith(body, b"%PDF-"),
         "Reading needs bounded original PDF bytes",
     )
     try:
@@ -229,7 +276,13 @@ def render_page(body, page):
 
 
 def prepare_receipt(
-    body, *, fields, document_kind, dependencies=None, source_context=None
+    body,
+    *,
+    fields,
+    document_kind,
+    dependencies=None,
+    source_context=None,
+    reading_scope=None,
 ):
     """Render listed pages for checking, with no database or approval side effect."""
     fields = deepcopy(fields)
@@ -249,15 +302,17 @@ def prepare_receipt(
         )
         pages.append(metadata)
     receipt = dict(
-        schema=SCHEMA,
+        schema=SCHEMA if reading_scope is None else SECTION_SCHEMA,
         verification_basis="visual_source_check",
-        original_sha256=hashlib.sha256(body).hexdigest(),
+        original_sha256=_source_identity(body),
         document_kind=document_kind,
         pages=pages,
         fields=fields,
         dependencies=deepcopy(dependencies or []),
         source_context=deepcopy(source_context),
     )
+    if reading_scope is not None:
+        receipt["reading_scope"] = deepcopy(reading_scope)
     return validate_receipt(receipt)
 
 
@@ -265,8 +320,10 @@ def validate_receipt(value):
     try:
         require(
             isinstance(value, dict)
-            and set(value) == RECEIPT_FIELDS
-            and value["schema"] == SCHEMA
+            and value.get("schema") in {SCHEMA, SECTION_SCHEMA}
+            and set(value)
+            == RECEIPT_FIELDS
+            | ({"reading_scope"} if value["schema"] == SECTION_SCHEMA else set())
             and value["verification_basis"] == "visual_source_check"
             and _hash(value["original_sha256"])
             and value["document_kind"] in _KINDS,
@@ -394,6 +451,8 @@ def validate_receipt(value):
                 ),
                 "Reading transcript differs from its listed field quotations",
             )
+        if value["schema"] == SECTION_SCHEMA:
+            _validate_section_scope(value, indexed)
         deps = value["dependencies"]
         require(
             isinstance(deps, list)
@@ -420,12 +479,136 @@ def validate_receipt(value):
     return deepcopy(value)
 
 
+def _contains(outer, inner):
+    return (
+        outer[0] <= inner[0] < inner[2] <= outer[2]
+        and outer[1] <= inner[1] < inner[3] <= outer[3]
+    )
+
+
+def _regions_overlap(a, b):
+    return a["page"] == b["page"] and (
+        max(a["bounds"][0], b["bounds"][0]) < min(a["bounds"][2], b["bounds"][2])
+        and max(a["bounds"][1], b["bounds"][1]) < min(a["bounds"][3], b["bounds"][3])
+    )
+
+
+def _validate_section_scope(receipt, pages):
+    scope = receipt["reading_scope"]
+    require(
+        isinstance(scope, dict) and set(scope) == {"cover", "regions"},
+        "Unsupported physical reading scope",
+    )
+    cover, regions = scope["cover"], scope["regions"]
+    require(
+        isinstance(cover, dict)
+        and set(cover) == {"page", "bounds"}
+        and isinstance(regions, list)
+        and 0 < len(regions) <= MAX_PAGES * 3,
+        "Reading section needs a cover and bounded listed regions",
+    )
+    primary_records = {
+        "financial_report": {"cover", "disbursement", "donation", "other"},
+        "supplement": {"disbursement", "donation", "other"},
+        "certification": {"certification", "other"},
+        "bank_attachment": {"bank_transaction", "other"},
+    }
+    roles = {
+        "cover": primary_records[receipt["document_kind"]],
+        "continuation": {"disbursement", "donation", "other"},
+        "supplement": {"disbursement", "donation", "other"},
+        "certification": {"certification", "other"},
+        "bank_attachment": {"bank_transaction", "other"},
+    }
+    for region in [cover, *regions]:
+        require(
+            isinstance(region, dict)
+            and set(region)
+            == ({"page", "bounds"} if region is cover else {"page", "bounds", "role"})
+            and type(region["page"]) is int
+            and region["page"] in pages
+            and (region is cover or region["role"] in roles),
+            "Invalid reading section region",
+        )
+        bounds = region["bounds"]
+        require(
+            isinstance(bounds, list)
+            and len(bounds) == 4
+            and all(type(n) in {int, float} and math.isfinite(n) for n in bounds)
+            and _contains(
+                [0, 0, pages[region["page"]]["width"], pages[region["page"]]["height"]],
+                bounds,
+            ),
+            "Reading region crosses its page bounds",
+        )
+    require(
+        {region["page"] for region in regions} == set(pages),
+        "Every checked page needs a listed section region",
+    )
+    covers = [region for region in regions if region["role"] == "cover"]
+    require(
+        len(covers) == 1
+        and cover["page"] == covers[0]["page"]
+        and _contains(covers[0]["bounds"], cover["bounds"]),
+        "Stable cover anchor is outside its one cover region",
+    )
+    for index, region in enumerate(regions):
+        require(
+            not any(_regions_overlap(region, other) for other in regions[:index]),
+            "Reading section regions overlap",
+        )
+    for field in receipt["fields"]:
+        containing = [
+            region
+            for region in regions
+            if region["page"] == field["page"]
+            and _contains(region["bounds"], field["bounds"])
+        ]
+        require(
+            len(containing) == 1
+            and field["record_type"] in roles[containing[0]["role"]],
+            "Reading field is outside its section or has another region role",
+        )
+
+
 def receipt_digest(receipt):
     return digest(validate_receipt(receipt))
 
 
 def subject_key(receipt):
-    return digest([receipt["schema"], receipt["original_sha256"]])
+    parts = [receipt["schema"], receipt["original_sha256"]]
+    if receipt["schema"] == SECTION_SCHEMA:
+        parts.append(receipt["reading_scope"]["cover"])
+    return digest(parts)
+
+
+def _check_section_overlap(db, receipt, subject):
+    """An original-wide lock prevents two distinct subjects claiming one region."""
+    model = m.ElectionSourceReadingDecision
+    with db.scalars(
+        select(model)
+        .where(model.original_sha256 == receipt["original_sha256"])
+        .distinct(model.subject_key)
+        .order_by(model.subject_key, model.id.desc())
+        .execution_options(yield_per=16)
+    ) as heads:
+        for row in heads:
+            if row.subject_key == subject or row.decision != "checked":
+                continue
+            other = validate_receipt(row.receipt)
+            require(
+                receipt["schema"] == SECTION_SCHEMA
+                and other["schema"] == SECTION_SCHEMA,
+                "Reading section overlaps a checked whole-original scope",
+            )
+            require(
+                not any(
+                    _regions_overlap(a, b)
+                    for a in receipt["reading_scope"]["regions"]
+                    for b in other["reading_scope"]["regions"]
+                ),
+                "Reading section overlaps another current checked section",
+            )
 
 
 def source_dependencies(receipt):
@@ -476,29 +659,70 @@ def _fresh_bodies(db, store, hashes):
     return bodies
 
 
+def _source_rows(db, hashes):
+    model = m.ElectionResultSource
+    rows = {}
+    for batch in _batches(hashes):
+        # Scalar columns bypass a caller's previously loaded ORM identity map.
+        rows.update(
+            (row.content_hash, row)
+            for row in db.execute(
+                select(
+                    model.content_hash,
+                    model.object_key,
+                    model.byte_size,
+                    model.compressed_hash,
+                    model.compressed_byte_size,
+                    model.compression,
+                ).where(model.content_hash.in_(batch))
+            )
+        )
+    return rows
+
+
+def _replay_local_context(receipt, originals):
+    from alethical.pipeline.election_local_sources import replay_source_context
+
+    # The legacy HTML/CSV chain stays byte-based and bounded. Its original PDF
+    # is never materialized; all its field values already live in the receipt.
+    bodies = dict(originals)
+    context = receipt["source_context"]
+    for key in (
+        "county_source_sha256",
+        "publisher_source_sha256",
+        "catalogue_source_sha256",
+    ):
+        h = context[key]
+        value = bodies[h]
+        if isinstance(value, VerifiedSourceFile):
+            require(
+                value.byte_size <= MAX_ORIGINAL_BYTES, "Legacy context is too large"
+            )
+            with value.open() as handle:
+                bodies[h] = handle.read(value.byte_size + 1)
+            require(len(bodies[h]) == value.byte_size, "Legacy context source changed")
+    return replay_source_context(receipt, bodies)
+
+
 def verify_receipt_sources(receipt, bodies, *, render=False):
     require(
         source_dependencies(receipt) <= set(bodies),
         "Reading original dependency is absent",
     )
     for h in source_dependencies(receipt):
-        require(
-            hashlib.sha256(bodies[h]).hexdigest() == h, "Reading original hash differs"
-        )
+        require(_source_identity(bodies[h]) == h, "Reading original hash differs")
     require(
-        bodies[receipt["original_sha256"]].startswith(b"%PDF-"),
+        _source_startswith(bodies[receipt["original_sha256"]], b"%PDF-"),
         "Reading original is not PDF",
     )
     for d in receipt["dependencies"]:
         if d["literal"]:
             require(
-                d["literal"].encode() in bodies[d["sha256"]],
+                _source_contains(bodies[d["sha256"]], d["literal"].encode()),
                 "Reading dependency quotation differs from original",
             )
     if receipt["source_context"] is not None:
-        from alethical.pipeline.election_local_sources import replay_source_context
-
-        replay_source_context(receipt, bodies)
+        _replay_local_context(receipt, bodies)
     if render:
         for p in receipt["pages"]:
             actual, _ = render_page(bodies[receipt["original_sha256"]], p["page"])
@@ -626,6 +850,8 @@ def load_verified_reading_context(
     receipt has its own result; one lost proof cannot invalidate unrelated ones.
     """
     require(not (partial and lock), "Publication cannot use partial reading proof")
+    if lock:
+        _require_current_heads(db)
     heads = reading_heads(db, receipt_ids)
     if lock:
         subjects = sorted({h["subject_key"] for h in heads.values() if h})
@@ -670,16 +896,7 @@ def load_verified_reading_context(
         except ComparisonImportError:
             if not partial:
                 raise
-    rows = {}
-    for batch in _batches(hashes):
-        rows.update(
-            (row.content_hash, row)
-            for row in db.scalars(
-                select(m.ElectionResultSource).where(
-                    m.ElectionResultSource.content_hash.in_(batch)
-                )
-            )
-        )
+    rows = _source_rows(db, hashes)
     require(partial or set(rows) == hashes, "Reading original is not retained")
     cache, size, local_values = OrderedDict(), 0, {}
     bodies, body, verified, proven, failed_sources = {}, None, {}, set(), set()
@@ -689,6 +906,21 @@ def load_verified_reading_context(
         required = source_dependencies(receipt)
         try:
             require(required <= set(rows), "Reading original is not retained")
+            if receipt["schema"] == SECTION_SCHEMA:
+                with verified_source_files(
+                    store,
+                    [rows[h] for h in sorted(required)],
+                    required_types={receipt["original_sha256"]: "pdf"},
+                ) as originals:
+                    verify_receipt_sources(receipt, originals)
+                    if receipt["source_context"] is not None:
+                        local_values[receipt_id] = _replay_local_context(
+                            receipt, originals
+                        )
+                outcomes[receipt_id] = True
+                verified[receipt_id] = receipt
+                proven.update(required)
+                continue
             require(
                 all(
                     0 < rows[h].byte_size <= MAX_ORIGINAL_BYTES
@@ -731,6 +963,15 @@ def load_verified_reading_context(
             outcomes[receipt_id] = True
             verified[receipt_id] = receipt
             proven.update(required)
+        except SourceFileLimitError:
+            # Capacity is retryable. It must not become missing-source evidence
+            # or a new report version, even on an ordinary partial read.
+            raise
+        except SourceFileError as exc:
+            if not partial:
+                raise ComparisonImportError(
+                    "Reading original is unavailable or changed"
+                ) from exc
         except ComparisonImportError:
             if not partial:
                 raise
@@ -793,6 +1034,7 @@ def record_reading(
     db, store, *, receipt, decision, reviewed_by, reason, expected_previous_id
 ):
     receipt = validate_receipt(receipt)
+    _require_current_heads(db)
     require(
         decision in {"checked", "withdrawn"}
         and _string(reviewed_by, limit=500)
@@ -818,12 +1060,38 @@ def record_reading(
     )
     db.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": "source-reading-original:" + receipt["original_sha256"]},
+    )
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
         {"key": "source-reading:" + key},
     )
     if decision == "checked":
-        verify_receipt_sources(
-            receipt, _fresh_bodies(db, store, source_dependencies(receipt)), render=True
-        )
+        if receipt["schema"] == SECTION_SCHEMA:
+            rows = _source_rows(db, source_dependencies(receipt))
+            require(
+                set(rows) == source_dependencies(receipt),
+                "Reading original is not retained",
+            )
+            try:
+                with verified_source_files(
+                    store,
+                    rows.values(),
+                    required_types={receipt["original_sha256"]: "pdf"},
+                ) as originals:
+                    verify_receipt_sources(receipt, originals, render=True)
+            except SourceFileLimitError:
+                raise
+            except SourceFileError as exc:
+                raise ComparisonImportError(
+                    "Reading original is unavailable or changed"
+                ) from exc
+        else:
+            verify_receipt_sources(
+                receipt,
+                _fresh_bodies(db, store, source_dependencies(receipt)),
+                render=True,
+            )
     retry = db.scalar(
         select(m.ElectionSourceReadingDecision).where(
             m.ElectionSourceReadingDecision.request_key == request_key
@@ -849,11 +1117,13 @@ def record_reading(
             and previous.receipt == receipt,
             "Withdrawal needs the exact preceding reading",
         )
+    else:
+        _check_section_overlap(db, receipt, key)
     row = m.ElectionSourceReadingDecision(
         subject_key=key,
         receipt_sha256=content,
         original_sha256=receipt["original_sha256"],
-        schema_id=SCHEMA,
+        schema_id=receipt["schema"],
         request_key=request_key,
         previous_decision_id=expected_previous_id,
         decision=decision,

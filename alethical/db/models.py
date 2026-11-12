@@ -22,6 +22,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     Numeric,
     SmallInteger,
@@ -6167,6 +6168,71 @@ class ElectionSourceReadingDecision(Base):
         ),
         Index("ix_source_reading_receipt", "receipt_sha256", "id"),
         Index("ix_source_reading_subject", "subject_key", "id"),
+    )
+
+
+class ElectionSourceProvenanceDecision(Base):
+    """Private acquisition and recipient-root checks, never public originals."""
+
+    __tablename__ = "election_source_provenance_decision"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    subject_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    schema_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    receipt_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    previous_decision_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True)
+    primary_source_sha256: Mapped[str] = mapped_column(
+        ForeignKey("election_result_source.content_hash"), nullable=False
+    )
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    receipt: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    evidence_sha256: Mapped[Optional[str]] = mapped_column(String(64))
+    evidence_body: Mapped[Optional[bytes]] = mapped_column(LargeBinary)
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    __table_args__ = (
+        UniqueConstraint("id", "subject_key"),
+        ForeignKeyConstraint(
+            ["previous_decision_id", "subject_key"],
+            [
+                "election_source_provenance_decision.id",
+                "election_source_provenance_decision.subject_key",
+            ],
+        ),
+        CheckConstraint("decision IN ('checked','withdrawn')", name="valid_decision"),
+        CheckConstraint(
+            "schema_id IN ('retained-acquisition:v1','local-recipient-root:v1')",
+            name="valid_schema",
+        ),
+        CheckConstraint(
+            "previous_decision_id IS NULL OR previous_decision_id < id",
+            name="ordered_history",
+        ),
+        CheckConstraint(
+            "decision = 'checked' OR previous_decision_id IS NOT NULL",
+            name="withdrawal_has_previous",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(receipt) = 'object' AND receipt->>'schema' IS NOT NULL AND receipt->>'schema' = schema_id",
+            name="receipt_schema",
+        ),
+        CheckConstraint(
+            "(schema_id = 'retained-acquisition:v1' AND evidence_sha256 IS NOT NULL "
+            "AND evidence_body IS NOT NULL AND octet_length(evidence_body) BETWEEN 1 AND 1048576) "
+            "OR (schema_id = 'local-recipient-root:v1' AND evidence_sha256 IS NULL AND evidence_body IS NULL)",
+            name="private_evidence_scope",
+        ),
+        Index(
+            "ix_source_provenance_initial",
+            "subject_key",
+            unique=True,
+            postgresql_where=text("previous_decision_id IS NULL"),
+        ),
+        Index("ix_source_provenance_receipt", "receipt_sha256", "id"),
+        Index("ix_source_provenance_subject", "subject_key", "id"),
     )
 
 

@@ -220,6 +220,24 @@ failed proof cannot change the returned figures under an unchanged version.
 Ordinary reads isolate unavailable proofs so unrelated healthy records remain
 available; staging and publication still require the complete evidence set.
 
+Bundled PDFs use section readings (`mn-local-source-reading:v2`). A section has
+one stable cover-page region and explicitly bounded cover/continuation regions.
+Every field must fit its own section; overlapping checked sections and a checked
+whole-document reading cannot coexist. Moving the cover anchor cannot bypass
+that check. Withdraw the old reading explicitly before replacing its scope.
+Review and publication require Read Committed transactions so waiting for a
+review lock cannot retain an older decision snapshot. Ordinary pinned reads may
+still use Repeatable Read.
+
+Section preparation and review support freshly verified, request-owned PDF files
+up to 64 MiB, with a 64 MiB unique-original closure. The older byte interface
+keeps its 16 MiB bound. Streamed proofs check stored and original lengths and
+hashes, reject malformed or concatenated gzip streams, and remove owned files
+and handles on exit. At most 4 proof contexts reserve 128 MiB raw and 256 MiB
+compressed space per process. A busy file budget returns a retryable failure;
+it never marks a source missing or changes a report version. This file proof
+does not approve origin, candidate identity, visible fields or report versions.
+
 ## Fresh source reads
 
 Election analytics readers share a process-wide pool of 16 source workers. Each
@@ -234,6 +252,15 @@ timeout, 30-second read timeout and 1 attempt per request. Ingestion clients kee
 their existing settings. Source loss changes the report version and withholds the
 affected figure; retry starts a fresh check. A storage-only timing does not prove
 full report latency or deployed capacity.
+
+Large originals are checked sequentially within one request so it does not exhaust
+its own file budget. Large local PDFs reopen as bounded verified files only while
+an adapter uses them. They are not retained as whole byte strings between candidate
+checks. Coverage rows stay with their candidate rather than being repeated as a
+full election-wide array on each expense-report page. Collection work notes are
+private; public gaps describe missing records or figures. A currently confirmed
+campaign account replaces a stale unmatched collection status without implying
+that its reports or figures are complete.
 
 ## Outcome decisions
 

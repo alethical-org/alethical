@@ -8,6 +8,7 @@ remain proposals until an adapter verifies the exact fields and quotation.
 from __future__ import annotations
 
 from collections import ChainMap
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -34,6 +35,10 @@ from alethical.pipeline.candidate_catalogue import (
     parse_local_candidate_catalogue,
 )
 from alethical.pipeline.election_finance_collection import _coverage
+from alethical.pipeline.election_source_files import (
+    SourceFileLimitError,
+    verified_source_files,
+)
 
 STATUSES = {
     "not_collected",
@@ -681,6 +686,39 @@ class _VerifiedBodies(dict):
         super().__init__()
         self.sources = sources
         self.reading_context = None
+        self._file_originals = {}
+
+    def retain_file(self, store, row):
+        # Check every source now, then reopen only the needed file during each
+        # extraction. Large bundles never remain as Python byte strings.
+        with verified_source_files(
+            store, [row], required_types={row.content_hash: "pdf"}
+        ):
+            pass
+        self._file_originals[row.content_hash] = (store, row)
+        self[row.content_hash] = None
+
+    @contextmanager
+    def original(self, content_hash):
+        if content_hash in self._file_originals:
+            store, row = self._file_originals[content_hash]
+            with verified_source_files(
+                store, [row], required_types={content_hash: "pdf"}
+            ) as originals:
+                yield originals[content_hash]
+        else:
+            yield self[content_hash]
+
+
+def _large_local_pdf(source, row):
+    from alethical.pipeline.election_source_readings import MAX_ORIGINAL_BYTES
+
+    return (
+        row.byte_size > MAX_ORIGINAL_BYTES
+        and str(source.get("authority", "")).startswith("local:")
+        and str(source.get("media_type", "")).split(";")[0].strip().lower()
+        == "application/pdf"
+    )
 
 
 def source_bodies(db, store, generation):
@@ -689,7 +727,12 @@ def source_bodies(db, store, generation):
         row = db.get(m.ElectionResultSource, source["sha256"])
         require(row is not None, "Original source is not retained")
         try:
-            bodies[source["sha256"]] = read_source(store, row)
+            if _large_local_pdf(source, row):
+                bodies.retain_file(store, row)
+            else:
+                bodies[source["sha256"]] = read_source(store, row)
+        except SourceFileLimitError:
+            raise
         except Exception as exc:
             raise ComparisonImportError(
                 "Retained external original is unavailable or changed"
@@ -746,9 +789,14 @@ def _validate_binding(generation, bodies, binding, expected, *, authority=None):
                 and isinstance(bodies, _VerifiedBodies),
                 "Local context dispatch requires fixed code and verified source bodies",
             )
-            actual = adapter(*arguments, context=bodies.reading_context)
+            with bodies.original(binding["source_sha256"]) as original:
+                actual = adapter(
+                    original, *arguments[1:], context=bodies.reading_context
+                )
         else:
             actual = adapter(*arguments)
+    except SourceFileLimitError:
+        raise
     except Exception as exc:
         raise ComparisonImportError(
             "Source adapter could not verify this extraction"
@@ -1551,7 +1599,12 @@ def retained_bodies(
                 cache is None or h not in cache.get("failed_review_originals", set()),
                 "Review original failed earlier in this request",
             )
-            result[h] = read_source(store, row)
+            if _large_local_pdf(source_index[h], row):
+                result.retain_file(store, row)
+            else:
+                result[h] = read_source(store, row)
+        except SourceFileLimitError:
+            raise
         except Exception as exc:
             if cache is not None:
                 cache.setdefault("failed_review_originals", set()).add(h)

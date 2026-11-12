@@ -201,6 +201,7 @@ export const coverageLabel = (status: string) =>
     retrieval_failed: 'Reports unavailable',
     unreadable: 'Report could not be read',
     unmatched: 'Campaign account not confirmed',
+    account_confirmed: 'Campaign account confirmed',
     source_conflict: 'Sources disagree',
     catalogue_checked_not_found: 'No report found in the checked catalogue',
     confirmed_not_published: 'Report not published',

@@ -46,6 +46,29 @@ def test_no_review_never_exposes_candidate_figures(db, external):
     assert result["complete_election_spending"] is False
 
 
+def test_temporary_source_capacity_returns_retry_without_revising_data(
+    db, external, monkeypatch
+):
+    from alethical.pipeline.election_source_files import SourceFileLimitError
+
+    checked(db, external)
+    before = reads.candidate_finance(db, **args(external))
+    original = reads._availability
+
+    def busy(*args, **kwargs):
+        raise SourceFileLimitError("Synthetic temporary capacity")
+
+    monkeypatch.setattr(reads, "_availability", busy)
+    with pytest.raises(HTTPException) as failure:
+        reads.candidate_finance(db, **args(external), version=before["version"])
+    assert failure.value.status_code == 503
+    monkeypatch.setattr(reads, "_availability", original)
+    assert (
+        reads.candidate_finance(db, **args(external), version=before["version"])
+        == before
+    )
+
+
 def test_checked_values_history_and_private_data_are_separate(db, external):
     ctx = external
     checked(db, ctx)
@@ -187,6 +210,7 @@ def test_whole_source_period_is_never_prorated(db, external):
         r["figures"] is None and r["check_status"] == "period_not_covered"
         for r in result["reports"]
     )
+    assert all(r["gap"] == "Outside checked account dates" for r in result["reports"])
     # Dated transactions in the checked interval remain exact independent records.
     assert len(result["payments"]) == 2
 
@@ -789,7 +813,9 @@ def test_operational_report_proposal_does_not_publish_invented_source_identity(
         public["check_status"] == "retrieval_failed"
         and public["status_basis"] == "operational"
     )
-    assert public["next_action"] == "Retry authority catalogue"
+    assert public["gap"] == "Reports unavailable"
+    assert "next_action" not in public
+    assert "Retry authority catalogue" not in json.dumps(public)
     assert public["figures"] is None and public["sources"] == []
     assert not {
         "source_report_id",
@@ -798,6 +824,35 @@ def test_operational_report_proposal_does_not_publish_invented_source_identity(
         "received_date",
         "effective",
     } & set(public)
+
+
+def test_internal_collection_notes_stay_out_of_candidate_and_bulk_reads(db, external):
+    ctx = external
+    for row in ctx.g["coverage"]:
+        row["next_action"] = (
+            "PRIVATE_COLLECTION_NOTE source capture owned by another task"
+        )
+    rehash(ctx.g)
+    for evidence in ctx.args["evidence"]:
+        if "generation_id" in evidence:
+            evidence["generation_id"] = ctx.g["id"]
+    checked(db, ctx)
+    candidate = reads.candidate_finance(db, **args(ctx))
+    bulk = reads.bulk_finance(db, election_key=ctx.g["election_key"], store=ctx.store)
+    for public in (candidate, bulk):
+        assert "PRIVATE_COLLECTION_NOTE" not in json.dumps(public)
+        assert "next_action" not in json.dumps(public)
+    assert candidate["coverage"]["status"] == "account_confirmed"
+    assert candidate["coverage"]["gap"] is None
+    federal = next(
+        row for row in bulk["coverage"] if row["authority_family"] == "federal"
+    )
+    assert federal["status"] == "account_confirmed"
+    assert federal["gap"] is None
+    local = next(
+        row for row in bulk["coverage"] if row["authority_family"] == "county_local"
+    )
+    assert local["gap"] == "Campaign account not confirmed"
 
 
 def test_factual_report_state_loss_withholds_status_and_invalidates_version(

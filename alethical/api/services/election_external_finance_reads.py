@@ -8,6 +8,7 @@ cannot become checked candidate figures through source capture alone.
 from __future__ import annotations
 
 from copy import deepcopy
+from functools import wraps
 from types import SimpleNamespace
 from typing import Any, NoReturn
 from urllib.parse import quote, urlencode
@@ -26,6 +27,10 @@ from alethical.pipeline.election_comparison import (
     ComparisonImportError,
     digest,
     read_source,
+)
+from alethical.pipeline.election_source_files import (
+    SourceFileLimitError,
+    verified_source_files,
 )
 from alethical.api.services.election_source_io import (
     reader_store_from_env as raw_file_store_from_env,
@@ -150,15 +155,44 @@ def _availability(db, store, hashes):
         try:
             if row is None:
                 raise ComparisonImportError("Missing original")
-            read_source(store, row)
+            if row.byte_size > 16 * 1024 * 1024:
+                with verified_source_files(store, [row]):
+                    pass
+            else:
+                read_source(store, row)
             return h, True
+        except SourceFileLimitError:
+            raise
         except Exception:
             return h, False
 
-    available.update(source_map(checked, jobs))
+    # The general I/O pool is wider than the bounded large-file budget. Do not
+    # let one report compete with itself for file reservations.
+    large = [
+        job
+        for job in jobs
+        if job[1] is not None and job[1].byte_size > 16 * 1024 * 1024
+    ]
+    small = [
+        job for job in jobs if job[1] is None or job[1].byte_size <= 16 * 1024 * 1024
+    ]
+    available.update(source_map(checked, small))
+    available.update(checked(job) for job in large)
     return bodies, available
 
 
+def _source_capacity_errors(operation):
+    @wraps(operation)
+    def wrapped(*args, **kwargs):
+        try:
+            return operation(*args, **kwargs)
+        except SourceFileLimitError:
+            _problem(503, "Records are busy. Try again.")
+
+    return wrapped
+
+
+@_source_capacity_errors
 def _context(
     db,
     *,
@@ -525,6 +559,26 @@ def _coverage_hashes(row, generation, *, cache=None):
     return storage.source_dependencies(generation, coverage=[row], cache=cache)
 
 
+def _coverage_gap(status):
+    # Collection notes describe private work. Publish only the known source gap.
+    return {
+        "not_collected": "Reports not collected",
+        "retrieval_failed": "Reports unavailable",
+        "unreadable": "Report could not be read",
+        "unmatched": "Campaign account not confirmed",
+        "source_conflict": "Sources disagree",
+        "catalogue_checked_not_found": "No report found in the checked catalogue",
+        "confirmed_not_published": "Report not published",
+        "below_threshold_certified": "Below-threshold filing held",
+        "not_due": "Report not yet due",
+        "unchecked": "Reports not checked",
+        "sources_unavailable": "Source unavailable",
+        "period_not_covered": "Outside checked account dates",
+        "checked": None,
+        "account_confirmed": None,
+    }.get(status, "Report figures unavailable")
+
+
 def _public_coverage(row, available, generation, *, cache=None):
     result = {
         k: deepcopy(row[k])
@@ -542,7 +596,6 @@ def _public_coverage(row, available, generation, *, cache=None):
             "school_district_number",
             "authority",
             "status",
-            "next_action",
         )
         if k in row
     }
@@ -553,13 +606,17 @@ def _public_coverage(row, available, generation, *, cache=None):
         result.update(
             status="unchecked",
             status_basis="sources_unavailable",
-            next_action="Recover retained coverage evidence",
         )
     elif row["status"] in storage.OPERATIONAL_COVERAGE:
         result["status_basis"] = "operational"
     else:
         result["status_basis"] = "checked_source"
         result["sources"] = _binding(row["binding"])
+    result["gap"] = _coverage_gap(
+        "sources_unavailable"
+        if result["status_basis"] == "sources_unavailable"
+        else result["status"]
+    )
     return result
 
 
@@ -706,7 +763,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                         "account_id": report["account_id"],
                         "check_status": report["check_status"],
                         "status_basis": "operational",
-                        "next_action": report["next_action"],
+                        "gap": _coverage_gap(report["check_status"]),
                         "figures": None,
                         "sources": [],
                     }
@@ -847,11 +904,6 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                     else "operational"
                     if report["check_status"] in storage.OPERATIONAL_COVERAGE
                     else "checked_source",
-                    **(
-                        {"next_action": report["next_action"]}
-                        if report.get("next_action")
-                        else {}
-                    ),
                     "check_status": "sources_unavailable"
                     if not source_available
                     else "checked"
@@ -869,6 +921,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                     else [],
                 }
             )
+            reports[-1]["gap"] = _coverage_gap(reports[-1]["check_status"])
     payments: list[dict[str, Any]] = []
     target_payments = {
         p["payment_key"]: p
@@ -967,13 +1020,20 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
         "candidate_id": candidate_id,
         "coverage": _public_coverage(coverage, available, g, cache=cache)
         if coverage
-        else {"status": "unmatched", "next_action": "Check this exact ballot identity"},
+        else {"status": "unmatched", "gap": _coverage_gap("unmatched")},
         "accounts": accounts,
         "account_gaps": gaps,
         "reports": reports,
         "payments": payments,
         "measure_note": "Each source measure and reporting period stays separate; no overlapping amounts are added",
     }
+
+    # A fresh checked account supersedes a collection-time identity gap. This
+    # establishes only the account link, never complete or checked money figures.
+    if accounts and result["coverage"]["status"] == "unmatched":
+        result["coverage"].update(
+            status="account_confirmed", status_basis="checked_account", gap=None
+        )
 
     _source_dates(result, g, available)
     return result
@@ -1149,10 +1209,17 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
             entry["own_payments"] = _own_payments(entry, indexes, g, available, cache)
             _source_dates(entry["own_payments"], g, available)
             candidates.append({k: v for k, v in entry.items() if k not in ctx})
+    reviewed_coverage = {
+        entry["coverage"]["stable_id"]: entry["coverage"]
+        for entry in candidates
+        if entry["coverage"].get("stable_id")
+    }
     return {
         **ctx,
         "coverage": [
-            _public_coverage(r, available, g, cache=cache) for r in g["coverage"]
+            reviewed_coverage.get(r["stable_id"])
+            or _public_coverage(r, available, g, cache=cache)
+            for r in g["coverage"]
         ],
         "candidates": candidates,
         "authorities": [

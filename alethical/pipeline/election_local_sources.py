@@ -440,13 +440,11 @@ def _input(body, source, locator, context):
     require(
         isinstance(source, dict)
         and isinstance(locator, dict)
-        and isinstance(body, bytes)
-        and 0 < len(body) <= readings.MAX_ORIGINAL_BYTES
         and isinstance(source.get("authority"), str)
         and source["authority"].startswith("local:"),
         "Local extraction needs bounded retained original",
     )
-    h = hashlib.sha256(body).hexdigest()
+    h = readings._source_identity(body)
     require(
         source.get("sha256") == h
         and h in context.original_hashes
@@ -470,7 +468,7 @@ def _input(body, source, locator, context):
         )
     require(h in allowed, "Local reading belongs to another original")
     require(
-        h != receipt["original_sha256"] or body.startswith(b"%PDF-"),
+        h != receipt["original_sha256"] or readings._source_startswith(body, b"%PDF-"),
         "Local reading original is not PDF",
     )
     return receipt

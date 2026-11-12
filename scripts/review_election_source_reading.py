@@ -9,6 +9,7 @@ No source acquisition or OCR exists in this command.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -23,6 +24,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 from alethical.db.session import database_url_for_target, NO_PREPARED_STATEMENTS  # noqa: E402
 from alethical.pipeline import election_source_readings as readings  # noqa: E402
+from alethical.pipeline import election_source_files as source_files  # noqa: E402
 from alethical.pipeline.election_comparison import ComparisonImportError  # noqa: E402
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
@@ -105,6 +107,48 @@ def execute_request(request, target):
         engine.dispose()
 
 
+def prepare_local_file(path, value):
+    """Bound and fingerprint a local proposal; this proves no official origin."""
+    maximum = (
+        source_files.MAX_ORIGINAL_BYTES
+        if value.get("reading_scope") is not None
+        else readings.MAX_ORIGINAL_BYTES
+    )
+    size, hasher = 0, hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(source_files.CHUNK_BYTES):
+            size += len(chunk)
+            readings.require(size <= maximum, "Original PDF exceeds reading bound")
+            hasher.update(chunk)
+    h = hasher.hexdigest()
+    metadata = dict(
+        content_hash=h,
+        object_key="local-proposal",
+        byte_size=size,
+        compressed_hash=h,
+        compressed_byte_size=size,
+        compression="raw",
+        media_type="application/pdf",
+    )
+
+    class LocalStore:
+        def get(self, key, destination, *, max_bytes):
+            readings.require(key == "local-proposal", "Unknown local proposal")
+            copied = 0
+            with path.open("rb") as original, Path(destination).open("xb") as target:
+                while chunk := original.read(source_files.CHUNK_BYTES):
+                    copied += len(chunk)
+                    readings.require(copied <= max_bytes, "Local proposal grew")
+                    readings.require(
+                        target.write(chunk) == len(chunk), "Incomplete proposal copy"
+                    )
+
+    with source_files.verified_source_files(
+        LocalStore(), [metadata], required_types={h: "pdf"}
+    ) as originals:
+        return readings.prepare_receipt(originals[h], **value)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -119,18 +163,16 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
-            readings.require(
-                args.pdf.stat().st_size <= readings.MAX_ORIGINAL_BYTES,
-                "Original PDF exceeds reading bound",
-            )
             value = read_json(args.observations)
+            required = {"fields", "document_kind", "dependencies", "source_context"}
             readings.require(
                 isinstance(value, dict)
-                and set(value)
-                == {"fields", "document_kind", "dependencies", "source_context"},
+                and (
+                    set(value) == required or set(value) == required | {"reading_scope"}
+                ),
                 "Unsupported source observation proposal",
             )
-            receipt = readings.prepare_receipt(args.pdf.read_bytes(), **value)
+            receipt = prepare_local_file(args.pdf, value)
             with args.output.open("x", encoding="utf-8") as handle:
                 json.dump(receipt, handle, ensure_ascii=False, indent=2)
                 handle.write("\n")

@@ -2263,9 +2263,8 @@ def _join_external(
     data["coverage"]["external_selected_account_reports"] = len(
         data["authority_reports"]
     )
-    data["coverage"]["external_coverage"] = [
-        c["external_coverage"] for c in data["candidates"]
-    ]
+    # Coverage stays with each paged candidate and each exported candidate row.
+    # Repeating the whole election here made every page carry thousands of rows.
     data["version"] = digest(
         [
             "expense-all-authority-v1",
@@ -2968,7 +2967,7 @@ def _external_csv_rows(data):
             "Race ID": candidate["race_id"],
             "Authority ID": coverage.get("authority"),
             "Figure status": _csv_words(coverage.get("status")),
-            "Gaps": coverage.get("next_action"),
+            "Gaps": coverage.get("gap"),
         }
     for h in sorted(used):
         yield {"Row type": "External source"} | source([{"source_sha256": h}])
