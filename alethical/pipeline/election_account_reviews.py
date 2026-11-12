@@ -13,6 +13,10 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
+from alethical.pipeline.election_account_quote_evidence import (
+    QUOTE_KINDS,
+    validate_quote,
+)
 from alethical.pipeline.election_comparison import (
     ComparisonImportError,
     digest,
@@ -41,9 +45,21 @@ def _candidate(race: m.ElectionComparisonRace, candidate_id: str) -> dict:
     return found[0]
 
 
-def _validate_quotes(db: Session, item: dict, registration_number: str) -> None:
+def _validate_quotes(
+    db: Session, item: dict, registration_number: str, *, store=None
+) -> None:
     """Check supplied literal claims against retained source data, not typed notes."""
     kind = item.get("kind")
+    if kind in QUOTE_KINDS:
+        if store is None:
+            try:
+                store = raw_file_store_from_env()
+            except Exception as error:
+                raise ComparisonImportError(
+                    "Quoted original store is unavailable"
+                ) from error
+        validate_quote(db, store, item, registration_number)
+        return
     fields = item.get("literal_fields")
     literal_row = item.get("literal_row")
     if fields is None and literal_row is None:
@@ -78,7 +94,9 @@ def _validate_quotes(db: Session, item: dict, registration_number: str) -> None:
     if source is None:
         raise ComparisonImportError("Quoted source is not retained")
     try:
-        body = read_source(raw_file_store_from_env(), source)
+        body = read_source(
+            store if store is not None else raw_file_store_from_env(), source
+        )
         if kind == "ballot":
             try:
                 content = body.decode("utf-8-sig")
@@ -208,7 +226,7 @@ def record_decision(
         )
     for item in [] if external else evidence:
         fingerprint = item.get("sha256")
-        if item.get("kind") == "report_cover":
+        if item.get("kind") in {"report_cover", "report_excerpt"}:
             document = db.get(m.CampaignFinanceReportDocument, fingerprint)
             if document is None or document.registration_number != registration_number:
                 raise ComparisonImportError(
@@ -423,13 +441,20 @@ def applicable_accounts(
         elif authority == "mn_cfb" and any(
             db.get(
                 m.CampaignFinanceReportDocument
-                if item.get("kind") == "report_cover"
+                if item.get("kind") in {"report_cover", "report_excerpt"}
                 else m.ElectionResultSource,
                 item.get("sha256"),
             )
             is None
             for item in row.evidence
         ):
+            gaps.append(
+                {
+                    "registration_number": row.registration_number,
+                    "state": "sources_unavailable",
+                }
+            )
+        elif authority == "mn_cfb" and not _quotes_available(db, row):
             gaps.append(
                 {
                     "registration_number": row.registration_number,
@@ -472,6 +497,16 @@ def applicable_accounts(
         "accounts": accounts,
         "gaps": gaps,
     }
+
+
+def _quotes_available(db, row):
+    try:
+        for item in row.evidence:
+            if item.get("kind") in QUOTE_KINDS:
+                _validate_quotes(db, item, row.registration_number)
+        return True
+    except ComparisonImportError:
+        return False
 
 
 def _external_available(db, row, race, candidate):

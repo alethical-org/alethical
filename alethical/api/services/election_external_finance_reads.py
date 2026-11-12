@@ -8,8 +8,7 @@ cannot become checked candidate figures through source capture alone.
 from __future__ import annotations
 
 from copy import deepcopy
-from collections import OrderedDict
-from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, NoReturn
 
 from sqlalchemy import cast, func, select
@@ -18,6 +17,7 @@ from sqlalchemy.orm import defer
 
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
+from alethical.api.services.election_source_io import request_store, source_map
 from alethical.db import models as m
 from alethical.pipeline import election_account_reviews as reviews
 from alethical.pipeline import election_external_finance as storage
@@ -26,7 +26,9 @@ from alethical.pipeline.election_comparison import (
     digest,
     read_source,
 )
-from alethical.pipeline.raw_file_store import raw_file_store_from_env
+from alethical.api.services.election_source_io import (
+    reader_store_from_env as raw_file_store_from_env,
+)
 
 
 def _problem(status, detail) -> NoReturn:
@@ -97,15 +99,39 @@ def _availability(db, store, hashes):
         if hashes
         else {}
     )
-    for h in sorted(hashes):
-        row = rows.get(h)
+    jobs = [
+        (
+            h,
+            SimpleNamespace(
+                **{
+                    key: getattr(rows[h], key)
+                    for key in (
+                        "content_hash",
+                        "object_key",
+                        "byte_size",
+                        "compressed_hash",
+                        "compressed_byte_size",
+                        "compression",
+                    )
+                }
+            )
+            if h in rows
+            else None,
+        )
+        for h in sorted(hashes)
+    ]
+
+    def checked(job):
+        h, row = job
         try:
             if row is None:
                 raise ComparisonImportError("Missing original")
             read_source(store, row)
-            available[h] = True
+            return h, True
         except Exception:
-            available[h] = False
+            return h, False
+
+    available.update(source_map(checked, jobs))
     return bodies, available
 
 
@@ -123,7 +149,7 @@ def _context(
 ):
     cache = cache if cache is not None else {}
     finance_versions.pin(db)
-    store = store or raw_file_store_from_env()
+    store = request_store(store or raw_file_store_from_env())
     row = _published_row(db, election_key, generation_id)
     history_query = select(m.ElectionCampaignAccountDecision).where(
         m.ElectionCampaignAccountDecision.election_key == election_key,
@@ -355,19 +381,19 @@ def _public_coverage(row, available, generation, *, cache=None):
         if k in row
     }
 
-    if row["status"] in storage.OPERATIONAL_COVERAGE:
-        result["status_basis"] = "operational"
-    elif all(
+    if not all(
         available.get(h, False) for h in _coverage_hashes(row, generation, cache=cache)
     ):
-        result["status_basis"] = "checked_source"
-        result["sources"] = _binding(row["binding"])
-    else:
         result.update(
             status="unchecked",
             status_basis="sources_unavailable",
             next_action="Recover retained coverage evidence",
         )
+    elif row["status"] in storage.OPERATIONAL_COVERAGE:
+        result["status_basis"] = "operational"
+    else:
+        result["status_basis"] = "checked_source"
+        result["sources"] = _binding(row["binding"])
     return result
 
 
@@ -730,30 +756,6 @@ def payment_records(db, *, limit=100, offset=0, effective_only=True, **kwargs):
     }
 
 
-class _ReadCache:
-    """Bounded per-request compressed cache; never retained across requests."""
-
-    def __init__(self, store, limit=64 * 1024 * 1024):
-        self.store, self.limit, self.size, self.entries = store, limit, 0, OrderedDict()
-
-    def get(self, key, path, *, max_bytes=None):
-        if key in self.entries:
-            body = self.entries.pop(key)
-            self.entries[key] = body
-            if max_bytes is not None and len(body) > max_bytes:
-                raise ComparisonImportError("Source exceeds retained length")
-            Path(path).write_bytes(body)
-            return
-        self.store.get(key, path, max_bytes=max_bytes)
-        body = Path(path).read_bytes()
-        if len(body) <= self.limit:
-            while self.entries and self.size + len(body) > self.limit:
-                _, old = self.entries.popitem(last=False)
-                self.size -= len(old)
-            self.entries[key] = body
-            self.size += len(body)
-
-
 def _source_dates(value, generation, available):
     metadata = {source["sha256"]: source for source in generation["sources"]}
 
@@ -835,7 +837,7 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
     Compressed bytes are cached up to 64 MiB, and decoded bodies are discarded.
     Real-corpus run time remains a measured deployment acceptance requirement.
     """
-    store = _ReadCache(store or raw_file_store_from_env())
+    store = request_store(store or raw_file_store_from_env())
     cache = {}
     state = _context(
         db,
@@ -929,7 +931,7 @@ def source_body(db, *, election_key, generation_id, source_hash, store=None):
         row = db.get(m.ElectionResultSource, source_hash)
         if row is None:
             raise ComparisonImportError("Missing original")
-        body = read_source(store or raw_file_store_from_env(), row)
+        body = read_source(request_store(store or raw_file_store_from_env()), row)
     except Exception:
         _problem(503, "This retained source is unavailable. Try again.")
     media_type = metadata["media_type"]

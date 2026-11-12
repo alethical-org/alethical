@@ -160,6 +160,41 @@ def test_invalid_json_and_text_have_no_traceback(tmp_path, capsys, body):
     assert "Traceback" not in captured.err
 
 
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"page": None},
+        {"page": True},
+        {"collection_id": None},
+        {"collection_id": "short"},
+    ],
+)
+def test_report_excerpt_dry_run_requires_exact_page_and_collection(
+    tmp_path, monkeypatch, change
+):
+    value = request_value()
+    value["evidence"].append(
+        {
+            "kind": "report_excerpt",
+            "sha256": "d" * 64,
+            "page": 6,
+            "collection_id": "e" * 64,
+            "locator": {"type": "native_pdf_lines"},
+            "literal_fields": {
+                "lines": [{"line_number": 1, "text": "Synthetic expense"}]
+            },
+            **change,
+        }
+    )
+    monkeypatch.setattr(
+        command, "execute_request", lambda *a: pytest.fail("Malformed excerpt executed")
+    )
+    assert (
+        command.main(["--request", str(write_request(tmp_path, value)), "--execute"])
+        == 2
+    )
+
+
 def test_missing_request_file_is_a_plain_error(tmp_path, capsys):
     assert command.main(["--request", str(tmp_path / "absent.json")]) == 2
     assert "Could not read" in capsys.readouterr().err
@@ -380,14 +415,18 @@ def test_offline_candidate_identity_citation_does_not_replace_register(
                 },
             },
         )
-        for registration, expected in [("19399", 0), ("99999", 2)]
+        for registration, expected in [("19399", 2), ("99999", 2)]
     ],
     indirect=["review_context"],
-    ids=["19399-0", "99999-2"],
+    ids=["19399-unquoted", "99999-wrong-account"],
 )
 def test_execute_candidate_identity_citation_checks_exact_retained_account(
-    db, local_execution, tmp_path, capsys, source_registration, expected
+    db, local_execution, tmp_path, capsys, monkeypatch, source_registration, expected
 ):
+    from alethical.pipeline import election_account_reviews as reviews
+    from alethical.tests.test_election_comparison_storage import MemoryStore
+
+    monkeypatch.setattr(reviews, "raw_file_store_from_env", MemoryStore)
     args = deepcopy(local_execution["args"])
     collection_id = args["evidence"][1]["collection_id"]
     collection = db.get(m.ElectionFinanceCollection, collection_id)
@@ -404,13 +443,10 @@ def test_execute_candidate_identity_citation_checks_exact_retained_account(
     path = write_request(tmp_path, args)
     assert command.main(["--request", str(path), "--execute"]) == expected
     captured = capsys.readouterr()
-    if expected == 0:
-        assert (
-            json.loads(captured.out)["source_validation"]
-            == "retained_source_references_and_supplied_quotes_checked"
-        )
-        assert count_decisions(db) == 1
-    else:
-        assert captured.out == ""
-        assert "Candidate identity evidence" in captured.err
-        assert count_decisions(db) == 0
+    assert captured.out == ""
+    assert (
+        "typed literal fields"
+        if source_registration == "19399"
+        else "Candidate identity evidence"
+    ) in captured.err
+    assert count_decisions(db) == 0

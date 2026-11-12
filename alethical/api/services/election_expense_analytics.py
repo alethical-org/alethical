@@ -8,7 +8,6 @@ account/report contributes once, including when several candidacies claim it.
 from __future__ import annotations
 
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, NoReturn
@@ -24,6 +23,11 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from alethical.api.problems import problem_exception
+from alethical.api.services.election_source_io import (
+    SOURCE_WORKERS,
+    request_store,
+    source_map,
+)
 from alethical.api.services import election_comparison_reads as results
 from alethical.api.services import election_finance_reads as finance
 from alethical.api.services import election_external_finance_reads as external
@@ -34,7 +38,9 @@ from alethical.api.services.election_analytics import (
 )
 from alethical.db import models as m
 from alethical.pipeline.election_comparison import digest
-from alethical.pipeline.raw_file_store import raw_file_store_from_env
+from alethical.api.services.election_source_io import (
+    reader_store_from_env as raw_file_store_from_env,
+)
 
 COLUMNS = ("paid", "unpaid", "in_kind", "total")
 PARTIES = ("R", "DFL", "NP", "other", "unknown")
@@ -315,6 +321,7 @@ def _source_states(
     trace=None,
     document_roles=None,
     document_account_roles=None,
+    store=None,
 ):
     documents = (
         {
@@ -342,11 +349,29 @@ def _source_states(
     )
     states = {h: False for h in document_hashes | source_hashes}
     try:
-        store = raw_file_store_from_env()
+        store = request_store(store or raw_file_store_from_env())
     except Exception:
         return states
-    jobs = [(h, "document", row) for h, row in documents.items()] + [
-        (h, "source", row) for h, row in sources.items()
+    jobs = [
+        (
+            h,
+            kind,
+            SimpleNamespace(
+                **{
+                    key: getattr(row, key)
+                    for key in (
+                        "object_key",
+                        "compression",
+                        "compressed_hash",
+                        "compressed_byte_size",
+                        "byte_size",
+                        "document_hash" if kind == "document" else "content_hash",
+                    )
+                }
+            ),
+        )
+        for kind, rows in (("document", documents), ("source", sources))
+        for h, row in rows.items()
     ]
 
     # DB access finishes before workers begin; threads only read loaded metadata
@@ -361,18 +386,17 @@ def _source_states(
         )
 
     restored = {}
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        for fingerprint, kind, okay, elapsed in pool.map(checked, jobs):
-            restored[(kind, fingerprint)] = bool(okay)
-            if trace is not None:
-                trace.setdefault("original_gets", []).append(
-                    {
-                        "sha256": fingerprint,
-                        "storage_kind": kind,
-                        "available": bool(okay),
-                        "seconds": elapsed,
-                    }
-                )
+    for fingerprint, kind, okay, elapsed in source_map(checked, jobs):
+        restored[(kind, fingerprint)] = bool(okay)
+        if trace is not None:
+            trace.setdefault("original_gets", []).append(
+                {
+                    "sha256": fingerprint,
+                    "storage_kind": kind,
+                    "available": bool(okay),
+                    "seconds": elapsed,
+                }
+            )
     for fingerprint in states:
         roles = (["document"] if fingerprint in document_hashes else []) + (
             ["source"] if fingerprint in source_hashes else []
@@ -419,7 +443,11 @@ def _source_dependencies(decisions, selected, party_dependencies=()):
         )
         seen.add(key)
         for item in decision.evidence:
-            kind = "document" if item.get("kind") == "report_cover" else "source"
+            kind = (
+                "document"
+                if item.get("kind") in {"report_cover", "report_excerpt"}
+                else "source"
+            )
             uses[(kind, item["sha256"])].append(
                 {
                     "dependency": scope,
@@ -471,6 +499,7 @@ def _load(
     report_keys=(),
     trace=None,
     pinned=False,
+    store=None,
 ):
     election = results.snapshot(db, election_key)
     if election.stage != "general" or election.election_date.year != 2026:
@@ -559,7 +588,9 @@ def _load(
     for decision in decisions:
         for item in decision.evidence:
             (
-                document_hashes if item.get("kind") == "report_cover" else source_hashes
+                document_hashes
+                if item.get("kind") in {"report_cover", "report_excerpt"}
+                else source_hashes
             ).add(item["sha256"])
     by_account = defaultdict(list)
     for report in reports:
@@ -657,7 +688,7 @@ def _load(
     document_account_roles = defaultdict(set)
     for decision in decisions:
         for item in decision.evidence:
-            if item.get("kind") == "report_cover":
+            if item.get("kind") in {"report_cover", "report_excerpt"}:
                 document_account_roles[item["sha256"]].add(decision.registration_number)
     for report, state in selected.values():
         if report is not None and report.document_hash:
@@ -678,6 +709,7 @@ def _load(
         trace=trace,
         document_roles=document_roles,
         document_account_roles=document_account_roles,
+        store=store,
     )
     # Remove links whose source bytes are gone, rather than relying on DB rows.
     for links in accounts.values():
@@ -819,12 +851,12 @@ def source_trace(
 ):
     """Internal read-only performance trace; parent owns real-store measurement.
 
-    It runs the same current source proof as report reads, with four bounded
-    workers. No parser, source-availability cache or private review fields.
+    It runs the same current source proof as report reads, using the process-wide
+    bounded worker pool. No parser, source-availability cache or private review fields.
     """
     trace = {
         "schema_version": 1,
-        "max_workers": 4,
+        "max_workers": SOURCE_WORKERS,
         "availability_cache": "none",
         "original_gets": [],
     }
@@ -1732,7 +1764,7 @@ def _adjusted_measures(baseline, rows):
 
 
 def _join_external(
-    db, data, bulk, races, *, report_keys, excluded_payee_ids, _csv=False
+    db, data, bulk, races, *, report_keys, excluded_payee_ids, _csv=False, store=None
 ):
     data["summary"]["authority"] = "mn_cfb"
     data["summary"]["authority_name"] = (
@@ -1777,7 +1809,9 @@ def _join_external(
     # dependency closure still need their own exact original read.
     fresh_hashes = {source["sha256"] for source in bulk.get("sources", [])}
     party_availability = {h: True for h in party_hashes & fresh_hashes}
-    party_availability.update(_source_states(db, set(), party_hashes - fresh_hashes))
+    party_availability.update(
+        _source_states(db, set(), party_hashes - fresh_hashes, store=store)
+    )
     for key, entry in entries.items():
         if key not in candidates:
             continue
@@ -2275,10 +2309,14 @@ def _build(
             not isinstance(value, str) or not re.fullmatch(pattern, value)
         ):
             _bad("Invalid report version pin")
+    try:
+        store = request_store(raw_file_store_from_env())
+    except Exception:
+        store = None  # Existing source-unavailable handling remains in each reader.
     external_stamp = _external_review_stamp(db, election_key)
     external_pointer = db.get(m.ElectionExternalFinanceCurrent, election_key)
     external_data = (
-        external.bulk_finance(db, election_key=election_key)
+        external.bulk_finance(db, election_key=election_key, store=store)
         if external_pointer
         else None
     )
@@ -2298,6 +2336,7 @@ def _build(
         candidate_query=candidate_query,
         report_keys=board_report_keys,
         pinned=version is not None,
+        store=store,
     )
     # Only the Board portion enters Board arithmetic. External IDs are namespaced.
     board_exclusions = [
@@ -2327,6 +2366,7 @@ def _build(
             report_keys=report_keys,
             excluded_payee_ids=excluded_payee_ids,
             _csv=_csv,
+            store=store,
         )
     except HTTPException as exc:
         if version is not None and exc.status_code == 422:

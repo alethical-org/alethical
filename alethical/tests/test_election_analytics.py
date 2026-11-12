@@ -456,9 +456,12 @@ def test_external_bulk_is_built_once_per_request_with_fresh_bounded_original_get
         gets.clear()
         data = _data(finance_api)
         assert data["funders"] and calls == [1]
-        # Bulk caches compressed sources only for this request. Ballot quote
-        # validation has its own strict store path, hence one repeated GET.
-        assert len(gets) == 3 and len(set(gets)) == 2
+        # The account original and both ballot originals are freshly fetched
+        # once each per request, including the unmatched local coverage row.
+        assert len(gets) == len(set(gets)) == 3
+        assert {key.rsplit("/", 1)[-1].removesuffix(".gz") for key in gets} == set(
+            ctx.originals
+        )
 
 
 def test_external_distinct_source_periods_never_become_one_usd_metric(

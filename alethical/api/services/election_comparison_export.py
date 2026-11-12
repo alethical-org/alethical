@@ -246,7 +246,7 @@ def export_csv(
                 "External finance belongs to another election snapshot. Reload this comparison.",
             )
         external_generation_id = published.id
-        store = external._ReadCache(external.raw_file_store_from_env())
+        store = external.request_store(external.raw_file_store_from_env())
         for candidate_id in sorted(named):
             cache = {}
             state = external._context(
@@ -541,7 +541,7 @@ def export_csv(
                 if h:
                     source(
                         "report"
-                        if evidence.get("kind") == "report_cover"
+                        if evidence.get("kind") in {"report_cover", "report_excerpt"}
                         else "election"
                         if evidence.get("kind") == "ballot"
                         else "finance",

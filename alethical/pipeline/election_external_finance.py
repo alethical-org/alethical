@@ -1309,8 +1309,11 @@ def source_dependencies(
         record(indexes["reports"].get(payment["report_key"]))
         account((payment["authority"], payment["account_id"]))
     for row in coverage:
+        # Operational finance gaps still name a real candidacy. Its retained
+        # ballot belongs in the reader's source index and freshness proof too.
+        hashes.add(row.get("source_sha256"))
         if row["status"] in FACTUAL_COVERAGE:
-            record(row)  # Includes the exact retained ballot original.
+            record(row)
             record(indexes["authorities"].get(row["authority"]))
     for item in evidence:
         if item.get("sha256"):
@@ -1854,7 +1857,7 @@ def validate_account_review(
                 ],
                 "Ballot evidence differs from this exact source candidacy",
             )
-            _validate_quotes(db, e, registration_number)
+            _validate_quotes(db, e, registration_number, store=store)
             continue
         require(
             e["sha256"] in binding_hashes(e.get("binding")),

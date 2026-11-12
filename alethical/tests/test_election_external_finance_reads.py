@@ -574,6 +574,34 @@ def test_separate_payer_original_loss_withholds_only_its_payments(db, external):
     assert after["version"] != before["version"]
 
 
+def test_operational_coverage_keeps_ballot_source_links_and_freshness(db, external):
+    ctx = external
+    checked(db, ctx)
+    kwargs = {"election_key": ctx.g["election_key"], "store": ctx.store}
+    before = reads.bulk_finance(db, **kwargs)
+    coverage = next(
+        r for r in before["coverage"] if r["authority_family"] == "county_local"
+    )
+    ballot_hash = coverage["source_sha256"]
+    assert coverage["status"] == "unmatched"
+    assert ballot_hash in {s["sha256"] for s in before["sources"]}
+    original = db.get(m.ElectionResultSource, ballot_hash)
+    body = ctx.store.objects.pop(original.object_key)
+    after = reads.bulk_finance(db, **kwargs)
+    assert after["version"] != before["version"]
+    missing = next(
+        r for r in after["coverage"] if r["stable_id"] == coverage["stable_id"]
+    )
+    assert missing["status_basis"] == "sources_unavailable"
+    assert missing["status"] == "unchecked"
+    assert after["candidates"] == before["candidates"]
+    with pytest.raises(HTTPException) as error:
+        reads.bulk_finance(db, **kwargs, version=before["version"])
+    assert error.value.status_code == 409
+    ctx.store.objects[original.object_key] = body
+    assert reads.bulk_finance(db, **kwargs) == before
+
+
 def test_bulk_keeps_source_links_used_only_by_account_review(db, external):
     import hashlib
 

@@ -178,8 +178,11 @@ def test_stale_decision_cannot_fork_the_history(db, review_context):
     ids=["kind", "registration", "collection", "None"],
 )
 def test_supplemental_identity_evidence_belongs_to_exact_account(
-    db, review_context, mismatch
+    db, review_context, mismatch, monkeypatch
 ):
+    from alethical.tests.test_election_comparison_storage import MemoryStore
+
+    monkeypatch.setattr(reviews, "raw_file_store_from_env", MemoryStore)
     args = review_context[3]
     fingerprint = args["evidence"][1]["sha256"]
     evidence = [
@@ -195,8 +198,9 @@ def test_supplemental_identity_evidence_belongs_to_exact_account(
         with pytest.raises(storage.ComparisonImportError, match="identity evidence"):
             reviews.record_decision(db, **{**args, "evidence": evidence})
     else:
-        decision = reviews.record_decision(db, **{**args, "evidence": evidence})
-        assert decision.evidence[-1]["kind"] == "candidate_identity"
+        # Account membership alone must not turn an unchecked citation into proof.
+        with pytest.raises(storage.ComparisonImportError, match="typed literal fields"):
+            reviews.record_decision(db, **{**args, "evidence": evidence})
 
 
 def test_identity_changes_block_attribution_but_vote_changes_do_not(db, review_context):

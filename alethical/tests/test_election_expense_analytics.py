@@ -610,7 +610,7 @@ def test_actual_source_trace_has_get_timings_and_public_dependency_uses(
     store, _, _ = retained_read_store(finance_db, comparison)
     monkeypatch.setattr(s, "raw_file_store_from_env", lambda: store)
     trace = s.source_trace(finance_db, election_key=KEY)
-    assert trace["max_workers"] == 4 and trace["availability_cache"] == "none"
+    assert trace["max_workers"] == 16 and trace["availability_cache"] == "none"
     assert trace["original_gets"] and all(
         row["available"] for row in trace["original_gets"]
     )
@@ -2213,7 +2213,9 @@ def test_external_shared_account_money_and_party_use_full_memberships(
             }
         )
     monkeypatch.setattr(
-        s, "_source_states", lambda db, docs, hashes: dict.fromkeys(hashes, True)
+        s,
+        "_source_states",
+        lambda db, docs, hashes, *, store=None: dict.fromkeys(hashes, True),
     )
     result = s._join_external(
         None, base, bulk, races, report_keys=[], excluded_payee_ids=[]

@@ -128,6 +128,14 @@ row; report-cover quotes must match retained parsed cover fields. These checks d
 not replace the accountable identity decision. Keep reviewer identity and private
 reasoning out of public copy.
 
+Typed identity quotes use exact retained Board officers-response excerpts or a
+registered site's single HTML title, with its retained account-specific parent
+link. A report excerpt uses the exact collection, account, PDF page and native
+text line. Neither path performs OCR or turns a matching quote into a candidate
+identity decision. Excerpt source links use the PDF route and remain private until
+their collection is published; changed bytes or account membership invalidate
+the affected comparison.
+
 ## Publish and restore
 
 Record both current pointers before publishing. Compare-and-swap publication
@@ -182,6 +190,21 @@ amendments stay separate. Preserve native report totals when detail cannot be
 reconciled; do not silently manufacture itemized totals or allocate a shared
 account between candidates. Filed addresses support address-location comparisons,
 not claims about where services were delivered or who ultimately benefited.
+
+## Fresh source reads
+
+Election analytics readers share a process-wide pool of 16 source workers. Each
+request keeps at most 64 MiB of compressed originals and starts with an empty
+cache; no source-availability decision survives the request. Repeated uses of an
+original within that request share its bytes, then perform their own hash, length
+and source-role checks. Interrupted readers cancel queued work and drain started
+work before removing their temporary files.
+
+These readers use a 16-connection storage client with a 10-second connection
+timeout, 30-second read timeout and 1 attempt per request. Ingestion clients keep
+their existing settings. Source loss changes the report version and withholds the
+affected figure; retry starts a fresh check. A storage-only timing does not prove
+full report latency or deployed capacity.
 
 ## Outcome decisions
 

@@ -451,18 +451,43 @@ def _public_account(db, account):
         public = {key: value for key, value in item.items() if key in fields}
         if item.get("collection_id"):
             collection = db.get(m.ElectionFinanceCollection, item["collection_id"])
-            if (
-                collection is not None
-                and collection.first_published_at is not None
+            is_document = item.get("kind") in {"report_cover", "report_excerpt"}
+            member = (
+                db.scalar(
+                    select(m.ElectionFinanceReport.report_key)
+                    .join(
+                        m.CampaignFinanceReportDocument,
+                        m.ElectionFinanceReport.document_hash
+                        == m.CampaignFinanceReportDocument.document_hash,
+                    )
+                    .where(
+                        m.ElectionFinanceReport.collection_id == item["collection_id"],
+                        m.ElectionFinanceReport.document_hash == item.get("sha256"),
+                        m.ElectionFinanceReport.registration_number
+                        == account["registration_number"],
+                        m.CampaignFinanceReportDocument.registration_number
+                        == account["registration_number"],
+                    )
+                    .limit(1)
+                )
+                is not None
+                if is_document
+                else collection is not None
                 and any(
                     source.get("sha256") == item.get("sha256")
                     for source in collection.sources
                 )
+            )
+            if (
+                collection is not None
+                and collection.first_published_at is not None
+                and member
             ):
                 public["source_election_key"] = collection.election_key
                 public["source_state"] = "available"
                 public["retained_source_url"] = (
-                    f"/api/v1/finance/elections/{quote(collection.election_key, safe='')}/finance/sources/{quote(item['sha256'], safe='')}/raw?"
+                    f"/api/v1/finance/elections/{quote(collection.election_key, safe='')}/finance/sources/{quote(item['sha256'], safe='')}"
+                    + ("?" if is_document else "/raw?")
                     + urlencode({"collection_id": collection.id})
                 )
             else:

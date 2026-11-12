@@ -11,6 +11,7 @@ import threading
 import time
 from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -329,12 +330,22 @@ def test_every_answer_but_a_token_waits_out_the_same_floor(
 def test_a_full_process_answers_busy_at_once_and_alike(api, services, monkeypatch):
     challenge = challenge_for(api, LISTED)
     [code] = services.codes()
-    monkeypatch.setattr(route, "_proofs", _Full())
-    monkeypatch.setattr(route, "REFUSAL_SECONDS", 0.3)
-    started = time.monotonic()
-    listed = prove(api, LISTED, code, challenge)
-    unlisted = prove(api, UNLISTED, code, challenge)
-    assert time.monotonic() - started < 0.3
+
+    async def no_padding(*args, **kwargs):
+        pytest.fail("a busy proof entered the refusal wait")
+
+    async def no_sensitive_work(*args, **kwargs):
+        pytest.fail("a busy proof started credential work")
+
+    with monkeypatch.context() as busy:
+        busy.setattr(route, "_proofs", _Full())
+        busy.setattr(route, "REFUSAL_SECONDS", 0.3)
+        # Route-local stand-ins leave AnyIO's HTTP-client/event-loop helpers real.
+        # Busy must skip both operations, regardless of CI scheduling delays.
+        busy.setattr(route, "anyio", SimpleNamespace(sleep=no_padding))
+        busy.setattr(route, "run_in_threadpool", no_sensitive_work)
+        listed = prove(api, LISTED, code, challenge)
+        unlisted = prove(api, UNLISTED, code, challenge)
     assert listed.status_code == unlisted.status_code == 429
     assert same_answer(listed, unlisted)
     assert services.supabase == []

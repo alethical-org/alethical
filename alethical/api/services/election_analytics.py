@@ -8,7 +8,6 @@ never identity joins. Every source row survives the reconciliation partition.
 from __future__ import annotations
 
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from copy import deepcopy
 from dataclasses import dataclass
@@ -29,6 +28,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 from alethical.api.problems import problem_exception
+from alethical.api.services.election_source_io import request_store, source_map
 from alethical.api.services import committee_finance, finance_versions
 from alethical.api.services import election_external_finance_reads as external_reads
 from alethical.api.services import election_comparison_reads as results
@@ -40,7 +40,9 @@ from alethical.pipeline.campaign_finance import (
     INDEPENDENT_COLUMNS,
 )
 from alethical.pipeline.election_account_reviews import candidate_identity
-from alethical.pipeline.raw_file_store import raw_file_store_from_env
+from alethical.api.services.election_source_io import (
+    reader_store_from_env as raw_file_store_from_env,
+)
 
 DATASETS = {
     "contributions": (m.CampaignFinanceContributionRow, CONTRIBUTION_COLUMNS),
@@ -68,7 +70,6 @@ FUNDER_TYPES = {
 # analytics discard each raw chunk after hashing; only an explicit source
 # download writes a raw temporary file. No availability survives the request.
 SOURCE_CHUNK_BYTES = 1024 * 1024
-SOURCE_WORKERS = 3
 
 
 @dataclass(frozen=True)
@@ -161,23 +162,21 @@ def _source_availability(proofs, requested_output=None, *, cache=None, store=Non
     if not needed:
         return {key: cache[proof] for key, proof in proofs.items()}
     try:
-        store = store if store is not None else raw_file_store_from_env()
+        store = request_store(store if store is not None else raw_file_store_from_env())
     except Exception:
         return {dataset: False for dataset in proofs}
-    with ThreadPoolExecutor(max_workers=SOURCE_WORKERS) as workers:
-        pending = {
-            proof: workers.submit(
-                _verify_original,
-                store,
-                proof,
-                requested_output[1]
-                if requested_output is not None and requested_proof == proof
-                else None,
-            )
-            for proof in needed
-        }
-        cache.update({proof: future.result() for proof, future in pending.items()})
-        return {key: cache[proof] for key, proof in proofs.items()}
+
+    def checked(proof):
+        return proof, _verify_original(
+            store,
+            proof,
+            requested_output[1]
+            if requested_output is not None and requested_proof == proof
+            else None,
+        )
+
+    cache.update(source_map(checked, needed))
+    return {key: cache[proof] for key, proof in proofs.items()}
 
 
 def _money(value):
@@ -236,9 +235,11 @@ def _bulk_accounts(
     hashes, documents, collection_ids = set(), set(), set()
     for decision in decisions:
         for item in decision.evidence:
-            (documents if item.get("kind") == "report_cover" else hashes).add(
-                item.get("sha256")
-            )
+            (
+                documents
+                if item.get("kind") in {"report_cover", "report_excerpt"}
+                else hashes
+            ).add(item.get("sha256"))
             if item.get("collection_id"):
                 collection_ids.add(item["collection_id"])
     held = (
@@ -294,15 +295,34 @@ def _bulk_accounts(
         else {}
     )
 
+    document_memberships = (
+        set(
+            db.execute(
+                select(
+                    m.ElectionFinanceReport.collection_id,
+                    m.ElectionFinanceReport.document_hash,
+                    m.ElectionFinanceReport.registration_number,
+                ).where(
+                    m.ElectionFinanceReport.collection_id.in_(collection_ids),
+                    m.ElectionFinanceReport.document_hash.in_(documents),
+                )
+            )
+        )
+        if collection_ids and documents
+        else set()
+    )
+
     def evidence_held(item, registration_number):
         present = available.get(
             (
-                "document" if item.get("kind") == "report_cover" else "source",
+                "document"
+                if item.get("kind") in {"report_cover", "report_excerpt"}
+                else "source",
                 item.get("sha256"),
             ),
             False,
         )
-        if item.get("kind") == "report_cover":
+        if item.get("kind") in {"report_cover", "report_excerpt"}:
             document = held_docs.get(item.get("sha256"))
             # The same bytes may still exist after their account role changes.
             # Check this per decision, including history, not in the shared
@@ -318,9 +338,14 @@ def _bulk_accounts(
                 present
                 and collection is not None
                 and collection.first_published_at is not None
-                and any(
-                    source.get("sha256") == item.get("sha256")
-                    for source in collection.sources
+                and (
+                    (collection.id, item.get("sha256"), registration_number)
+                    in document_memberships
+                    if item.get("kind") in {"report_cover", "report_excerpt"}
+                    else any(
+                        source.get("sha256") == item.get("sha256")
+                        for source in collection.sources
+                    )
                 )
             )
         return bool(present)
@@ -386,8 +411,13 @@ def _bulk_accounts(
             }
             if item.get("collection_id"):
                 collection = collections[item["collection_id"]]
+                suffix = (
+                    ""
+                    if item.get("kind") in {"report_cover", "report_excerpt"}
+                    else "/raw"
+                )
                 public["retained_source_url"] = (
-                    f"/api/v1/finance/elections/{quote(collection.election_key, safe='')}/finance/sources/{item['sha256']}/raw?"
+                    f"/api/v1/finance/elections/{quote(collection.election_key, safe='')}/finance/sources/{item['sha256']}{suffix}?"
                     + urlencode({"collection_id": collection.id})
                 )
             public_evidence.append(public)
@@ -627,6 +657,7 @@ def _context(
             "unavailable" if board_scope["release_id"] else "not_published"
         )
     board_usable = board is not None and board_scope["status"] == "available"
+    ctx: dict
     if board is None:
         races = list(
             db.scalars(
@@ -689,17 +720,21 @@ def _context(
         _unavailable()
     ctx["version"] = token
     ctx["source_scopes"] = {"mn_cfb": board_scope, "external": external_scope}
-    ctx["external_sources"] = [
-        {
-            "generation_id": external["generation_id"],
-            "source_sha256": source["sha256"],
-            **{
-                k: deepcopy(source.get(k))
-                for k in ("authority", "url", "copied_at", "media_type")
-            },
-        }
-        for source in (external or {}).get("sources", [])
-    ]
+    ctx["external_sources"] = (
+        [
+            {
+                "generation_id": external["generation_id"],
+                "source_sha256": source["sha256"],
+                **{
+                    k: deepcopy(source.get(k))
+                    for k in ("authority", "url", "copied_at", "media_type")
+                },
+            }
+            for source in external.get("sources", [])
+        ]
+        if external is not None
+        else []
+    )
     ctx["external_reports"] = []
     ctx["scope_note"] = (
         "Checked source-specific Board, federal and local records in their actual reporting periods; unavailable authorities remain gaps and this is not complete election spending"
@@ -2068,7 +2103,11 @@ def _csv_export(data, races):
             else _app_source(
                 data,
                 source.get("sha256"),
-                kind=("report" if source.get("kind") == "report_cover" else "finance")
+                kind=(
+                    "report"
+                    if source.get("kind") in {"report_cover", "report_excerpt"}
+                    else "finance"
+                )
                 if source.get("collection_id")
                 else "election",
                 collection_id=source.get("collection_id"),
