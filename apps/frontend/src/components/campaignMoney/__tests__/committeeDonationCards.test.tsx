@@ -324,9 +324,9 @@ describe('all donation-card states', () => {
   it('gives each failed card its own alert and one retry sentence', () => {
     const page = render({ failed: true });
     expect([...page.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent)).toEqual([
-      'We couldn’t load where these donations came from right now. Please try again in a moment.',
-      'We couldn’t load this comparison right now. Please try again in a moment.',
-      'We couldn’t load these matches right now. Please try again in a moment.',
+      'Couldn’t load where these donations came from right now. Please try again in a moment.',
+      'Couldn’t load this comparison right now. Please try again in a moment.',
+      'Couldn’t load these matches right now. Please try again in a moment.',
     ]);
     // A failed read is never an empty list or a zero.
     expect(locations(page)!.querySelector('table')).toBeNull();
@@ -431,7 +431,7 @@ describe('all donation-card states', () => {
     }
 
     expect(connections.querySelector('[role="alert"]')?.textContent).toBe(
-      'We couldn’t load these matches right now. Please try again in a moment.',
+      'Couldn’t load these matches right now. Please try again in a moment.',
     );
     expect(connections.textContent).not.toContain('With no itemized individual contributions');
   });
@@ -505,7 +505,7 @@ describe('all donation-card states', () => {
   it('keeps an omitted candidate comparison as a failed load', () => {
     const filing = cards(render({ committee: committee({ statedByKind: undefined }) }))[0];
     expect(filing.querySelector('[role="alert"]')?.textContent).toBe(
-      'We couldn’t load this comparison right now. Please try again in a moment.',
+      'Couldn’t load this comparison right now. Please try again in a moment.',
     );
     expect(filing.querySelector('table')).toBeNull();
   });
@@ -517,7 +517,7 @@ describe('all donation-card states', () => {
         render({ registerKind, committee: committee({ statedByKind: undefined }), failed: true }),
       )[0];
       expect(filing.querySelector('[role="alert"]')?.textContent).toBe(
-        'We couldn’t load this comparison right now. Please try again in a moment.',
+        'Couldn’t load this comparison right now. Please try again in a moment.',
       );
       expect(filing.textContent).not.toContain('This card needs a filed report');
     },

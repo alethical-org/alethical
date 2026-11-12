@@ -176,7 +176,7 @@ describe('signed-in set or change password', () => {
     expect(SOURCE).not.toContain('OTHER_DEVICE_NOTE');
     expect(SOURCE).not.toContain('You may still be signed in on other devices');
     expect(SOURCE).toContain(
-      "const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';",
+      "const SIGN_OUT_FAILURE = 'Couldn’t sign you out. Check your connection and try again.';",
     );
   });
 

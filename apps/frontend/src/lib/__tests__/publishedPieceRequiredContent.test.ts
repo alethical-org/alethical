@@ -272,7 +272,7 @@ describe('the repeated-records Short post preserves its narrow finding and metho
     for (const text of [
       'Minnesota Campaign Finance Board',
       'copied September 25, 2026',
-      'Records in cited filings through December 20, 2023',
+      'Records in cited filings through Dec 20, 2023',
       'recipient registration 19013, contributor registration 8692',
       '2 rows, identical in all 15 source columns',
       'The filings support 1 reported $500 contribution appearing in repeated records.',

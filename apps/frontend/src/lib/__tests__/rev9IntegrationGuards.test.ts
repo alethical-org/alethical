@@ -94,7 +94,7 @@ describe('rev 9 sign-in integration guards', () => {
     // every remaining check failure gets the shared link-fail floor instead.
     expect(emailLinkPage).not.toContain('match-failed');
     expect(emailLinkPage).toContain("if (screen === 'link-fail')");
-    expect(emailLinkPage).toContain('We couldn’t check that link');
+    expect(emailLinkPage).toContain('Couldn’t check that link');
   });
 
   it('routes expired links into the shared Create or Recover code flow', () => {

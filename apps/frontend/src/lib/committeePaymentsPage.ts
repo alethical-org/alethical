@@ -42,7 +42,7 @@ export const PAYMENTS_TAB_LABELS: Record<PaymentsTab, string> = {
 
 /** A failed read is our gap, never evidence that the filing names nobody. */
 export const PAYMENTS_LOAD_ERROR =
-  'We couldn’t load these payments right now. This is a problem on our side and ' +
+  'Couldn’t load payments right now. This is a problem on our side and ' +
   'says nothing about the committee. Please try again in a moment.';
 
 export function paymentsUnavailable(state: string | null | undefined): boolean {
@@ -100,12 +100,12 @@ export function reportPeriodDetail(start: string | null | undefined): string {
     : 'The end date comes from the committee’s report';
 }
 
-export const REPORT_LOAD_ERROR = 'We couldn’t load the report information';
+export const REPORT_LOAD_ERROR = 'Couldn’t load the report information';
 export const REPORT_ROWS_REMAIN = 'Payment records for this filing year are still shown.';
 export const PAYMENTS_MORE_ERROR =
-  'We couldn’t load more payments. The payments already loaded are still shown.';
+  'Couldn’t load more payments. The payments already loaded are still shown.';
 export const PAYMENTS_REFRESH_ERROR =
-  'We couldn’t refresh these payments. The payments already loaded for this committee and filing year are still shown.';
+  'Couldn’t refresh payments. The payments already loaded for this committee and filing year are still shown.';
 
 export function emptyListTitle(tab: PaymentsTab, year: number): string {
   return tab === 'gave' ? `No donors named for ${year}` : `No payments named for ${year}`;

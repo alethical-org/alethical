@@ -487,7 +487,7 @@ describe('Legislator profile', () => {
       '/legislators/patty-acomb',
       answering(CURRENT, { '/bills?role': new Response(null, { status: 500 }) }),
     );
-    expect(text()).toContain('We couldn’t load these bills. This is a problem on our side.');
+    expect(text()).toContain('Couldn’t load bills. This is a problem on our side.');
     expect(
       [...container.querySelectorAll('button')].some((b) => b.textContent === 'Try again'),
     ).toBe(true);
@@ -501,7 +501,7 @@ describe('Legislator profile', () => {
 
   it('a failed record read offers Try again and shows no other record', async () => {
     await render('/legislators/patty-acomb', () => new Response(null, { status: 503 }));
-    expect(text()).toContain('We couldn’t load this record');
+    expect(text()).toContain('Couldn’t load record');
     expect(text()).not.toContain('problem on our side');
     expect(container.querySelector('h1')).toBeNull();
   });
@@ -592,7 +592,7 @@ describe('Legislator helpers', () => {
       'Not held',
     ]);
     const unavailable = accountFigures({ ...Y2025, money_in: { state: 'unavailable' } });
-    expect(unavailable[1].value).toBe("We couldn't load this");
+    expect(unavailable[1].value).toBe("Couldn't load this");
   });
 
   it('names a contest by seat, district and year', () => {

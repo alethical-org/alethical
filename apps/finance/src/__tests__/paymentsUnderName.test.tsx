@@ -354,7 +354,7 @@ describe('Payments under this name', () => {
     expect(container.textContent).toContain('Loading payments for similar spellings…');
     await act(async () => answerVariants(json(null, 500)));
     expect(container.querySelectorAll('.pn-view')).toHaveLength(1);
-    expect(container.textContent).toContain('We couldn’t load payments for similar spellings');
+    expect(container.textContent).toContain('Couldn’t load payments for similar spellings');
     expect(container.querySelector('.pn-variant-status button')?.textContent).toBe('Try again');
   });
 
@@ -378,7 +378,7 @@ describe('Payments under this name', () => {
     });
     await settle();
     expect(container.querySelectorAll('.pn-view')).toHaveLength(1);
-    expect(container.textContent).toContain('We couldn’t load payments for similar spellings');
+    expect(container.textContent).toContain('Couldn’t load payments for similar spellings');
     expect(container.textContent).not.toContain('No campaign payments');
     const comparisons = requests.filter((url) => url.pathname.endsWith('/similar-names')).at(-1)!;
     expect(comparisons.searchParams.getAll('exclude_name')).not.toContain('Dantchik, Arthur');
@@ -642,7 +642,7 @@ describe('Payments under this name', () => {
       return json(page(role(url)!, [], { name: 'Example' }));
     });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load these results. This is a problem on our side and says nothing about what was filed under this name.',
+      'Couldn’t load results. This is a problem on our side and says nothing about what was filed under this name.',
     );
     const retry = container.querySelector<HTMLButtonElement>('[role="alert"] button')!;
     await act(async () => retry.click());
@@ -660,7 +660,7 @@ describe('Payments under this name', () => {
     const campaign = section('Campaign payments');
     expect(campaign.textContent).toContain('We could not read this part of our records just now');
     expect(campaign.querySelector('[role="alert"]')).toBeNull();
-    expect(campaign.textContent).not.toContain('We couldn’t load');
+    expect(campaign.textContent).not.toContain('Couldn’t load');
     expect(campaign.querySelector('.pn-count')).toBeNull();
     // The other file still shows its own records, and no identity count is claimed.
     expect(section('Outside spending payments').textContent).toContain('Example Action PAC');
@@ -674,7 +674,7 @@ describe('Payments under this name', () => {
         : json(page('independent_vendor', [outsideRow()], { linkable: ['40001'] })),
     );
     const alert = section('Campaign payments').querySelector('[role="alert"]')!;
-    expect(alert.textContent).toContain('We couldn’t load these results.');
+    expect(alert.textContent).toContain('Couldn’t load results.');
     expect(alert.querySelector('button')?.textContent).toBe('Try again');
     expect(section('Campaign payments').textContent).not.toContain(
       'We could not read this part of our records',
@@ -757,7 +757,7 @@ describe('Payments under this name', () => {
     const campaign = section('Campaign payments');
     expect(campaign.textContent).toContain('We could not read this part of our records just now');
     expect(campaign.querySelector('[role="alert"]')).toBeNull();
-    expect(campaign.textContent).not.toContain('We couldn’t load');
+    expect(campaign.textContent).not.toContain('Couldn’t load');
   });
 
   it('says a failed next page without claiming anything, and tries it again', async () => {
@@ -777,7 +777,7 @@ describe('Payments under this name', () => {
     );
     await settle();
     const alert = section('Campaign payments').querySelector('[role="alert"]')!;
-    expect(alert.textContent).toContain('We couldn’t load more payments');
+    expect(alert.textContent).toContain('Couldn’t load more payments');
     expect(alert.textContent).not.toContain('problem on our side');
     await act(async () => alert.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
@@ -952,7 +952,7 @@ describe('Payments under this name', () => {
       '1 record under “Example Media LLC” in 2026',
     );
     const alert = campaign.querySelector('[role="alert"]')!;
-    expect(alert.textContent).toContain('We couldn’t load these results.');
+    expect(alert.textContent).toContain('Couldn’t load results.');
     expect(alert.querySelector('button')?.textContent).toBe('Try again');
   });
 

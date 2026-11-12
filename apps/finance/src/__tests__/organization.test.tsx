@@ -533,7 +533,7 @@ describe('Organization profile', () => {
     await render(`/organizations/${ORG}`, (url) =>
       fail ? new Response(null, { status: 500 }) : answering(EMPTY)(url),
     );
-    expect(text()).toContain('We couldn’t load this record');
+    expect(text()).toContain('Couldn’t load record');
     expect(text()).not.toContain('problem on our side');
     fail = false;
     const retry = [...container.querySelectorAll('button')].find(

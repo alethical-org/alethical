@@ -366,7 +366,7 @@ describe('People', () => {
     await render('/people', (url) =>
       url.includes('/finance/people') ? new Response(null, { status: 500 }) : json({}),
     );
-    expect(text()).toContain('We couldn’t load these results. This is a problem on our side.');
+    expect(text()).toContain('Couldn’t load results. This is a problem on our side.');
     expect(text()).not.toContain('No matching records');
     expect(button('Try again')).toBeDefined();
   });

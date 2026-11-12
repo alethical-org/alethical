@@ -379,7 +379,7 @@ describe('the money search page shows only what it found for the name in its hea
     page.type('jones');
     await settle();
 
-    expect(page.words()).toContain('We couldn’t search these records just now');
+    expect(page.words()).toContain('Couldn’t search these records just now');
     expect(page.words()).not.toContain('Smith for Senate');
   });
 
@@ -439,7 +439,7 @@ describe('the money search page shows only what it found for the name in its hea
     await settle();
     await settle();
 
-    expect(page.words()).toContain('We couldn’t search these records just now');
+    expect(page.words()).toContain('Couldn’t search these records just now');
     expect(page.words()).not.toContain('Searching these records');
   });
 });
@@ -465,7 +465,7 @@ describe('search retries preserve the name and successful groups', () => {
       await page.client.invalidateQueries({ queryKey: ['campaign-finance-name-search'] });
     });
     await settle();
-    expect(page.words()).toContain('We couldn’t refresh these results');
+    expect(page.words()).toContain('Couldn’t refresh results');
     expect(page.words()).toContain('Smith for Senate');
     expect(page.words()).not.toContain('No matching names for');
     failing = false;
@@ -474,7 +474,7 @@ describe('search retries preserve the name and successful groups', () => {
     ) as HTMLElement;
     act(() => retry.click());
     await settle();
-    expect(page.words()).not.toContain('We couldn’t refresh these results');
+    expect(page.words()).not.toContain('Couldn’t refresh results');
     expect(page.words()).toContain('Smith for Senate');
   });
 });

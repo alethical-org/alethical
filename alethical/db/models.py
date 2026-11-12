@@ -6042,6 +6042,8 @@ class ElectionFinanceCollection(Base):
     first_published_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
+    sealed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    report_index: Mapped[Optional[dict]] = mapped_column(JSONB)
     sources: Mapped[list] = mapped_column(JSONB, nullable=False)
     coverage: Mapped[dict] = mapped_column(JSONB, nullable=False)
     __table_args__ = (UniqueConstraint("id", "election_key"),)
@@ -6087,11 +6089,11 @@ class ElectionCampaignAccountDecision(Base):
     compatible_decision_ids: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list
     )
-    authority: Mapped[str] = mapped_column(String(40), nullable=False)
+    authority: Mapped[str] = mapped_column(String(160), nullable=False)
     election_key: Mapped[str] = mapped_column(String(80), nullable=False)
     race_id: Mapped[str] = mapped_column(String(64), nullable=False)
     candidate_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    registration_number: Mapped[str] = mapped_column(String(160), nullable=False)
     decision: Mapped[str] = mapped_column(String(20), nullable=False)
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)
@@ -6115,6 +6117,135 @@ class ElectionCampaignAccountDecision(Base):
             "candidate_id",
             "id",
         ),
+    )
+
+
+class ElectionExternalFinanceGeneration(Base):
+    """Immutable federal/local evidence; account confirmation stays separate."""
+
+    __tablename__ = "election_external_finance_generation"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    election_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    snapshot_id: Mapped[str] = mapped_column(
+        ForeignKey("election_comparison_snapshot.id"), nullable=False
+    )
+    copied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    first_published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    sealed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (UniqueConstraint("id", "election_key"),)
+
+
+class ElectionExternalFinanceReport(Base):
+    __tablename__ = "election_external_finance_report"
+    generation_id: Mapped[str] = mapped_column(
+        ForeignKey("election_external_finance_generation.id"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    authority: Mapped[str] = mapped_column(String(160), nullable=False)
+    account_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        Index(
+            "ix_external_finance_report_account",
+            "generation_id",
+            "authority",
+            "account_id",
+        ),
+    )
+
+
+class ElectionExternalFinancePayment(Base):
+    __tablename__ = "election_external_finance_payment"
+    generation_id: Mapped[str] = mapped_column(
+        ForeignKey("election_external_finance_generation.id"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    authority: Mapped[str] = mapped_column(String(160), nullable=False)
+    account_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        Index(
+            "ix_external_finance_payment_target",
+            "generation_id",
+            "authority",
+            text("(payload ->> 'target_source_candidate_id')"),
+        ),
+    )
+
+
+class ElectionExternalFinanceCurrent(Base):
+    __tablename__ = "election_external_finance_current"
+    election_key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    generation_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["generation_id", "election_key"],
+            [
+                "election_external_finance_generation.id",
+                "election_external_finance_generation.election_key",
+            ],
+        ),
+    )
+
+
+class ElectionOutcomeSource(Base):
+    """Original public source capture and its explicitly checked publisher scope."""
+
+    __tablename__ = "election_outcome_source"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("election_result_source.content_hash"), nullable=False
+    )
+    publisher_hash: Mapped[str] = mapped_column(
+        ForeignKey("election_result_source.content_hash"), nullable=False
+    )
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    final_url: Mapped[str] = mapped_column(Text, nullable=False)
+    publisher_url: Mapped[str] = mapped_column(Text, nullable=False)
+    publisher_hosts: Mapped[list] = mapped_column(JSONB, nullable=False)
+    authority: Mapped[str] = mapped_column(Text, nullable=False)
+    media_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class ElectionOutcomeDecision(Base):
+    """Complete, append-only outcome judgments for one immutable result race."""
+
+    __tablename__ = "election_outcome_decision"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    request_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    previous_decision_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("election_outcome_decision.id"), unique=True
+    )
+    snapshot_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    race_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    result_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    identity: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    candidate_outcomes: Mapped[list] = mapped_column(JSONB, nullable=False)
+    evidence: Mapped[list] = mapped_column(JSONB, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["snapshot_id", "race_id"],
+            ["election_comparison_race.snapshot_id", "election_comparison_race.id"],
+        ),
+        CheckConstraint("decision IN ('recorded','withdrawn')", name="valid_decision"),
+        CheckConstraint(
+            "result_status IN ('pending','unofficial','certified','recount','tie','unavailable')",
+            name="valid_status",
+        ),
+        CheckConstraint("jsonb_array_length(evidence) > 0", name="has_evidence"),
+        Index("ix_election_outcome_race", "snapshot_id", "race_id", "id"),
     )
 
 

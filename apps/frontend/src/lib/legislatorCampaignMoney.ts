@@ -179,7 +179,7 @@ export function moneyFigure(
   value: number | string | null | undefined,
 ): FigureText {
   if (state === 'unavailable') {
-    return { text: "We couldn't load this", isFigure: false };
+    return { text: "Couldn't load this", isFigure: false };
   }
   if (state === 'not_reported') {
     return { text: 'Not reported', isFigure: false };

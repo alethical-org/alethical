@@ -23,13 +23,13 @@ export const PERSON_RECORD_COPY = {
   researchLoading: 'Loading research records…',
   researchUpdating: 'Updating research records…',
   researchUnavailable: 'Research records are unavailable',
-  historicalMatchUnavailable: 'We couldn’t confirm the races for this address and election',
+  historicalMatchUnavailable: 'Couldn’t confirm the races for this address and election',
 };
 export function preciseDate(date: PreciseDate) {
   if (date.precision === 'year') return date.value;
   if (date.precision === 'month')
     return new Date(`${date.value}-01T12:00:00Z`).toLocaleDateString('en-US', {
-      month: 'long',
+      month: 'short',
       year: 'numeric',
       timeZone: 'UTC',
     });

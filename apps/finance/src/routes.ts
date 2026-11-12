@@ -10,6 +10,7 @@
 export type RouteName =
   | 'landing'
   | 'home'
+  | 'election-source'
   | 'sign-in'
   | 'investor-access'
   | 'auth-return'
@@ -74,6 +75,7 @@ export const ROUTES: readonly RouteDefinition[] = [
   { name: 'sign-in', pattern: '/sign-in', title: 'Sign in', signedOut: true },
   { name: 'auth-return', pattern: '/auth/return', title: 'Signing in', signedOut: true },
   { name: 'search', pattern: '/search', title: 'Search results' },
+  { name: 'election-source', pattern: '/elections/:election/sources/:source', title: 'Original source', section: 'money' },
   { name: 'organization', pattern: '/organizations/:id', title: 'Organization profile' },
   {
     name: 'recipients',
@@ -186,6 +188,7 @@ export const ROUTES: readonly RouteDefinition[] = [
 export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'landing',
   'home',
+  'election-source',
   'sign-in',
   'investor-access',
   'auth-return',

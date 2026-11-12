@@ -168,7 +168,7 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
                 ) : null}
                 {phase === 'load-error' ? (
                   <View style={styles.loadFailure}>
-                    <EmailNotice kind="error">We couldn’t load your email preferences</EmailNotice>
+                    <EmailNotice kind="error">Couldn’t load your email preferences</EmailNotice>
                     <EmailButton
                       label="Try again"
                       kind="outline"
@@ -233,7 +233,7 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
                         style={[styles.message, phase !== 'uncertain' && styles.reservedStatus]}
                       >
                         <EmailNotice kind="uncertain">
-                          We couldn’t confirm your email preferences were saved. Try again.
+                          Couldn’t confirm your email preferences were saved. Try again.
                         </EmailNotice>
                       </View>
                     ) : null}

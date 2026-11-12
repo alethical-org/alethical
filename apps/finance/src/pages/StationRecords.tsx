@@ -122,7 +122,7 @@ export function StationFolder({ match }: { match: RouteMatch }) {
       {read.failed && !data && (
         <div className="mb-section-body">
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this folder. This is a problem on our side.
+            Couldn’t load folder. This is a problem on our side.
           </Refused>
         </div>
       )}
@@ -318,7 +318,7 @@ export function TVStation({ match }: { match: RouteMatch }) {
       {read.failed && !data && (
         <div className="mb-section-body">
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this station’s counts. This is a problem on our side.
+            Couldn’t load this station’s counts. This is a problem on our side.
           </Refused>
         </div>
       )}
@@ -497,7 +497,7 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
       {read.failed && !data && (
         <div className="mb-section-body">
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load these files. This is a problem on our side.
+            Couldn’t load files. This is a problem on our side.
           </Refused>
         </div>
       )}
@@ -589,7 +589,7 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                   {variants.loading && <p role="status">Loading files for similar spellings…</p>}
                   {variants.failed && (
                     <Refused onRetry={variants.retry} retrying={variants.pending}>
-                      We couldn’t load files for similar spellings
+                      Couldn’t load files for similar spellings
                     </Refused>
                   )}
                   <p className="mb-note">

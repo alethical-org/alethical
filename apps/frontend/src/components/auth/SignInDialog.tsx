@@ -616,7 +616,7 @@ export function SignInDialog({
         result.error.kind === 'bad-credentials'
           ? {
               kind: 'request-failure',
-              message: 'We couldn’t request a code. Check your connection and try again.',
+              message: 'Couldn’t request a code. Check your connection and try again.',
             }
           : result.error,
       );
@@ -784,8 +784,8 @@ export function SignInDialog({
     description = `For ${email}`;
   } else if (screen === 'uncertain-save') {
     title = finishNeedsRetry
-      ? 'We couldn’t finish signing you in'
-      : 'We couldn’t confirm the password was saved';
+      ? 'Couldn’t finish signing you in'
+      : 'Couldn’t confirm the password was saved';
     description = `For ${email}`;
     bodyIcon = 'lock';
   } else {
@@ -1189,7 +1189,7 @@ export function SignInDialog({
         {serverError ?? (
           <FormError
             variant="banner"
-            message="We couldn’t confirm whether the password was saved. Try it when you sign in. If it doesn’t work, recover your account."
+            message="Couldn’t confirm whether the password was saved. Try it when you sign in. If it doesn’t work, recover your account."
           />
         )}
         {accountChoice}

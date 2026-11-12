@@ -146,7 +146,7 @@ export function AgencySimilarNames({
             ? safe
               ? RECORDS_CHANGED
               : 'These records changed. Reload the list.'
-            : `We couldn’t load similar agency names${safe ? '. Previous results are shown.' : ''}`}
+            : `Couldn’t load similar agency names${safe ? '. Previous results are shown.' : ''}`}
         </Refused>
       )}
       {safe && (

@@ -48,7 +48,7 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   not-listed state at `/`; a listed account sees the landing page, because no signed-in screen
   is public yet.
 - **`/sign-in` and `/auth/return`** work as described below.
-- **Every other address** shows "We couldn’t find that page" with a link to the landing page,
+- **Every other address** shows "Couldn’t find that page" with a link to the landing page,
   so no unfinished screen is public.
 
 With `VITE_FINANCE_SCREENS` set to `on`, the app is the signed-in site described in the rest
@@ -119,7 +119,7 @@ for the owning permission and password-management rules.
    example after a reload or Use another email, sends no new email, and the code already
    sent still works. Reloaded within the code's 10 minutes, the page opens at this step for
    the same address. A wrong, expired or used code shows "That code is wrong or expired.
-   Enter the newest code or send a new one."; if the server cannot check it, "We couldn’t
+   Enter the newest code or send a new one."; if the server cannot check it, "Couldn’t
    check the code. Try again." Send a new code waits 60 seconds between requests and shows
    the seconds left. Use another email goes back with the address kept. After a correct
    code, Continue stays busy until the access answer arrives; if access cannot be checked,
@@ -175,9 +175,9 @@ for the owning permission and password-management rules.
   says why, because the server never says. An account refused after having access in this
   session reads "This account does not have access to Alethical Finance" with "Results kept
   from this account are no longer shown": every held answer and unfinished entry is cleared.
-- **Access cannot be checked:** "We couldn’t check your access" with Try again. A failed
+- **Access cannot be checked:** "Couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
-- **Unknown address, or a page not built yet:** "We couldn’t find that page" inside the
+- **Unknown address, or a page not built yet:** "Couldn’t find that page" inside the
   navigation, with Go to Finance Home.
 - When the screen changes, keyboard focus moves to its heading and the page starts at the
   top; Back and Forward return to where the reader was on that page. Each sign-in step moves
@@ -243,7 +243,7 @@ amount. Sources are never added together and a line never claims that one paymen
 another. Printed names stay separate from confirmed people and organizations; only an
 explicit target from the server opens a profile. Totals and counts cover only the
 available sources; unavailable ones are named in "Some sources are unavailable · …". A
-failed first load reads "We couldn’t load these connections", a failed next page "Some
+failed first load reads "Couldn’t load these connections", a failed next page "Some
 connections could not be loaded", each with Try again and the loaded rows kept. When the
 server stays busy through every retry while rows are on screen, "The service is busy. The
 connections shown are the last loaded." keeps them with Try again. A selection the server
@@ -482,7 +482,7 @@ an unavailable source is not a no-match result.
   from the calendar.
   Media buys follows outside spending. A year or office change keeps the last contest's
   figures on screen under their own year, dimmed with "Updating results…" while the next
-  answer loads, and with "We couldn’t update these results" and Try again when it fails.
+  answer loads, and with "Couldn’t update results" and Try again when it fails.
   With no earlier page in the address, the return link reads "Back to Campaign money".
 - **Election comparison (`/money/races/:id?election=&race=`)**: choose a held election
   and search its races, including statewide, legislative and local contests. Search
@@ -501,6 +501,26 @@ an unavailable source is not a no-match result.
   calendar-year view remains available. The comparison does not infer winners or
   measure whether spending caused an outcome. The [source operating contract](../operations/election-finance-comparison.md)
   owns collection, account review, publication and restoration.
+- **Campaign expense report (`report=expenses` in Money by race)**: the selected
+  election, race or candidate scope shows campaign expenses, public subsidy received,
+  ballot party and payee detail with filed addresses and purposes. Party and location
+  comparisons retain the complete baseline beside the adjusted view. Readers can
+  select or restore payees to exclude; exclusions do not change subsidy receipts.
+  Missing addresses, non-itemized spending and unreconciled details remain separate.
+  Federal and local accounts keep their own source labels, periods and currencies;
+  incompatible measures are not combined into a Board total. Candidate and payee
+  search presents both kinds of matches without silently narrowing the whole report.
+  CSV downloads keep exact amounts, selected scope, inclusion flags and source links;
+  screen amounts omit cents without rounding. Source links reopen the authenticated
+  Finance evidence view for the pinned record, with no access token in the address.
+- **Funder reports (`report=funders` in Money by race)**: compare direct contributions
+  and independent spending for or against exact candidacies. Distinct candidates and
+  source-backed outcomes are counted separately from payments, with unresolved
+  outcomes visible. Each payment and result opens its retained evidence. The report
+  describes supported relationships and outcomes; it does not measure whether money
+  changed the outcome. Different periods and currencies remain separate. The current
+  full-build collection and release status belongs to the
+  [election comparison implementation record](../implementation/election-finance-comparison.md#status).
 - **Lobbying (`/lobbying`)**: browse Lobbyists or Who lobbyists represent. Name search
   searches both groups, regardless of the earlier browsing tab, with 5-row previews and
   View all for each full 50-row list. Each group keeps its own year, sort, page, count

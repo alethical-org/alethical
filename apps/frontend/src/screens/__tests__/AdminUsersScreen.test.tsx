@@ -222,7 +222,7 @@ describe('private Users access and cleanup', () => {
   it('shows failure and Retry, rather than an empty count, when the data service fails', async () => {
     state.search.mockRejectedValueOnce(new Error('unavailable'));
     await render();
-    expect(host.textContent).toContain('We couldn’t load accounts');
+    expect(host.textContent).toContain('Couldn’t load accounts');
     expect(host.textContent).toContain('Retry');
     expect(host.textContent).not.toContain('0 matching accounts');
     await act(async () => {

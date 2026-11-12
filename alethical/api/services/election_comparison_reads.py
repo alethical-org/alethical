@@ -19,6 +19,7 @@ from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
 from alethical.db import models as m
 from alethical.pipeline.election_comparison import read_source
+from alethical.pipeline import election_outcomes
 from alethical.pipeline.raw_file_store import raw_file_store_from_env
 
 
@@ -136,8 +137,12 @@ def _diagnostics(
     ]
 
 
-def _race(source: m.ElectionComparisonSnapshot, race: m.ElectionComparisonRace) -> dict:
+def _race(
+    source: m.ElectionComparisonSnapshot, race: m.ElectionComparisonRace, outcome: dict
+) -> dict:
     payload = deepcopy(race.payload)
+    for candidate in payload["candidates"]:
+        candidate.update(outcome["candidates"][candidate["candidate_id"]])
     bounds = source.coverage.get("comparison_checks", {}).get(
         "precinct_voter_bound", {}
     )
@@ -156,7 +161,8 @@ def _race(source: m.ElectionComparisonSnapshot, race: m.ElectionComparisonRace) 
         "office_id": race.office_id,
         "jurisdiction": race.jurisdiction,
         "county_name": _county_name(source, race.jurisdiction),
-        "result_status": race.result_status,
+        "result_status": outcome["result_status"],
+        "outcome_review": outcome["outcome_review"],
         "diagnostics": diagnostics,
         "precinct_voter_bound_status": bound_status,
     }
@@ -213,11 +219,14 @@ def races(
         .limit(limit)
         .offset(offset)
     ).all()
+    outcomes = election_outcomes.applicable_outcomes(
+        db, snapshot_id=source.id, race_ids=[row.id for row in rows]
+    )
     return {
         **_context(source),
         "query": query,
         "coverage": _coverage(source),
-        "races": [_race(source, row) for row in rows],
+        "races": [_race(source, row, outcomes[row.id]) for row in rows],
         "page": {
             "total": total,
             "offset": offset,
@@ -245,10 +254,13 @@ def race_detail(
 ) -> dict:
     source = snapshot(db, election_key, snapshot_id)
     race = race_record(db, source, race_id)
+    outcome = election_outcomes.applicable_outcomes(
+        db, snapshot_id=source.id, race_ids=[race.id]
+    )[race.id]
     return {
         **_context(source),
-        "race": _race(source, race),
-        "sources": _sources(source),
+        "race": _race(source, race, outcome),
+        "sources": _sources(source) + election_outcomes.source_metadata(db, source.id),
         "coverage": _coverage(source),
     }
 
@@ -266,6 +278,9 @@ def precincts(
 ) -> dict:
     source = snapshot(db, election_key, snapshot_id)
     race = race_record(db, source, race_id)
+    outcome = election_outcomes.applicable_outcomes(
+        db, snapshot_id=source.id, race_ids=[race.id]
+    )[race.id]
     precinct = m.ElectionComparisonPrecinct
     query = " ".join(q.split())
     filters = [precinct.snapshot_id == source.id, precinct.race_id == race.id]
@@ -288,7 +303,8 @@ def precincts(
         "race_id": race.id,
         "query": query,
         "county": county,
-        "result_status": race.result_status,
+        "result_status": outcome["result_status"],
+        "outcome_review": outcome["outcome_review"],
         "precincts": [
             {
                 **deepcopy(row.payload),
@@ -319,7 +335,14 @@ def source_body(
     source_hash: str,
 ) -> tuple[bytes, dict]:
     source = snapshot(db, election_key, snapshot_id)
-    metadata = next((s for s in _sources(source) if s["sha256"] == source_hash), None)
+    metadata = next(
+        (
+            s
+            for s in _sources(source) + election_outcomes.source_metadata(db, source.id)
+            if s["sha256"] == source_hash
+        ),
+        None,
+    )
     if metadata is None:
         _not_found()
     stored = db.get(m.ElectionResultSource, source_hash)
@@ -353,7 +376,13 @@ def source_lines(
     body, metadata = source_body(
         db, election_key=election_key, snapshot_id=snapshot_id, source_hash=source_hash
     )
-    encoding = (
+    if metadata.get("media_type") == "application/pdf":
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            "The text of this source copy is unavailable. Download the original file.",
+        )
+    encoding = metadata.get("encoding") or (
         "utf-8"
         if metadata.get("file", "").lower().endswith((".html", ".htm"))
         else "windows-1252"

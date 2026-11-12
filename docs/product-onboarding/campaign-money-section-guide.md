@@ -617,7 +617,7 @@ or less.” It is not moved entirely to the footer or hidden in a tooltip.
 
 A missing official total says “No usable official total in our records for {year}”.
 Missing itemized contributions say “No itemized contributions in our records for {year}”. A
-failed figure says “We couldn’t load this figure”. Missing values never receive leftover
+failed figure says “Couldn’t load this figure”. Missing values never receive leftover
 dates or become $0; a genuine reported zero remains $0.
 
 “Payment files copied {date}” dates the payment release, not individual committees or
@@ -1127,9 +1127,9 @@ Campaign money, top to bottom:
    - A statement we hold whose details nobody has read yet prints “We have this statement,
      but have not yet read its details” beside the PDF.
    - Loading prints “Loading statement details…” as a spoken status. A failed first read
-     prints “We couldn’t load this statement’s details. You can still open its PDF.”,
+     prints “Couldn’t load this statement’s details. You can still open its PDF.”,
      **Try again**, and the PDF. A failed refresh keeps the details loaded earlier under
-     “We couldn’t refresh this statement’s details. The details below were loaded
+     “Couldn’t refresh this statement’s details. The details below were loaded
      earlier.” and **Try again**. Each statement loads and fails on its own.
    - Sources print a name, a city and a state, never a ZIP or a street, and the officer
      who signed is never printed. No statement amount is added to anything, and nothing
@@ -1206,7 +1206,7 @@ Campaign money, top to bottom:
    - The foot is **Minnesota’s list of large-contribution notices** (a link to the Board's
      page) followed by “copied {date}”.
    - Loading prints “Loading the large-contribution notices…” as a spoken status with 3
-     placeholder rows. A failure prints “We couldn’t load these notices. This is a problem
+     placeholder rows. A failure prints “Couldn’t load these notices. This is a problem
      on our side and says nothing about the committee.” and **Try again**, with no
      windows and no zero.
    - The card is absent for a party unit, for a year no copy of the Board's list covers
@@ -1231,7 +1231,7 @@ Campaign money, top to bottom:
      never a guessed donor, date or amount, and never $0.
    - Loading prints “Loading these statements…” as a spoken status. A failure prints “We
      couldn’t load these statements. This is a problem on our side and says nothing about
-     the committee.” and **Try again**; a failed refresh keeps the list under “We couldn’t
+     the committee.” and **Try again**; a failed refresh keeps the list under “Couldn’t
      refresh these statements. The statements below were loaded earlier.”
    - The card is absent only once a successful answer says every statement for the year is
      linked. A failed or unfinished read is never an empty list, and a slower answer for a
@@ -1352,7 +1352,7 @@ the catalogue and our copy of it, not a statement about the committee.”
 
 **Show more reports** becomes **Loading more reports** while pending and cannot fire
 again. A failed next page retains the rows already shown and offers **Try again**,
-with “We couldn’t load more reports. The reports already shown are still available.”
+with “Couldn’t load more reports. The reports already shown are still available.”
 The only copy-date footer here is **Minnesota’s report catalogue copied {date}**, from
 the report-list response's `as_of`. It stays absent when no successful response has
 supplied that date. Donor thresholds and payment-file dates belong to Campaign money.

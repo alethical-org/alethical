@@ -159,7 +159,7 @@ function errorCopy(
     };
   if (state === 'ambiguous-location')
     return {
-      field: 'We couldn’t safely identify your districts from this address',
+      field: 'Couldn’t safely identify your districts from this address',
       answer: 'Check your full street address, or choose where you live on the map',
     };
   if (state === 'outside-minnesota')
@@ -169,7 +169,7 @@ function errorCopy(
     };
   if (state === 'location-error')
     return {
-      field: 'We couldn’t use your location',
+      field: 'Couldn’t use your location',
       answer:
         'Your browser may have blocked location access, or the location may be outside Minnesota. Enter a complete address in the state instead.',
     };

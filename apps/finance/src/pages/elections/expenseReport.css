@@ -1,0 +1,741 @@
+.ex-page {
+  font-variant-numeric: tabular-nums;
+}
+.ex-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.ex-heading {
+  margin-top: 8px;
+}
+.ex-heading h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+.ex-heading p {
+  margin: 8px 0 0;
+  color: #4a5661;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ex-finder {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.35fr);
+}
+.ex-finder:has([data-open]) {
+  z-index: 41;
+}
+.ex-static-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.ex-static-field > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.ex-static-field > strong {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ex-scope {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 16px;
+}
+.ex-scope h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.ex-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ex-actions > div {
+  min-width: 132px;
+}
+.ex-actions > div:last-child {
+  min-width: 196px;
+}
+.ex-actions .ec-button {
+  width: 100%;
+}
+.ex-actions .ec-button {
+  white-space: nowrap;
+}
+.ex-actions .ec-button[data-done] {
+  background: #eaf4f7;
+  border-color: #0e6a82;
+}
+.ex-actions p {
+  margin: 4px 0 0;
+  min-height: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4a5661;
+}
+.ex-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid rgb(20 27 34 / 12%);
+  border-radius: 10px;
+}
+.ex-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ex-table th,
+.ex-table td {
+  padding: 12px 20px;
+  vertical-align: top;
+  border-bottom: 1px solid rgb(20 27 34 / 8%);
+  text-align: right;
+}
+.ex-table tr:last-child > * {
+  border-bottom: 0;
+}
+.ex-table th:first-child {
+  text-align: left;
+  min-width: 130px;
+}
+.ex-table th {
+  font-weight: 600;
+}
+.ex-table thead th {
+  padding-top: 10px;
+  padding-bottom: 8px;
+  vertical-align: bottom;
+  font-family: var(--f-mono, "IBM Plex Mono", monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5f6b76;
+}
+.ex-table thead th:not(:first-child) {
+  min-width: 110px;
+}
+.ex-table .ex-total > * {
+  border-top: 1px solid rgb(20 27 34 / 12%);
+  background: #edf1f4;
+  font-weight: 600;
+}
+.ex-figure {
+  display: block;
+  text-align: right;
+}
+.ex-figure strong,
+.ex-number {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ex-figure small {
+  display: block;
+  margin-top: 4px;
+  color: #4a5661;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.ex-summary-cards,
+.ex-payee-list,
+.ex-payments ul {
+  list-style: none;
+  padding: 0;
+}
+.ex-summary-cards {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid rgb(20 27 34 / 12%);
+  border-radius: 10px;
+}
+.ex-summary-cards > li {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(20 27 34 / 8%);
+}
+.ex-summary-cards > li:last-child {
+  background: #edf1f4;
+  border-bottom: 0;
+}
+.ex-summary-cards h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.ex-metrics {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ex-metrics > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.ex-metrics dt {
+  color: #4a5661;
+}
+.ex-metrics dd {
+  margin: 0;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ex-retained {
+  padding: 12px 16px;
+  background: #eef1f4;
+  color: #4a5661;
+  font-size: 14px;
+}
+.ex-exclusions {
+  position: relative;
+  z-index: 40;
+  margin: 16px 0;
+}
+.ex-exclusions[data-open] {
+  z-index: 41;
+}
+.ex-exclusion-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.ex-exclusion-heading h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.ex-exclusion-heading .ec-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.ex-exclusion-panel {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  right: 0;
+  box-sizing: border-box;
+  width: min(100%, 380px);
+  padding: 16px;
+  border: 1px solid rgb(20 27 34 / 20%);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(20 27 34 / 16%);
+}
+.ex-exclusion-panel > ul {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  max-height: min(45vh, 360px);
+  overflow-y: auto;
+}
+.ex-exclusion-panel li label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+.ex-exclusion-panel li label:hover {
+  background: #eef2f5;
+}
+.ex-exclusion-panel li label:has(input:disabled) {
+  cursor: not-allowed;
+}
+.ex-exclusion-panel li input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: #0e6a82;
+}
+.ex-exclusion-panel li input:focus-visible {
+  outline: 2px solid #7c5cff;
+  outline-offset: 3px;
+}
+.ex-exclusion-panel li span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ex-exclusion-panel li small {
+  display: block;
+  font-size: 13px;
+  color: #4a5661;
+  font-weight: 400;
+}
+.ex-exclusion-panel .ec-search-button {
+  margin-top: 12px;
+  width: 100%;
+}
+.ex-exclusion-panel .ec-search > div {
+  display: block;
+}
+.ex-exclusion-panel .ec-search input {
+  width: 100%;
+}
+.ex-exclusion-panel .ec-search button {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.ex-exclusion-panel .ec-search button:focus-visible {
+  position: static;
+  width: 100%;
+  height: 44px;
+  margin: 8px 0 0;
+  clip-path: none;
+}
+.ex-excluded {
+  max-width: 560px;
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+.ex-excluded p {
+  margin: 8px 0;
+}
+.ex-excluded > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ex-excluded > ul > li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgb(20 27 34 / 8%);
+}
+.ex-excluded .ex-part {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #4a5661;
+  font-size: 13px;
+}
+.ex-nonitemized {
+  margin-top: 12px;
+  max-width: 560px;
+  padding: 12px 0;
+  border-top: 1px solid rgb(20 27 34 / 12%);
+}
+.ex-candidate-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+.ex-candidate-columns {
+  display: none;
+}
+.ex-candidate {
+  min-width: 0;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid rgb(20 27 34 / 12%);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 4fr);
+  gap: 12px 24px;
+}
+.ex-candidate h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.ex-candidate p {
+  margin: 4px 0;
+}
+.ex-candidate-name > p,
+.ex-account-title > span {
+  font-size: 13px;
+  color: #4a5661;
+  line-height: 1.45;
+}
+.ex-account-list {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.ex-account {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.8fr);
+  gap: 8px 16px;
+  align-content: start;
+}
+.ex-account + .ex-account {
+  padding-top: 12px;
+  border-top: 1px solid rgb(20 27 34 / 12%);
+}
+.ex-account-title {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ex-account-title > strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.ex-account-title p {
+  font-size: 13px;
+  color: #4a5661;
+}
+.ex-account .ex-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px 16px;
+}
+.ex-account .ex-metrics > div {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  align-items: flex-end;
+  flex: 1 0 80px;
+}
+.ex-account .ex-metrics dt {
+  font-family: var(--f-mono, "IBM Plex Mono", monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+.ex-gap {
+  grid-column: 1 / -1;
+  color: #4a5661;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ex-payees {
+  grid-column: 1 / -1;
+  background: #f3f5f7;
+  padding: 16px;
+  border-radius: 6px;
+}
+.ex-payees > .ec-search {
+  max-width: 480px;
+  margin: 12px 0;
+}
+.ex-payee-list {
+  margin: 12px 0 0;
+}
+.ex-payee-list > li {
+  padding: 12px 0;
+  border-top: 1px solid rgb(20 27 34 / 12%);
+}
+.ex-payee-list h5 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.ex-payee-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px 20px;
+}
+.ex-payee-main p {
+  font-size: 13px;
+  color: #4a5661;
+  line-height: 1.45;
+  margin: 2px 0;
+}
+.ex-payee-main > .ec-link {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.ex-payee-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  grid-column: 1 / -1;
+}
+.ex-payments {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(20 27 34 / 12%);
+}
+.ex-payments li {
+  padding: 12px 0;
+  border-bottom: 1px solid rgb(20 27 34 / 8%);
+}
+.ex-payments .ex-metrics {
+  max-width: 600px;
+}
+.ex-about {
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #4a5661;
+}
+.ex-about h2 {
+  color: #141b22;
+}
+.ex-about p {
+  margin: 8px 0 0;
+}
+.ex-sources {
+  margin-top: 36px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(20 27 34 / 12%);
+  font-size: 13px;
+  color: #4a5661;
+  line-height: 1.55;
+}
+.ex-sources h2 {
+  font-size: 14px;
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.ex-sources p {
+  margin: 8px 0;
+}
+.ex-page button:disabled {
+  cursor: not-allowed;
+}
+.ex-page .ec-link:disabled {
+  color: #6b7680;
+  text-decoration: none;
+}
+.ex-page .ec-search-button:disabled {
+  background: #e3e8ec;
+  border-color: #c6cdd4;
+  color: #5f6b76;
+}
+@media (min-width: 1100px) {
+  .ex-candidate-list {
+    gap: 0;
+    border: 1px solid rgb(20 27 34 / 12%);
+    border-radius: 10px;
+    background: #fff;
+  }
+  .ex-candidate-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) repeat(
+        6,
+        minmax(max-content, 1fr)
+      );
+    gap: 12px;
+    padding: 10px 20px 8px;
+    font-family: var(--f-mono, "IBM Plex Mono", monospace);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5f6b76;
+    align-items: end;
+  }
+  .ex-candidate-columns > span:nth-child(n + 3) {
+    text-align: right;
+  }
+  .ex-candidate {
+    border: 0;
+    border-radius: 0;
+    padding: 12px 20px 8px;
+    border-top: 1px solid rgb(20 27 34 / 8%);
+    gap: 12px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 7.1fr);
+  }
+  .ex-account {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 6fr);
+    gap: 12px;
+  }
+  .ex-account .ex-metrics {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(max-content, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .ex-account .ex-metrics > div {
+    display: block;
+  }
+  .ex-account .ex-metrics dt {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+  .ex-finder {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .ex-finder > .ec-search {
+    grid-column: 1 / -1;
+  }
+  .ex-candidate-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .ex-candidate,
+  .ex-account {
+    display: block;
+  }
+  .ex-account-title {
+    margin-bottom: 12px;
+  }
+  .ex-account .ex-metrics {
+    display: block;
+  }
+  .ex-account .ex-metrics > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    flex-direction: row;
+    text-align: left;
+  }
+  .ex-account .ex-metrics dt {
+    font-family: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 14px;
+  }
+  .ex-payee-main {
+    display: block;
+  }
+  .ex-table th,
+  .ex-table td {
+    padding-inline: 12px;
+  }
+  .ex-payees {
+    padding: 12px;
+    margin-top: 12px;
+  }
+}
+@media (max-width: 767px) {
+  .ex-heading h1 {
+    font-size: 24px;
+  }
+  .ex-finder {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ex-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+  .ex-candidate {
+    display: block;
+    padding: 16px;
+  }
+  .ex-account {
+    display: block;
+    margin-top: 12px;
+  }
+  .ex-account-title {
+    margin-bottom: 12px;
+  }
+  .ex-account .ex-metrics {
+    display: block;
+  }
+  .ex-account .ex-metrics > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    flex-direction: row;
+    text-align: left;
+  }
+  .ex-account .ex-metrics dt {
+    font-family: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 14px;
+  }
+  .ex-payee-main {
+    display: block;
+  }
+  .ex-payee-main > .ex-metrics {
+    margin-top: 8px;
+  }
+  .ex-exclusion-heading .ec-button {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .ex-exclusion-panel {
+    width: 100%;
+  }
+  .ex-payees {
+    padding: 12px;
+    margin-top: 12px;
+  }
+  .ex-payees .ec-search > div {
+    flex-direction: column;
+  }
+}
+/* Native filing measures use the same account, metric and evidence components. */
+.ex-reported-values,
+.ex-reported-values > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ex-reported-values small {
+  font-weight: 400;
+  white-space: normal;
+}
+.ex-authority-account {
+  display: block;
+}
+.ex-authority-account > p {
+  margin-top: 6px;
+}
+.ex-authority-account .ex-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  margin-top: 12px;
+  gap: 12px 20px;
+}
+.ex-authority-account .ex-metrics > div {
+  display: block;
+  text-align: left;
+}
+.ex-authority-account .ex-metrics dt {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+}
+.ex-authority-account .ex-metrics dd {
+  white-space: nowrap;
+  text-align: left;
+}
+.ex-mixed-authorities .ex-candidate-columns {
+  display: none;
+}
+.ex-mixed-authorities .ex-account .ex-metrics dt {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+}
+.ex-account-reference {
+  display: block;
+}
+.ex-account-reference > .ec-link {
+  margin-top: 8px;
+}
+.ex-itemized-measure {
+  margin-top: 20px;
+}

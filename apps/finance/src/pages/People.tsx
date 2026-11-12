@@ -424,7 +424,7 @@ export function People(_props: { match: RouteMatch }) {
             <Refused onRetry={read.retry} retrying={read.pending}>
               {read.changed
                 ? RECORDS_CHANGED
-                : `We couldn’t load these results. This is a problem on our side.${data ? ' Previous results are shown.' : ''}`}
+                : `Couldn’t load results. This is a problem on our side.${data ? ' Previous results are shown.' : ''}`}
             </Refused>
           )}
           {data && (

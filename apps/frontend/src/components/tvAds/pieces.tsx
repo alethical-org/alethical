@@ -170,7 +170,7 @@ export function Busy({ label = 'Loading records' }: { label?: string }) {
   );
 }
 export function Failure({
-  children = 'We couldn’t load these records',
+  children = 'Couldn’t load records',
   retry,
   detail,
 }: {

@@ -104,7 +104,7 @@ export function sessionWatch<T extends WithActions>(
       // "just now" is doing real work: it says the failure is this attempt, not a
       // standing fact about their account, which is what makes trying again read
       // as worth doing.
-      heroLine: 'We couldn’t check your tracked bills just now',
+      heroLine: 'Couldn’t check your tracked bills just now',
       glyph: 'clock',
     };
   }

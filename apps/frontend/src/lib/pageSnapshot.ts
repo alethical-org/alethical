@@ -1704,7 +1704,7 @@ export function moneyByRacePageSnapshot(
       body: [
         'Candidate committees raise and spend money for a candidate’s campaign.',
         RACE_REGISTRATION_NOTE,
-        'We couldn’t find this office, district or court seat in our records',
+        'Couldn’t find this office, district or court seat in our records',
       ],
       bodyIsList: false,
       facts: [],

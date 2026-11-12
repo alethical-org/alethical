@@ -621,7 +621,7 @@ describe('email-code account access', () => {
     await press('Continue');
 
     expect(mount.textContent).toContain(
-      'We couldn’t request a code. Check your connection and try again.',
+      'Couldn’t request a code. Check your connection and try again.',
     );
     expect(mount.textContent).not.toContain('Email or password is incorrect');
     act(() => root.unmount());
@@ -857,9 +857,7 @@ describe('email-code account access', () => {
     enter('CONFIRM PASSWORD', 'abcdefgh');
     await press('Save password');
 
-    expect(mount.querySelector('h1')?.textContent).toBe(
-      'We couldn’t confirm the password was saved',
-    );
+    expect(mount.querySelector('h1')?.textContent).toBe('Couldn’t confirm the password was saved');
     expect(mount.textContent).not.toContain('Save password');
     expect(document.querySelector('input[aria-label="PASSWORD"]')).toBeNull();
     expect(mount.querySelector('button[aria-label^="Back"]')).toBeNull();

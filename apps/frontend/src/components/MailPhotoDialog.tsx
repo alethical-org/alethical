@@ -270,7 +270,7 @@ export function MailPhotoDialog({
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span>We couldn’t open this photo</span>
+                <span>Couldn’t open this photo</span>
               </div>
             </div>
           ) : (

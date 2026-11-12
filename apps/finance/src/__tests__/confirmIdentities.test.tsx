@@ -930,7 +930,7 @@ describe('Confirm identities page', () => {
     });
     await render('/money/identities');
     expect(text()).toContain(
-      'We couldn’t load the names to review. This is a problem on our side.',
+      'Couldn’t load the names to review. This is a problem on our side.',
     );
     expect(text()).not.toContain('No names match these choices');
     fail = false;
@@ -1321,7 +1321,7 @@ describe('Confirm identities page', () => {
     await act(async () => root.unmount());
     root = createRoot(container);
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
-    expect(text()).toContain('We couldn’t load the history');
+    expect(text()).toContain('Couldn’t load the history');
     expect(text()).not.toContain('No confirmations or suggestions yet');
 
     answer = 'ok';
@@ -1331,7 +1331,7 @@ describe('Confirm identities page', () => {
         (b) => b.textContent === 'Try again',
       )!,
     );
-    expect(text()).not.toContain('We couldn’t load the history');
+    expect(text()).not.toContain('Couldn’t load the history');
     expect(text()).toContain('Confirmed as Example Media LLC (ORG-0002) for 2 of 2 records');
   });
 
@@ -1352,7 +1352,7 @@ describe('Confirm identities page', () => {
         );
     });
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
-    expect(text()).toContain('We couldn’t load the history');
+    expect(text()).toContain('Couldn’t load the history');
     expect(text()).not.toContain('No confirmations or suggestions yet');
   });
 

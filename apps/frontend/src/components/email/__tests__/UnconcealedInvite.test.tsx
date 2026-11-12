@@ -172,7 +172,7 @@ describe('Unconcealed signup invitation', () => {
       button('Sign up').click();
       await Promise.resolve();
     });
-    expect(host.textContent).toContain('We couldn’t open email signup');
+    expect(host.textContent).toContain('Couldn’t open email signup');
     act(() => button('Choose emails in account settings').click());
     expect(onPreferences).toHaveBeenCalledTimes(1);
     expect(mocks.openSignIn).not.toHaveBeenCalled();

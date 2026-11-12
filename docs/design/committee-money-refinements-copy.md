@@ -57,7 +57,7 @@ A standalone caption, helper, source line, status or list item containing 1 sent
 has no final period, even when it wraps across several screen lines. Separate units
 sharing a card do not become a paragraph. A link and its adjacent sentence tail are
 1 unit. Paragraphs with 2 or more sentences, legal text and serious warnings retain
-full punctuation. For example, “We couldn’t load the report information. Payment
+full punctuation. For example, “Couldn’t load the report information. Payment
 records for this filing year are still shown.” remains a fully punctuated paragraph.
 
 Use the source’s term consistently when naming the same reported quantity or

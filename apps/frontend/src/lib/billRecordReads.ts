@@ -24,7 +24,7 @@ export function billReadWithinCacheWindow(ageSeconds: number | null): boolean {
 
 export const BILL_DETAIL_INCLUDE = 'all_sponsors,actions,versions,topics,ai_analysis,progress';
 export const BILL_VOTES_UNAVAILABLE =
-  'We couldn’t load this bill’s votes right now. Please try again in a moment.';
+  'Couldn’t load bill’s votes right now. Please try again in a moment.';
 export const BILL_VOTE_COVERAGE =
   'Only recorded members are listed. Absent and excused members are not inferred.';
 

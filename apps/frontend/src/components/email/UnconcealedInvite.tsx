@@ -231,9 +231,7 @@ export function UnconcealedInvite({
                 ) : null}
                 {error ? (
                   <>
-                    <EmailNotice kind="error">
-                      We couldn’t open email signup. Try again.
-                    </EmailNotice>
+                    <EmailNotice kind="error">Couldn’t open email signup. Try again.</EmailNotice>
                     <EmailButton
                       label="Choose emails in account settings"
                       kind="darkOutline"

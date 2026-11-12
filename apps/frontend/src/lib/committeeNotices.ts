@@ -242,7 +242,7 @@ export const NOTICES_LOADING = 'Loading the large-contribution notices…';
 
 /** N9. */
 export const NOTICES_FAILED =
-  'We couldn’t load these notices. This is a problem on our side and says nothing about the ' +
+  'Couldn’t load these notices. This is a problem on our side and says nothing about the ' +
   'committee.';
 
 /** N10, split so the list's name can be the link. */

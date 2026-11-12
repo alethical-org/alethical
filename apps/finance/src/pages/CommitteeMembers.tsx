@@ -257,7 +257,7 @@ export function CommitteeMembers({ match }: { match: RouteMatch }) {
           {read.failed && (
             <div className="cmm-state">
               <Refused onRetry={read.retry} retrying={read.pending}>
-                We couldn’t load these accounts. This is a problem on our side and says nothing
+                Couldn’t load accounts. This is a problem on our side and says nothing
                 about the members.
               </Refused>
             </div>
@@ -341,7 +341,7 @@ function MemberCard({
           {figures.loading && <LoadingLine>Loading…</LoadingLine>}
           {figures.failed && (
             <Refused onRetry={figures.retry} retrying={figures.pending}>
-              We couldn’t load these accounts. This is a problem on our side and says nothing about
+              Couldn’t load accounts. This is a problem on our side and says nothing about
               the members.
             </Refused>
           )}

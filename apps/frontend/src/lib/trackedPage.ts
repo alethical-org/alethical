@@ -36,7 +36,7 @@ export const KIND_LABEL_COMMITTEE = 'COMMITTEE';
 
 export const LOADING_TRACKED = 'Loading what you are following';
 export const TRACKED_UNAVAILABLE =
-  'We couldn’t load your tracked list right now. Please try again in a moment.';
+  'Couldn’t load your tracked list right now. Please try again in a moment.';
 
 /** What a followed committee needs to draw its card. Mirrors the served row. */
 export interface TrackedCommitteeLike {

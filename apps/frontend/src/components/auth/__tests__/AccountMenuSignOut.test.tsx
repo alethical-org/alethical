@@ -150,9 +150,7 @@ describe.each([
     expect(action.getAttribute('aria-busy')).toBeNull();
     expect(action.getAttribute('aria-disabled')).toBeNull();
     const alert = document.querySelector<HTMLElement>('[role="alert"]');
-    expect(alert?.textContent).toBe(
-      'We couldn’t sign you out. Check your connection and try again.',
-    );
+    expect(alert?.textContent).toBe('Couldn’t sign you out. Check your connection and try again.');
     expect(alert!.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(document.activeElement).toBe(action);
 
@@ -160,13 +158,11 @@ describe.each([
     expect(auth.signOut).toHaveBeenCalledTimes(2);
     expect(visibleSignOutLabel(action)).toBe('Signing out…');
     expect(document.querySelector('[role="alert"]')).toBe(alert);
-    expect(alert?.textContent).toBe(
-      'We couldn’t sign you out. Check your connection and try again.',
-    );
+    expect(alert?.textContent).toBe('Couldn’t sign you out. Check your connection and try again.');
     await act(async () => second.resolve({ ok: false }));
     const repeatedAlert = document.querySelector<HTMLElement>('[role="alert"]');
     expect(repeatedAlert?.textContent).toBe(
-      'We couldn’t sign you out. Check your connection and try again.',
+      'Couldn’t sign you out. Check your connection and try again.',
     );
     expect(repeatedAlert).not.toBe(alert);
     expect(visibleSignOutLabel(action)).toBe('Try again');

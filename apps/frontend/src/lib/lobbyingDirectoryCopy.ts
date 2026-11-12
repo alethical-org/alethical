@@ -29,7 +29,7 @@ export const LOBBYING_DIRECTORY_COPY = {
   annual: 'Spending is reported by calendar year.',
   loading: 'Loading lobbying records',
   unavailable:
-    "We couldn't load the Board's lobbying records just now. This says nothing about who is registered or what was reported.",
+    "Couldn't load the Board's lobbying records just now. This says nothing about who is registered or what was reported.",
   retry: 'Try again',
   emptyPage: 'No names on this page',
   firstPage: 'Go to the first page',
@@ -48,7 +48,7 @@ export const LOBBYING_DIRECTORY_COPY = {
     empty: 'No lobbyist is listed under that spelling in these records',
     loading: 'Loading registered lobbyists',
     unavailable:
-      "We couldn't load the Board's lobbyist list just now. This says nothing about who was listed.",
+      "Couldn't load the Board's lobbyist list just now. This says nothing about who was listed.",
   },
   principals: {
     title: 'Principals',
@@ -60,7 +60,7 @@ export const LOBBYING_DIRECTORY_COPY = {
     empty: "No principal matches that spelling in the Board's files",
     loading: 'Loading principals',
     unavailable:
-      "We couldn't load the Board's principal records just now. This says nothing about what was reported or registered.",
+      "Couldn't load the Board's principal records just now. This says nothing about what was reported or registered.",
   },
 } as const;
 

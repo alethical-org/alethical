@@ -235,7 +235,7 @@ describe('result replacement', () => {
     expect(mount.textContent).toContain('Old folder');
     expect(mount.textContent).toContain('1 folder');
     await act(async () => changed.reject(new Error('Offline')));
-    expect(mount.textContent).toContain('We couldn’t search these records just now');
+    expect(mount.textContent).toContain('Couldn’t search these records just now');
     expect(mount.textContent).toContain('Old folder');
   });
 });

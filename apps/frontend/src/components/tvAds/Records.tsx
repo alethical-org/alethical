@@ -68,7 +68,7 @@ export function TVFile({
         <h1 className="tv-record-title">{file?.name || 'Station file'}</h1>
         {request.error ? (
           <Failure retry={request.retry} detail="This is a problem on our side">
-            We couldn’t load this file right now
+            Couldn’t load this file right now
           </Failure>
         ) : (
           <Busy label="Loading saved record" />
@@ -822,7 +822,7 @@ function Viewer({
           </div>
         ) : image.error && image.path === path ? (
           <Failure retry={() => setAttempt((n) => n + 1)} detail={RETRY_EXPLANATION}>
-            We couldn’t load this page image
+            Couldn’t load page image
           </Failure>
         ) : ready ? (
           <img
@@ -909,7 +909,7 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
   const data = read.data;
   const feedback = read.error ? (
     <Failure retry={read.retry} detail={RETRY_EXPLANATION}>
-      We couldn’t load this folder right now
+      Couldn’t load folder right now
     </Failure>
   ) : read.loading ? (
     data ? (
@@ -1024,7 +1024,7 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
   const data = read.data;
   const feedback = read.error ? (
     <Failure retry={read.retry} detail={RETRY_EXPLANATION}>
-      We couldn’t load the files for this name right now
+      Couldn’t load the files for this name right now
     </Failure>
   ) : read.loading ? (
     data ? (
@@ -1174,7 +1174,7 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
         <h1>{read.data?.call_sign || 'Station'}</h1>
         {read.error ? (
           <Failure retry={read.retry} detail="This is a problem on our side">
-            We couldn’t load this station right now
+            Couldn’t load this station right now
           </Failure>
         ) : (
           <Busy label="Loading station records" />

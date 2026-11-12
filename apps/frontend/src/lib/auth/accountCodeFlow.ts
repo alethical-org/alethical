@@ -144,7 +144,7 @@ function errorCode(error: unknown): string | null {
 function requestFailure(): PublicAuthError {
   return {
     kind: 'request-failure',
-    message: 'We couldn’t complete that request. Check your connection and try again.',
+    message: 'Couldn’t complete that request. Check your connection and try again.',
   };
 }
 

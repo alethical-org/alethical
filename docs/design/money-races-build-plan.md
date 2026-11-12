@@ -69,7 +69,7 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
   reporting-period guard. Drop the separate helper.
 - Missing itemized contributions on this address say “No itemized contributions in our records
   for {year}”. This is a scoped exception to the older “Not reported” rule, not a change
-  to the other money surfaces. A failed figure says “We couldn’t load this figure”.
+  to the other money surfaces. A failed figure says “Couldn’t load this figure”.
 - Use “Limits of the campaign records” and “Payment records before 2015 are not included”.
 - Accept the accessible directory-link label “View committees for {group name}”.
 - Keep Total contributions and Itemized contributions as the source labels, with the

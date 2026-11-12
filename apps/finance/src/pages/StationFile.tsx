@@ -221,7 +221,7 @@ export function StationFile({ match }: { match: RouteMatch }) {
             onRetry={missing ? current.retry : read.retry}
             retrying={missing ? current.pending : read.pending}
           >
-            We couldn’t load this TV station file
+            Couldn’t load TV station file
           </Refused>
         </div>
       )}
@@ -363,7 +363,7 @@ export function StationFile({ match }: { match: RouteMatch }) {
                       page={page}
                       alt={`Page ${page} of ${pages} of the original TV station file ${data.name}`}
                       failure={{
-                        text: 'We couldn’t load this page image. This is a problem on our side.',
+                        text: 'Couldn’t load page image. This is a problem on our side.',
                         retry: 'Try again',
                         inside: true,
                       }}

@@ -330,8 +330,8 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               <Container>
                 <View style={styles.card}>
                   <Text accessibilityRole="alert" style={styles.body}>
-                    We couldn’t load this committee’s money right now. This is a problem on our side
-                    and says nothing about the committee. Please try again in a moment.
+                    Couldn’t load committee’s money right now. This is a problem on our side and
+                    says nothing about the committee. Please try again in a moment.
                   </Text>
                 </View>
               </Container>
@@ -1527,7 +1527,7 @@ export function FilingsList({
       {reported && query.isFetchNextPageError ? (
         <View>
           <Text accessibilityRole="alert" style={styles.explain}>
-            We couldn’t load more reports. The reports already shown are still available.
+            Couldn’t load more reports. The reports already shown are still available.
           </Text>
           <Pressable
             accessibilityRole="button"

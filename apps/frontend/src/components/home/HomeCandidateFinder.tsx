@@ -14,8 +14,8 @@ const loadCandidates = () => import('../../data/candidates');
 type CandidateModule = Awaited<ReturnType<typeof loadCandidates>>;
 const messages = {
   empty: 'Enter your full Minnesota street address',
-  'no-match': 'We couldn’t match that address to election records',
-  failed: 'We couldn’t complete your search: please try again',
+  'no-match': 'Couldn’t match that address to election records',
+  failed: 'Couldn’t complete your search: please try again',
 };
 
 /** Keep the address in temporary app memory and load the search only on submit. */

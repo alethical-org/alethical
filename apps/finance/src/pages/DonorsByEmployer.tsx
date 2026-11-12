@@ -34,7 +34,7 @@ const SPELLINGS_PAGE = 50;
 const DONORS_PAGE = 20;
 const PAYMENTS_PAGE = 50;
 const FAILED =
-  'We couldn’t load these donors. This is a problem on our side and says nothing about what was filed under this employer.';
+  'Couldn’t load donors. This is a problem on our side and says nothing about what was filed under this employer.';
 
 interface Paging {
   limit: number;
@@ -425,7 +425,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
         {searching && list.failed && (
           <div className="pn-gap pn-narrow">
             <Refused onRetry={list.retry} retrying={list.pending}>
-              {list.data ? 'We couldn’t load these employer spellings' : FAILED}
+              {list.data ? 'Couldn’t load employer spellings' : FAILED}
             </Refused>
           </div>
         )}
@@ -488,7 +488,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                         onRetry={() => canLoadMore && moreSpellings.more(spellings.length)}
                         retrying={moreSpellings.loading}
                       >
-                        We couldn’t load more employer spellings
+                        Couldn’t load more employer spellings
                       </Refused>
                     ) : (
                       <button
@@ -642,7 +642,7 @@ function Detail({
         })}
         {identity.failed && (
           <Refused onRetry={identity.retry} retrying={identity.pending}>
-            We couldn’t load related profiles
+            Couldn’t load related profiles
           </Refused>
         )}
       </div>
@@ -702,7 +702,7 @@ function Detail({
                   onRetry={() => moreDonors.more(donors.length)}
                   retrying={moreDonors.loading}
                 >
-                  We couldn’t load more donors
+                  Couldn’t load more donors
                 </Refused>
               )}
               {!moreDonors.failed && (
@@ -843,7 +843,7 @@ function Donor({
         <div className="pn-more de-donor-more">
           {more.failed ? (
             <Refused onRetry={() => more.more(payments.length)} retrying={more.loading}>
-              We couldn’t load more payments
+              Couldn’t load more payments
             </Refused>
           ) : (
             <button

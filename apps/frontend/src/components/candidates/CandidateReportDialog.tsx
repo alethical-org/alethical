@@ -394,7 +394,7 @@ export function CandidateReportDialog({
               </span>
             </div>
             {status === 'error' ? (
-              <ReportMessage role="alert">We couldn’t submit your report</ReportMessage>
+              <ReportMessage role="alert">Couldn’t submit your report</ReportMessage>
             ) : null}
             {status === 'limited' ? (
               <p role="status" style={{ marginTop: 12, fontWeight: 700 }}>
@@ -408,7 +408,7 @@ export function CandidateReportDialog({
               </ReportMessage>
             ) : null}
             {reloadFailed && (status === 'changed' || status === 'reloading') ? (
-              <ReportMessage role="alert">We couldn’t load the campaign statement</ReportMessage>
+              <ReportMessage role="alert">Couldn’t load the campaign statement</ReportMessage>
             ) : null}
             {status === 'removed' ? (
               <p role="status" style={{ marginTop: 12 }}>

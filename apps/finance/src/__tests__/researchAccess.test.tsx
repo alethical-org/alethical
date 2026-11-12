@@ -163,7 +163,7 @@ it.each([
 ])('refuses a direct edit-page visit to %s', async (path, label) => {
   saveResearchSession(research());
   await render(path);
-  expect(text()).toContain('We couldn’t find that page');
+  expect(text()).toContain('Couldn’t find that page');
   expect(text()).not.toContain(label);
   expect(
     fetcher.mock.calls.some(
@@ -174,7 +174,7 @@ it.each([
 it.each([
   [401, 'That access code is not right'],
   [429, 'Too many attempts'],
-  [503, 'We couldn’t open investor access'],
+  [503, 'Couldn’t open investor access'],
 ])('keeps entered fields for a retry after %i', async (status, message) => {
   fetcher.mockImplementation(async () => new Response(null, { status }));
   await passwordForm();

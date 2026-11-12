@@ -224,7 +224,7 @@ export function CommitteePaymentsScreen({
             {moneyQuery.isError ? (
               <>
                 <Text accessibilityRole="alert" style={styles.stampDetail}>
-                  We couldn’t refresh the report information. The last report information loaded for
+                  Couldn’t refresh the report information. The last report information loaded for
                   this committee and filing year is still shown.
                 </Text>
                 <RetryButton onPress={onReport} busy={reportBusy} />

@@ -158,6 +158,24 @@ def test_retained_csv_download_checks_bytes_scope_and_access(
         ).status_code
         == 409
     )
+    assert (
+        finance_api.get(
+            BASE + "/source", params={**params, "source_hash": original.content_hash}
+        ).content
+        == body
+    )
+    assert (
+        finance_api.get(
+            BASE + "/source", params={**params, "source_hash": "0" * 64}
+        ).status_code
+        == 409
+    )
+    assert (
+        finance_api.get(
+            BASE + "/source", params={**params, "source_hash": "bad"}
+        ).status_code
+        == 422
+    )
     store.objects[key] = b"corrupt"
     assert finance_api.get(BASE + "/source", params=params).status_code == 503
     store.objects[key] = gzip.compress(body + b"changed", mtime=0)

@@ -103,7 +103,7 @@ function ConnectionCard({
           <Busy label="Loading TV ad records" />
         ) : read.error ? (
           <Failure retry={read.retry} detail={RETRY_EXPLANATION}>
-            We couldn’t load TV ad records right now
+            Couldn’t load TV ad records right now
           </Failure>
         ) : read.data?.agency_key && kind === 'name' ? (
           <a className="tv-block-link" href={tvHref('agency', read.data.agency_key)}>

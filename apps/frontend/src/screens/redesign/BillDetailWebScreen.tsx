@@ -232,7 +232,7 @@ export function BillDetailWebScreen() {
         <Text style={styles.stateText}>
           {billQuery.recordsRefreshing
             ? 'Updating this bill’s records'
-            : 'We couldn’t load this bill right now. Please try again in a moment.'}
+            : 'Couldn’t load bill right now. Please try again in a moment.'}
         </Text>
         <RetryRecords
           busy={billQuery.recordsRefreshing}
@@ -351,7 +351,7 @@ export function BillDetailWebScreen() {
           <Text style={styles.refreshText}>
             {billQuery.recordsRefreshing
               ? 'Updating this bill’s records'
-              : 'We couldn’t refresh this bill’s records. The last records loaded are still shown.'}
+              : 'Couldn’t refresh this bill’s records. The last records loaded are still shown.'}
           </Text>
           {billQuery.recordsRefreshError && (
             <RetryRecords

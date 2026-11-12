@@ -385,8 +385,9 @@ export interface Evidence {
   quote?: string;
   quoteLabel?: string;
   page?: string;
-  /** "Checked on {date}" or "Not checked": whether, never who. */
-  checked?: string;
+  /** "Checked on {date}" or "Not checked": whether, never who.
+   * null omits a decision status for a source-only attachment. */
+  checked?: string | null;
   sourceHref?: string;
   sourceLabel?: string;
 }
@@ -437,7 +438,7 @@ export function EvidencePanel({
   }, [open, onClose]);
 
   if (!evidence) return null;
-  const checked = evidence.checked ?? 'Not checked';
+  const checked = evidence.checked === undefined ? 'Not checked' : evidence.checked;
   const trap = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Tab' || !panel.current) return;
     const focusable = [
@@ -524,21 +525,23 @@ export function EvidencePanel({
             </figure>
           )}
           {children}
-          <div className="f-evidence-checked">
-            {checked !== 'Not checked' && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" stroke="#0E6A82" strokeWidth="2" />
-                <path
-                  d="M8 12.5 L10.8 15.2 L16 9.5"
-                  stroke="#0E6A82"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-            <span>{checked}</span>
-          </div>
+          {checked !== null && (
+            <div className="f-evidence-checked">
+              {checked !== 'Not checked' && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="#0E6A82" strokeWidth="2" />
+                  <path
+                    d="M8 12.5 L10.8 15.2 L16 9.5"
+                    stroke="#0E6A82"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+              <span>{checked}</span>
+            </div>
+          )}
           {evidence.sourceHref && (
             <a
               href={evidence.sourceHref}

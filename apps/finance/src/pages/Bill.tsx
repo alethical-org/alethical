@@ -152,7 +152,7 @@ export function Bill({ match }: { match: RouteMatch }) {
     return (
       <Frame back={back}>
         <Refused onRetry={record.retry} retrying={record.pending}>
-          We couldn’t load this bill
+          Couldn’t load bill
         </Refused>
       </Frame>
     );
@@ -381,7 +381,7 @@ export function Bill({ match }: { match: RouteMatch }) {
               {votes.loading && <LoadingRows />}
               {votes.failed && (
                 <Refused onRetry={votes.retry} retrying={votes.pending}>
-                  We couldn’t load this bill’s votes
+                  Couldn’t load bill’s votes
                 </Refused>
               )}
               {votes.data && voteList.length === 0 && (
@@ -722,7 +722,7 @@ function BillText({
   if (read.failed) {
     return (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load the full text
+        Couldn’t load the full text
       </Refused>
     );
   }
@@ -788,7 +788,7 @@ function AuthorsAccounts({
       {read.failed && (
         <div role="alert" className="bl-accounts-failed">
           <span>
-            We couldn’t load the authors’ campaign accounts. This is a problem on our side.
+            Couldn’t load the authors’ campaign accounts. This is a problem on our side.
           </span>
           <button
             type="button"

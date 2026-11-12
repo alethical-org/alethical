@@ -88,14 +88,19 @@ def source_download(
     snapshot_id: str = Query(pattern=HASH),
     db: Session = Depends(get_db),
 ):
-    body, _ = reads.source_body(
+    body, metadata = reads.source_body(
         db, election_key=election_key, snapshot_id=snapshot_id, source_hash=source_hash
     )
+    extension = {
+        "application/pdf": "pdf",
+        "text/html": "html",
+        "application/json": "json",
+    }.get(metadata.get("media_type"), "txt")
     return Response(
         body,
         media_type="application/octet-stream",
         headers={
-            "Content-Disposition": f'attachment; filename="election-source-{source_hash}.txt"',
+            "Content-Disposition": f'attachment; filename="election-source-{source_hash}.{extension}"',
             "X-Content-Type-Options": "nosniff",
         },
     )
@@ -122,4 +127,44 @@ def source_lines(
             start=start,
             limit=limit,
         )
+    )
+
+
+@router.get("/elections/{election_key}/races/{race_id}/export.csv")
+def race_csv(
+    election_key: str = Path(pattern=ELECTION),
+    race_id: str = Path(pattern=HASH),
+    snapshot_id: str = Query(pattern=HASH),
+    version: str | None = Query(None, pattern=r"^[a-f0-9]{16}$"),
+    outcome_version: str | None = Query(None, pattern=HASH),
+    report_key: list[str] = Query(default=[]),
+    q: str = Query("", max_length=200, pattern=TEXT),
+    county: str | None = Query(None, pattern=r"^\d{2}$"),
+    external_generation_id: str | None = Query(None, pattern=HASH),
+    external_version: list[str] = Query(default=[]),
+    db: Session = Depends(get_db),
+):
+    from alethical.api.services import election_comparison_export
+
+    body = election_comparison_export.export_csv(
+        db,
+        election_key=election_key,
+        race_id=race_id,
+        snapshot_id=snapshot_id,
+        version=version,
+        outcome_version=outcome_version,
+        report_keys=report_key,
+        q=q,
+        county=county,
+        external_generation_id=external_generation_id,
+        external_versions=external_version,
+    )
+    return Response(
+        body,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="race-{race_id}-comparison.csv"',
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )

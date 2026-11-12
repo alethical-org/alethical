@@ -148,10 +148,7 @@ def record_decision(
     race = db.get(m.ElectionComparisonRace, (snapshot_id, race_id))
     if snapshot is None or race is None:
         raise ComparisonImportError("Review needs a retained election and race")
-    if authority != "mn_cfb":
-        raise ComparisonImportError(
-            "This review adapter supports Minnesota Board accounts"
-        )
+    external = authority != "mn_cfb"
     compatible = sorted(set(compatible_decision_ids or []))
     if any(type(value) is not int or value < 1 for value in compatible):
         raise ComparisonImportError(
@@ -164,15 +161,16 @@ def record_decision(
         raise ComparisonImportError("A proposal is not a review decision")
     if (
         not registration_number
-        or len(registration_number) > 20
+        or len(registration_number) > (160 if external else 20)
         or registration_number.strip() != registration_number
     ):
         raise ComparisonImportError("An exact source registration number is required")
     if not reason.strip() or not reviewed_by.strip():
         raise ComparisonImportError("Record the review reason and accountable reviewer")
-    if not period_start <= period_end or {period_start.year, period_end.year} != {
-        snapshot.election_date.year
-    }:
+    if not period_start <= period_end or (
+        not external
+        and {period_start.year, period_end.year} != {snapshot.election_date.year}
+    ):
         raise ComparisonImportError(
             "Attribution dates must describe the selected calendar year"
         )
@@ -188,7 +186,27 @@ def record_decision(
         raise ComparisonImportError(
             "Confirmation needs ballot, register and report-cover evidence"
         )
-    for item in evidence:
+    if external:
+        from alethical.pipeline.election_external_finance import (
+            review_generation_id,
+            validate_account_review,
+        )
+
+        review_generation_id(evidence)
+        validate_account_review(
+            db,
+            raw_file_store_from_env(),
+            snapshot=snapshot,
+            race=race,
+            candidate=candidate,
+            registration_number=registration_number,
+            authority=authority,
+            period_start=period_start,
+            period_end=period_end,
+            evidence=evidence,
+            decision=decision,
+        )
+    for item in [] if external else evidence:
         fingerprint = item.get("sha256")
         if item.get("kind") == "report_cover":
             document = db.get(m.CampaignFinanceReportDocument, fingerprint)
@@ -393,7 +411,16 @@ def applicable_accounts(
                     "state": "identity_changed",
                 }
             )
-        elif any(
+        elif authority != "mn_cfb" and not _external_available(
+            db, row, race, candidate
+        ):
+            gaps.append(
+                {
+                    "registration_number": row.registration_number,
+                    "state": "sources_unavailable",
+                }
+            )
+        elif authority == "mn_cfb" and any(
             db.get(
                 m.CampaignFinanceReportDocument
                 if item.get("kind") == "report_cover"
@@ -445,3 +472,9 @@ def applicable_accounts(
         "accounts": accounts,
         "gaps": gaps,
     }
+
+
+def _external_available(db, row, race, candidate):
+    from alethical.pipeline.election_external_finance import account_review_available
+
+    return account_review_available(db, row, race, candidate)

@@ -66,7 +66,7 @@ describe('the five frames are chosen by what we actually know', () => {
   it('renders FAILED as its own terminal state, not as a pending that never ends', () => {
     const watch = sessionWatch([], { state: 'not-checked' }, NOW, '', true);
     expect(watch.state).toBe('failed');
-    expect(watch.heroLine).toBe('We couldn’t check your tracked bills just now');
+    expect(watch.heroLine).toBe('Couldn’t check your tracked bills just now');
     expect(watch.rows).toHaveLength(0);
     expect(watch.movedCount).toBe(0);
   });

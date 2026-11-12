@@ -32,6 +32,33 @@ owner and deployed migration, and retain receipts in private task storage.
 
 ## Prepare and stage results
 
+### Collect local and federal discovery sources
+
+`scripts/collect_election_sources.py` captures an explicit private JSON manifest
+of source requests. Each entry has a unique `id`, exact `url` and operator-checked
+`allowed_hosts`. Begin with links published by the actual authority or an official
+directory. A directory link is a discovery lead, not proof of the correct filing
+recipient or a candidate relationship. Cross-host redirects remain failed attempts
+until the destination is checked and explicitly included in the manifest.
+
+```sh
+uv run python scripts/collect_election_sources.py \
+  --manifest "$source_requests" --directory "$new_private_capture_folder"
+```
+
+The collector uses at most four downloads and one request per host, including
+redirect destinations. It retains exact content-addressed bodies and an append-only
+attempt ledger. Restarting with the same folder verifies and reuses successful
+bodies and retries failures. Use a new folder for a fresh dated observation; a
+resumed old capture is not a freshness check. HTML links are retained as leads;
+they are never followed automatically. The command does not parse money, confirm
+identity, stage data, or publish it. A 404, access error, changed redirect, incomplete
+page or collection limit is a failed route, not evidence that no filing exists.
+
+Reconcile all expected candidacies and authorities with the discovery manifest,
+then collect and validate each available filing and relevant canvass. Successful
+page counts do not establish report or outcome completeness.
+
 `scripts/election_comparison.py prepare` reads an already retained source folder
 and hash manifest. It downloads nothing and writes a new receipt. The receipt path
 must not exist. Use `--include-local` for the full Minnesota main-and-local corpus;
@@ -126,6 +153,46 @@ For a first publication, there is no prior result to restore; prepare a scoped
 pointer-removal transaction and its saved read-back before release if withdrawal
 is needed. Removing a current pointer does not erase the first-publication marker
 or previously published source access.
+
+## Federal and local finance generations
+
+`scripts/review_external_election_finance.py` keeps preparation, account review
+and publication separate. `stage` accepts `--input`, `--original-manifest` and
+`--source-directory`; each manifest entry names a single retained file and its
+SHA-256 hash. `review` accepts one exact account decision through `--input`.
+`publish` accepts `--generation` and either `--expected-current` or
+`--expect-empty`; `--restore` names an already retained prior generation. Every
+operation defaults to a shape check only. `--target production --execute` takes
+the production writer lease and performs the appropriate retained-source checks
+before committing. A shape-check receipt is never evidence acceptance.
+
+Staging checks the complete generation and original source bindings, then seals
+the stored children against mutation. Publication and restoration recheck the
+complete generation and actual original bytes. Candidate relationships retain
+the exact authority, source candidate/account identifiers, ballot and issued
+designation, plus their reviewed interval. Names alone do not join records.
+An optional dated federal designation can narrow that interval: the checked
+Form 2 signature and principal-account name, or the checked Form 1 identity dates,
+set an earliest source assertion date. That date does not establish legal
+inception or continuous effect. Each attributed cumulative figure must fit wholly
+within the reviewed interval; source periods outside it remain unassigned.
+
+Source-native amounts, paid/unpaid/in-kind categories, currency, memo detail and
+amendments stay separate. Preserve native report totals when detail cannot be
+reconciled; do not silently manufacture itemized totals or allocate a shared
+account between candidates. Filed addresses support address-location comparisons,
+not claims about where services were delivered or who ultimately benefited.
+
+## Outcome decisions
+
+`scripts/review_election_outcome.py --request PATH` checks request shape by default.
+Adding `--target production --execute` validates retained bytes and quotations and
+records an append-only decision for the exact snapshot and race. The receipt names
+the decision and its predecessor; a replay does not reactivate a superseded one.
+Source capture uses the separate `--capture-url`, `--publisher-url`,
+`--publisher-host` and `--authority` path. Capturing a canvass or publisher page
+does not approve its interpretation. Do not convert a leading vote count or an
+expected canvass date into a declared or certified outcome.
 
 ## Acceptance before calling the comparison complete
 

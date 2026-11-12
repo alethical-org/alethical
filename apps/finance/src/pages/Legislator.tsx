@@ -253,7 +253,7 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
         {read.updating && <Updating />}
         {read.failed && !read.data && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load these bills. This is a problem on our side.
+            Couldn’t load bills. This is a problem on our side.
           </Refused>
         )}
         {read.data && !read.pending && !read.failed && rows.length === 0 && total === 0 && (
@@ -265,7 +265,7 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
           <>
             {read.failed && (
               <Refused onRetry={read.retry} retrying={read.pending}>
-                We couldn’t load these bills. This is a problem on our side.
+                Couldn’t load bills. This is a problem on our side.
               </Refused>
             )}
             <ul className="lg2-list">
@@ -440,7 +440,7 @@ export function LegislatorProfile({ match }: { match: RouteMatch }) {
         {read.loading && <LoadingLine>Loading…</LoadingLine>}
         {read.failed && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this record
+            Couldn’t load record
           </Refused>
         )}
         {read.notFound && <NotFound />}

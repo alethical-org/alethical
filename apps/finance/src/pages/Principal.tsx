@@ -33,7 +33,7 @@ import { MediaBuysCard } from './media/MediaBuysCard';
 import './lobbying.css';
 
 const FAILED =
-  'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.';
+  'Couldn’t load the Board’s lobbying record. This says nothing about what was reported.';
 const SPENDING_SCOPE = 'Each row is 1 calendar year of this principal’s reported lobbying spending';
 const CHART_TITLE = 'Total reported spending, by year';
 const GAP = 'No spending report held';
@@ -95,9 +95,9 @@ export function spendingBars(rows: readonly LobbyingSpendingRow[]): BarRow[] {
   return bars;
 }
 const SPENDING_FAILED =
-  'We couldn’t load this principal’s spending rows. This says nothing about what was reported.';
+  'Couldn’t load this principal’s spending rows. This says nothing about what was reported.';
 const LOBBYISTS_FAILED =
-  'We couldn’t load the Board’s lobbyist list. This does not mean nobody was listed for this principal.';
+  'Couldn’t load the Board’s lobbyist list. This does not mean nobody was listed for this principal.';
 const NOT_REPORTED = 'Not reported';
 
 /** The 6 figures of a spending row, in the drawing's column order. */

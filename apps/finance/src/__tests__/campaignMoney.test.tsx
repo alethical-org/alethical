@@ -858,7 +858,7 @@ describe('Campaign money directory', () => {
     let fail = true;
     await render('/money', () => (fail ? new Response('', { status: 500 }) : json(register())));
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load these results. This is a problem on our side and says nothing about who is registered.',
+      'Couldn’t load results. This is a problem on our side and says nothing about who is registered.',
     );
     fail = false;
     const retry = [...container.querySelectorAll('button')].find(
@@ -930,7 +930,7 @@ describe('Campaign money directory', () => {
     await act(async () => release(new Response('', { status: 503 })));
     await settle();
     expect(container.textContent).toContain(
-      'We couldn’t update these results. Previous results are shown.',
+      'Couldn’t update results. Previous results are shown.',
     );
     expect(container.textContent).toContain('Hortman (Melissa) Campaign Committee');
   });

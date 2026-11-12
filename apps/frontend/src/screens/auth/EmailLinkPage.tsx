@@ -526,7 +526,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       <SignInContainer
         focusKey={screen}
         variant="page"
-        title="We couldn’t check that link"
+        title="Couldn’t check that link"
         description={
           <ContactMailText
             text="Try once more. If it keeps failing, contact us at ask@alethical.com and we’ll help."
@@ -718,7 +718,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       <SignInContainer
         focusKey={screen}
         variant="page"
-        title="We couldn’t confirm the password was saved"
+        title="Couldn’t confirm the password was saved"
         description={`For ${verifiedEmail}`}
       >
         <View style={styles.stack}>

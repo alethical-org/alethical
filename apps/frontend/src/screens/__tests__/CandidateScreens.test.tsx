@@ -97,8 +97,8 @@ it('opens a direct public profile with the record’s own election and source da
   ).toBe('/candidates');
   await flush();
   expect(host.textContent).toContain('Public Candidate');
-  expect(host.textContent).toContain('November 3, 2026');
-  expect(host.textContent).toContain('Checked September 30, 2026');
+  expect(host.textContent).toContain('Nov 3, 2026');
+  expect(host.textContent).toContain('Checked Sep 30, 2026');
   expect(host.textContent).toContain('May be out of date');
   expect(
     host.querySelector('a[aria-label="Back to Find my candidates"]')?.getAttribute('href'),

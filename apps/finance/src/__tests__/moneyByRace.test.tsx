@@ -492,7 +492,7 @@ describe('Money by race page', () => {
 
   it('fails the outside section on its own, with Try again', async () => {
     await render('/money/races/house-1a', answers({ '19469': 'fail' }));
-    expect(container.textContent).toContain('We couldn’t load spending by outside groups.');
+    expect(container.textContent).toContain('Couldn’t load spending by outside groups.');
     expect(container.querySelector('[aria-label="Candidate committees"]')).not.toBeNull();
   });
 
@@ -500,7 +500,7 @@ describe('Money by race page', () => {
     await render('/money/races/house-1a', () => new Response('down', { status: 500 }));
     const text = container.textContent ?? '';
     expect(text).toContain(
-      'We couldn’t load this race. This is a problem on our side and says nothing about what was filed.',
+      'Couldn’t load race. This is a problem on our side and says nothing about what was filed.',
     );
     expect(text).toContain('Try again');
     expect(text).not.toContain('No registered candidate committee');
@@ -511,7 +511,7 @@ describe('Money by race page', () => {
       '/money/races/house-1a',
       answers({}, races({ state: 'unavailable', contests: [] })),
     );
-    expect(container.textContent).toContain('We couldn’t load this race.');
+    expect(container.textContent).toContain('Couldn’t load race.');
   });
 
   it('says no committee is held for a contest the register does not list', async () => {
@@ -668,11 +668,11 @@ describe('Money by race page', () => {
     });
     await chooseYear('2024');
     const alert = container.querySelector('.mr-status [role="alert"]');
-    expect(alert?.textContent).toContain('We couldn’t update these results');
+    expect(alert?.textContent).toContain('Couldn’t update results');
     expect(container.textContent).toContain('$10,700');
     expect(container.querySelector('.mr-contest-title')?.textContent).toContain('2026');
     expect(container.querySelector('.mr-results')?.hasAttribute('data-stale')).toBe(false);
-    expect(container.textContent).not.toContain('We couldn’t load this race.');
+    expect(container.textContent).not.toContain('Couldn’t load race.');
     fail = false;
     await act(async () => alert!.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
@@ -690,7 +690,7 @@ describe('Money by race page', () => {
     );
     await chooseYear('2024');
     expect(container.querySelector('.mr-status [role="alert"]')?.textContent).toContain(
-      'We couldn’t update these results',
+      'Couldn’t update results',
     );
     expect(container.textContent).toContain('$10,700');
   });
@@ -786,7 +786,7 @@ describe('Money by race page, Media buys card', () => {
       '/money/races/house-1a?year=2026',
       withConnections(() => new Response('down', { status: 500 })),
     );
-    expect(text()).toContain('We couldn’t load these TV station files');
+    expect(text()).toContain('Couldn’t load TV station files');
     expect(text()).toContain('Try again');
     expect(text()).not.toContain('problem on our side');
   });

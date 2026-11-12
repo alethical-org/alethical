@@ -110,7 +110,7 @@ export function useMailUpload() {
     if (statusRef.current !== 'editing' || photoRef.current[side].busy || !session.current) return;
     if (!file.size || file.size > MAX_MAIL_IMAGE_BYTES) {
       updatePhoto(side, {
-        error: !file.size ? 'We couldn’t open this photo' : 'Choose a photo smaller than 15 MB',
+        error: !file.size ? 'Couldn’t open this photo' : 'Choose a photo smaller than 15 MB',
         file: undefined,
       });
       return;
@@ -143,7 +143,7 @@ export function useMailUpload() {
         error: rejectedPhoto
           ? error.status === 413
             ? 'Choose a photo smaller than 15 MB'
-            : 'We couldn’t open this photo'
+            : 'Couldn’t open this photo'
           : 'Upload failed',
       });
     }
@@ -203,7 +203,7 @@ export function useMailUpload() {
         /* Keep the same payload and UUID for a safe retry. */
       }
       if (!active()) return;
-      setFailure('We couldn’t confirm your upload');
+      setFailure('Couldn’t confirm your upload');
       updateStatus('retry');
     }
   };

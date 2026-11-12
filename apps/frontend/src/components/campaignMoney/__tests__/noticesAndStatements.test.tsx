@@ -275,7 +275,7 @@ describe('the large-contribution notices card', () => {
     await draw(<CommitteeNoticesCard registrationNumber="41412" year={2026} today="2026-09-23" />);
     const alert = host.querySelector('[role="alert"]');
     expect(alert?.textContent).toContain(
-      'We couldn’t load these notices. This is a problem on our side and says nothing about the committee.',
+      'Couldn’t load these notices. This is a problem on our side and says nothing about the committee.',
     );
     expect(alert?.textContent).toContain('Try again');
     expect(host.textContent).not.toContain('Before the primary');
@@ -420,7 +420,7 @@ describe('disclosure statements inside their payments', () => {
     const alerts = [...host.querySelectorAll('[role="alert"]')];
     expect(alerts).toHaveLength(1);
     expect(alerts[0].textContent).toContain(
-      'We couldn’t load this statement’s details. You can still open its PDF.',
+      'Couldn’t load this statement’s details. You can still open its PDF.',
     );
     expect(alerts[0].textContent).toContain('Try again');
     expect(alerts[0].querySelector('a')?.getAttribute('href')).toBe(STATEMENT_PDF(4));
@@ -530,9 +530,7 @@ describe('statements not linked to a payment', () => {
     reads.unlinked.mockRejectedValueOnce(new Error('offline'));
     await draw(<UnlinkedStatementsCard registrationNumber="41412" year={2025} />);
     const alert = host.querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain(
-      'We couldn’t load these statements. This is a problem on our side',
-    );
+    expect(alert?.textContent).toContain('Couldn’t load statements. This is a problem on our side');
     reads.unlinked.mockResolvedValueOnce(unlinkedAnswer(2025));
     reads.statement.mockResolvedValue(northMetroDetail());
     const retry = [...host.querySelectorAll('[role="button"]')].find(
@@ -554,7 +552,7 @@ describe('statements not linked to a payment', () => {
     await settle();
     const panel = host.querySelector('[aria-label="Disclosure statement"]')!;
     expect(panel.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t refresh this statement’s details. The details below were loaded earlier.',
+      'Couldn’t refresh this statement’s details. The details below were loaded earlier.',
     );
     expect(panel.textContent).toContain(
       'The donor reports using only business revenue for this contribution',

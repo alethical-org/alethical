@@ -343,7 +343,7 @@ describe('Donors by employer', () => {
       );
       await settle();
       expect(container.querySelectorAll('.de-donor')).toHaveLength(0);
-      expect(container.textContent).toContain('We couldn’t load these donors');
+      expect(container.textContent).toContain('Couldn’t load donors');
       expect(recheckAccess).toHaveBeenCalledOnce();
     },
   );
@@ -403,7 +403,7 @@ describe('Donors by employer', () => {
 
   it('offers retry for unavailable related profiles without an identity claim', async () => {
     await render(PATH, answer({ identity: json(null, 422) }));
-    expect(container.textContent).toContain('We couldn’t load related profiles');
+    expect(container.textContent).toContain('Couldn’t load related profiles');
     expect(container.textContent).not.toContain('confirms this spelling');
   });
 
@@ -446,7 +446,7 @@ describe('Donors by employer', () => {
       return calls === 1 ? json(null, 500) : json(donors(GROUPS));
     });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load these donors. This is a problem on our side and says nothing about what was filed under this employer.',
+      'Couldn’t load donors. This is a problem on our side and says nothing about what was filed under this employer.',
     );
     await act(async () =>
       container.querySelector<HTMLButtonElement>('[role="alert"] button')!.click(),
@@ -519,7 +519,7 @@ describe('Donors by employer', () => {
     await act(async () => show.click());
     await settle();
     const alert = container.querySelector('.de-results > .pn-more [role="alert"]')!;
-    expect(alert.textContent).toContain('We couldn’t load more donors');
+    expect(alert.textContent).toContain('Couldn’t load more donors');
     expect(alert.textContent).not.toContain('problem on our side');
     await act(async () => alert.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
@@ -564,7 +564,7 @@ describe('Donors by employer', () => {
     await act(async () => show.click());
     await settle();
     const alert = container.querySelector('.de-list-more [role="alert"]')!;
-    expect(alert.textContent).toContain('We couldn’t load more employer spellings');
+    expect(alert.textContent).toContain('Couldn’t load more employer spellings');
     expect(alert.querySelector('button')?.textContent).toBe('Try again');
   });
 
@@ -614,7 +614,7 @@ describe('Donors by employer', () => {
     )!;
     await act(async () => alert.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
-    expect(container.textContent).not.toContain('We couldn’t load related profiles');
+    expect(container.textContent).not.toContain('Couldn’t load related profiles');
     expect(container.querySelector('.de-confirm')).toBeNull();
   });
 

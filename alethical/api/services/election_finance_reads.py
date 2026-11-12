@@ -12,7 +12,7 @@ from urllib.parse import quote, urlencode
 
 from fastapi import HTTPException
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, literal_column
 from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
@@ -21,6 +21,7 @@ from alethical.api.services import election_outside_spending as outside
 from alethical.api.services import finance_versions
 from alethical.db import models as m
 from alethical.pipeline.election_account_reviews import applicable_accounts
+from alethical.pipeline.election_outcomes import applicable_outcomes
 from alethical.pipeline.election_comparison import read_source
 from alethical.pipeline.campaign_finance_report_document_store import read_document
 from alethical.pipeline.raw_file_store import raw_file_store_from_env
@@ -138,6 +139,116 @@ def _held_reports(db, collection):
     return reports
 
 
+def expense_report_index(db, collection):
+    """Sealed compact index; genuine unsealed legacy generations validate fully."""
+    from types import SimpleNamespace
+
+    if collection.sealed_at is None:
+        return expense_report_rows(db, collection)
+    index = collection.report_index
+    if (
+        not isinstance(index, dict)
+        or index.get("version") != 1
+        or not isinstance(index.get("reports"), list)
+        or len(index["reports"]) != collection.coverage.get("reports")
+    ):
+        _unavailable()
+    entries = index["reports"]
+    if len({(r["registration_number"], r["report_key"]) for r in entries}) != len(
+        entries
+    ):
+        _unavailable()
+    return [
+        SimpleNamespace(
+            registration_number=r["registration_number"],
+            report_key=r["report_key"],
+            document_hash=r["document_hash"],
+            payload={
+                "filing": r["filing"],
+                "period_start": r["period_start"],
+                "period_end": r["period_end"],
+                "period_basis": r["period_basis"],
+                "figure_status": r["figure_status"],
+                "figures": True if r["figure_status"] == "source_verified" else None,
+            },
+        )
+        for r in entries
+    ]
+
+
+def expense_report_rows(db, collection, *, report_keys=None):
+    """Only a DB-sealed generation may use scoped payload reads.
+
+    Sealing binds the index to validated content under a parent lock. Database
+    triggers block header/child changes and late INSERT. Unsealed legacy content
+    always takes the full old digest path, regardless of optional-field presence.
+    """
+    from alethical.pipeline.election_finance_collection import collection_digest
+
+    if collection.sealed_at is not None:
+        expense_report_index(db, collection)
+        expected = {
+            row["report_key"]: row for row in collection.report_index["reports"]
+        }
+        keys = set(expected) if report_keys is None else set(report_keys)
+        if not keys <= expected.keys():
+            _unavailable()
+        if not keys:
+            return []
+        fingerprint = literal_column(
+            "encode(sha256(convert_to(payload::text, 'UTF8')), 'hex')"
+        ).label("payload_fingerprint")
+        rows = list(
+            db.execute(
+                select(m.ElectionFinanceReport, fingerprint)
+                .where(
+                    m.ElectionFinanceReport.collection_id == collection.id,
+                    m.ElectionFinanceReport.report_key.in_(keys),
+                )
+                .execution_options(populate_existing=True)
+            )
+        )
+        if len(rows) != len(keys) or any(
+            item.payload_fingerprint
+            != expected[item.ElectionFinanceReport.report_key]["payload_hash"]
+            for item in rows
+        ):
+            _unavailable()
+        return [item.ElectionFinanceReport for item in rows]
+    reports = list(
+        db.scalars(
+            select(m.ElectionFinanceReport)
+            .where(m.ElectionFinanceReport.collection_id == collection.id)
+            .execution_options(populate_existing=True)
+        )
+    )
+    if len(reports) != collection.coverage.get("reports"):
+        _unavailable()
+    restored = {
+        "format": 1,
+        "election_key": collection.election_key,
+        "copied_at": collection.copied_at.isoformat(),
+        "sources": collection.sources,
+        "coverage": collection.coverage,
+        "reports": [
+            {
+                "registration_number": row.registration_number,
+                "report_key": row.report_key,
+                "document_hash": row.document_hash,
+                "payload": row.payload,
+            }
+            for row in reports
+        ],
+    }
+    if collection_digest(restored) != collection.id:
+        _unavailable()
+    return (
+        reports
+        if report_keys is None
+        else [r for r in reports if r.report_key in report_keys]
+    )
+
+
 def _review_ids(db, election_key, race_id):
     # Sequence allocation is not commit order. A lower ID can become visible
     # after a higher ID belonging to another independently locked account.
@@ -155,11 +266,23 @@ def _review_ids(db, election_key, race_id):
 
 
 def _version_token(
-    snapshot_id, collection_id, review_ids, payments, account_state=None
+    snapshot_id,
+    collection_id,
+    review_ids,
+    payments,
+    account_state=None,
+    outcome_version=None,
 ):
     return hashlib.sha256(
         json.dumps(
-            [snapshot_id, collection_id, review_ids, payments, account_state]
+            [
+                snapshot_id,
+                collection_id,
+                review_ids,
+                payments,
+                account_state,
+                outcome_version,
+            ]
         ).encode()
     ).hexdigest()[:16]
 
@@ -244,12 +367,16 @@ def _context(db, election_key, race_id, snapshot_id, version):
         _components(db, election_key, election.id)
     )
     review_ids = _review_ids(db, election_key, race_id)
+    outcome = applicable_outcomes(db, snapshot_id=election.id, race_ids=[race.id])[
+        race.id
+    ]
     token = _version_token(
         election.id,
         stamps[0],
         review_ids,
         stamps[1],
         _account_evidence_state(db, election_key, race),
+        outcome["outcome_review"]["version"],
     )
     if version is not None and token != version:
         _changed()
@@ -259,6 +386,8 @@ def _context(db, election_key, race_id, snapshot_id, version):
         "snapshot_id": election.id,
         "collection_id": collection.id if collection else None,
         "version": token,
+        "result_status": outcome["result_status"],
+        "outcome_review": outcome["outcome_review"],
         "review_decision_id": review_ids[-1] if review_ids else None,
         "report_availability": report_state,
         "outside_spending_availability": payment_state,
@@ -279,7 +408,7 @@ def _context(db, election_key, race_id, snapshot_id, version):
         if collection
         else None,
     }
-    return context, election, race, collection, reports, release
+    return context, election, race, collection, reports, release, outcome
 
 
 def _check_end_version(db, context):
@@ -290,12 +419,16 @@ def _check_end_version(db, context):
     )
     if race is None:
         _changed()
+    outcome = applicable_outcomes(
+        db, snapshot_id=context["snapshot_id"], race_ids=[race.id]
+    )[race.id]
     token = _version_token(
         context["snapshot_id"],
         stamps[0],
         review_ids,
         stamps[1],
         _account_evidence_state(db, context["election_key"], race),
+        outcome["outcome_review"]["version"],
     )
     if token != context["version"]:
         _changed()
@@ -392,6 +525,8 @@ def _report(db, election_key, race, candidate, account, report):
             "campaign_expenditures": original["campaign_expenditures"],
             "all_disbursements": original["total_expenditures"],
         }
+        if "public_subsidy_payments" in original:
+            figures["public_subsidy_payments"] = original["public_subsidy_payments"]
     return {
         "report_key": report.report_key,
         "registration_number": report.registration_number,
@@ -407,6 +542,12 @@ def _report(db, election_key, race, candidate, account, report):
         "attribution": attribution,
         "figure_status": "source_verified" if figures else "unavailable",
         "source_figure_status": payload.get("figure_status"),
+        "public_subsidy_gap": payload.get("public_subsidy_gap")
+        or (
+            None
+            if figures and "public_subsidy_payments" in figures
+            else "Public subsidy figure not held for this report"
+        ),
         "figures": figures,
         "unavailable_reason": None
         if figures
@@ -611,7 +752,7 @@ def _candidate_coverage(collection, race, candidate):
 
 
 def comparison(db: Session, *, election_key, race_id, snapshot_id=None, version=None):
-    context, election, race, collection, reports, release = _context(
+    context, election, race, collection, reports, release, outcome = _context(
         db, election_key, race_id, snapshot_id, version
     )
     candidates = []
@@ -670,6 +811,7 @@ def comparison(db: Session, *, election_key, race_id, snapshot_id=None, version=
         candidates.append(
             {
                 **candidate,
+                **outcome["candidates"][candidate["candidate_id"]],
                 "account_state": links["state"],
                 "account_gaps": links["gaps"],
                 "accounts": accounts,
@@ -688,7 +830,6 @@ def comparison(db: Session, *, election_key, race_id, snapshot_id=None, version=
         **context,
         "race_id": race.id,
         "race_label": race.label,
-        "result_status": race.result_status,
         "candidates": candidates,
         "measure_note": "Each report keeps its own dates and totals; overlapping reports and accounts are not added together",
     }
@@ -708,7 +849,7 @@ def outside_records(
     direction=None,
     scope="attributed",
 ):
-    context, election, race, _, _, release = _context(
+    context, election, race, _, _, release, _ = _context(
         db, election_key, race_id, snapshot_id, version
     )
     candidate = next(

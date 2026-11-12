@@ -441,7 +441,7 @@ function CandidateSearchSession({
             aria-hidden={retryBusy || undefined}
             style={[candidateText.strong, retryBusy && { opacity: 0 }]}
           >
-            {displayed ? 'We couldn’t update the results' : 'Candidate results are unavailable'}
+            {displayed ? 'Couldn’t update the results' : 'Candidate results are unavailable'}
           </Text>
           {retryBusy && !addressRetry ? (
             <Text
@@ -567,7 +567,7 @@ function CandidateSearchSession({
                         ? 'This search covers Minnesota addresses'
                         : state.outcome.kind === 'rate-limited'
                           ? 'Too many searches: try again shortly'
-                          : 'We couldn’t match that address to election records'}
+                          : 'Couldn’t match that address to election records'}
                 </Text>
                 <Text style={[candidateText.body, isDesktop && styles.spokenCaption]}>
                   Showing results for {candidateElectionLabel(displayed.election)} ·{' '}

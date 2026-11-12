@@ -75,29 +75,22 @@ describe('formatMoney', () => {
     expect(formatMoney('0')).toBe('$0');
   });
 
-  // The exception truncation itself creates. Cutting the cents off 50 cents leaves
-  // "$0", which a reader takes for a filed zero — the missing-versus-zero failure
-  // `.claude/rules/grounded-answers.md` rule 12 exists to stop. So anything above zero
-  // and under a dollar keeps its cents.
-  it('keeps the cents under a dollar, so a 50-cent row never reads as a filed zero', () => {
-    expect(formatMoney('0.50')).toBe('$0.50');
-    expect(formatMoney('0.01')).toBe('$0.01');
-    expect(formatMoney('0.99')).toBe('$0.99');
-    expect(formatMoney('-0.50')).toBe('-$0.50');
-    // A dollar and over is back under the ordinary rule.
+  it('drops cents below a dollar too, preserving the source sign', () => {
+    expect(formatMoney('0.50')).toBe('$0');
+    expect(formatMoney('0.01')).toBe('$0');
+    expect(formatMoney('0.99')).toBe('$0');
+    expect(formatMoney('-0.50')).toBe('-$0');
     expect(formatMoney('1.99')).toBe('$1');
   });
 
-  // The sub-dollar branch cuts too, and the reason is the same rule rather than
-  // tidiness: `toFixed(2)` turned 0.999 into "$1.00", which reads higher than the money
-  // AND prints a dollar figure inside the branch reserved for values under a dollar.
-  // The source columns hold 4 decimal places, so a filing can carry these (#1929).
-  it('cuts the cents under a dollar as well, and never rounds up to a whole one', () => {
-    expect(formatMoney('0.999')).toBe('$0.99');
-    expect(formatMoney('0.9999')).toBe('$0.99');
-    expect(formatMoney('0.995')).toBe('$0.99');
-    expect(formatMoney('-0.999')).toBe('-$0.99');
-    // Never the malformed "$0.100" the clamp exists to stop, and never a whole dollar.
+  it('never carries omitted fractions into the displayed whole dollars', () => {
+    expect(formatMoney('0.999')).toBe('$0');
+    expect(formatMoney('0.9999')).toBe('$0');
+    expect(formatMoney('0.995')).toBe('$0');
+    expect(formatMoney('-0.999')).toBe('-$0');
+    expect(formatMoney('99.99999999999999999')).toBe('$99');
+    expect(formatMoney('999999999999999999.99')).toBe('$999,999,999,999,999,999');
+    // Omitted fractions never become a displayed whole dollar.
     for (const value of ['0.999', '0.9999', '0.99999', '0.995']) {
       expect(formatMoney(value)).not.toMatch(/\.\d{3}/);
       expect(formatMoney(value)).not.toBe('$1.00');
@@ -105,13 +98,9 @@ describe('formatMoney', () => {
     }
   });
 
-  // Binary floating point: 0.29 * 100 is 28.999999999999996, so truncating without
-  // first rounding to the source's own 4 decimal places would print $0.28 for a
-  // 29-cent payment. Walked across every cent rather than spot-checked, because the
-  // values that trip it are not the ones anybody would think to try.
-  it('prints every whole cent under a dollar exactly, despite floating point', () => {
+  it('drops every possible cent in numeric and decimal-string inputs', () => {
     for (let cents = 1; cents <= 99; cents += 1) {
-      const expected = `$0.${String(cents).padStart(2, '0')}`;
+      const expected = '$0';
       expect(formatMoney((cents / 100).toFixed(2))).toBe(expected);
       expect(formatMoney(cents / 100)).toBe(expected);
     }

@@ -21,16 +21,19 @@ export const CANDIDATE_PROFILE_COPY = {
 };
 
 export const sampleBallotUrl = 'https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/';
-export function candidateDate(value: string) {
+function formatCandidateDate(value: string, month: 'short' | 'long') {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : null;
   return date && !Number.isNaN(date.getTime())
     ? date.toLocaleDateString('en-US', {
-        month: 'long',
+        month,
         day: 'numeric',
         year: 'numeric',
         timeZone: 'UTC',
       })
     : value;
+}
+export function candidateDate(value: string) {
+  return formatCandidateDate(value, 'short');
 }
 export function safeCandidateUrl(url: string) {
   try {
@@ -41,8 +44,10 @@ export function safeCandidateUrl(url: string) {
   }
 }
 export function candidateElectionLabel(election: CandidateElection) {
-  const prefix = `${candidateDate(election.date)} `;
-  if (!election.label.startsWith(prefix)) return election.label;
+  const prefix = ['long', 'short']
+    .map((month) => `${formatCandidateDate(election.date, month as 'long' | 'short')} `)
+    .find((value) => election.label.startsWith(value));
+  if (!prefix) return election.label;
   const label = election.label.slice(prefix.length);
   if (!new RegExp(`^(?:state )?${election.type}(?: election)?$`, 'i').test(label))
     return election.label;

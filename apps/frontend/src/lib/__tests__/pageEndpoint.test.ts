@@ -274,8 +274,8 @@ it('uses the public candidate record for profile metadata without address reques
   expect(snapshot).toContain('Official candidate record');
   expect(snapshot).toContain('State Representative');
   expect(snapshot).toContain('House District 1A');
-  expect(snapshot).toContain('November 3, 2026');
-  expect(snapshot).toContain('Checked September 30, 2026');
+  expect(snapshot).toContain('Nov 3, 2026');
+  expect(snapshot).toContain('Checked Sep 30, 2026');
   expect(snapshot).toContain('href="https://myballotmn.sos.mn.gov/"');
   expect(snapshot).toContain('Candidate records from Minnesota Secretary of State');
   expect(body).not.toContain('private-home');
@@ -343,9 +343,9 @@ it('serves only source-backed candidate facts, dates and the confirmed legislato
       .split('<!--alethical:page-snapshot-->')[1]
       .split('<!--/alethical:page-snapshot-->')[0];
     expect(snapshot).toContain('Running for reelection');
-    expect(snapshot).toContain('General Election · November 3, 2026');
+    expect(snapshot).toContain('General Election · Nov 3, 2026');
     expect(snapshot).toContain('Nonpartisan');
-    expect(snapshot).toContain('Checked October 1, 2026');
+    expect(snapshot).toContain('Checked Oct 1, 2026');
     expect(snapshot).toContain('May be out of date');
     expect(snapshot).toContain('href="/legislators/public-candidate"');
     expect(snapshot).toContain('View legislator profile');
@@ -375,7 +375,7 @@ it('keeps a reviewed historical ballot distinct from stale live records', async 
   stubNetwork(() => ({ status: 200, payload: record }));
   const { body, status } = await serve({ path: `/candidates/${record.candidate.id}` });
   expect(status).toBe(200);
-  expect(body).toContain('Ballot record saved October 1, 2026');
+  expect(body).toContain('Ballot record saved Oct 1, 2026');
   expect(body).not.toContain('May be out of date');
 });
 
@@ -573,9 +573,9 @@ it('serves a public person record without leaking return queries or private clai
   expect(body).toContain(`href="https://www.alethical.com/people/${publicPersonId}"`);
   expect(body).toContain('Current service not confirmed');
   expect(body).toContain('Term starts 2025');
-  expect(body).not.toContain('January 1');
+  expect(body).not.toContain('Jan 1');
   expect(body).not.toContain('Public Person and Running Mate');
-  expect(body).not.toContain('Ballot record saved October 1, 2026');
+  expect(body).not.toContain('Ballot record saved Oct 1, 2026');
   expect(body).not.toContain('Candidate records from');
   expect(body).toContain(`href="/candidates/${'a'.repeat(64)}">View election record</a>`);
   expect(body).toContain('No research records added');
@@ -625,10 +625,10 @@ it('keeps year and month service dates precise and optional legacy source dates 
   const { body, status } = await serve({ path: `/people/${publicPersonId}` });
   expect(status).toBe(200);
   expect(body).toContain('Term 2025–2027');
-  expect(body).toContain('Expected start January 2025');
+  expect(body).toContain('Expected start Jan 2025');
   expect(body).toContain('Current service not confirmed');
-  expect(body).toContain('Certified November 12, 2024');
-  expect(body).not.toContain('January 1');
+  expect(body).toContain('Certified Nov 12, 2024');
+  expect(body).not.toContain('Jan 1');
   expect(body).not.toContain('Checked undefined');
   expect(body).not.toContain('Invalid Date');
   expect(body).not.toContain('Results from');
@@ -1746,7 +1746,7 @@ describe('first-response page tags', () => {
     expect(status).toBe(404);
     expect(headers.get('Location')).toBeUndefined();
     expect(body).toContain('<title>Page not found | Alethical</title>');
-    expect(body).toContain('<h1>We couldn’t find that page</h1>');
+    expect(body).toContain('<h1>Couldn’t find that page</h1>');
   });
 
   it('serves the same fixed Find My Legislator introduction before the app loads', async () => {
@@ -2181,7 +2181,7 @@ describe('addresses that are not real pages', () => {
     const { status, body, headers } = await serve({ path: '/not-a-page' });
 
     expect(status).toBe(404);
-    expect(body).toContain('<h1>We couldn’t find that page</h1>');
+    expect(body).toContain('<h1>Couldn’t find that page</h1>');
     expect(body).toContain('The address may be mistyped, or the page may have moved.');
     expect(body).toContain('<a href="/">Home</a>');
     expect(body).toContain('<a href="/bills">Browse bills</a>');
@@ -3213,7 +3213,7 @@ describe('the records a money page hands to the app', () => {
     expect(missing.status).toBe(404);
     const stale = await serve({ path: '/money/races', group: 'house-99z' });
     expect(stale.status).toBe(200);
-    expect(stale.body).toContain('We couldn’t find this office, district or court seat');
+    expect(stale.body).toContain('Couldn’t find this office, district or court seat');
   });
 
   it('hands /money its 3 reads, started together, with lobbying in its own source envelope', async () => {
@@ -3862,7 +3862,7 @@ describe('a committee address naming a year is answered in that year', () => {
     const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
 
     // Escaped, because the served HTML is what a reader is handed.
-    expect(body).toContain(escapeHtml("We couldn't load this"));
+    expect(body).toContain(escapeHtml("Couldn't load this"));
     expect(body).not.toContain('$0');
     expect(body).not.toContain('$360');
   });
@@ -4451,7 +4451,7 @@ describe('a committee page hands its records to the app', () => {
       ]);
       expect(status).toBe(200);
       expect(body).toContain('Jane Fonda Climate PAC');
-      expect(body).not.toContain('We couldn’t load these payments right now.');
+      expect(body).not.toContain('Couldn’t load payments right now.');
       expect(headers.get('Cache-Control')).toContain('s-maxage=300');
       expect(servedData(body).map((entry) => entry.key)).toEqual([
         ['committee-money', '41326', 2026],
@@ -4539,7 +4539,7 @@ describe('a committee page hands its records to the app', () => {
         tab,
       });
       expect(status).toBe(200);
-      expect(body).toContain('We couldn’t load these payments right now.');
+      expect(body).toContain('Couldn’t load payments right now.');
       expect(body).not.toContain('No donors named');
       expect(body).not.toContain('No payments named');
       expect(body).not.toContain('files we hold name none');
@@ -4577,7 +4577,7 @@ describe('a committee page hands its records to the app', () => {
       year: '2026',
     });
     expect(status).toBe(200);
-    expect(body).toContain('We couldn’t load the report information');
+    expect(body).toContain('Couldn’t load the report information');
     expect(body).not.toContain('Donors who gave $200');
     expect(body).toContain(
       `rel="canonical" href="https://www.alethical.com/money/committees/${SLUG}/payments"`,
@@ -4892,7 +4892,7 @@ describe('bill action and vote first responses', () => {
       const { body, headers } = await serve({ path: `/bills/${id}` });
       expect(headers.get('Cache-Control')).toBe('no-store');
       expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
-      expect(body).toContain('We couldn’t load this bill’s votes');
+      expect(body).toContain('Couldn’t load bill’s votes');
       expect(body).not.toContain('No recorded roll-call votes');
       expect(body).not.toContain('Final passage');
     },

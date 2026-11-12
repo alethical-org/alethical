@@ -239,7 +239,7 @@ export const GROUP_EMPTY = 'Nothing here carries that spelling';
  * way. No date: the served answer carries no checked-on stamp to print.
  */
 export const HELD_RESULTS_NOTE =
-  'We couldn’t refresh these results. The last results loaded for this name are still shown.';
+  'Couldn’t refresh results. The last results loaded for this name are still shown.';
 
 /**
  * Whether the whole answer has anything to show. Used to choose between the

@@ -368,7 +368,7 @@ describe('Candidate profile', () => {
           ? raw({ detail: 'No such candidacy is held' }, 404)
           : answering(UPCOMING, true)(url);
       });
-      expect(text()).toContain('We couldn’t load these accounts');
+      expect(text()).toContain('Couldn’t load accounts');
       expect(text()).toContain('Try again');
       expect(text()).not.toContain('No campaign committee is confirmed for this candidacy');
     },
@@ -395,7 +395,7 @@ describe('Candidate profile', () => {
 
   it('a failed read offers Try again', async () => {
     await render(`/candidates/${ID}`, () => raw({}, 503));
-    expect(text()).toContain('We couldn’t load this record');
+    expect(text()).toContain('Couldn’t load record');
     expect(text()).not.toContain('problem on our side');
     expect(
       [...container.querySelectorAll('button')].some((b) => b.textContent === 'Try again'),
@@ -491,7 +491,7 @@ describe('Candidate profile, Media buys card', () => {
       `/candidates/${ID}`,
       withConnections(() => raw({}, 500)),
     );
-    expect(card()?.textContent).toContain('We couldn’t load these TV station files');
+    expect(card()?.textContent).toContain('Couldn’t load TV station files');
     expect(card()?.textContent).toContain('Try again');
     expect(card()?.textContent).not.toContain('problem on our side');
   });

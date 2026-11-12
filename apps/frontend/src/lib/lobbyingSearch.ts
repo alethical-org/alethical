@@ -7,20 +7,20 @@ export const LOBBYING_SEARCH_COPY = {
   clear: 'Clear search',
   tooShort: 'Enter at least 3 characters',
   loading: 'Searching lobbying records',
-  unavailable: 'We couldn’t search lobbying records just now. Please try again.',
+  unavailable: 'Couldn’t search lobbying records just now. Please try again.',
   noMatchHint: 'Try a shorter part of the name',
   lobbyists: {
     title: 'Lobbyists',
     note: 'Registered lobbyists and the organisations they represent',
     empty: 'No lobbyists match this name',
-    unavailable: 'We couldn’t search lobbyist records just now. Please try again.',
+    unavailable: 'Couldn’t search lobbyist records just now. Please try again.',
     more: 'View all matching lobbyists',
   },
   principals: {
     title: 'Principals',
     note: 'Organisations named in the Board’s lobbying spending file or lobbyist list',
     empty: 'No principals match this name',
-    unavailable: 'We couldn’t search principal records just now. Please try again.',
+    unavailable: 'Couldn’t search principal records just now. Please try again.',
     more: 'View all matching principals',
   },
 };

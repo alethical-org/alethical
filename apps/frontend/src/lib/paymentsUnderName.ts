@@ -192,12 +192,12 @@ export const RECORDS_UNAVAILABLE_TITLE = 'We could not read this part of our rec
 export const RECORDS_UNAVAILABLE_WHY =
   'This is a problem with our copy of the records. It does not mean nothing was filed under this name.';
 
-export const LOAD_ERROR = 'We couldn’t load these payments just now';
+export const LOAD_ERROR = 'Couldn’t load payments just now';
 export const LOAD_ERROR_WHY = 'This is a problem on our side. Please try again.';
 export const LOAD_MORE_ERROR =
-  'We couldn’t load more payments. The payments already loaded are still shown.';
+  'Couldn’t load more payments. The payments already loaded are still shown.';
 export const REFRESH_ERROR =
-  'We couldn’t refresh these payments. The payments already loaded are still shown.';
+  'Couldn’t refresh payments. The payments already loaded are still shown.';
 
 export const BACK_TO_RESULTS = 'Back to money search';
 

@@ -5,6 +5,7 @@ import { Landing } from './landing/Landing';
 import './landing/fonts.css';
 import { AuthReturn } from './pages/AuthReturn';
 import { FinanceHome } from './pages/FinanceHome';
+import { ElectionSource } from './pages/elections/Source';
 import { PaymentsUnderName } from './pages/PaymentsUnderName';
 import { MoneyByRace } from './pages/MoneyByRace';
 import { Recipients } from './pages/Recipients';
@@ -40,6 +41,7 @@ import './ui/finance.css';
 /** Each built signed-in screen. A route missing here answers "not found". */
 const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   home: () => <FinanceHome />,
+  'election-source': (match) => <ElectionSource match={match} />,
   'media-buys': () => <MediaBuys />,
   'check-station-files': () => <CheckStationFiles />,
   'station-file': (match) => <StationFile match={match} />,

@@ -727,7 +727,7 @@ function RegisterGroup({
         {read.loading && <LoadingRows />}
         {freshFailure && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load these results. This is a problem on our side and says nothing about who
+            Couldn’t load results. This is a problem on our side and says nothing about who
             is registered.
           </Refused>
         )}
@@ -741,7 +741,7 @@ function RegisterGroup({
             {retainedFailure && (
               <div className="cm-notice">
                 <Refused onRetry={read.retry} retrying={read.pending}>
-                  We couldn’t update these results. Previous results are shown.
+                  Couldn’t update results. Previous results are shown.
                 </Refused>
               </div>
             )}

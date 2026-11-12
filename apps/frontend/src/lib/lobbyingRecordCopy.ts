@@ -52,15 +52,15 @@ export const LOBBYING_RECORD_REVEAL_STEP = 5;
 export const LOBBYING_NO_SPENDING_PAGE = 'No spending page available';
 export const LOBBYING_RECORD_LOADING = 'Loading lobbying record';
 export const LOBBYING_RECORD_UNAVAILABLE =
-  "We couldn't load the Board's lobbying record just now. This says nothing about what was reported.";
+  "Couldn't load the Board's lobbying record just now. This says nothing about what was reported.";
 export const PRINCIPAL_LOBBYISTS_UNAVAILABLE =
-  "We couldn't load the Board's lobbyist list. This does not mean nobody was listed for this principal.";
+  "Couldn't load the Board's lobbyist list. This does not mean nobody was listed for this principal.";
 export const LOBBYIST_PRINCIPALS_UNAVAILABLE =
-  "We couldn't load the Board's lobbyist list. This does not mean no organisation was listed for this lobbyist.";
+  "Couldn't load the Board's lobbyist list. This does not mean no organisation was listed for this lobbyist.";
 export const LOBBYIST_DONATIONS_UNAVAILABLE =
-  "We couldn't load the state's campaign contribution file. This does not mean no donation was filed under this registration number.";
+  "Couldn't load the state's campaign contribution file. This does not mean no donation was filed under this registration number.";
 export const PRINCIPAL_SPENDING_UNAVAILABLE =
-  "We couldn't load this principal's spending rows. This says nothing about what was reported.";
+  "Couldn't load this principal's spending rows. This says nothing about what was reported.";
 export const CAMPAIGN_CONTRIBUTION_COPY_LABEL = 'Campaign contribution file copied';
 export const CAMPAIGN_CONTRIBUTION_SOURCE_LABEL = "View the Board's campaign contribution file";
 

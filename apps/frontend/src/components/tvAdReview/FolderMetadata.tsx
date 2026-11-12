@@ -60,7 +60,7 @@ export function FolderMetadata({ token, onDenied }: { token: string; onDenied():
           if (denied(error)) onDenied();
           else {
             setLoading(false);
-            setMessage('We couldn’t load folders. Search again to retry.');
+            setMessage('Couldn’t load folders. Search again to retry.');
           }
         }
       },

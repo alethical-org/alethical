@@ -154,9 +154,9 @@ function isPrincipals(page: Page | null): page is PrincipalsPage {
 const COUNT = (value: number) => value.toLocaleString('en-US');
 
 const FAILED: Record<DirectoryTab, string> = {
-  lobbyists: 'We couldn’t load the Board’s lobbyist list. This says nothing about who was listed.',
+  lobbyists: 'Couldn’t load the Board’s lobbyist list. This says nothing about who was listed.',
   principals:
-    'We couldn’t load the Board’s principal records. This says nothing about what was reported or registered.',
+    'Couldn’t load the Board’s principal records. This says nothing about what was reported or registered.',
 };
 const LABELS: Record<DirectoryTab, string> = {
   lobbyists: 'Lobbyists',
@@ -282,7 +282,7 @@ function DirectoryGroup({
         <div className="lb-notice">
           <Refused onRetry={read.retry} retrying={read.pending}>
             {reported
-              ? 'We couldn’t update these results. Previous results are shown.'
+              ? 'Couldn’t update results. Previous results are shown.'
               : FAILED[tab]}
           </Refused>
         </div>

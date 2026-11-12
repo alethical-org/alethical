@@ -48,6 +48,25 @@ unavailable retained bytes 503. A failed or absent source never becomes zero mon
 The [source operating contract](../operations/election-finance-comparison.md) owns
 staging, explicit relationship decisions and separate publication pointers.
 
+The same private boundary protects `/elections/{election_key}/analytics/funders`,
+`/analytics/candidates` and `/analytics/records`. Their `/analytics/export` route
+provides CSV or structured API output with the selected filters and exact source
+versions. `/analytics/expenses` reports candidate expenses and public subsidy;
+its `/payees`, `/payments` and `/export` suffixes retain the unadjusted baseline,
+explicit payee exclusions, source amounts and filing periods. Subsequent pages,
+drilldowns and exports require the first response's snapshot and version. A
+changed source or account decision invalidates that version; missing evidence
+does not become a zero or a confirmed relationship.
+
+Federal and local records use `/elections/{election_key}/external-finance`, with
+`/races/{race_id}/candidates/{candidate_id}` and its `/payments` suffix. These
+responses preserve each authority's native measures, currency and filing periods.
+Originals use `/external-finance/sources/{source_hash}` with the exact generation.
+The reader must have Finance access even when opening a source from an exported
+spreadsheet. Reporting and review status describe available evidence, not the
+effect of spending on an election outcome. The implementation plan records which
+code, data and live acceptance steps are complete.
+
 ## Goal
 
 Design a REST API for Alethical v1 that:

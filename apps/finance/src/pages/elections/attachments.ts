@@ -15,13 +15,36 @@ export interface ElectionAttachment {
 /** Only immutable retained-source routes produced by elections/data are accepted.
  * Do not send a Finance token to an evidence URL copied from a source document. */
 function retainedPath(path: string): boolean {
+  const external = path.match(
+    /^finance\/elections\/mn-\d{4}-\d{2}-\d{2}-(?:general|primary|special)\/external-finance\/sources\/[a-f0-9]{64}\?([^#]+)$/,
+  );
+  if (external) {
+    const entries = [...new URLSearchParams(external[1]).entries()];
+    return (
+      entries.length === 1 &&
+      entries[0][0] === 'generation_id' &&
+      /^[a-f0-9]{64}$/.test(entries[0][1])
+    );
+  }
+  const analytics = path.match(
+    /^finance\/elections\/mn-\d{4}-\d{2}-\d{2}-(?:general|primary|special)\/analytics\/sources\/(?:contributions|expenditures|independent_expenditures)\?([^#]+)$/,
+  );
+  if (analytics) {
+    const query = new URLSearchParams(analytics[1]);
+    return (
+      [...query.entries()].length === 2 &&
+      /^[a-f0-9]{64}$/.test(query.get('snapshot_id') ?? '') &&
+      /^[a-f0-9]{16}$/.test(query.get('version') ?? '')
+    );
+  }
   const spending = path.match(
     /^finance\/elections\/mn-\d{4}-\d{2}-\d{2}-(?:general|primary|special)\/outside-spending\/source\?([^#]+)$/,
   );
   if (spending) {
     const query = new URLSearchParams(spending[1]);
     return (
-      [...query.entries()].length === 3 &&
+      [...query.entries()].length === (query.has('source_hash') ? 4 : 3) &&
+      (!query.has('source_hash') || /^[a-f0-9]{64}$/.test(query.get('source_hash') ?? '')) &&
       /^[a-f0-9]{64}$/.test(query.get('election_snapshot_id') ?? '') &&
       /^[a-f0-9]{16}$/.test(query.get('version') ?? '') &&
       /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(query.get('release_id') ?? '')

@@ -486,7 +486,7 @@ export function shortPostRecordsLine(piece: ResearchPiece): string {
       .join(' · ');
   }
   return piece.shortPost?.recordsScope === 'cited-filings'
-    ? `Records in cited filings through ${new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${piece.recordsThrough}T12:00:00Z`))}`
+    ? `Records in cited filings through ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${piece.recordsThrough}T12:00:00Z`))}`
     : `RECORDS THROUGH ${isoDateCapsLabel(piece.recordsThrough)}`;
 }
 

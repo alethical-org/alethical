@@ -144,7 +144,7 @@ describe('committee directory states', () => {
   it('distinguishes a failed read from an empty register and offers retry', () => {
     Object.assign(currentRead, { isError: true, isSuccess: false });
     const page = mount();
-    expect(page.words()).toContain('We couldn’t load the register just now');
+    expect(page.words()).toContain('Couldn’t load the register just now');
     expect(page.words()).not.toContain('No committees in our copy');
     const button = [...page.host.querySelectorAll('[role="button"],button')].find(
       (node) => node.textContent === 'Try again',

@@ -125,7 +125,7 @@ describe.each(['full', 'browser'])('%s payment list', (view) => {
       });
       expect(host.textContent).toContain(
         view === 'full'
-          ? 'We couldn’t load these payments right now.'
+          ? 'Couldn’t load payments right now.'
           : 'We could not load the complete payment list',
       );
     });
@@ -263,7 +263,7 @@ describe('independent report and payments states', () => {
   });
   it('does not claim rows remain when both requests fail', () => {
     openFull({ data: undefined, isError: true }, { data: undefined, isError: true });
-    expect(host.textContent).toContain('We couldn’t load the report information');
+    expect(host.textContent).toContain('Couldn’t load the report information');
     expect(host.textContent).not.toContain('Payment records for this filing year are still shown');
     expect(host.textContent).not.toContain('We have no report figures');
   });
@@ -295,7 +295,7 @@ describe('independent report and payments states', () => {
     );
     expect(host.textContent).toContain('Showing 1 payment record for filing year 2026');
     expect(host.textContent).toContain(
-      'We couldn’t load more payments. The payments already loaded are still shown.',
+      'Couldn’t load more payments. The payments already loaded are still shown.',
     );
     expect(host.textContent).toContain('Example donor');
     const retry = [...host.querySelectorAll('[role="button"]')].find(

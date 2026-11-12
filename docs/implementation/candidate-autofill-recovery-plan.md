@@ -271,7 +271,7 @@ for this build.
 - Prevention: `apps/frontend/scripts/check-address-suggestion-layering.mjs` opens 5 wrapped rows in both finders and Change address at 1280, 900 and 390 pixels, checks 9 points per row, selects a formerly covered lower row, checks arrow/Escape behavior and Election after dismissal, and requires phone rows to end above Election. The required frontend release check runs this script against the built website. Chromium and WebKit pass after the fix; the unmodified editor failed on rows 2 and 3.
 - Accepted target: preserve current widths, 8px suggestion gap, styling, navigation/dialog order, old results during editing, and existing source/privacy behavior. No select-all or introductory wording change. Design consultation and final release evidence are recorded on the linked issue.
 - Design accepted the containing-editor correction and updated its layer requirements, drawings and build notes. The drawing already showed an unobstructed list; the implementation introduced the lower parent layer and the handoff did not name Election explicitly.
-- Candidate no-match wording now reads “We couldn’t match that address to election records” in entry, retained-results editing and the homepage handoff. A mapped address can lack an official election street-range match, so this state must not imply that the reader mistyped it. Legislator and incomplete-input messages are unchanged.
+- Candidate no-match wording now reads “Couldn’t match that address to election records” in entry, retained-results editing and the homepage handoff. A mapped address can lack an official election street-range match, so this state must not imply that the reader mistyped it. Legislator and incomplete-input messages are unchanged.
 - Independent code and browser review accepted the containing-layer fix; parent acceptance covered the final candidate-only copy and required browser check. Remaining checks: final release and live browser acceptance, recorded on the linked issue. Native phone keyboards require physical phone testing; viewport and WebKit checks do not establish that.
 
 
@@ -472,7 +472,7 @@ Acceptance corrections (independent review, 9 October 2026):
 Design record: no visual change. Settled wording and behavior for Design's build notes:
 
 - Legislator finder, when current official points for 1 address disagree about
-  districts: field message **We couldn’t safely identify your districts from this
+  districts: field message **Couldn’t safely identify your districts from this
   address** and answer line **Check your full street address, or choose where you
   live on the map**, each 1 sentence with no ending period, in the existing
   address-error position. Source failures keep **Lookup unavailable right now**.

@@ -705,7 +705,7 @@ export function Detail({
           <Refused onRetry={entities.retry} retrying={entities.pending}>
             {entities.changed
               ? RECORDS_CHANGED
-              : `We couldn’t load the records to merge in.${entities.data ? ' Previous results are shown.' : ''}`}
+              : `Couldn’t load the records to merge in.${entities.data ? ' Previous results are shown.' : ''}`}
           </Refused>
         )}
         {entities.data && entities.data.pages > 1 && (
@@ -725,7 +725,7 @@ export function Detail({
     else if (pickRead.failed)
       mergePreview = (
         <Refused onRetry={pickRead.retry} retrying={pickRead.pending}>
-          We couldn’t load the links that will move
+          Couldn’t load the links that will move
         </Refused>
       );
     else if (pickRead.data) {
@@ -798,7 +798,7 @@ export function Detail({
           staleNotice
         ) : (
           <Refused onRetry={records.retry} retrying={records.pending}>
-            We couldn’t load the records
+            Couldn’t load the records
           </Refused>
         )}
       </section>
@@ -930,7 +930,7 @@ export function Detail({
       )}
       {ui.refused && (
         <Refused>
-          We couldn’t save this change, so nothing was changed. Your note is kept below; try again.
+          Couldn’t save this change, so nothing was changed. Your note is kept below; try again.
         </Refused>
       )}
 
@@ -960,7 +960,7 @@ export function Detail({
             )}
           </div>
           {reads.failed && (
-            <Refused onRetry={reads.retry}>We couldn’t load the confirmations</Refused>
+            <Refused onRetry={reads.retry}>Couldn’t load the confirmations</Refused>
           )}
           {groups.length > 1 && (
             <dl className="ci-dl">
@@ -1120,7 +1120,7 @@ export function Detail({
         {records.updating && <Updating />}
         {records.failed && (
           <Refused onRetry={records.retry} retrying={records.pending}>
-            We couldn’t load the records
+            Couldn’t load the records
           </Refused>
         )}
         {(!form || spec?.recs !== 'name') && staleNotice}
@@ -1155,7 +1155,7 @@ export function Detail({
 
       <section aria-labelledby="hist-h" className="ci-history-section">
         <h3 id="hist-h">History</h3>
-        {reads.failed && <Refused onRetry={reads.retry}>We couldn’t load the history</Refused>}
+        {reads.failed && <Refused onRetry={reads.retry}>Couldn’t load the history</Refused>}
         {history.length === 0 && !reads.settled && !reads.failed && <LoadingRows />}
         {(history.length > 0 || reads.settled) && (
           <ol className="ci-card ci-history">

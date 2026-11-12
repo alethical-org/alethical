@@ -421,7 +421,7 @@ export function Committee({ match }: { match: RouteMatch }) {
           {finance.failed ? (
             <div className="cmt-top-gap">
               <Refused onRetry={finance.retry} retrying={finance.pending}>
-                We couldn’t load this committee
+                Couldn’t load committee
               </Refused>
             </div>
           ) : (

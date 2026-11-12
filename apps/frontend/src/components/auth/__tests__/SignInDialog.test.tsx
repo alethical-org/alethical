@@ -166,7 +166,7 @@ describe('rev 9 sign-in dialog', () => {
       ordinaryAccountOpen: true,
       pendingTrackRetry: true,
       errorKind: 'request-failure',
-      errorMessage: 'We couldn’t complete that request. Check your connection and try again.',
+      errorMessage: 'Couldn’t complete that request. Check your connection and try again.',
     });
     const saving = render({
       intent: 'track',
@@ -283,7 +283,7 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).toContain('Sign-in couldn’t finish because the email needs confirmation.');
     expect(html).toContain('Continue with Google');
     expect(html).toContain('Sign in to Alethical');
-    expect(html).not.toContain('We couldn’t match this sign-in');
+    expect(html).not.toContain('Couldn’t match this sign-in');
   });
 
   it('uses shared validation, first-press locking, and the supplied resend wait', () => {

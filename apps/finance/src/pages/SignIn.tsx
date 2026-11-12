@@ -270,7 +270,7 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
                   ? 'That access code is not right. Try again.'
                   : error === 'rate-limited'
                     ? 'Too many attempts. Wait a minute and try again.'
-                    : 'We couldn’t open investor access. Try again.'}
+                    : 'Couldn’t open investor access. Try again.'}
             </p>
           )}
           <button type="submit" disabled={busy !== null || finishing}>
@@ -298,7 +298,7 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
           )}
           {error === 'send' && (
             <p id="email-error" role="alert" className="error">
-              We couldn’t send a code. Try again.
+              Couldn’t send a code. Try again.
             </p>
           )}
           <button type="submit" disabled={busy !== null}>
@@ -339,17 +339,17 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
           )}
           {error === 'send' && (
             <p id="code-error" role="alert" className="error">
-              We couldn’t send a code. Try again.
+              Couldn’t send a code. Try again.
             </p>
           )}
           {error === 'check' && (
             <p id="code-error" role="alert" className="error">
-              We couldn’t check the code. Try again.
+              Couldn’t check the code. Try again.
             </p>
           )}
           {error === 'finish' && (
             <p id="code-error" role="alert" className="error">
-              We couldn’t finish signing in. Send a new code and try again.
+              Couldn’t finish signing in. Send a new code and try again.
             </p>
           )}
           <button type="submit" disabled={busy !== null || finishing}>

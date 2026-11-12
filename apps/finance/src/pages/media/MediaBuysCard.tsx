@@ -142,7 +142,7 @@ export function MediaBuysCard({
       {(read.failed || read.notFound) && !data && (
         <div className="mb-buys-group">
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load these TV station files
+            Couldn’t load TV station files
           </Refused>
         </div>
       )}

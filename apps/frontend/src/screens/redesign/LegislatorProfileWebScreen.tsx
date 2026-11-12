@@ -232,7 +232,7 @@ export function LegislatorProfileWebScreen() {
           onPress={goToLegislatorList}
         />
         <Text style={styles.stateText}>
-          We couldn’t load this legislator right now. Please try again in a moment.
+          Couldn’t load this legislator right now. Please try again in a moment.
         </Text>
       </View>,
       null,

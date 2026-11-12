@@ -435,7 +435,7 @@ export function FullTextTab({
     return (
       <View>
         <Text style={styles.stateText}>
-          We couldn’t load the full text right now. Please try again in a moment.
+          Couldn’t load the full text right now. Please try again in a moment.
         </Text>
         {source}
       </View>

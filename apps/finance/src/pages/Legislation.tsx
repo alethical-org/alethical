@@ -378,7 +378,7 @@ export function Legislation(_props: { match: RouteMatch }) {
           {list.loading && <LoadingRows />}
           {list.failed && (
             <Refused onRetry={list.retry} retrying={list.pending}>
-              We couldn’t load these results. This is a problem on our side.
+              Couldn’t load results. This is a problem on our side.
               {list.shown && ' Previous results are shown.'}
             </Refused>
           )}

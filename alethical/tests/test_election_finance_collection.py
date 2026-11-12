@@ -3,11 +3,14 @@
 from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 import io
+import json
+from decimal import Decimal
 
 from pypdf import PdfReader, PdfWriter
 import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from alethical.db import models as m
 from alethical.db.session import get_engine
@@ -95,6 +98,140 @@ def test_report_summary_keeps_contributions_separate_from_other_receipts():
     assert result["complete_election_spending"] is False
 
 
+@pytest.mark.parametrize("amount", ["300.00", "0.00"])
+def test_public_subsidy_is_separate_checked_receipt(amount):
+    summary = [line.replace("300.00", amount) for line in SUMMARY]
+    result = s.json_value(
+        s.extract_report_evidence(
+            pdf(summary=summary),
+            "19399",
+            filing(),
+            d.ReportDocument(),
+            f.FinancialTab(),
+            include_public_subsidy=True,
+        )
+    )
+    assert result["figures"]["public_subsidy_payments"] == {
+        "cash": amount,
+        "total": amount,
+        "source_page": 2,
+        "source_lines": [7],
+    }
+    assert result["figures"]["contributions_received"]["total"] == "225.00"
+    assert result["figures"]["campaign_expenditures"]["total"] == "127.00"
+    assert result["public_subsidy_gap"] is None
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "7 Public Subsidy",
+        "7 Public Subsidy 300.00 301.00",
+        "7 Other income 300.00 300.00",
+        "7 Public Subsidy 300.00 300.00\n7 Public Subsidy 300.00 300.00",
+    ],
+)
+def test_unreadable_subsidy_does_not_hide_checked_campaign_spending(replacement):
+    summary = [replacement if line.startswith("7 ") else line for line in SUMMARY]
+    result = s.extract_report_evidence(
+        pdf(summary=summary),
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        f.FinancialTab(),
+        include_public_subsidy=True,
+    )
+    assert result["status"] == "parsed_with_arithmetic_checks"
+    assert "public_subsidy_payments" not in result["figures"]
+    assert result["public_subsidy_gap"]
+    assert result["figures"]["campaign_expenditures"]["total"] == "127.00"
+
+
+@pytest.mark.parametrize("same_period", [False, True])
+def test_subsidy_overview_comparison_requires_matching_period(same_period):
+    financial = f.FinancialTab(
+        years={
+            2026: f.YearFigures(
+                year=2026,
+                heading="2026",
+                reported_through=date(2026, 10, 19)
+                if same_period
+                else date(2026, 3, 31),
+                amounts={"public_subsidy_payments": Decimal("0.00")},
+            )
+        }
+    )
+    result = s.extract_report_evidence(
+        pdf(),
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        financial,
+        include_public_subsidy=True,
+    )
+    assert ("public_subsidy_payments" in result["figures"]) is not same_period
+    assert bool(result["public_subsidy_gap"]) is same_period
+    assert result["status"] == "parsed_with_arithmetic_checks"
+
+
+@pytest.mark.parametrize("same_period", [False, True])
+def test_official_overview_conflict_is_kept_only_for_matching_period(same_period):
+    financial = f.FinancialTab(
+        years={
+            2026: f.YearFigures(
+                year=2026,
+                heading="2026",
+                reported_through=date(2026, 10, 19)
+                if same_period
+                else date(2026, 7, 20),
+                amounts={"campaign_expenditures": Decimal("79.00")},
+            )
+        }
+    )
+    result = s.extract_report_evidence(
+        pdf(), "19399", filing(), d.ReportDocument(), financial
+    )
+    assert result["figures"]["campaign_expenditures"]["cash"] == "80.00"
+    if same_period:
+        assert result["status"] == "requires_review"
+        assert result["errors"] == [
+            "Official financial tab cash differs for campaign_expenditures"
+        ]
+        assert result["summary_cash_check"]["results"]["campaign_expenditures"] is False
+    else:
+        assert result["status"] == "parsed_with_arithmetic_checks"
+        assert result["summary_cash_check"]["status"] == "not_same_period"
+
+
+def test_same_end_different_start_preserves_checked_pdf_figures():
+    financial = f.FinancialTab(
+        years={
+            2026: f.YearFigures(
+                year=2026,
+                heading="2026",
+                reported_through=date(2026, 10, 19),
+                amounts={
+                    "campaign_expenditures": Decimal("500.00"),
+                    "public_subsidy_payments": Decimal("500.00"),
+                },
+            )
+        }
+    )
+    cover = [line.replace("01/01/2026", "07/01/2026") for line in COVER]
+    result = s.extract_report_evidence(
+        pdf(cover=cover),
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        financial,
+        include_public_subsidy=True,
+    )
+    assert result["status"] == "parsed_with_arithmetic_checks"
+    assert result["summary_cash_check"]["status"] == "not_same_period"
+    assert result["figures"]["public_subsidy_payments"]["total"] == "300.00"
+    assert result["public_subsidy_gap"] is None
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -172,18 +309,21 @@ def prepared():
 
 
 @pytest.fixture
-def db(seed_database):
+def db(seed_database, monkeypatch):
+    store = MemoryStore()
+    monkeypatch.setattr(s, "raw_file_store_from_env", lambda: store)
     with get_engine().connect() as connection:
         transaction = connection.begin()
         with Session(
             bind=connection, join_transaction_mode="create_savepoint"
         ) as session:
+            session.info["board_test_store"] = store
             yield session
         transaction.rollback()
 
 
 def retain(db, prepared):
-    store = MemoryStore()
+    store = db.info["board_test_store"]
     s.retain_collection_sources(db, store, *prepared)
     return store
 
@@ -248,23 +388,22 @@ def test_staged_amount_mutation_cannot_be_published(db, prepared):
     ).one()
     payload = deepcopy(row.payload)
     payload["figures"]["campaign_expenditures"]["cash"] = "99.00"
-    row.payload = payload
-    db.flush()
-    with pytest.raises(s.FinanceCollectionError, match="fingerprint"):
-        s.publish_collection(db, identifier, expected_previous=None)
-    assert db.get(m.ElectionFinanceCurrent, prepared[0]["election_key"]) is None
+    with pytest.raises(SQLAlchemyError):
+        with db.begin_nested():
+            row.payload = payload
+            db.flush()
 
 
 def test_removed_report_prevents_publication(db, prepared):
     retain(db, prepared)
     identifier = s.stage_collection(db, prepared[0])
-    db.execute(
-        delete(m.ElectionFinanceReport).where(
-            m.ElectionFinanceReport.collection_id == identifier
-        )
-    )
-    with pytest.raises(s.FinanceCollectionError):
-        s.publish_collection(db, identifier, expected_previous=None)
+    with pytest.raises(SQLAlchemyError):
+        with db.begin_nested():
+            db.execute(
+                delete(m.ElectionFinanceReport).where(
+                    m.ElectionFinanceReport.collection_id == identifier
+                )
+            )
 
 
 @pytest.mark.parametrize(
@@ -463,6 +602,263 @@ def test_same_cutoff_different_report_types_do_not_select_by_amendment(
         assert report["payload"]["unavailable_reason"] == "ambiguous_latest_report"
 
 
+@pytest.fixture
+def multi_period_bundle(recovery_bundle):
+    """2 overlapping cumulative periods and a distinct same-cutoff series."""
+    directory, kwargs = recovery_bundle
+    manifest = json.loads((directory / "recovery-manifest.json").read_text())
+    entries, bodies = s._read_archive(directory, manifest)
+    catalogue = json.loads(bodies[entries[1]["sha256"]])
+    rows = catalogue["data"]["pdfs"]
+    rows["C"] = {
+        **rows["E"],
+        "ReportType": "C",
+        "ReportName": "2026 Pre-Primary Report",
+        "CutOffDate": "2026-07-20 00:00:00",
+        "amendments": ["0", "1", "0"],
+    }
+    rows["H"] = {
+        **rows["E"],
+        "ReportType": "H",
+        "ReportName": "Distinct report",
+        "amendments": ["0", "3", "1"],
+    }
+    now = datetime.fromisoformat(manifest["completed_at"])
+    archive = f.ResponseArchive(str(directory / "responses.jsonl.gz"))
+    body = json.dumps(catalogue).encode()
+    response = f.Response(
+        f.viewer_url(f.FilerKind.candidate_committee),
+        entries[1]["form"],
+        200,
+        body,
+        s.file_hash(body),
+        now,
+        now,
+    )
+    cat_line = archive.write("catalogue", response, registration_number="19399")
+    item = {
+        "registration_number": "19399",
+        "catalogue_source": {"archive_line": cat_line, "sha256": response.content_hash},
+        "documents": {},
+    }
+    reports, errors = f.parse_catalogue_payload(catalogue, "19399")
+    assert not errors
+    for report in reports:
+        cover = [
+            line.replace("10/19/2026", report.cut_off_date.strftime("%m/%d/%Y"))
+            for line in COVER
+        ]
+        body = pdf(cover=cover)
+        form = d.document_form(
+            registration_number="19399",
+            filing_year=2026,
+            kind=f.FilerKind.candidate_committee,
+            report_type=report.report_type,
+            amendment_index=report.effective_amendment_index,
+            special_election=False,
+        )
+        response = f.Response(
+            d.document_url(), form, 200, body, s.file_hash(body), now, now
+        )
+        line = archive.write("report_document", response, registration_number="19399")
+        filename = f"19399-{report.report_type}.pdf"
+        (directory / filename).write_bytes(body)
+        item["documents"][s.catalogue_report_key(report)] = {
+            "filing": s.json_value(s.asdict(report)),
+            "sha256": response.content_hash,
+            "outcome": "served",
+            "origin": "official_live",
+            "archive_line": line,
+            "local_file": filename,
+        }
+    h, size, count = archive.close()
+    manifest["archive"] = {
+        "compressed_sha256": h,
+        "compressed_bytes": size,
+        "response_count": count,
+    }
+    (directory / "recovery-manifest.json").write_text(json.dumps(manifest))
+    (directory / "recovered-evidence.json").write_text(json.dumps([item]))
+    return directory, kwargs
+
+
+def test_exact_documents_keep_all_periods_and_same_cutoff_series(multi_period_bundle):
+    directory, kwargs = multi_period_bundle
+    collection, _, documents = s.prepare_collection(directory, **kwargs)
+    reports = collection["reports"]
+    assert len(reports) == collection["coverage"]["reports_with_figures"] == 3
+    by_type = {r["payload"]["filing"]["report_type"]: r["payload"] for r in reports}
+    assert by_type["C"]["filing"]["effective_amendment_index"] == 1
+    assert by_type["C"]["filing"]["amendment_count"] == 2
+    assert by_type["H"]["filing"]["effective_amendment_index"] == 3
+    assert by_type["E"]["filing"]["effective_amendment_index"] == 0
+    assert by_type["C"]["period_end"] == "2026-07-20"
+    assert by_type["E"]["period_end"] == by_type["H"]["period_end"] == "2026-10-19"
+    for payload in by_type.values():
+        assert payload["period_start"] == "2026-01-01"
+        assert payload["period_basis"] == "calendar_year_to_date"
+        # No aggregation of overlapping cumulative periods, versions, or metrics.
+        assert payload["figures"]["contributions_received"]["total"] == "225.00"
+        assert payload["figures"]["campaign_expenditures"]["total"] == "127.00"
+        assert payload["figures"]["total_expenditures"]["total"] == "177.00"
+    assert {r["document_hash"] for r in reports} == set(documents)
+
+
+@pytest.mark.parametrize(
+    "change", ["cutoff", "amendment", "key", "request", "request_metadata", "bytes"]
+)
+def test_exact_report_documents_reject_tampering(multi_period_bundle, change):
+    directory, kwargs = multi_period_bundle
+    path = directory / "recovered-evidence.json"
+    recovery = json.loads(path.read_text())
+    docs = recovery[0]["documents"]
+    key = next(iter(docs))
+    doc = docs[key]
+    if change == "cutoff":
+        doc["filing"]["cut_off_date"] = "2026-07-20"
+    elif change == "amendment":
+        doc["filing"]["effective_amendment_index"] = 9
+    elif change == "key":
+        docs["a" * 64] = docs.pop(key)
+    elif change == "request":
+        # Another retained request/PDF cannot stand in for this exact series.
+        doc["archive_line"] += 1
+    elif change == "request_metadata":
+        doc["request_form"] = {"regnum": "a different committee"}
+    else:
+        (directory / doc["local_file"]).write_bytes(pdf(summary=SUMMARY + ["changed"]))
+    path.write_text(json.dumps(recovery))
+    with pytest.raises(s.FinanceCollectionError):
+        s.prepare_collection(directory, **kwargs)
+
+
+def test_exact_request_failure_remains_an_explained_gap(multi_period_bundle):
+    directory, kwargs = multi_period_bundle
+    path = directory / "recovered-evidence.json"
+    recovery = json.loads(path.read_text())
+    doc = next(iter(recovery[0]["documents"].values()))
+    doc.update(outcome="request_failed", error="Network response not received")
+    path.write_text(json.dumps(recovery))
+    collection, _, _ = s.prepare_collection(directory, **kwargs)
+    assert collection["coverage"]["reports_with_figures"] == 2
+    gap = next(r for r in collection["reports"] if r["payload"]["figures"] is None)
+    assert gap["payload"]["unavailable_reason"] == "Network response not received"
+    assert gap["document_hash"] is None
+
+
+def test_missing_report_plan_uses_effective_versions_and_no_network(
+    multi_period_bundle, monkeypatch
+):
+    from scripts import collect_election_finance_reports as collector
+
+    directory, _ = multi_period_bundle
+    path = directory / "recovered-evidence.json"
+    recovery = json.loads(path.read_text())
+    recovery[0]["documents"] = {}
+    path.write_text(json.dumps(recovery))
+    monkeypatch.setattr(
+        d, "fetch_document", lambda *a, **kw: pytest.fail("dry run fetched")
+    )
+    result = collector.collect(directory, None, available_on=date(2026, 11, 11))
+    assert result["executed"] is False
+    assert result["report_count"] == 3
+    assert {
+        r["filing"]["report_type"]: r["filing"]["effective_amendment_index"]
+        for r in result["requests"]
+    } == {"E": 0, "C": 1, "H": 3}
+    assert all(
+        r["report_key"]
+        == s.digest(
+            [
+                "19399",
+                2026,
+                r["filing"]["report_type"],
+                r["filing"]["effective_amendment_index"],
+                False,
+                None,
+            ]
+        )
+        for r in result["requests"]
+    )
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_collector_retains_prior_evidence_and_exact_download_result(
+    multi_period_bundle, monkeypatch, tmp_path, failed
+):
+    from scripts import collect_election_finance_reports as collector
+
+    directory, kwargs = multi_period_bundle
+    path = directory / "recovered-evidence.json"
+    recovery = json.loads(path.read_text())
+    missing_key = next(iter(recovery[0]["documents"]))
+    removed = recovery[0]["documents"].pop(missing_key)
+    path.write_text(json.dumps(recovery))
+    manifest = json.loads((directory / "recovery-manifest.json").read_text())
+    old_entries, _ = s._read_archive(directory, manifest)
+    body = (directory / removed["local_file"]).read_bytes()
+    now = datetime.fromisoformat(manifest["completed_at"])
+    calls = []
+
+    def fetch(request, *, courtesy_seconds):
+        calls.append(request["report_key"])
+        assert courtesy_seconds >= 0.25
+        if failed:
+            return request, None, {"outcome": "request_failed", "error": "No response"}
+        form = old_entries[removed["archive_line"]]["form"]
+        response = f.Response(
+            d.document_url(), form, 200, body, s.file_hash(body), now, now
+        )
+        return (
+            request,
+            response,
+            {"outcome": "served", "note": "Retained test response"},
+        )
+
+    monkeypatch.setattr(collector, "fetch_report", fetch)
+    output = tmp_path / "complete"
+    result = collector.collect(
+        directory, output, available_on=date(2026, 11, 11), execute=True
+    )
+    assert calls == [missing_key]
+    assert result["report_count"] == 1
+    complete_manifest = json.loads((output / "recovery-manifest.json").read_text())
+    new_entries, _ = s._read_archive(output, complete_manifest)
+    assert all(new_entries[line] == entry for line, entry in old_entries.items())
+    assert len(new_entries) == len(old_entries) + (0 if failed else 1)
+    copied = json.loads((output / "recovered-evidence.json").read_text())[0]
+    for key, doc in recovery[0]["documents"].items():
+        assert copied["documents"][key] == doc
+        assert (output / doc["local_file"]).read_bytes() == (
+            directory / doc["local_file"]
+        ).read_bytes()
+    collection, _, _ = s.prepare_collection(output, **kwargs)
+    assert collection["coverage"]["reports_with_figures"] == (2 if failed else 3)
+
+
+def test_collector_refuses_changed_plan_before_download(
+    multi_period_bundle, monkeypatch, tmp_path
+):
+    from scripts import collect_election_finance_reports as collector
+
+    directory, _ = multi_period_bundle
+    plan = tmp_path / "wrong-plan.json"
+    plan.write_text('[{"report_key": "wrong"}]')
+    output = tmp_path / "unused"
+    monkeypatch.setattr(
+        d, "fetch_document", lambda *a, **kw: pytest.fail("unexpected fetch")
+    )
+    with pytest.raises(s.FinanceCollectionError, match="differs"):
+        collector.collect(
+            directory,
+            output,
+            available_on=date(2026, 11, 11),
+            plan_file=plan,
+            execute=True,
+        )
+    assert not output.exists()
+
+
 def test_local_candidates_extend_coverage_without_acquiring_board_accounts(
     recovery_bundle,
 ):
@@ -605,3 +1001,435 @@ def test_registered_site_requires_exact_link_and_committee_in_retained_parent(
     path.write_text(json.dumps([parent, site]))
     with pytest.raises(s.FinanceCollectionError, match="retained Board parent"):
         s.prepare_collection(directory, identity_manifest=path, **kwargs)
+
+
+def test_optional_expenses_preserve_legacy_input_and_fingerprint(prepared):
+    before = deepcopy(prepared[0])
+    value = s.add_campaign_expenses(*prepared)
+    assert prepared[0] == before
+    assert value["format"] == 1 and value["id"] != before["id"]
+    assert "campaign_expenses" not in before["reports"][0]["payload"]
+    # This synthetic PDF has summary figures but no expense detail schedule.
+    expense = value["reports"][0]["payload"]["campaign_expenses"]
+    assert expense["status"] == "unavailable" and expense["rows"] == []
+    assert (
+        value["reports"][0]["payload"]["figures"]
+        == before["reports"][0]["payload"]["figures"]
+    )
+    s.validate_collection(before)
+
+
+def test_typed_expense_json_cannot_borrow_an_original_pdf_hash(db, prepared):
+    value = s.add_campaign_expenses(*prepared)
+    expense = value["reports"][0]["payload"]["campaign_expenses"]
+    expense.update(
+        status="checked",
+        errors=[],
+        gaps=[],
+        rows=[
+            {
+                "amounts": {
+                    "paid": "80.00",
+                    "unpaid": "7.00",
+                    "in_kind": "40.00",
+                    "total": "127.00",
+                },
+                "payee": {"name": "Invented typed payee"},
+            }
+        ],
+        proposals=[],
+    )
+    value["id"] = s.collection_digest(value)
+    # A correct generation hash and syntactically valid typed amounts are not proof.
+    s.validate_collection(value)
+    with pytest.raises(s.FinanceCollectionError, match="reproduce before retention"):
+        s.retain_collection_sources(db, MemoryStore(), value, prepared[1], prepared[2])
+    assert (
+        db.get(m.CampaignFinanceReportDocument, value["reports"][0]["document_hash"])
+        is None
+    )
+
+
+def test_expense_stage_and_publish_reproduce_and_refuse_source_loss(db, prepared):
+    value = s.add_campaign_expenses(*prepared)
+    store = MemoryStore()
+    s.retain_collection_sources(db, store, value, prepared[1], prepared[2])
+    identifier = s.stage_collection(db, value, store=store)
+    db.flush()
+    doc = db.get(m.CampaignFinanceReportDocument, value["reports"][0]["document_hash"])
+    store.objects.pop(doc.object_key)
+    with pytest.raises(s.FinanceCollectionError, match="original"):
+        s.publish_collection(db, identifier, expected_previous=None, store=store)
+    assert db.get(m.ElectionFinanceCurrent, value["election_key"]) is None
+
+
+def test_optional_expenses_need_exact_financial_original(prepared):
+    value = deepcopy(prepared[0])
+    row = value["reports"][0]
+    row["payload"]["financial_source"] = {"sha256": "a" * 64}
+    value["id"] = s.collection_digest(value)
+    with pytest.raises(s.FinanceCollectionError, match="financial original missing"):
+        s.add_campaign_expenses(value, prepared[1], prepared[2])
+
+
+def test_parent_report_hold_remains_binding_for_expense_payload(prepared):
+    value = deepcopy(prepared[0])
+    row = value["reports"][0]
+    body = pdf(summary=[line.replace("127.00", "128.00") for line in SUMMARY])
+    fingerprint = s.file_hash(body)
+    row["document_hash"] = fingerprint
+    row["payload"]["document"]["sha256"] = fingerprint
+    row["report_key"] = s.digest(["19399", 2026, "E", 0, False, fingerprint])
+    row["payload"].update(
+        extraction=extracted(body),
+        figures=None,
+        figure_status="unavailable",
+        unavailable_reason="Summary arithmetic mismatch",
+    )
+    value["coverage"]["reports_with_figures"] = 0
+    value["coverage"]["report_status_counts"] = {"unavailable": 1}
+    value["id"] = s.collection_digest(value)
+    checked = s.add_campaign_expenses(value, prepared[1], {fingerprint: body})
+    expense = checked["reports"][0]["payload"]["campaign_expenses"]
+    assert expense["status"] == "unavailable" and expense["rows"] == []
+    assert expense["errors"] == ["report_figures_unavailable"]
+
+
+@pytest.mark.parametrize("forge_total", [False, True])
+def test_removing_last_optional_field_never_bypasses_generation_integrity(
+    db, prepared, forge_total
+):
+    from alethical.api.services.election_finance_reads import expense_report_rows
+
+    collection = s.add_campaign_expenses(*prepared)
+    store = MemoryStore()
+    s.retain_collection_sources(db, store, collection, prepared[1], prepared[2])
+    s.stage_collection(db, collection, store=store)
+    s.publish_collection(db, collection["id"], expected_previous=None, store=store)
+    parent = db.get(m.ElectionFinanceCollection, collection["id"])
+    row = expense_report_rows(db, parent)[0]
+    payload = deepcopy(row.payload)
+    payload.pop("campaign_expenses")
+    if forge_total:
+        payload["figures"]["campaign_expenditures"].update(
+            cash="999000.00", total="999047.00"
+        )
+    with pytest.raises(SQLAlchemyError):
+        with db.begin_nested():
+            row.payload = payload
+            db.flush()
+    assert (
+        expense_report_rows(db, parent)[0].payload["figures"]["campaign_expenditures"][
+            "total"
+        ]
+        == "127.00"
+    )
+
+
+@pytest.mark.parametrize("forged", [False, True])
+def test_unsealed_legacy_requires_original_digest_and_preserves_genuine_id(
+    db, prepared, forged
+):
+    from fastapi import HTTPException
+    from alethical.api.services.election_finance_reads import expense_report_rows
+
+    store = retain(db, prepared)
+    value = prepared[0]
+    parent = m.ElectionFinanceCollection(
+        id=value["id"],
+        election_key=value["election_key"],
+        copied_at=datetime.fromisoformat(value["copied_at"]),
+        sources=value["sources"],
+        coverage=value["coverage"],
+    )
+    db.add(parent)
+    db.flush()
+    rows = deepcopy(value["reports"])
+    if forged:
+        rows[0]["payload"]["figures"]["campaign_expenditures"].update(
+            cash="999000.00", total="999047.00"
+        )
+    for row in rows:
+        db.add(m.ElectionFinanceReport(collection_id=value["id"], **row))
+    db.flush()
+    if forged:
+        with pytest.raises(HTTPException):
+            expense_report_rows(db, parent)
+        with pytest.raises(s.FinanceCollectionError, match="fingerprint"):
+            s.seal_collection(db, parent.id, store=store)
+        assert parent.sealed_at is None
+    else:
+        assert len(expense_report_rows(db, parent)) == 1
+        assert s.seal_collection(db, parent.id, store=store).id == value["id"]
+        assert parent.report_index["version"] == 1 and parent.sealed_at
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "header_update",
+        "header_delete",
+        "index_update",
+        "seal_update",
+        "child_insert",
+        "child_update",
+        "child_delete",
+    ],
+)
+def test_sealed_board_generation_rejects_all_mutations(db, prepared, operation):
+    from sqlalchemy import text
+
+    store = retain(db, prepared)
+    identifier = s.stage_collection(db, prepared[0], store=store)
+    commands = {
+        "header_update": "UPDATE election_finance_collection SET copied_at=copied_at+interval '1 second' WHERE id=:id",
+        "header_delete": "DELETE FROM election_finance_collection WHERE id=:id",
+        "index_update": "UPDATE election_finance_collection SET report_index='{}'::jsonb WHERE id=:id",
+        "seal_update": "UPDATE election_finance_collection SET sealed_at=sealed_at+interval '1 second' WHERE id=:id",
+        "child_insert": "INSERT INTO election_finance_report SELECT collection_id,registration_number,repeat('b',64),document_hash,payload FROM election_finance_report WHERE collection_id=:id",
+        "child_update": "UPDATE election_finance_report SET payload=payload-'campaign_expenses' WHERE collection_id=:id",
+        "child_delete": "DELETE FROM election_finance_report WHERE collection_id=:id",
+    }
+    for published in (False, True):
+        if published:
+            s.publish_collection(db, identifier, expected_previous=None, store=store)
+        with pytest.raises(SQLAlchemyError):
+            with db.begin_nested():
+                db.execute(text(commands[operation]), {"id": identifier})
+    row = db.get(m.ElectionFinanceCollection, identifier)
+    receipt = (row.sealed_at, row.first_published_at)
+    assert s.stage_collection(db, deepcopy(prepared[0]), store=store) == identifier
+    assert (
+        s.publish_collection(db, identifier, expected_previous=None, store=store)[
+            "already_current"
+        ]
+        is True
+    )
+    assert (row.sealed_at, row.first_published_at) == receipt
+
+
+def test_real_board_stage_publication_and_restore_serialize_late_insert(prepared):
+    from concurrent.futures import ThreadPoolExecutor
+    import os
+    import subprocess
+    import sys
+    import time
+    from pathlib import Path
+    from sqlalchemy import create_engine, text
+    from scripts.local_checks import disposable_postgres
+
+    root = Path(__file__).resolve().parents[2]
+    with disposable_postgres(root) as url:
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
+            cwd=root,
+            env={**os.environ, "DATABASE_URL": url},
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        engine = create_engine(url)
+        store = MemoryStore()
+        previous = None
+
+        def variant(label):
+            value = deepcopy(prepared[0])
+            value["coverage"]["scope_note"] = label
+            value["id"] = s.collection_digest(value)
+            return value
+
+        try:
+            for phase in ("stage", "publication"):
+                value = variant(phase)
+                with Session(engine) as setup:
+                    s.retain_collection_sources(
+                        setup, store, value, prepared[1], prepared[2]
+                    )
+                    if phase == "publication":
+                        s.stage_collection(setup, value, store=store)
+                    else:
+                        setup.add(
+                            m.ElectionFinanceCollection(
+                                id=value["id"],
+                                election_key=value["election_key"],
+                                copied_at=datetime.fromisoformat(value["copied_at"]),
+                                sources=value["sources"],
+                                coverage=value["coverage"],
+                            )
+                        )
+                        setup.flush()
+                        for row in value["reports"]:
+                            setup.add(
+                                m.ElectionFinanceReport(
+                                    collection_id=value["id"], **row
+                                )
+                            )
+                    setup.commit()
+                pids = []
+
+                def late_insert():
+                    with Session(engine) as writer:
+                        writer.execute(text("SET LOCAL lock_timeout='8s'"))
+                        pids.append(writer.scalar(text("SELECT pg_backend_pid()")))
+                        extra = deepcopy(value["reports"][0])
+                        extra["report_key"] = "b" * 64
+                        writer.add(
+                            m.ElectionFinanceReport(collection_id=value["id"], **extra)
+                        )
+                        writer.commit()
+
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    with Session(engine) as owner:
+                        if phase == "stage":
+                            s.stage_collection(owner, value, store=store)
+                        else:
+                            s.publish_collection(
+                                owner, value["id"], expected_previous=None, store=store
+                            )
+                        future = pool.submit(late_insert)
+                        deadline = time.monotonic() + 5
+                        blocked = False
+                        while time.monotonic() < deadline and not future.done():
+                            if pids:
+                                with engine.connect() as observer:
+                                    blocked = observer.scalar(
+                                        text(
+                                            "SELECT wait_event_type='Lock' FROM pg_stat_activity WHERE pid=:pid"
+                                        ),
+                                        {"pid": pids[0]},
+                                    )
+                                if blocked:
+                                    break
+                            time.sleep(0.01)
+                        assert blocked, (
+                            "Late child INSERT did not wait on the parent lock"
+                        )
+                        owner.commit()
+                    with pytest.raises(SQLAlchemyError):
+                        future.result(timeout=8)
+                with Session(engine) as verify:
+                    assert (
+                        s.collection_digest(s._stored_collection(verify, value["id"]))
+                        == value["id"]
+                    )
+                    assert (
+                        len(s._stored_collection(verify, value["id"])["reports"]) == 1
+                    )
+                if phase == "publication":
+                    previous = value["id"]
+            # Independent stage callers serialize on the same ID and keep one child.
+            concurrent = variant("concurrent-stage")
+            with Session(engine) as setup:
+                s.retain_collection_sources(
+                    setup, store, concurrent, prepared[1], prepared[2]
+                )
+
+            def stage_once():
+                with Session(engine) as worker:
+                    result = s.stage_collection(worker, concurrent, store=store)
+                    worker.commit()
+                    return result
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                assert (
+                    list(pool.map(lambda _: stage_once(), range(2)))
+                    == [concurrent["id"]] * 2
+                )
+            # Publication compare-and-set has one winner; restore keeps old receipts.
+            other = variant("concurrent-publish")
+            with Session(engine) as setup:
+                s.retain_collection_sources(
+                    setup, store, other, prepared[1], prepared[2]
+                )
+                s.stage_collection(setup, other, store=store)
+                setup.commit()
+
+            def publish_once(identifier):
+                with Session(engine) as worker:
+                    try:
+                        s.publish_collection(
+                            worker, identifier, expected_previous=previous, store=store
+                        )
+                        worker.commit()
+                        return identifier
+                    except s.FinanceCollectionError:
+                        worker.rollback()
+                        return None
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                winners = list(pool.map(publish_once, [concurrent["id"], other["id"]]))
+            assert sum(v is not None for v in winners) == 1
+            with Session(engine) as restore:
+                old = restore.get(m.ElectionFinanceCollection, previous)
+                receipt = (old.sealed_at, old.first_published_at)
+                s.publish_collection(
+                    restore,
+                    previous,
+                    expected_previous=next(v for v in winners if v),
+                    restore=True,
+                    store=store,
+                )
+                restore.commit()
+                restore.refresh(old)
+                assert (old.sealed_at, old.first_published_at) == receipt
+        finally:
+            engine.dispose()
+
+
+def test_sealed_index_reads_only_selected_bytes_despite_large_unrelated_report(
+    db, prepared
+):
+    import tracemalloc
+    from sqlalchemy import event
+    from alethical.api.services.election_finance_reads import expense_report_rows
+
+    value = deepcopy(prepared[0])
+    extra = deepcopy(value["reports"][0])
+    body = pdf(cover=[line.replace("19399", "19400") for line in COVER])
+    fingerprint = s.file_hash(body)
+    extra.update(
+        registration_number="19400",
+        document_hash=fingerprint,
+        report_key=s.digest(["19400", 2026, "E", 0, False, fingerprint]),
+    )
+    extra["payload"].update(
+        registration_number="19400",
+        document={"sha256": fingerprint},
+        figures=None,
+        figure_status="unavailable",
+        unavailable_reason="Synthetic unrelated report",
+        probe_blob="x" * (8 * 1024 * 1024),
+    )
+    extra["payload"]["filing"]["registration_number"] = "19400"
+    value["reports"].append(extra)
+    value["coverage"].update(
+        reports=2, report_status_counts={"source_verified": 1, "unavailable": 1}
+    )
+    value["id"] = s.collection_digest(value)
+    documents = {**prepared[2], fingerprint: body}
+    store = db.info["board_test_store"]
+    s.retain_collection_sources(db, store, value, prepared[1], documents)
+    s.stage_collection(db, value, store=store)
+    selected = value["reports"][0]["report_key"]
+    db.expunge_all()
+    statements = []
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(db.get_bind(), "before_cursor_execute", record)
+    tracemalloc.start()
+    try:
+        parent = db.get(m.ElectionFinanceCollection, value["id"])
+        rows = expense_report_rows(db, parent, report_keys={selected})
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+        event.remove(db.get_bind(), "before_cursor_execute", record)
+    assert [r.report_key for r in rows] == [selected]
+    assert "probe_blob" not in rows[0].payload
+    assert sum(len(json.dumps(r.payload).encode()) for r in rows) < 10000
+    assert peak < 4 * 1024 * 1024
+    payload_queries = [q for q in statements if "election_finance_report.payload" in q]
+    assert len(payload_queries) == 1 and "report_key IN" in payload_queries[0]
+    assert len(parent.report_index["reports"]) == 2

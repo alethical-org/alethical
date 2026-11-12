@@ -183,7 +183,7 @@ describe('the public Finance site', () => {
     'shows not-found at %s until the screens are approved',
     async (path) => {
       await renderAt(path);
-      expect(container.textContent).toContain('We couldn’t find that page');
+      expect(container.textContent).toContain('Couldn’t find that page');
       expect(container.querySelector('.lp')).toBeNull();
     },
   );
@@ -206,7 +206,7 @@ describe('the public Finance site', () => {
 
   it.each(['/sign-in', '/auth/return'])('answers %s, not with not-found', async (path) => {
     await renderAt(path);
-    expect(container.textContent).not.toContain('We couldn’t find that page');
+    expect(container.textContent).not.toContain('Couldn’t find that page');
     expect(container.querySelector('main h1')).not.toBeNull();
   });
 
@@ -215,7 +215,7 @@ describe('the public Finance site', () => {
       session: { access_token: 't', user: { email: 'reader@example.test' } },
       accessStatus: 503,
     });
-    expect(container.textContent).toContain('We couldn’t check your access');
+    expect(container.textContent).toContain('Couldn’t check your access');
     expect(container.textContent).toContain('Try again');
   });
 
@@ -230,7 +230,7 @@ describe('the public Finance site', () => {
   it('serves the full app only when the screens are approved', async () => {
     await renderAt('/money', undefined, 200, { screens: true });
     expect(window.location.pathname).toBe('/sign-in');
-    expect(container.textContent).not.toContain('We couldn’t find that page');
+    expect(container.textContent).not.toContain('Couldn’t find that page');
   });
 
   it('keeps the screens off unless the setting is on', () => {

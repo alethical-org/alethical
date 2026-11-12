@@ -46,7 +46,7 @@ export function reviewError(error: unknown) {
     ? 'This record changed. Reload it and review the current copy before saving.'
     : error instanceof ApiError && error.status === 422
       ? 'The review could not be saved. Check the fields and evidence, then try again.'
-      : 'We couldn’t save this review. Your entries are still here. Try again.';
+      : 'Couldn’t save this review. Your entries are still here. Try again.';
 }
 export function reviewRequest<T>(
   token: string,

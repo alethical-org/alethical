@@ -196,15 +196,19 @@ Somewhere to send an anonymous pointer to something worth looking at.
 ## Minnesota only, and we do not say otherwise
 
 Everything above is money reported to Minnesota's Campaign Finance Board: Minnesota races,
-Minnesota candidates, Minnesota committees and parties. Money reported to any other body is not
-part of this product, is not on this list, and is not named anywhere a reader can see.
+Minnesota candidates, Minnesota committees and parties. These Board record pages retain that
+source scope. The separately authorized [2026 election comparison](../implementation/election-finance-comparison.md)
+also collects federal and local filings for Minnesota races from their actual authorities.
+That comparison labels its authorities, periods and collection gaps explicitly; it does not
+represent those records as Board filings or expand to elections outside Minnesota.
 
 That second half is the part worth stating. We do not put "not yet" on a page, or list what we do
 not hold beside what we do. Telling someone a thing is not here yet promises them a date, and there
 is no date. Every page says what it holds and stops there.
 
-Decision of 12 Aug 2026: this source is out of scope, rather than deferred
-for planned delivery.
+For the Board-only record pages, other filing authorities are out of scope rather
+than deferred. This restriction does not narrow the election comparison's approved
+cross-authority collection and analytics.
 
 **One exception: this is a record-page promise.** A signed research report
 (see "Our own research reports" above) may cite records filed with another body, named and

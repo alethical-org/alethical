@@ -140,7 +140,7 @@ export function renderEventsCollection(now = Date.now()): string {
 export function renderEventArticle(event: PublishedEvent, now = Date.now()): string {
   const ended = eventHasEnded(event, now);
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
+    month: 'short',
     day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC',

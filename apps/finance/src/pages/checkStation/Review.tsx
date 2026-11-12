@@ -137,7 +137,7 @@ export function Review({
       <div className="ck-detail">
         {read.failed ? (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this TV station file
+            Couldn’t load TV station file
           </Refused>
         ) : (
           <div className="ck-detail-loading" role="status" aria-busy="true" aria-label="Loading" />
@@ -900,7 +900,7 @@ function Workbench({
                 version={version}
                 page={page}
                 alt={`Page ${page} of ${file.page_count} of the original TV station file ${file.name}`}
-                failure={{ text: 'We couldn’t load this page image', retry: 'Retry image' }}
+                failure={{ text: 'Couldn’t load page image', retry: 'Retry image' }}
               />
             ) : (
               <p className="mb-no-pages">Page images are unavailable</p>
@@ -1263,7 +1263,7 @@ function Workbench({
               </div>
             )}
             {!conn.target && lookupFailed && (
-              <Refused onRetry={runSearch}>We couldn’t load these records</Refused>
+              <Refused onRetry={runSearch}>Couldn’t load records</Refused>
             )}
             {!conn.target && lookupStale && (lookupRows?.length ?? 0) > 0 && (
               <p className="ck-note" role="status">
@@ -1324,7 +1324,7 @@ function Workbench({
                 {previewing === 'busy' && <LoadingLine>Loading…</LoadingLine>}
                 {previewing === 'failed' && (
                   <Refused onRetry={() => conn.target && void preview(conn.target)}>
-                    We couldn’t load this record
+                    Couldn’t load record
                   </Refused>
                 )}
                 {previewOk && conn.preview && (
@@ -1446,7 +1446,7 @@ function Workbench({
                     <div className="ck-withdraw">
                       {open.status === 'failed' && (
                         <Refused>
-                          We couldn’t withdraw this check. This is a problem on our side; your
+                          Couldn’t withdraw this check. This is a problem on our side; your
                           reason is kept.
                         </Refused>
                       )}

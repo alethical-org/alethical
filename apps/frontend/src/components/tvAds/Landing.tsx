@@ -295,7 +295,7 @@ export function TVLanding({
       <div aria-busy={browse.loading}>
         {!!browse.error && (
           <Failure retry={browse.retry} detail={RETRY_EXPLANATION}>
-            We couldn’t search these records just now
+            Couldn’t search these records just now
           </Failure>
         )}
         {result && (requestedDiffers || !!browse.error) && (
@@ -584,7 +584,7 @@ export function SourceDates() {
           .map((station) => station.call_sign);
         if (remaining.length) {
           setNotice({ names: remaining, state: 'failed', repeat: true });
-          setAnnouncement(`We still couldn’t get the latest dates for ${remaining.join(' and ')}`);
+          setAnnouncement(`Still couldn’t get the latest dates for ${remaining.join(' and ')}`);
           return;
         }
         const heldFocus = document.activeElement === button.current;
@@ -600,7 +600,7 @@ export function SourceDates() {
           return;
         }
         setNotice({ names: failures, state: 'failed', repeat: true });
-        setAnnouncement(`We still couldn’t get the latest dates for ${readable}`);
+        setAnnouncement(`Still couldn’t get the latest dates for ${readable}`);
       },
     );
   };
@@ -620,7 +620,7 @@ export function SourceDates() {
           <span>
             {notice?.state === 'success'
               ? `Dates updated for ${readable}`
-              : `${notice?.repeat ? 'We still couldn’t' : 'We couldn’t'} get the latest dates for ${readable}`}
+              : `${notice?.repeat ? 'Still couldn’t' : 'Couldn’t'} get the latest dates for ${readable}`}
           </span>
           {notice?.state !== 'success' && (
             <button
@@ -635,7 +635,7 @@ export function SourceDates() {
         </div>
       )}
       {!!initial.error && !data && (
-        <Failure retry={initial.retry}>We couldn’t load the copy dates</Failure>
+        <Failure retry={initial.retry}>Couldn’t load the copy dates</Failure>
       )}
       {initial.loading && !data && <Busy label="Loading copy dates" />}
       <div className="tv-grid3" style={{ marginTop: 16 }}>

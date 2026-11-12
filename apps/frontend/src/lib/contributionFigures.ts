@@ -156,9 +156,9 @@ export const donationCardsCopy = {
   emptyConnections: (year: number) =>
     `With no itemized individual contributions in ${year}, there is no name to match against other candidates`,
   failed: [
-    'We couldn’t load this comparison right now.',
-    'We couldn’t load where these donations came from right now.',
-    'We couldn’t load these matches right now.',
+    'Couldn’t load this comparison right now.',
+    'Couldn’t load where these donations came from right now.',
+    'Couldn’t load these matches right now.',
   ],
   retry: 'Please try again in a moment.',
   loading: 'Loading',

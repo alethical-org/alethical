@@ -697,9 +697,16 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 
 ## 5. Using this with a design tool
 
+- **Browser account:** use the Chrome profile signed in as `alethicaldev@gmail.com`
+  for Alethical drawing work. Verify the profile before sending, reuse the existing
+  project tab, and keep its existing Design account unless an account change is requested.
 - **At preview time (generation):** paste §1–§4 into the design tool prompt as the standing brief,
   then describe the specific page. This gives the design tool the editorial direction it otherwise
   averages away. Keep prompts definitive (state the design, don't ask it to decide scope).
+- **Amounts and missing values:** apply [whole-dollar display](ui-copy-guide.md#display-dollar-amounts-without-cents)
+  and [short unavailable labels](ui-copy-guide.md#short-labels-for-unavailable-values)
+  in the brief, saved Design rules, all drawings and build notes. These are product-wide
+  rules, including Finance and evidence panels; inspect generated values before review.
 - **Structural option:** the same intent can be pushed to a claude.ai/design _design-system project_
   (via the `DesignSync` tool) so Claude Design generates against our real tokens + primitives rather
   than a prose description. Prose brief is the lightweight path; the synced system is the durable one.
@@ -710,7 +717,8 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 - **Before building every Design handoff:** inspect every numeric text style against the
   **Type** rule in §2. Replace conflicting numeric fonts in the implementation plan before
   writing the screen. Include a rendered check of the changed numbers' font and equal-width
-  digits in the screen's tests. A drawing never waives this check.
+  digits in the screen's tests. Also verify the linked amount-display cases and missing-value
+  meanings in rendered content and accessible text. A drawing never waives these checks.
 - **At review time:** §3 and the applicable product choices below are the checklist. Reconcile
   new user-approved Design decisions through [current Design direction](https://github.com/euglopi/tool-settings/blob/main/shared/guides/design-takeover.md#keep-approved-choices-current-at-every-review),
   update their owning rules, and audit the rendered work against them before acceptance.
