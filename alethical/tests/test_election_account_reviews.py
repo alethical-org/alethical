@@ -21,7 +21,7 @@ from alethical.tests.test_election_comparison_storage import (
 
 
 @pytest.fixture
-def review_context(db, prepared):
+def review_context(db, prepared, request):
     store = archive(db, prepared)
     generation = prepared[0]
     storage.stage_generation(db, generation)
@@ -47,18 +47,28 @@ def review_context(db, prepared):
     register_hash = storage.archive_source(
         db, store, b'{"synthetic":"committee directory"}'
     )
+    sources = [
+        {
+            "sha256": register_hash,
+            "kind": "candidate_directory",
+            "url": "https://cfb.mn.gov/reports/api/",
+        }
+    ]
+    # The complete source membership must precede the immutable parent INSERT.
+    supplemental = getattr(request, "param", None)
+    if supplemental:
+        source_hash = (
+            storage.archive_source(db, store, supplemental["body"])
+            if "body" in supplemental
+            else register_hash
+        )
+        sources.append({"sha256": source_hash, **supplemental["metadata"]})
     db.add(
         m.ElectionFinanceCollection(
             id="c" * 64,
             election_key=generation["election_key"],
             copied_at=db.get(m.ElectionComparisonSnapshot, generation["id"]).fetched_at,
-            sources=[
-                {
-                    "sha256": register_hash,
-                    "kind": "candidate_directory",
-                    "url": "https://cfb.mn.gov/reports/api/",
-                }
-            ],
+            sources=sources,
             coverage={},
         )
     )
@@ -147,23 +157,31 @@ def test_stale_decision_cannot_fork_the_history(db, review_context):
         )
 
 
-@pytest.mark.parametrize("mismatch", ["kind", "registration", "collection", None])
+@pytest.mark.parametrize(
+    "mismatch,review_context",
+    [
+        (
+            mismatch,
+            {
+                "metadata": {
+                    "kind": "catalogue" if mismatch == "kind" else "candidate_identity",
+                    "registration_number": "other"
+                    if mismatch == "registration"
+                    else "19399",
+                    "url": "https://cfb.mn.gov/reports/api/",
+                }
+            },
+        )
+        for mismatch in ["kind", "registration", "collection", None]
+    ],
+    indirect=["review_context"],
+    ids=["kind", "registration", "collection", "None"],
+)
 def test_supplemental_identity_evidence_belongs_to_exact_account(
     db, review_context, mismatch
 ):
     args = review_context[3]
-    collection = db.get(m.ElectionFinanceCollection, "c" * 64)
     fingerprint = args["evidence"][1]["sha256"]
-    collection.sources = [
-        *collection.sources,
-        {
-            "sha256": fingerprint,
-            "kind": "catalogue" if mismatch == "kind" else "candidate_identity",
-            "registration_number": "other" if mismatch == "registration" else "19399",
-            "url": "https://cfb.mn.gov/reports/api/",
-        },
-    ]
-    db.flush()
     evidence = [
         *args["evidence"],
         {

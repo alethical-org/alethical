@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { plainBillSummary } from '@alethical/shared/billSummaryText';
+import { plainBillSummary } from "@alethical/shared/billSummaryText";
 import {
   cleanSectionText,
   parseChangeRuns,
@@ -8,17 +8,23 @@ import {
   sectionAnchorId,
   splitSectionLabel,
   type SectionAnchor,
-} from '@alethical/shared/billText';
+} from "@alethical/shared/billText";
 
-import { apiPath, useRead, type Read } from '../api/read';
-import { returnTarget, withFrom } from '../returnContext';
-import { Link, useLocation } from '../router';
-import { hrefFor, isBuilt, type RouteMatch } from '../routes';
-import { billSession } from '../search/suggestions';
-import { useAddressState } from '../ui/addressState';
-import { Empty, LoadingRows, Refused, type Tab } from '../ui/controls';
-import { ScrollingTabs } from '../ui/scrollingTabs';
-import { Arrow, BackLink, LoadingLine, SourcesAndUpdates, WithArrow } from '../ui/parts';
+import { apiPath, useRead, type Read } from "../api/read";
+import { returnTarget, withFrom } from "../returnContext";
+import { Link, useLocation } from "../router";
+import { hrefFor, isBuilt, type RouteMatch } from "../routes";
+import { billSession } from "../search/suggestions";
+import { useAddressState } from "../ui/addressState";
+import { Empty, LoadingRows, Refused, type Tab } from "../ui/controls";
+import { ScrollingTabs } from "../ui/scrollingTabs";
+import {
+  Arrow,
+  BackLink,
+  LoadingLine,
+  SourcesAndUpdates,
+  WithArrow,
+} from "../ui/parts";
 import {
   actionRow,
   billCode,
@@ -48,14 +54,22 @@ import {
   type ServedVote,
   type Sponsor,
   type VersionRow,
-} from './legislationRecords';
-import './legislation.css';
+} from "./legislationRecords";
+import "./legislation.css";
 
-type BillTab = 'summary' | 'actions' | 'votes' | 'text' | 'versions';
-const TABS: readonly BillTab[] = ['summary', 'actions', 'votes', 'text', 'versions'];
+type BillTab = "summary" | "actions" | "votes" | "text" | "versions";
+const TABS: readonly BillTab[] = [
+  "summary",
+  "actions",
+  "votes",
+  "text",
+  "versions",
+];
 
 export function tabFromParam(raw: string): BillTab {
-  return (TABS as readonly string[]).includes(raw) ? (raw as BillTab) : 'summary';
+  return (TABS as readonly string[]).includes(raw)
+    ? (raw as BillTab)
+    : "summary";
 }
 
 interface CampaignAccount {
@@ -64,7 +78,10 @@ interface CampaignAccount {
 }
 
 export interface AuthorWithAccounts extends Sponsor {
-  campaign_accounts?: { link_state: string; confirmed: CampaignAccount[] } | null;
+  campaign_accounts?: {
+    link_state: string;
+    confirmed: CampaignAccount[];
+  } | null;
 }
 
 export interface AuthorsAnswer {
@@ -86,18 +103,25 @@ interface VersionText {
 /** Bill (Bill drawing): the bill's summary, actions, roll calls, text and
  * versions, its authors, and each author's confirmed campaign accounts. */
 export function Bill({ match }: { match: RouteMatch }) {
-  const id = match.params.id ?? '';
+  const id = match.params.id ?? "";
   const location = useLocation();
   const here = location.pathname + location.search;
   // With no earlier page in the address, the drawing's named parent: Legislation.
   const back =
     returnTarget(location.search) ??
-    (isBuilt('legislation') ? { to: hrefFor('legislation'), name: 'Legislation' } : null);
-  const [address, setAddress] = useAddressState({ tab: 'summary', version: '' });
+    (isBuilt("legislation")
+      ? { to: hrefFor("legislation"), name: "Legislation" }
+      : null);
+  const [address, setAddress] = useAddressState({
+    tab: "summary",
+    version: "",
+  });
   const tab = tabFromParam(address.tab);
   const record = useRead<BillDetail>(billPath(id));
   const votes = useRead<ServedVote[]>(votesPath(id));
-  const authors = useRead<AuthorsAnswer>(apiPath(['finance', 'bills', id, 'authors']));
+  const authors = useRead<AuthorsAnswer>(
+    apiPath(["finance", "bills", id, "authors"]),
+  );
   const [target, setTarget] = useState<SectionAnchor | null>(null);
 
   const bill = record.data;
@@ -108,19 +132,28 @@ export function Bill({ match }: { match: RouteMatch }) {
   // The version the summary and its citations were written from, never assumed
   // to be the current one (settled wording row 46).
   const summaryVersion = bill
-    ? summaryVersionRow(bill.summary_source_version, bill.versions ?? [], versions)
+    ? summaryVersionRow(
+        bill.summary_source_version,
+        bill.versions ?? [],
+        versions,
+      )
     : null;
   const chosenVersion =
     versions.find((row) => row.code === address.version && !row.isLaw) ??
     (summaryVersion?.code === address.version ? summaryVersion : null) ??
     defaultTextVersion(versions, bill?.versions ?? []);
   const text = useRead<VersionText>(
-    bill && tab === 'text' && chosenVersion ? versionTextPath(id, chosenVersion.code) : null,
+    bill && tab === "text" && chosenVersion
+      ? versionTextPath(id, chosenVersion.code)
+      : null,
   );
 
   function openText(version: VersionRow | null, anchor: SectionAnchor | null) {
     setTarget(anchor);
-    setAddress({ tab: 'text', version: version && !version.isCurrent ? version.code : '' });
+    setAddress({
+      tab: "text",
+      version: version && !version.isCurrent ? version.code : "",
+    });
     if (!anchor) window.scrollTo?.({ top: 0 });
   }
 
@@ -142,7 +175,7 @@ export function Bill({ match }: { match: RouteMatch }) {
           <p>
             {session
               ? `No bill with this number is in the current copy of the ${session} session. Check the bill number, or search the session.`
-              : 'No bill with this number is in the current copy. Check the bill number, or search the session.'}
+              : "No bill with this number is in the current copy. Check the bill number, or search the session."}
           </p>
         </section>
       </Frame>
@@ -160,7 +193,9 @@ export function Bill({ match }: { match: RouteMatch }) {
 
   const code = billCode(null, null, bill.id);
   const chamber = fileChamber(code);
-  const session = bill.session ? sessionShortLabel(bill.session) : billSession(bill.id);
+  const session = bill.session
+    ? sessionShortLabel(bill.session)
+    : billSession(bill.id);
   const status = billStatus(bill.status_key, bill.current_status);
   const statusDate = dayLabel(bill.latest_action_at);
   const actions = orderActions(bill.actions ?? [])
@@ -169,37 +204,55 @@ export function Bill({ match }: { match: RouteMatch }) {
   const voteList = votes.data ? orderVotes(votes.data) : [];
   const source = legislatureSource(bill.last_pulled_at);
   const current = defaultTextVersion(versions, bill.versions ?? []);
-  const sponsors = ownAuthors(bill.all_sponsors ?? bill.chief_sponsors ?? [], chamber);
-  const chiefs = sponsors.filter((sponsor) => sponsor.role === 'chief_author');
-  const coauthors = sponsors.filter((sponsor) => sponsor.role === 'co_author');
+  const sponsors = ownAuthors(
+    bill.all_sponsors ?? bill.chief_sponsors ?? [],
+    chamber,
+  );
+  const chiefs = sponsors.filter((sponsor) => sponsor.role === "chief_author");
+  const coauthors = sponsors.filter((sponsor) => sponsor.role === "co_author");
   // The committee the bill was referred to: the newest action that names one,
   // linked to its members' campaign accounts when the record carries its id.
   const committeeAction =
-    orderActions(bill.actions ?? []).find((action) => (action.committee_name ?? '').trim()) ?? null;
-  const committee = committeeAction ? committeeAction.committee_name!.trim() : null;
+    orderActions(bill.actions ?? []).find((action) =>
+      (action.committee_name ?? "").trim(),
+    ) ?? null;
+  const committee = committeeAction
+    ? committeeAction.committee_name!.trim()
+    : null;
   const committeeHref =
-    committeeAction?.committee_id && isBuilt('committee-members')
-      ? withFrom(hrefFor('committee-members', { id: committeeAction.committee_id }), here)
+    committeeAction?.committee_id && isBuilt("committee-members")
+      ? withFrom(
+          hrefFor("committee-members", { id: committeeAction.committee_id }),
+          here,
+        )
       : null;
   const overview = billOverviewUrl(bill.official_url);
   const summary = plainBillSummary(bill.ai_analysis?.summary);
   const citations = summary ? (bill.ai_analysis?.citations ?? []) : [];
   const legislatorLink = (legislatorId: string | null | undefined) =>
-    legislatorId && isBuilt('legislator')
-      ? withFrom(hrefFor('legislator', { id: legislatorId }), here)
+    legislatorId && isBuilt("legislator")
+      ? withFrom(hrefFor("legislator", { id: legislatorId }), here)
       : null;
   // A roll call is read by its own id, so its address needs nothing else.
   const voteLink = (voteId: string) =>
-    isBuilt('roll-call') ? withFrom(hrefFor('roll-call', { id: voteId }), here) : null;
+    isBuilt("roll-call")
+      ? withFrom(hrefFor("roll-call", { id: voteId }), here)
+      : null;
   // A tally on an action with no roll call to match means the copy lacks it.
-  const tallyWithoutVote = actions.some((row) => row.tally && !voteForAction(row, voteList));
+  const tallyWithoutVote = actions.some(
+    (row) => row.tally && !voteForAction(row, voteList),
+  );
 
   const tabs: Tab<BillTab>[] = [
-    { value: 'summary', label: 'Summary' },
-    { value: 'actions', label: 'Actions', count: String(actions.length) },
-    { value: 'votes', label: 'Votes', count: votes.data ? String(voteList.length) : null },
-    { value: 'text', label: 'Bill Text' },
-    { value: 'versions', label: 'Versions', count: String(versions.length) },
+    { value: "summary", label: "Summary" },
+    { value: "actions", label: "Actions", count: String(actions.length) },
+    {
+      value: "votes",
+      label: "Votes",
+      count: votes.data ? String(voteList.length) : null,
+    },
+    { value: "text", label: "Bill Text" },
+    { value: "versions", label: "Versions", count: String(versions.length) },
   ];
 
   return (
@@ -215,14 +268,18 @@ export function Bill({ match }: { match: RouteMatch }) {
         <div className="bl-tags">
           {code && <span className="f-code bl-code">{code}</span>}
           <span className="bl-session">
-            {[session ? `${session} session` : null, chamber].filter(Boolean).join(' · ')}
+            {[session ? `${session} session` : null, chamber]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
           {bill.is_omnibus && <span className="bl-omnibus">OMNIBUS</span>}
         </div>
         <h1 tabIndex={-1} className="f-page-title bl-title">
           {billHeading(bill.ai_analysis?.short_title, code) || bill.id}
         </h1>
-        <p className="bl-status">{[status, statusDate].filter(Boolean).join(' · ')}</p>
+        <p className="bl-status">
+          {[status, statusDate].filter(Boolean).join(" · ")}
+        </p>
       </header>
 
       <div className="bl-layout">
@@ -236,7 +293,7 @@ export function Bill({ match }: { match: RouteMatch }) {
             />
           </div>
 
-          {tab === 'summary' && (
+          {tab === "summary" && (
             <section aria-label="Summary" className="bl-panel bl-summary">
               {summary ? (
                 <>
@@ -246,7 +303,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                     <p className="bl-meta">
                       {summaryVersion
                         ? `Alethical summary of the ${versionInSentence(summaryVersion.label)}`
-                        : 'Alethical summary'}
+                        : "Alethical summary"}
                     </p>
                   </div>
                   {citations.length > 0 && (
@@ -260,7 +317,10 @@ export function Bill({ match }: { match: RouteMatch }) {
                           <li key={citation.id} className="bl-citation">
                             <div className="bl-citation-head">
                               <span className="bl-citation-where">
-                                {citationLabel(citation.label, citation.section_topic)}
+                                {citationLabel(
+                                  citation.label,
+                                  citation.section_topic,
+                                )}
                               </span>
                               {summaryVersion && (
                                 <span className="bl-citation-version">
@@ -279,7 +339,8 @@ export function Bill({ match }: { match: RouteMatch }) {
                                   summaryVersion
                                     ? openText(summaryVersion, {
                                         sectionId: citation.section_id,
-                                        sourceOrder: citation.section_order ?? null,
+                                        sourceOrder:
+                                          citation.section_order ?? null,
                                       })
                                     : openText(current, null)
                                 }
@@ -298,11 +359,18 @@ export function Bill({ match }: { match: RouteMatch }) {
               ) : (
                 <div className="f-card">
                   <h2 className="f-card-title">Official description</h2>
-                  <p className={bill.description ? 'bl-summary-text' : 'bl-summary-text bl-muted'}>
-                    {bill.description?.trim() || 'Not held in this copy'}
+                  <p
+                    className={
+                      bill.description
+                        ? "bl-summary-text"
+                        : "bl-summary-text bl-muted"
+                    }
+                  >
+                    {bill.description?.trim() || "Not held in this copy"}
                   </p>
                   <p className="bl-meta">
-                    No Alethical summary yet. The official description and full text are available.
+                    No Alethical summary yet. The official description and full
+                    text are available.
                   </p>
                   {current && (
                     <button
@@ -320,7 +388,7 @@ export function Bill({ match }: { match: RouteMatch }) {
             </section>
           )}
 
-          {tab === 'actions' && (
+          {tab === "actions" && (
             <section aria-label="Actions" className="bl-panel">
               {actions.length === 0 ? (
                 <Empty title="Not held in this copy" />
@@ -329,18 +397,22 @@ export function Bill({ match }: { match: RouteMatch }) {
                   {actions.map((row) => {
                     const vote = voteForAction(row, voteList);
                     const href = vote ? voteLink(vote.id) : null;
-                    const committee = isBuilt('committee-members') ? row.committee : null;
+                    const committee = isBuilt("committee-members")
+                      ? row.committee
+                      : null;
                     return (
                       <li key={row.key} className="bl-action">
-                        <span className="bl-action-date">{row.date ?? ''}</span>
-                        <span className="bl-action-chamber">{row.chamber ?? ''}</span>
+                        <span className="bl-action-date">{row.date ?? ""}</span>
+                        <span className="bl-action-chamber">
+                          {row.chamber ?? ""}
+                        </span>
                         <span className="bl-action-text">
                           {committee ? (
                             <>
                               {row.text.slice(0, committee.offset)}
                               <Link
                                 to={withFrom(
-                                  hrefFor('committee-members', {
+                                  hrefFor("committee-members", {
                                     id: committee.id,
                                   }),
                                   here,
@@ -350,14 +422,16 @@ export function Bill({ match }: { match: RouteMatch }) {
                               >
                                 {committee.name}
                               </Link>
-                              {row.text.slice(committee.offset + committee.name.length)}
+                              {row.text.slice(
+                                committee.offset + committee.name.length,
+                              )}
                             </>
                           ) : (
                             row.text
                           )}
                           {href && (
                             <>
-                              {' '}
+                              {" "}
                               <Link to={href} className="bl-inline-link">
                                 Roll call
                               </Link>
@@ -370,13 +444,13 @@ export function Bill({ match }: { match: RouteMatch }) {
                 </ol>
               )}
               <p className="f-section-note lg-note">
-                Actions are recorded events from the Legislature’s journal. The latest action is the
-                bill’s recorded status.
+                Actions are recorded events from the Legislature’s journal. The
+                latest action is the bill’s recorded status.
               </p>
             </section>
           )}
 
-          {tab === 'votes' && (
+          {tab === "votes" && (
             <section aria-label="Votes" className="bl-panel">
               {votes.loading && <LoadingRows />}
               {votes.failed && (
@@ -388,8 +462,8 @@ export function Bill({ match }: { match: RouteMatch }) {
                 <Empty
                   title={
                     tallyWithoutVote
-                      ? 'No roll calls held'
-                      : 'No roll call is recorded for this bill'
+                      ? "No roll calls held"
+                      : "No roll call is recorded for this bill"
                   }
                 />
               )}
@@ -403,15 +477,15 @@ export function Bill({ match }: { match: RouteMatch }) {
                     ))}
                   </ul>
                   <p className="f-section-note lg-note">
-                    Each roll call is one recorded motion. A vote result differs from the bill’s
-                    eventual status.
+                    Each roll call is one recorded motion. A vote result differs
+                    from the bill’s eventual status.
                   </p>
                 </>
               )}
             </section>
           )}
 
-          {tab === 'text' && (
+          {tab === "text" && (
             <section aria-label="Bill Text" className="f-card bl-panel bl-text">
               {chosenVersion ? (
                 <>
@@ -420,7 +494,9 @@ export function Bill({ match }: { match: RouteMatch }) {
                       Bill text · {versionInSentence(chosenVersion.label)}
                     </h2>
                     {chosenVersion.date && (
-                      <span className="bl-meta-inline">Posted {chosenVersion.date}</span>
+                      <span className="bl-meta-inline">
+                        Posted {chosenVersion.date}
+                      </span>
                     )}
                   </div>
                   <BillText
@@ -435,7 +511,7 @@ export function Bill({ match }: { match: RouteMatch }) {
             </section>
           )}
 
-          {tab === 'versions' && (
+          {tab === "versions" && (
             <section aria-label="Versions" className="bl-panel">
               {versions.length === 0 ? (
                 <Empty title="Not held in this copy" />
@@ -445,7 +521,11 @@ export function Bill({ match }: { match: RouteMatch }) {
                     <li key={row.code} className="bl-version">
                       <span>
                         <span className="bl-version-label">{row.label}</span>
-                        {row.date && <span className="bl-version-date">Posted {row.date}</span>}
+                        {row.date && (
+                          <span className="bl-version-date">
+                            Posted {row.date}
+                          </span>
+                        )}
                       </span>
                       {row.isLaw ? (
                         row.url && (
@@ -458,7 +538,10 @@ export function Bill({ match }: { match: RouteMatch }) {
                             <span>
                               <WithArrow>Read the full law</WithArrow>
                             </span>
-                            <span className="f-visually-hidden"> (opens in a new tab)</span>
+                            <span className="f-visually-hidden">
+                              {" "}
+                              (opens in a new tab)
+                            </span>
                           </a>
                         )
                       ) : (
@@ -490,15 +573,18 @@ export function Bill({ match }: { match: RouteMatch }) {
                     <span className="bl-muted">Not held in this copy</span>
                   ) : (
                     chiefs.map((author, index) => (
-                      <span key={author.legislator_id ?? author.name} className="bl-chief">
-                        {index > 0 && '; '}
+                      <span
+                        key={author.legislator_id ?? author.name}
+                        className="bl-chief"
+                      >
+                        {index > 0 && "; "}
                         <PersonName
                           name={author.name}
                           href={legislatorLink(author.legislator_id)}
                         />
                         {seatLabel(author.district, author.chamber) && (
                           <span className="bl-secondary">
-                            {' '}
+                            {" "}
                             · {seatLabel(author.district, author.chamber)}
                           </span>
                         )}
@@ -509,19 +595,22 @@ export function Bill({ match }: { match: RouteMatch }) {
               </div>
               <div>
                 <dt>Co-authors</dt>
-                <dd className={coauthors.length ? undefined : 'bl-muted'}>
+                <dd className={coauthors.length ? undefined : "bl-muted"}>
                   {coauthors.length
-                    ? coauthors.map((author) => author.name).join('; ')
-                    : 'Not held in this copy'}
+                    ? coauthors.map((author) => author.name).join("; ")
+                    : "Not held in this copy"}
                 </dd>
               </div>
               <div>
                 <dt>Companion bill</dt>
                 <dd>
                   {bill.companion ? (
-                    isBuilt('bill') ? (
+                    isBuilt("bill") ? (
                       <Link
-                        to={withFrom(hrefFor('bill', { id: bill.companion.id }), here)}
+                        to={withFrom(
+                          hrefFor("bill", { id: bill.companion.id }),
+                          here,
+                        )}
                         className="f-code bl-companion"
                       >
                         {bill.companion.code}
@@ -536,7 +625,7 @@ export function Bill({ match }: { match: RouteMatch }) {
               </div>
               <div>
                 <dt>Committee</dt>
-                <dd className={committee ? undefined : 'bl-muted'}>
+                <dd className={committee ? undefined : "bl-muted"}>
                   {committee && committeeHref ? (
                     <Link
                       to={committeeHref}
@@ -546,7 +635,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                       {committee}
                     </Link>
                   ) : (
-                    (committee ?? 'Not held in this copy')
+                    (committee ?? "Not held in this copy")
                   )}
                 </dd>
               </div>
@@ -600,7 +689,13 @@ function Frame({
 
 function CheckCircle() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="9" stroke="#0E6A82" strokeWidth="2" />
       <path
         d="M8 12.5 L10.8 15.2 L16 9.5"
@@ -621,13 +716,13 @@ function CheckCircle() {
 export function citationLabel(label: string, topic?: string | null): string {
   let value = label
     .trim()
-    .replace(/^(?:HF|SF)\s*\d+\s*,\s*/i, '')
-    .replace(/\bSection\s+/i, 'Sec. ');
+    .replace(/^(?:HF|SF)\s*\d+\s*,\s*/i, "")
+    .replace(/\bSection\s+/i, "Sec. ");
   const cut = / · .*…$/.test(value);
-  if (cut) value = value.replace(/ · .*$/, '');
-  value = value.replace(/\.\s*$/, '');
-  const served = (topic ?? '').trim();
-  if (!served || (!cut && value.includes(' · '))) return value;
+  if (cut) value = value.replace(/ · .*$/, "");
+  value = value.replace(/\.\s*$/, "");
+  const served = (topic ?? "").trim();
+  if (!served || (!cut && value.includes(" · "))) return value;
   if (!/^(?:Art\. [\w.-]+, )?Sec\. [\w.-]+$/.test(value)) return value;
   return `${value} · ${served}`;
 }
@@ -643,23 +738,29 @@ function PersonName({ name, href }: { name: string; href: string | null }) {
 }
 
 function VoteCard({ vote, href }: { vote: ServedVote; href: string | null }) {
-  const meta = [chamberName(vote.chamber), dayLabel(vote.occurred_at)].filter(Boolean).join(' · ');
+  const meta = [chamberName(vote.chamber), dayLabel(vote.occurred_at)]
+    .filter(Boolean)
+    .join(" · ");
   const body = (
     <>
       <span className="bl-vote-main">
-        <span className="bl-vote-motion">{vote.motion_text?.trim() || 'Roll call'}</span>
+        <span className="bl-vote-motion">
+          {vote.motion_text?.trim() || "Roll call"}
+        </span>
         {meta && <span className="bl-vote-meta">{meta}</span>}
       </span>
       <span className="bl-vote-figures">
         <span>
           <span className="bl-vote-label">Yes</span>
-          <span className="bl-vote-count">{vote.yes_count ?? '—'}</span>
+          <span className="bl-vote-count">{vote.yes_count ?? "—"}</span>
         </span>
         <span>
           <span className="bl-vote-label">No</span>
-          <span className="bl-vote-count">{vote.no_count ?? '—'}</span>
+          <span className="bl-vote-count">{vote.no_count ?? "—"}</span>
         </span>
-        {vote.result_text && <span className="bl-vote-result">{vote.result_text}</span>}
+        {vote.result_text && (
+          <span className="bl-vote-result">{vote.result_text}</span>
+        )}
       </span>
       {href && <Arrow />}
     </>
@@ -677,9 +778,9 @@ function ChangeRuns({ text }: { text: string }) {
   return (
     <>
       {parseChangeRuns(text).map((run, index) =>
-        run.kind === 'removed' ? (
+        run.kind === "removed" ? (
           <del key={index}>{run.text}</del>
-        ) : run.kind === 'added' ? (
+        ) : run.kind === "added" ? (
           <ins key={index}>{run.text}</ins>
         ) : (
           <span key={index}>{run.text}</span>
@@ -714,7 +815,7 @@ function BillText({
   useEffect(() => {
     if (!highlightId) return;
     const element = document.getElementById(highlightId);
-    element?.scrollIntoView?.({ block: 'start' });
+    element?.scrollIntoView?.({ block: "start" });
     element?.focus({ preventScroll: true });
   }, [highlightId]);
 
@@ -727,19 +828,21 @@ function BillText({
     );
   }
   if (read.notFound || sections.length === 0) {
-    return <div className="bl-missing">Text of the {versionLabel} not held</div>;
+    return (
+      <div className="bl-missing">Text of the {versionLabel} not held</div>
+    );
   }
   let article: string | null = null;
   return (
     <div className="bl-sections">
       {sections.map((section) => {
         const { number, title } = splitSectionLabel(section.heading);
-        const label = [number, title].filter(Boolean).join(' · ');
+        const label = [number, title].filter(Boolean).join(" · ");
         const anchor = sectionAnchorId(section);
-        const articleHeading = (section.article_heading ?? '').trim();
+        const articleHeading = (section.article_heading ?? "").trim();
         const showArticle = articleHeading && articleHeading !== article;
         if (articleHeading) article = articleHeading;
-        const paragraphs = cleanSectionText(section.text ?? '')
+        const paragraphs = cleanSectionText(section.text ?? "")
           .split(/\n\s*\n/)
           .map((paragraph) => paragraph.trim())
           .filter(Boolean);
@@ -773,7 +876,7 @@ function AuthorsAccounts({
   legislatorLink,
 }: {
   read: Read<AuthorsAnswer>;
-  chamber: 'House' | 'Senate' | null;
+  chamber: "House" | "Senate" | null;
   here: string;
   legislatorLink: (id: string | null | undefined) => string | null;
 }) {
@@ -788,7 +891,8 @@ function AuthorsAccounts({
       {read.failed && (
         <div role="alert" className="bl-accounts-failed">
           <span>
-            Couldn’t load the authors’ campaign accounts. This is a problem on our side.
+            Couldn’t load the authors’ campaign accounts. This is a problem on
+            our side.
           </span>
           <button
             type="button"
@@ -800,29 +904,43 @@ function AuthorsAccounts({
           </button>
         </div>
       )}
-      {read.data && authors.length === 0 && <p className="bl-accounts-none">No authors held</p>}
+      {read.data && authors.length === 0 && (
+        <p className="bl-accounts-none">No authors held</p>
+      )}
       {authors.length > 0 && (
         <ul className="bl-accounts-list">
           {authors.map((author) => {
             const accounts =
-              author.campaign_accounts?.link_state === 'confirmed'
+              author.campaign_accounts?.link_state === "confirmed"
                 ? author.campaign_accounts.confirmed
                 : [];
             return (
-              <li key={author.legislator_id ?? author.name} className="bl-account">
+              <li
+                key={author.legislator_id ?? author.name}
+                className="bl-account"
+              >
                 <span className="bl-account-head">
-                  <PersonName name={author.name} href={legislatorLink(author.legislator_id)} />
-                  <span className="bl-account-role">{roleLabel(author.role)}</span>
+                  <PersonName
+                    name={author.name}
+                    href={legislatorLink(author.legislator_id)}
+                  />
+                  <span className="bl-account-role">
+                    {roleLabel(author.role)}
+                  </span>
                 </span>
                 {accounts.length === 0 ? (
-                  <span className="bl-secondary">No confirmed campaign account</span>
+                  <span className="bl-secondary">
+                    No confirmed campaign account
+                  </span>
                 ) : (
                   accounts.map((account) =>
-                    isBuilt('committee') ? (
+                    isBuilt("committee") ? (
                       <Link
                         key={account.registration_number}
                         to={withFrom(
-                          hrefFor('committee', { id: account.registration_number }),
+                          hrefFor("committee", {
+                            id: account.registration_number,
+                          }),
                           here,
                         )}
                         className="f-dest bl-account-link"
@@ -832,7 +950,9 @@ function AuthorsAccounts({
                         </span>
                       </Link>
                     ) : (
-                      <span key={account.registration_number}>{account.committee_name}</span>
+                      <span key={account.registration_number}>
+                        {account.committee_name}
+                      </span>
                     ),
                   )
                 )}
@@ -843,7 +963,8 @@ function AuthorsAccounts({
       )}
       {authors.length > 0 && (
         <p className="f-section-note bl-accounts-note">
-          These are records only; they say nothing about why anyone authored this bill
+          These are records only; they say nothing about why anyone authored
+          this bill
         </p>
       )}
     </section>

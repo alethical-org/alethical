@@ -2224,6 +2224,25 @@ def test_external_shared_account_money_and_party_use_full_memberships(
     assert result["authority_summary"][0]["baseline"] == "100.00"
     assert result["authority_summary"][0]["by_party"]["unknown"]["baseline"] == "100.00"
     assert len([p for p in result["payments"] if p.get("authority") == "fec"]) == 1
+    csv_rows = list(s._external_csv_rows(result))
+    exported_report = next(
+        row for row in csv_rows if row["Row type"] == "External account report"
+    )
+    assert exported_report["Account party group"] == "Party cannot be assigned"
+    assert (
+        exported_report["Party assignment"]
+        == "Shared account, different ballot parties"
+    )
+    exported_money = next(
+        row
+        for row in csv_rows
+        if row["Row type"] == "External itemized party"
+        and row["Itemized before exclusions"] == "100.00"
+    )
+    assert exported_money["Account party group"] == "Party cannot be assigned"
+    assert (
+        exported_money["Party assignment"] == "Shared account, different ballot parties"
+    )
     historical = deepcopy(bulk)
     historical["candidates"][1]["accounts"] = [deepcopy(account)]
     historical["candidates"][1]["accounts"][0]["period_start"] = "2025-01-01"

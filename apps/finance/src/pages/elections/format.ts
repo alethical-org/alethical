@@ -15,6 +15,19 @@ export function reportedMoneyLabel(
   return `${value.startsWith("-") ? "−" : ""}${whole.toLocaleString("en-US")} ${currency || "currency unavailable"}`;
 }
 
+export function reportedFigureLabel(figure: {
+  value?: string | null;
+  currency?: string | null;
+  unit?: string;
+}): string {
+  return figure.currency || figure.unit === "USD" || figure.unit === "money"
+    ? reportedMoneyLabel(
+        figure.value,
+        figure.currency ?? (figure.unit === "USD" ? "USD" : null),
+      )
+    : (figure.value ?? "Unavailable");
+}
+
 export function dateLabel(value: string | null | undefined): string {
   if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return "Unavailable";
   const date = new Date(`${value.slice(0, 10)}T12:00:00Z`);

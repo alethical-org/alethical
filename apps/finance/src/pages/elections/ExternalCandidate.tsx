@@ -7,7 +7,7 @@ import type { RaceAnswer, ResultCandidate } from "./data";
 import {
   count,
   dateLabel,
-  moneyLabel,
+  reportedFigureLabel,
   reportedMoneyLabel,
   periodLabel,
 } from "./format";
@@ -153,7 +153,7 @@ export function ExternalCandidate({
         attachment: x.externalSourcePath(data, binding.source_sha256),
         evidence: {
           title: figure
-            ? `${figure.label} · ${figure.currency || figure.unit === "USD" ? reportedMoneyLabel(figure.value, figure.currency ?? figure.unit) : (figure.value ?? "Unavailable")}`
+            ? `${figure.label} · ${reportedFigureLabel(figure)}`
             : payment
               ? `${position(payment.direction)} · ${candidate.name}`
               : report
@@ -490,9 +490,7 @@ function ExternalAccount({
                     </span>
                   </dt>
                   <dd className="ec-number">
-                    {figure.unit === "USD" || figure.currency === "USD"
-                      ? moneyLabel(figure.value)
-                      : (figure.value ?? "Unavailable")}
+                    {reportedFigureLabel(figure)}
                     {figure.sources.map((_, sourceIndex) => (
                       <button
                         className="ec-link ec-filing-period"

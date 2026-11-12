@@ -11,7 +11,7 @@ import { externalSourcePath } from "./externalData";
 import {
   count,
   dateLabel,
-  moneyLabel,
+  reportedFigureLabel,
   reportedMoneyLabel,
   periodLabel,
 } from "./format";
@@ -56,11 +56,7 @@ export function AuthorityFigures({
               )}
             </dt>
             <dd>
-              <strong>
-                {figure.currency === "USD" || figure.unit === "USD"
-                  ? moneyLabel(figure.value)
-                  : (figure.value ?? "Unavailable")}
-              </strong>
+              <strong>{reportedFigureLabel(figure)}</strong>
               {figure.sources.map((_, i) => (
                 <button
                   key={i}
@@ -198,10 +194,7 @@ export function authorityEvidence(
           ? [
               {
                 label: figure.label,
-                value:
-                  figure.currency === "USD" || figure.unit === "USD"
-                    ? moneyLabel(figure.value)
-                    : (figure.value ?? "Unavailable"),
+                value: reportedFigureLabel(figure),
               },
             ]
           : []),
@@ -248,23 +241,53 @@ export function AuthorityComparisons({ data }: { data: ExpenseAnswer }) {
       </p>
       {groups.map(([key, rows]) => {
         const first = rows[0];
+        const unassigned = (row: AuthoritySummary) => {
+          const report = data.authority_reports?.find(
+            (item) =>
+              item.authority === row.authority &&
+              item.report_key === row.report_key,
+          );
+          return (
+            report?.party_group === "unknown" &&
+            report.party_classification_state !== "ballot_party_not_in_source"
+          );
+        };
         const partyRows = Object.entries(PARTY_LABELS).map(
           ([party, label]) => ({
             label,
             before: sumMoney(
-              rows.map(
-                (row) =>
-                  row.by_party[party as keyof typeof PARTY_LABELS]?.baseline,
-              ),
+              rows
+                .filter((row) => party !== "unknown" || !unassigned(row))
+                .map(
+                  (row) =>
+                    row.by_party[party as keyof typeof PARTY_LABELS]?.baseline,
+                ),
             ),
             after: sumMoney(
-              rows.map(
-                (row) =>
-                  row.by_party[party as keyof typeof PARTY_LABELS]?.adjusted,
-              ),
+              rows
+                .filter((row) => party !== "unknown" || !unassigned(row))
+                .map(
+                  (row) =>
+                    row.by_party[party as keyof typeof PARTY_LABELS]?.adjusted,
+                ),
             ),
           }),
         );
+        if (rows.some(unassigned)) {
+          partyRows.push({
+            label: "Party cannot be assigned",
+            before: sumMoney(
+              rows
+                .filter(unassigned)
+                .map((row) => row.by_party.unknown?.baseline),
+            ),
+            after: sumMoney(
+              rows
+                .filter(unassigned)
+                .map((row) => row.by_party.unknown?.adjusted),
+            ),
+          });
+        }
         const geographyRows = [
           ["MN", "Minnesota"],
           ["out_of_state", "Out of state"],

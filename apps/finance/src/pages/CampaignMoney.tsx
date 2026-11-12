@@ -1,34 +1,44 @@
-import { useEffect, useRef, type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from "react";
 
 import {
   COMMITTEE_PAGE_SIZE,
   kindFilterNoun,
   type CommitteeKindFilter,
-} from '@alethical/shared/committeeList';
-import { committeeEyebrow, formatDay } from '@alethical/shared/committeeMoneyShared';
-import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
-import { paymentCopyLines } from '@alethical/shared/paymentCopyDates';
+} from "@alethical/shared/committeeList";
+import {
+  committeeEyebrow,
+  formatDay,
+} from "@alethical/shared/committeeMoneyShared";
+import { centralDateLabel, formatCount } from "@alethical/shared/moneyLanding";
+import { paymentCopyLines } from "@alethical/shared/paymentCopyDates";
 
-import { useRead, type Read } from '../api/read';
-import { Link, useLocation } from '../router';
-import { useLiveSearch } from '../search/useLiveSearch';
-import { withFrom } from '../returnContext';
-import { hrefFor, isBuilt, type RouteMatch } from '../routes';
-import { useAddressState } from '../ui/addressState';
-import { useBand } from '../ui/band';
-import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
-import { RecordMark } from '../ui/marks';
-import { ScrollingTabs } from '../ui/scrollingTabs';
-import { Arrow, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
-import './campaignMoney.css';
+import { useRead, type Read } from "../api/read";
+import { Link, useLocation } from "../router";
+import { useLiveSearch } from "../search/useLiveSearch";
+import { withFrom } from "../returnContext";
+import { hrefFor, isBuilt, type RouteMatch } from "../routes";
+import { useAddressState } from "../ui/addressState";
+import { useBand } from "../ui/band";
+import {
+  ClearAll,
+  Dropdown,
+  Empty,
+  LoadingRows,
+  Refused,
+  Updating,
+} from "../ui/controls";
+import { RecordMark } from "../ui/marks";
+import { ScrollingTabs } from "../ui/scrollingTabs";
+import { Arrow, SourcesAndUpdates, type SourceGroup } from "../ui/parts";
+import "./campaignMoney.css";
 
-const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
+const BOARD = "Minnesota Campaign Finance and Public Disclosure Board";
 /** The register endpoint refuses a longer name (q max_length 200). */
 const MAX_QUERY = 200;
 
 /** The 3 directory tabs, in the drawing's order, and the register kind each reads.
  * The register holds exactly these 3 kinds, so no finer tab exists (#1661). */
-export type DirectoryTab = 'candidates' | 'committees' | 'party';
+export type DirectoryTab = "candidates" | "committees" | "party";
 
 const TABS: ReadonlyArray<{
   value: DirectoryTab;
@@ -36,20 +46,20 @@ const TABS: ReadonlyArray<{
   kind: CommitteeKindFilter;
 }> = [
   {
-    value: 'candidates',
-    label: 'Candidate committees',
-    kind: 'candidate_committee',
+    value: "candidates",
+    label: "Candidate committees",
+    kind: "candidate_committee",
   },
   {
-    value: 'committees',
-    label: 'Committees and funds',
-    kind: 'political_committee_or_fund',
+    value: "committees",
+    label: "Committees and funds",
+    kind: "political_committee_or_fund",
   },
-  { value: 'party', label: 'Party units', kind: 'party_unit' },
+  { value: "party", label: "Party units", kind: "party_unit" },
 ];
 
 export function tabFromParam(raw: string): DirectoryTab {
-  return TABS.find((tab) => tab.value === raw)?.value ?? 'candidates';
+  return TABS.find((tab) => tab.value === raw)?.value ?? "candidates";
 }
 
 export function pageFromParam(raw: string): number {
@@ -68,14 +78,14 @@ export interface CommitteeRow {
   is_closed: boolean | null;
   termination_date: string | null;
   registration_date?: string | null;
-  registration_status?: 'open' | 'terminated' | 'not_listed' | 'unknown';
+  registration_status?: "open" | "terminated" | "not_listed" | "unknown";
   party?: string | null;
   retained?: boolean;
   captured_at?: string | null;
 }
 
 export interface CommitteeRegister {
-  state: 'reported' | 'unavailable' | string;
+  state: "reported" | "unavailable" | string;
   /** The register kind these rows were read for, echoed by the server. */
   kind?: string | null;
   q?: string | null;
@@ -112,27 +122,35 @@ export function registerPath(
   tab: DirectoryTab,
   query: string,
   page: number,
-  sort = 'name',
-  status = 'all',
-  party = '',
+  sort = "name",
+  status = "all",
+  party = "",
 ): string {
-  const kind = TABS.find((item) => item.value === tab)?.kind ?? 'candidate_committee';
+  const kind =
+    TABS.find((item) => item.value === tab)?.kind ?? "candidate_committee";
   const params = new URLSearchParams({
     kind,
     limit: String(COMMITTEE_PAGE_SIZE),
     offset: String((page - 1) * COMMITTEE_PAGE_SIZE),
   });
-  if (query) params.set('q', query);
-  if (sort === 'registration') params.set('sort', sort);
-  params.set('status', status === 'open' || status === 'terminated' ? status : 'all');
-  if (tab === 'candidates' && party) params.set('party', party);
+  if (query) params.set("q", query);
+  if (sort === "registration") params.set("sort", sort);
+  params.set(
+    "status",
+    status === "open" || status === "terminated" ? status : "all",
+  );
+  if (tab === "candidates" && party) params.set("party", party);
   return `finance/committees?${params.toString()}`;
 }
 
 /** "762 candidate committees": the served count for this tab and search. */
-export function countLine(tab: DirectoryTab, total: number | null): string | null {
+export function countLine(
+  tab: DirectoryTab,
+  total: number | null,
+): string | null {
   if (total === null || total === undefined) return null;
-  const kind = TABS.find((item) => item.value === tab)?.kind ?? 'candidate_committee';
+  const kind =
+    TABS.find((item) => item.value === tab)?.kind ?? "candidate_committee";
   return `${formatCount(total)} ${kindFilterNoun(kind, total)}`;
 }
 
@@ -151,7 +169,9 @@ export function sourceGroups(
   summary: MoneySummary | null,
 ): SourceGroup[] {
   const fetched = summary?.freshness?.register_fetched_at;
-  const registerDay = fetched ? centralDateLabel(fetched) : formatDay(register?.as_of ?? null);
+  const registerDay = fetched
+    ? centralDateLabel(fetched)
+    : formatDay(register?.as_of ?? null);
   const items: string[] = [];
   if (registerDay) items.push(`Register copied ${registerDay}`);
   const copied = summary?.freshness?.payment_copied_at;
@@ -167,7 +187,9 @@ export function sourceGroups(
       ),
     );
   }
-  return items.length > 0 ? [{ source: BOARD, items: punctuateGroup(items) }] : [];
+  return items.length > 0
+    ? [{ source: BOARD, items: punctuateGroup(items) }]
+    : [];
 }
 
 /** The Other ways in cards (Campaign Money drawing, Round 29) whose pages exist,
@@ -175,80 +197,85 @@ export function sourceGroups(
  * from Finance Home (eug-44). Payments under a name and Money by race open only
  * with a name or a contest, so neither has a plain entrance here. */
 const SIDE_CARDS: ReadonlyArray<{
-  route: 'recipients' | 'employers' | 'money-by-race';
+  route: "recipients" | "employers" | "money-by-race";
   params?: Record<string, string>;
   title: string;
   body: string;
 }> = [
   {
-    route: 'recipients' as const,
-    title: 'Vendors and payees',
-    body: 'Find recipients named in payment records.',
+    route: "recipients" as const,
+    title: "Vendors and payees",
+    body: "Find recipients named in payment records.",
   },
   {
-    route: 'employers' as const,
-    title: 'Donors by employer',
-    body: 'Find donors by the employer name reported in their filings.',
+    route: "employers" as const,
+    title: "Donors by employer",
+    body: "Find donors by the employer name reported in their filings.",
   },
   {
     // An office alone opens that office's first contest, as the drawing's
     // unparameterised link does.
-    route: 'money-by-race' as const,
-    params: { id: 'house' },
-    title: 'Money by race',
-    body: 'Candidate committees and outside spending for one office, district and year, kept distinct.',
+    route: "money-by-race" as const,
+    params: { id: "house" },
+    title: "Money by race",
+    body: "Candidate committees and outside spending for one office, district and year, kept distinct.",
   },
 ];
 
 /** About these records: 1 group, 1 item has 3 sentences, so every item ends
  * with a period (eug-31). */
 const ABOUT = [
-  'Campaign payment records before 2015 are not included.',
-  'These records cover campaign finances, not the wider finances of organizations with political committees or funds.',
-  'Some donations are reported together without donor names as non-itemized contributions. This is allowed when a donor gives $200 or less to the same committee, party unit or fund in a calendar year. For ballot-question committees and funds, the limit is $500.',
+  "Campaign payment records before 2015 are not included.",
+  "These records cover campaign finances, not the wider finances of organizations with political committees or funds.",
+  "Some donations are reported together without donor names as non-itemized contributions. This is allowed when a donor gives $200 or less to the same committee, party unit or fund in a calendar year. For ballot-question committees and funds, the limit is $500.",
 ];
 
 /** Status belongs to this exact held registration; retention never proves termination. */
 export function registrationStatus(
-  row: Pick<CommitteeRow, 'is_closed' | 'termination_date'> & Partial<CommitteeRow>,
+  row: Pick<CommitteeRow, "is_closed" | "termination_date"> &
+    Partial<CommitteeRow>,
 ): {
   text: string;
-  state: 'open' | 'terminated' | 'retained' | 'unknown';
+  state: "open" | "terminated" | "retained" | "unknown";
 } {
-  if (row.retained || row.registration_status === 'not_listed') {
+  if (row.retained || row.registration_status === "not_listed") {
     return {
-      text: 'No longer listed in the current register',
-      state: 'retained',
+      text: "No longer listed in the current register",
+      state: "retained",
     };
   }
   const status =
     row.registration_status ??
-    (row.is_closed === true ? 'terminated' : row.is_closed === false ? 'open' : 'unknown');
-  if (status === 'terminated') {
+    (row.is_closed === true
+      ? "terminated"
+      : row.is_closed === false
+        ? "open"
+        : "unknown");
+  if (status === "terminated") {
     const day = formatDay(row.termination_date);
     return {
-      text: day ? `Terminated ${day}` : 'Terminated',
-      state: 'terminated',
+      text: day ? `Terminated ${day}` : "Terminated",
+      state: "terminated",
     };
   }
-  if (status === 'open') {
+  if (status === "open") {
     const day = formatDay(row.registration_date ?? null);
     return {
-      text: day ? `Registered ${day}` : 'Open registration',
-      state: 'open',
+      text: day ? `Registered ${day}` : "Open registration",
+      state: "open",
     };
   }
-  return { text: 'Registration status not held', state: 'unknown' };
+  return { text: "Registration status not held", state: "unknown" };
 }
 
 const REGISTRATIONS = [
-  { value: 'all', label: 'All registrations' },
-  { value: 'open', label: 'Open registrations' },
-  { value: 'terminated', label: 'Terminated registrations' },
+  { value: "all", label: "All registrations" },
+  { value: "open", label: "Open registrations" },
+  { value: "terminated", label: "Terminated registrations" },
 ];
 
 function registrationFilter(value: string | null | undefined) {
-  return value === 'open' || value === 'terminated' ? value : 'all';
+  return value === "open" || value === "terminated" ? value : "all";
 }
 
 /** The lines of 1 Sources and updates group, punctuated as 1 group (eug-31):
@@ -260,53 +287,66 @@ export function punctuateGroup(items: string[]): string[] {
 }
 
 const ADDRESS_DEFAULTS = {
-  tab: 'candidates',
-  q: '',
-  page: '1',
-  sort: 'name',
-  reg: 'all',
-  party: '',
-  view: '',
-  reg_candidates: '',
-  reg_committees: '',
-  reg_party: '',
-  sort_candidates: '',
-  sort_committees: '',
-  sort_party: '',
-  spage_candidates: '1',
-  spage_committees: '1',
-  spage_party: '1',
-  party_candidates: '',
+  tab: "candidates",
+  q: "",
+  page: "1",
+  sort: "name",
+  reg: "all",
+  party: "",
+  view: "",
+  reg_candidates: "",
+  reg_committees: "",
+  reg_party: "",
+  sort_candidates: "",
+  sort_committees: "",
+  sort_party: "",
+  spage_candidates: "1",
+  spage_committees: "1",
+  spage_party: "1",
+  party_candidates: "",
 };
 type DirectoryAddress = typeof ADDRESS_DEFAULTS;
 type GroupChoices = { reg: string; sort: string; party: string; page: string };
 function validParty(value: string): string {
-  return value.length <= 200 && !value.includes('\0') ? value : '';
+  return value.length <= 200 && !value.includes("\0") ? value : "";
 }
 const READ_OPTIONS = {
   keepPrevious: true,
-  acceptData: (data: CommitteeRegister) => data.state === 'reported',
+  acceptData: (data: CommitteeRegister) => data.state === "reported",
 };
 
 function resultCount(read: Read<CommitteeRegister>): number | null {
-  if (read.loading || read.pending || read.updating || read.failed || read.notFound) return null;
+  if (
+    read.loading ||
+    read.pending ||
+    read.updating ||
+    read.failed ||
+    read.notFound
+  )
+    return null;
   return read.data?.page.total ?? null;
 }
 
-function searchChoices(address: DirectoryAddress, tab: DirectoryTab): GroupChoices {
+function searchChoices(
+  address: DirectoryAddress,
+  tab: DirectoryTab,
+): GroupChoices {
   const browseTab = tabFromParam(address.tab);
   return {
-    reg: registrationFilter(address[`reg_${tab}`] || (tab === browseTab ? address.reg : 'all')),
+    reg: registrationFilter(
+      address[`reg_${tab}`] || (tab === browseTab ? address.reg : "all"),
+    ),
     sort:
-      (address[`sort_${tab}`] || (tab === browseTab ? address.sort : 'name')) === 'registration'
-        ? 'registration'
-        : 'name',
+      (address[`sort_${tab}`] ||
+        (tab === browseTab ? address.sort : "name")) === "registration"
+        ? "registration"
+        : "name",
     party:
-      tab === 'candidates'
-        ? address.party_candidates === 'all'
-          ? ''
+      tab === "candidates"
+        ? address.party_candidates === "all"
+          ? ""
           : validParty(address.party_candidates || address.party)
-        : '',
+        : "",
     page: address[`spage_${tab}`],
   };
 }
@@ -324,14 +364,14 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
       : null;
   const browseChoices = {
     reg: registrationFilter(address.reg),
-    sort: address.sort === 'registration' ? 'registration' : 'name',
-    party: tab === 'candidates' ? validParty(address.party) : '',
+    sort: address.sort === "registration" ? "registration" : "name",
+    party: tab === "candidates" ? validParty(address.party) : "",
     page: address.page,
   };
   const choices = {
-    candidates: searchChoices(address, 'candidates'),
-    committees: searchChoices(address, 'committees'),
-    party: searchChoices(address, 'party'),
+    candidates: searchChoices(address, "candidates"),
+    committees: searchChoices(address, "committees"),
+    party: searchChoices(address, "party"),
   };
   function pathFor(group: DirectoryTab) {
     const choice = choices[group];
@@ -351,7 +391,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
       ? null
       : registerPath(
           tab,
-          '',
+          "",
           pageFromParam(address.page),
           browseChoices.sort,
           browseChoices.reg,
@@ -359,12 +399,18 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
         ),
     READ_OPTIONS,
   );
-  const candidates = useRead<CommitteeRegister>(pathFor('candidates'), READ_OPTIONS);
-  const committees = useRead<CommitteeRegister>(pathFor('committees'), READ_OPTIONS);
-  const party = useRead<CommitteeRegister>(pathFor('party'), READ_OPTIONS);
+  const candidates = useRead<CommitteeRegister>(
+    pathFor("candidates"),
+    READ_OPTIONS,
+  );
+  const committees = useRead<CommitteeRegister>(
+    pathFor("committees"),
+    READ_OPTIONS,
+  );
+  const party = useRead<CommitteeRegister>(pathFor("party"), READ_OPTIONS);
   const searchReads = { candidates, committees, party };
-  const summary = useRead<MoneySummary>('campaign-finance/summary');
-  const phone = useBand() === 'phone';
+  const summary = useRead<MoneySummary>("campaign-finance/summary");
+  const phone = useBand() === "phone";
   const [typed, setTyped, applySearch] = useLiveSearch(
     submitted,
     here,
@@ -372,10 +418,10 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
       setAddress(
         {
           q,
-          view: q ? address.view : '',
-          spage_candidates: '1',
-          spage_committees: '1',
-          spage_party: '1',
+          view: q ? address.view : "",
+          spage_candidates: "1",
+          spage_committees: "1",
+          spage_party: "1",
         },
         { replace: Boolean(q) === Boolean(submitted) },
       );
@@ -389,10 +435,12 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   const allEmpty = TABS.every(({ value }) => {
     const read = searchReads[value],
       choice = choices[value];
-    return resultCount(read) === 0 && choice.reg === 'all' && !choice.party;
+    return resultCount(read) === 0 && choice.reg === "all" && !choice.party;
   });
   const groups = sourceGroups(
-    submitted ? (candidates.data ?? committees.data ?? party.data) : browse.data,
+    submitted
+      ? (candidates.data ?? committees.data ?? party.data)
+      : browse.data,
     summary.data,
   );
   const cards = SIDE_CARDS.filter((card) => isBuilt(card.route));
@@ -403,20 +451,22 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
     const previous = previousView.current;
     previousView.current = { submitted, full };
     if (previous.submitted && !submitted) searchInput.current?.focus();
-    else if (submitted && previous.full !== full) resultsHeading.current?.focus();
+    else if (submitted && previous.full !== full)
+      resultsHeading.current?.focus();
   }, [submitted, full]);
-  function showFull(view: DirectoryTab | '') {
+  function showFull(view: DirectoryTab | "") {
     setAddress({ view }, { replace: false });
   }
-  function viewHref(view: DirectoryTab | '') {
+  function viewHref(view: DirectoryTab | "") {
     const params = new URLSearchParams(location.search);
-    if (view) params.set('view', view);
-    else params.delete('view');
+    if (view) params.set("view", view);
+    else params.delete("view");
     return `${location.pathname}?${params}`;
   }
   const tabs = TABS.map((item) => {
     const read = searchReads[item.value];
-    const current = new URLSearchParams(read.dataPath?.split('?')[1]).get('q') === submitted;
+    const current =
+      new URLSearchParams(read.dataPath?.split("?")[1]).get("q") === submitted;
     const count = submitted
       ? current
         ? resultCount(read)
@@ -425,7 +475,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
     return {
       value: item.value,
       label: item.label,
-      count: typeof count === 'number' ? formatCount(count) : null,
+      count: typeof count === "number" ? formatCount(count) : null,
     };
   });
   return (
@@ -437,13 +487,14 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
               Campaign money
             </h1>
             <p className="cm-dek">
-              Candidate committees, committees and funds, and party units registered in Minnesota,
-              with their official report figures and itemized payments
+              Candidate committees, committees and funds, and party units
+              registered in Minnesota, with their official report figures and
+              itemized payments
             </p>
           </div>
-          {isBuilt('money-connections') && (
+          {isBuilt("money-connections") && (
             <Link
-              to={withFrom(hrefFor('money-connections'), here)}
+              to={withFrom(hrefFor("money-connections"), here)}
               className="f-btn f-action cm-connections"
             >
               <span>Explore money connections</span>
@@ -455,7 +506,10 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
         <form role="search" onSubmit={submit} className="cm-search">
           {/* The drawn label shows on phone, above the field; elsewhere the field's
               hint says it (settled wording row 3). */}
-          <label htmlFor="money-name" className={phone ? 'cm-search-label' : 'f-visually-hidden'}>
+          <label
+            htmlFor="money-name"
+            className={phone ? "cm-search-label" : "f-visually-hidden"}
+          >
             Search by name or registration number
           </label>
           <input
@@ -467,7 +521,9 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             maxLength={MAX_QUERY}
             autoComplete="off"
             placeholder={
-              phone ? 'Name or registration number' : 'Search by name or registration number'
+              phone
+                ? "Name or registration number"
+                : "Search by name or registration number"
             }
             onChange={(event) => setTyped(event.target.value)}
           />
@@ -476,17 +532,21 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
           </button>
         </form>
 
-        {submitted && isBuilt('payments-under-name') && (
+        {submitted && isBuilt("payments-under-name") && (
           <section aria-label="Name search" className="cm-name-search">
             <p>Payments recorded under that spelling are a separate search</p>
             <Link
-              to={withFrom(hrefFor('payments-under-name', { query: submitted }), here)}
+              to={withFrom(
+                hrefFor("payments-under-name", { query: submitted }),
+                here,
+              )}
               className="cm-card cm-payments"
             >
               <span className="cm-payments-text">
                 <span className="cm-card-title">Payments under a name</span>
                 <span className="cm-payments-note">
-                  Every campaign and outside-spending payment, grouped by exact spelling
+                  Every campaign and outside-spending payment, grouped by exact
+                  spelling
                 </span>
               </span>
               <Arrow />
@@ -499,8 +559,14 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             {submitted && (
               <div className="cm-search-heading">
                 {full && (
-                  <Link to={viewHref('')} className="cm-view-all cm-back">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <Link to={viewHref("")} className="cm-view-all cm-back">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
                       <path
                         d="M15 6 L9 12 L15 18"
                         stroke="currentColor"
@@ -519,7 +585,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
                   <button
                     type="button"
                     className="f-btn f-btn-secondary"
-                    onClick={() => applySearch('')}
+                    onClick={() => applySearch("")}
                   >
                     Clear search
                   </button>
@@ -529,13 +595,13 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             {(!submitted || full) && (
               <div className="cm-tabs">
                 <ScrollingTabs
-                  label={submitted ? 'Result groups' : 'Directory'}
+                  label={submitted ? "Result groups" : "Directory"}
                   value={full ?? tab}
                   tabs={tabs}
                   onChange={(next) =>
                     submitted
                       ? showFull(tabFromParam(next))
-                      : setAddress({ tab: next, party: '', page: '1' })
+                      : setAddress({ tab: next, party: "", page: "1" })
                   }
                 />
               </div>
@@ -547,26 +613,34 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
               />
             ) : submitted ? (
               <div className="cm-search-groups">
-                {TABS.filter((item) => !full || item.value === full).map((item) => (
-                  <RegisterGroup
-                    key={item.value}
-                    tab={item.value}
-                    read={searchReads[item.value]}
-                    here={here}
-                    choices={choices[item.value]}
-                    preview={!full}
-                    viewAllHref={viewHref(item.value)}
-                    setAddress={(change) => {
-                      const updates: Partial<DirectoryAddress> = {};
-                      if (change.reg !== undefined) updates[`reg_${item.value}`] = change.reg;
-                      if (change.sort !== undefined) updates[`sort_${item.value}`] = change.sort;
-                      if (change.party !== undefined && item.value === 'candidates')
-                        updates.party_candidates = change.party || 'all';
-                      if (change.page !== undefined) updates[`spage_${item.value}`] = change.page;
-                      setAddress(updates);
-                    }}
-                  />
-                ))}
+                {TABS.filter((item) => !full || item.value === full).map(
+                  (item) => (
+                    <RegisterGroup
+                      key={item.value}
+                      tab={item.value}
+                      read={searchReads[item.value]}
+                      here={here}
+                      choices={choices[item.value]}
+                      preview={!full}
+                      viewAllHref={viewHref(item.value)}
+                      setAddress={(change) => {
+                        const updates: Partial<DirectoryAddress> = {};
+                        if (change.reg !== undefined)
+                          updates[`reg_${item.value}`] = change.reg;
+                        if (change.sort !== undefined)
+                          updates[`sort_${item.value}`] = change.sort;
+                        if (
+                          change.party !== undefined &&
+                          item.value === "candidates"
+                        )
+                          updates.party_candidates = change.party || "all";
+                        if (change.page !== undefined)
+                          updates[`spage_${item.value}`] = change.page;
+                        setAddress(updates);
+                      }}
+                    />
+                  ),
+                )}
               </div>
             ) : (
               <RegisterGroup
@@ -631,21 +705,43 @@ function RegisterGroup({
   const rows = register?.committees ?? [];
   const total = register?.page.total ?? null;
   const pages = pageCount(total);
-  const shownPage = register ? Math.floor(register.page.offset / COMMITTEE_PAGE_SIZE) + 1 : page;
-  const pagingUnavailable = read.pending || read.updating || read.failed || read.notFound;
+  const shownPage = register
+    ? Math.floor(register.page.offset / COMMITTEE_PAGE_SIZE) + 1
+    : page;
+  const pagingUnavailable =
+    read.pending || read.updating || read.failed || read.notFound;
   useEffect(() => {
     const own = register?.page.offset === (page - 1) * COMMITTEE_PAGE_SIZE;
-    if (!preview && own && !read.updating && !read.failed && total !== null && page > pages)
+    if (
+      !preview &&
+      own &&
+      !read.updating &&
+      !read.failed &&
+      total !== null &&
+      page > pages
+    )
       setAddress({ page: String(pages) });
-  }, [preview, register, read.updating, read.failed, total, page, pages, setAddress]);
+  }, [
+    preview,
+    register,
+    read.updating,
+    read.failed,
+    total,
+    page,
+    pages,
+    setAddress,
+  ]);
   const list = useRef<HTMLDivElement>(null);
   function goPage(next: number) {
     if (pagingUnavailable) return;
     setAddress({ page: String(next) });
     if (list.current) {
       window.scrollTo({
-        top: Math.max(0, list.current.getBoundingClientRect().top + window.scrollY - 20),
-        behavior: 'smooth',
+        top: Math.max(
+          0,
+          list.current.getBoundingClientRect().top + window.scrollY - 20,
+        ),
+        behavior: "smooth",
       });
       list.current.focus({ preventScroll: true });
     }
@@ -653,21 +749,26 @@ function RegisterGroup({
   const freshFailure = (read.failed || read.notFound) && !register;
   const retainedFailure = (read.failed || read.notFound) && !!register;
   const showList = register !== null;
-  const shownParams = new URLSearchParams(read.dataPath?.split('?')[1]);
-  const shownQuery = shownParams.get('q') ?? '';
-  const shownTab = TABS.find((item) => item.kind === register?.kind)?.value ?? tab;
+  const shownParams = new URLSearchParams(read.dataPath?.split("?")[1]);
+  const shownQuery = shownParams.get("q") ?? "";
+  const shownTab =
+    TABS.find((item) => item.kind === register?.kind)?.value ?? tab;
   const count = countLine(shownTab, total);
   const previousScope = [
     TABS.find((item) => item.value === shownTab)?.label,
-    REGISTRATIONS.find((item) => item.value === registrationFilter(shownParams.get('status')))
-      ?.label,
-    shownParams.get('party'),
-    shownQuery ? `Matching “${shownQuery}”` : '',
+    REGISTRATIONS.find(
+      (item) => item.value === registrationFilter(shownParams.get("status")),
+    )?.label,
+    shownParams.get("party"),
+    shownQuery ? `Matching “${shownQuery}”` : "",
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join(" · ");
   const partyOptions = [
-    ...new Set([...(register?.candidate_parties ?? []), ...(party ? [party] : [])]),
+    ...new Set([
+      ...(register?.candidate_parties ?? []),
+      ...(party ? [party] : []),
+    ]),
   ];
   const label = TABS.find((item) => item.value === tab)!.label;
   const currentCount = resultCount(read);
@@ -676,47 +777,47 @@ function RegisterGroup({
       {preview && (
         <h3>
           {label}
-          {currentCount !== null ? ` (${formatCount(currentCount)})` : ''}
+          {currentCount !== null ? ` (${formatCount(currentCount)})` : ""}
         </h3>
       )}
-      {(rows.length > 0 || reg !== 'all' || party) && (
+      {(rows.length > 0 || reg !== "all" || party) && (
         <div className="cm-filters">
-          {tab === 'candidates' && partyOptions.length > 0 && (
+          {tab === "candidates" && partyOptions.length > 0 && (
             <Dropdown
               name="Party"
               value={party}
               options={[
-                { value: '', label: 'All parties' },
+                { value: "", label: "All parties" },
                 ...partyOptions.map((value) => ({ value, label: value })),
               ]}
-              onChange={(party) => setAddress({ party, page: '1' })}
+              onChange={(party) => setAddress({ party, page: "1" })}
             />
           )}
           <Dropdown
             name="Registration"
             value={reg}
             options={REGISTRATIONS}
-            onChange={(reg) => setAddress({ reg, page: '1' })}
+            onChange={(reg) => setAddress({ reg, page: "1" })}
           />
           {rows.length > 0 && (
             <Dropdown
               name="Sort by"
               value={sort}
               options={[
-                { value: 'name', label: 'Name A–Z' },
-                { value: 'registration', label: 'Registration number' },
+                { value: "name", label: "Name A–Z" },
+                { value: "registration", label: "Registration number" },
               ]}
-              onChange={(sort) => setAddress({ sort, page: '1' })}
+              onChange={(sort) => setAddress({ sort, page: "1" })}
             />
           )}
-          {(sort === 'registration' || reg !== 'all' || party) && (
+          {(sort === "registration" || reg !== "all" || party) && (
             <ClearAll
               onClick={() =>
                 setAddress({
-                  sort: 'name',
-                  reg: 'all',
-                  party: '',
-                  page: '1',
+                  sort: "name",
+                  reg: "all",
+                  party: "",
+                  page: "1",
                 })
               }
             />
@@ -727,8 +828,8 @@ function RegisterGroup({
         {read.loading && <LoadingRows />}
         {freshFailure && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            Couldn’t load results. This is a problem on our side and says nothing about who
-            is registered.
+            Couldn’t load results. This is a problem on our side and says
+            nothing about who is registered.
           </Refused>
         )}
         {showList && (
@@ -773,13 +874,17 @@ function RegisterGroup({
                   {(preview ? rows.slice(0, 5) : rows).map((row) => {
                     const status = registrationStatus(row);
                     return (
-                      <div role="row" key={row.registration_number} className="cm-row">
+                      <div
+                        role="row"
+                        key={row.registration_number}
+                        className="cm-row"
+                      >
                         <span role="cell" className="cm-name f-marked">
                           <RecordMark kind="committee" />
-                          {isBuilt('committee') ? (
+                          {isBuilt("committee") ? (
                             <Link
                               to={withFrom(
-                                hrefFor('committee', {
+                                hrefFor("committee", {
                                   id: row.registration_number,
                                 }),
                                 here,
@@ -795,21 +900,28 @@ function RegisterGroup({
                         <span role="cell" className="cm-kind">
                           {[
                             committeeEyebrow(row.kind, row.sub_type),
-                            shownTab === 'candidates' ? row.party : null,
+                            shownTab === "candidates" ? row.party : null,
                           ]
                             .filter(Boolean)
-                            .join(' · ')}
+                            .join(" · ")}
                         </span>
                         <span role="cell" className="cm-reg f-num">
-                          <span className="cm-reg-word">Registration number </span>
+                          <span className="cm-reg-word">
+                            Registration number{" "}
+                          </span>
                           {row.registration_number}
                         </span>
-                        <span role="cell" className="cm-status f-num" data-status={status.state}>
+                        <span
+                          role="cell"
+                          className="cm-status f-num"
+                          data-status={status.state}
+                        >
                           {status.text}
-                          {(row.retained || row.registration_status === 'not_listed') &&
+                          {(row.retained ||
+                            row.registration_status === "not_listed") &&
                             row.captured_at && (
                               <span className="cm-status-copy">
-                                Last listed in the register copied{' '}
+                                Last listed in the register copied{" "}
                                 {centralDateLabel(row.captured_at)}
                               </span>
                             )}
@@ -819,10 +931,14 @@ function RegisterGroup({
                   })}
                 </div>
                 {preview &&
-                  (total === null ? rows.length > 5 || register?.page.has_more : total > 5) && (
+                  (total === null
+                    ? rows.length > 5 || register?.page.has_more
+                    : total > 5) && (
                     <Link to={viewAllHref!} className="cm-view-all">
-                      View all matching{' '}
-                      {TABS.find((item) => item.value === tab)?.label.toLowerCase()}
+                      View all matching{" "}
+                      {TABS.find(
+                        (item) => item.value === tab,
+                      )?.label.toLowerCase()}
                       <Arrow />
                     </Link>
                   )}
@@ -831,7 +947,9 @@ function RegisterGroup({
                     <button
                       type="button"
                       className="f-btn f-btn-secondary cm-page-btn"
-                      aria-disabled={pagingUnavailable || shownPage <= 1 || undefined}
+                      aria-disabled={
+                        pagingUnavailable || shownPage <= 1 || undefined
+                      }
                       onClick={() => shownPage > 1 && goPage(shownPage - 1)}
                     >
                       <svg
@@ -852,12 +970,15 @@ function RegisterGroup({
                       Previous
                     </button>
                     <span aria-live="polite" className="cm-page-line f-num">
-                      Page {formatCount(Math.min(shownPage, pages))} of {formatCount(pages)}
+                      Page {formatCount(Math.min(shownPage, pages))} of{" "}
+                      {formatCount(pages)}
                     </span>
                     <button
                       type="button"
                       className="f-btn f-btn-secondary cm-page-btn"
-                      aria-disabled={pagingUnavailable || shownPage >= pages || undefined}
+                      aria-disabled={
+                        pagingUnavailable || shownPage >= pages || undefined
+                      }
                       onClick={() => shownPage < pages && goPage(shownPage + 1)}
                     >
                       Next

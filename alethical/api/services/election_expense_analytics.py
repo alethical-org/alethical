@@ -2734,7 +2734,16 @@ def _external_csv_rows(data):
             "Period start": report["period_start"],
             "Period end": report["period_end"],
             "Received date": report["received_date"],
-            "Account party group": report["party_group"],
+            "Account party group": "Party cannot be assigned"
+            if report["party_classification_state"]
+            in {"mixed_ballot_parties", "membership_sources_unavailable"}
+            else _CSV_PARTIES[report["party_group"]],
+            "Party assignment": {
+                "mixed_ballot_parties": "Shared account, different ballot parties",
+                "single_ballot_party": "One official party",
+                "ballot_party_not_in_source": "Official party not shown",
+                "membership_sources_unavailable": "Account membership source unavailable",
+            }[report["party_classification_state"]],
             "Governing candidates": _csv_join(c["name"] for c in report["claims"]),
             "Displayed candidates": _csv_join(
                 c["name"] for c in report["display_claims"]
@@ -2808,9 +2817,16 @@ def _external_csv_rows(data):
                     "Measure": row["label"],
                     "Measure ID": row["measure"],
                     "Basis": row["basis"],
-                    "Account party group"
-                    if kind == "Party"
-                    else "Filed geography": label,
+                    "Account party group" if kind == "Party" else "Filed geography": (
+                        "Party cannot be assigned"
+                        if kind == "Party"
+                        and label == "unknown"
+                        and reports[row["report_key"]]["party_classification_state"]
+                        in {"mixed_ballot_parties", "membership_sources_unavailable"}
+                        else _CSV_PARTIES[label]
+                        if kind == "Party"
+                        else _CSV_GEOGRAPHIES[label]
+                    ),
                     "Currency": row["currency"],
                     "Unit": "money",
                     "Itemized before exclusions": amount["baseline"],
@@ -3027,7 +3043,7 @@ def _csv_body(data):
     )
     meta(
         "Spreadsheet text",
-        "A leading apostrophe protects formulas or numeric identifiers from spreadsheet conversion; it is not part of the source value. Amount columns remain exact numeric USD with cents.",
+        "A leading apostrophe protects formulas or numeric identifiers from spreadsheet conversion; it is not part of the source value. Board amounts retain exact USD cents. Other authorities retain source precision, with Currency and Unit shown separately.",
     )
     for key, value in data["filters"].items():
         values = value if isinstance(value, list) else [value]
