@@ -216,8 +216,10 @@ def test_service_problem_status_is_preserved(
     private(response)
 
 
+@pytest.mark.parametrize("collision", ["fec_catalogue:v1", "local_checked_reading:v1"])
 def test_fixed_bootstrap_is_idempotent_and_collision_does_not_partly_register(
     monkeypatch,
+    collision,
 ):
     monkeypatch.setattr(storage, "ADAPTERS", {})
     adapters.register_external_adapters()
@@ -230,6 +232,8 @@ def test_fixed_bootstrap_is_idempotent_and_collision_does_not_partly_register(
         "fec_form2_pdf:v1",
         "fec_candidate_master:v1",
         "fec_candidate_linkage:v1",
+        "local_native_form:v1",
+        "local_checked_reading:v1",
     }
     adapters.register_external_adapters()
     assert storage.ADAPTERS == first
@@ -237,10 +241,10 @@ def test_fixed_bootstrap_is_idempotent_and_collision_does_not_partly_register(
     def wrong(*a):
         return None
 
-    monkeypatch.setattr(storage, "ADAPTERS", {"fec_catalogue:v1": wrong})
+    monkeypatch.setattr(storage, "ADAPTERS", {collision: wrong})
     with pytest.raises(storage.ComparisonImportError):
         adapters.register_external_adapters()
-    assert storage.ADAPTERS == {"fec_catalogue:v1": wrong}
+    assert storage.ADAPTERS == {collision: wrong}
 
 
 def test_bootstrap_module_import_has_no_storage_or_network_side_effects(monkeypatch):

@@ -7,7 +7,8 @@ import type {
 } from './expenseReportData';
 import { PARTY_LABELS, sumMoney } from './expenseReportData';
 import { useBand } from '../../ui/band';
-import { externalSourcePath } from './externalData';
+import { externalSourcePath, fieldGapLabel } from './externalData';
+import { SourceFieldGaps } from './sourceFieldGaps';
 import { count, dateLabel, reportedFigureLabel, reportedMoneyLabel, periodLabel } from './format';
 
 /** Reuses the expense account treatment. Native measures retain their scope;
@@ -64,8 +65,21 @@ export function AuthorityFigures({
             </dd>
           </div>
         ))}
+        <SourceFieldGaps
+          gaps={account.source_field_gaps}
+          enabled={enabled}
+          onSource={(gap, index) => source(`gap.${gap}`, index)}
+        />
       </dl>
-      {!account.reported_measures?.length && <p>Report figures unavailable</p>}
+      {!account.reported_measures?.length && !account.source_field_gaps?.length && (
+        <p>Report figures unavailable</p>
+      )}
+      {!!account.unavailable_measures?.length && (
+        <p className="ec-muted">Some figure sources are unavailable</p>
+      )}
+      {!!account.withheld_measures?.length && (
+        <p className="ec-muted">Some figures fall outside the checked account dates</p>
+      )}
       <p className="ec-muted">Public subsidy unavailable</p>
       {(account.reported_itemized_before_exclusions ?? []).map((item, index) => {
         const adjusted = after.find((row) => sameMeasure(row, item));
@@ -130,8 +144,10 @@ export function authorityEvidence(
   const figureIndex = /^figure\.(\d+)$/.exec(kind)?.[1];
   const figure =
     figureIndex === undefined ? undefined : account.reported_measures?.[Number(figureIndex)];
-  if (kind !== 'report' && !figure) return null;
-  const binding = (figure?.sources ?? account.sources)[Number(rawIndex)];
+  const gapIndex = /^gap\.(\d+)$/.exec(kind)?.[1];
+  const gap = gapIndex === undefined ? undefined : account.source_field_gaps?.[Number(gapIndex)];
+  if (kind !== 'report' && !figure && !gap) return null;
+  const binding = (figure?.sources ?? gap?.sources ?? account.sources)[Number(rawIndex)];
   if (!binding) return null;
   return {
     attachment: data.external_generation_id
@@ -146,13 +162,16 @@ export function authorityEvidence(
     pdfPage: typeof binding.locator.page === 'number' ? binding.locator.page : undefined,
     evidence: {
       title:
-        figure?.label ?? `${account.account_name || account.account_id} · ${account.report_type}`,
+        figure?.label ??
+        gap?.label ??
+        `${account.account_name || account.account_id} · ${account.report_type}`,
       authority: account.authority_name,
       checked: 'Checked',
-      quote: binding.quote,
+      quote: binding.quote || undefined,
       rows: [
         { label: 'Filing account', value: account.account_id },
         { label: 'Report', value: account.source_report_id },
+        ...(gap ? [{ label: 'Amount', value: fieldGapLabel(gap.state) }] : []),
         {
           label: 'Reporting period',
           value: periodLabel(

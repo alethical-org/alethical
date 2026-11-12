@@ -22,6 +22,10 @@ def register_external_adapters():
         extract_candidate_master,
         extract_candidate_linkage,
     )
+    from alethical.pipeline.election_local_sources import (
+        extract_local_native,
+        extract_local_reading,
+    )
 
     fixed = (
         ("fec_raw:v1", extract_fec_source),
@@ -31,6 +35,8 @@ def register_external_adapters():
         ("fec_form2_pdf:v1", extract_fec_paper_identity),
         ("fec_candidate_master:v1", extract_candidate_master),
         ("fec_candidate_linkage:v1", extract_candidate_linkage),
+        ("local_native_form:v1", extract_local_native),
+        ("local_checked_reading:v1", extract_local_reading),
     )
     with _LOCK:
         # Check the complete set first, so a collision cannot partly install it.

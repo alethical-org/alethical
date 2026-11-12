@@ -73,6 +73,8 @@ COLUMNS = (
     "Period basis",
     "Received date",
     "Effective amendment",
+    "Version scope",
+    "Amendment status",
     "Predecessor",
     "Overlapping selected reports",
     "Measure",
@@ -190,12 +192,24 @@ def _external_pins(values, candidates):
 
 
 def _latest_external(reports):
-    eligible = [r for r in reports if r.get("effective") and r.get("period_end")]
+    eligible = [
+        r for r in reports if r.get("effective") is True and r.get("period_end")
+    ]
     if not eligible:
         return None
     end = max(r["period_end"] for r in eligible)
     latest = [r for r in eligible if r["period_end"] == end]
     return latest[0]["report_key"] if len(latest) == 1 else None
+
+
+def _include_external_payment(payment, selected_reports):
+    """Default to current rows; explicit source inspection may retain unknowns."""
+    return payment.get("effective") is True or (
+        payment.get("effective") is None
+        and payment.get("version_scope") == "exact_document"
+        and payment.get("amendment_status") == "not_established"
+        and payment.get("report_key") in selected_reports
+    )
 
 
 def export_csv(
@@ -451,6 +465,9 @@ def export_csv(
             "source_report_id",
             "series_id",
             "received_date",
+            "effective",
+            "version_scope",
+            "amendment_status",
             "filing",
         )
         if (item["authority"], item["account_id"]) != (authority, account_id) or any(
@@ -665,11 +682,17 @@ def export_csv(
             "Effective amendment": r.get(
                 "effective", r.get("filing", {}).get("effective_amendment_index")
             ),
+            "Version scope": r.get("version_scope"),
+            "Amendment status": r.get("amendment_status"),
             "Predecessor": r.get("predecessor_report_key"),
             "Overlapping selected reports": "; ".join(overlaps),
             "Nonadditive": True,
-            "State": r.get("check_status", r.get("figure_status")),
-            "Note": "Each report and measure stands alone; overlapping periods and different measures are not added",
+            "State": "amendment_status_not_established"
+            if item["kind"] == "external" and r.get("effective") is None
+            else r.get("check_status", r.get("figure_status")),
+            "Note": "Exact document; amendment status is not established. Figures are not current totals and are not added to other reports"
+            if item["kind"] == "external" and r.get("effective") is None
+            else "Each report and measure stands alone; overlapping periods and different measures are not added",
         }
         add("Report", **fields)
         for cid, variant in item["variants"].items():
@@ -940,7 +963,7 @@ def export_csv(
     external_payments = {}
     for entry in external_data:
         for payment in entry["payments"]:
-            if not payment.get("effective"):
+            if not _include_external_payment(payment, selected):
                 continue
             item = external_payments.setdefault(
                 payment["payment_key"], {"payment": payment, "candidates": set()}
@@ -959,6 +982,8 @@ def export_csv(
             "Payment key": key,
             "Source report ID": p.get("source_report_id"),
             "Effective amendment": p.get("effective"),
+            "Version scope": p.get("version_scope"),
+            "Amendment status": p.get("amendment_status"),
             "Payment date": p.get("date"),
             "Direction": p.get("direction"),
             "Transaction type": p.get("transaction_type"),
@@ -972,8 +997,10 @@ def export_csv(
             if isinstance(p.get("memo"), dict)
             else p.get("memo"),
             "Amount role": p["amount_role"],
-            "Nonadditive": p["nonadditive"],
-            "State": "checked",
+            "Nonadditive": p["nonadditive"] or p.get("effective") is None,
+            "State": "amendment_status_not_established"
+            if p.get("effective") is None
+            else "checked",
         }
         add("External payment", **fields)
         for binding in p["sources"]:

@@ -795,6 +795,8 @@ def _external_events(data, races):
                         "period_end",
                         "received_date",
                         "effective",
+                        "version_scope",
+                        "amendment_status",
                         "check_status",
                         "status_basis",
                         "withheld_measures",
@@ -830,12 +832,14 @@ def _external_events(data, races):
             else payment["account_id"]
         )
         memo = payment.get("nonadditive", False)
-        effective = payment.get("effective") is True
+        effective = payment.get("effective")
         resolution = (
-            "nonadditive_memo"
+            "amendment_status_not_established"
+            if effective is None
+            else "nonadditive_memo"
             if memo
             else "superseded_report"
-            if not effective
+            if effective is False
             else "conflicting_claims"
             if len(claims) != 1
             else "attributed"
@@ -875,6 +879,8 @@ def _external_events(data, races):
                 "memo": deepcopy(payment.get("memo")),
                 "payee_address": deepcopy(payment.get("payee_address")),
                 "effective": effective,
+                "version_scope": payment.get("version_scope"),
+                "amendment_status": payment.get("amendment_status"),
                 "report_key": payment["report_key"],
                 "source_report_id": payment["source_report_id"],
                 "source_row_id": payment["source_row_id"],
@@ -912,7 +918,7 @@ def _external_events(data, races):
     # added merely because both are held. Keep each source report's measure.
     periods = defaultdict(dict)
     for event in events:
-        if event["effective"] and not event["nonadditive"]:
+        if event["effective"] is True and not event["nonadditive"]:
             periods[(event["funder_id"], event["metric"])][event["report_key"]] = (
                 event["period_start"],
                 event["period_end"],
@@ -929,10 +935,14 @@ def _external_events(data, races):
                 maximum, maximum_key = end, report
     for event in events:
         event["sum_eligible"] = (
-            event["funder_id"],
-            event["metric"],
-            event["report_key"],
-        ) not in overlapping
+            event["effective"] is True
+            and (
+                event["funder_id"],
+                event["metric"],
+                event["report_key"],
+            )
+            not in overlapping
+        )
     return events, list(reports.values())
 
 
@@ -1306,7 +1316,19 @@ def _buckets(events):
             "resolution": key[1],
             "amount_state": key[2],
             **(
-                _measure(rows)
+                {
+                    "state": "amount_unavailable",
+                    "record_count": len(rows),
+                    "amount": None,
+                    "known_amount_subtotal": None,
+                    "missing_amount_count": sum(r["amount"] is None for r in rows),
+                    "withheld_reason": "amendment_status_not_established",
+                }
+                if any(
+                    r.get("source_family") == "external" and r.get("effective") is None
+                    for r in rows
+                )
+                else _measure(rows)
                 if not any(r.get("nonadditive") for r in rows)
                 else {
                     "state": "nonadditive",
@@ -1422,7 +1444,7 @@ def _native_measures(events):
     ):
         first = rows[0]
         additive = (
-            first["effective"]
+            first["effective"] is True
             and not first["nonadditive"]
             and first["resolution"] == "attributed"
         )
@@ -1441,6 +1463,8 @@ def _native_measures(events):
                 "currency": key[7],
                 "basis": "checked_retained_itemized_rows",
                 "effective": first["effective"],
+                "version_scope": first.get("version_scope"),
+                "amendment_status": first.get("amendment_status"),
                 "nonadditive": first["nonadditive"],
                 "attribution": key[6],
                 "state": "reported" if additive else key[6],
@@ -1937,6 +1961,7 @@ def _csv_export(data, races):
         "Native payment amount",
         "Native memo amount",
         "Native superseded amount",
+        "Document amount",
         "Source currency",
         "Included unpaid USD",
         "Payment amount status",
@@ -1956,6 +1981,8 @@ def _csv_export(data, races):
         "Reporting period start",
         "Reporting period end",
         "Effective report",
+        "Version scope",
+        "Amendment status",
         "Direction",
         "Transaction type",
         "Amount role",
@@ -2005,6 +2032,7 @@ def _csv_export(data, races):
         "Native payment amount",
         "Native memo amount",
         "Native superseded amount",
+        "Document amount",
         "Included unpaid USD",
         "Source record",
         "Source record count",
@@ -2126,7 +2154,7 @@ def _csv_export(data, races):
         }
     )
     for label, text in {
-        "Amounts": "Choose Funder or Candidate rows for attributed summaries, or Payment rows for individual records. These are alternative views: never add them together. Known subtotals are included in summary amounts, not extra money. Included unpaid USD is already included in Payment USD. Memo detail and Superseded payment rows are not current additive payments. Native measure rows describe one source report and measure; never add overlapping reports or native measures to payment rows or report totals.",
+        "Amounts": "Choose Funder or Candidate rows for attributed summaries, or Payment rows for individual records. These are alternative views: never add them together. Known subtotals are included in summary amounts, not extra money. Included unpaid USD is already included in Payment USD. Memo detail and Superseded payment rows are not current additive payments. Version not established rows retain an exact Document amount in its source currency; its amendment status is unknown, so it is not a current or superseded payment and is not added to totals. Native measure rows describe one source report and measure; never add overlapping reports or native measures to payment rows or report totals.",
         "Missing and zero": "Blank amounts are unavailable or have no records, as their status states. A reported zero remains numeric zero. Source rows and evidence rows carry no payment amount.",
         "Support and opposition": data["definitions"]["support"]
         + "; "
@@ -2170,6 +2198,8 @@ def _csv_export(data, races):
             "Reporting period start": report["period_start"],
             "Reporting period end": report["period_end"],
             "Effective report": report["effective"],
+            "Version scope": report.get("version_scope"),
+            "Amendment status": report.get("amendment_status"),
         }
         # Cover figures remain source-specific, including their measure and basis.
         context_rows("External report", report, report_columns)
@@ -2248,6 +2278,8 @@ def _csv_export(data, races):
                     "Reporting period start": measure["period_start"],
                     "Reporting period end": measure["period_end"],
                     "Effective report": measure["effective"],
+                    "Version scope": measure.get("version_scope"),
+                    "Amendment status": measure.get("amendment_status"),
                     "Direction": measure["direction"],
                     "Transaction type": measure["transaction_type"],
                     "Measure": measure["measure"],
@@ -2361,6 +2393,8 @@ def _csv_export(data, races):
                     "Reporting period start": event["period_start"],
                     "Reporting period end": event["period_end"],
                     "Effective report": event["effective"],
+                    "Version scope": event.get("version_scope"),
+                    "Amendment status": event.get("amendment_status"),
                     "Direction": event["direction"],
                     "Transaction type": event["transaction_type"],
                     "Amount role": event["amount_role"],
@@ -2371,11 +2405,13 @@ def _csv_export(data, races):
                 }
             )
         row_type = (
-            "Memo detail"
+            "Version not established"
+            if external and event["effective"] is None
+            else "Memo detail"
             if external and event["nonadditive"]
             else (
                 "Superseded payment"
-                if external and not event["effective"]
+                if external and event["effective"] is False
                 else "Payment"
             )
         )
@@ -2384,8 +2420,14 @@ def _csv_export(data, races):
                 "Row type": row_type,
                 **common_payment,
                 **(
+                    {"Document amount": event["amount"]}
+                    if row_type == "Version not established"
+                    else {}
+                ),
+                **(
                     {f"{row_type} USD": event["amount"]}
-                    if not external or event["currency"] == "USD"
+                    if row_type != "Version not established"
+                    and (not external or event["currency"] == "USD")
                     else {}
                 ),
                 **(
@@ -2398,7 +2440,9 @@ def _csv_export(data, races):
                         }[row_type]
                         + " amount": event["amount"]
                     }
-                    if external and event["currency"] != "USD"
+                    if external
+                    and event["currency"] != "USD"
+                    and row_type != "Version not established"
                     else {}
                 ),
                 "Included unpaid USD": event["fields"].get("Unpaid amount"),

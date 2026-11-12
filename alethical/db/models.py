@@ -6120,6 +6120,56 @@ class ElectionCampaignAccountDecision(Base):
     )
 
 
+class ElectionSourceReadingDecision(Base):
+    """Listed source observations, never candidate identity or publication."""
+
+    __tablename__ = "election_source_reading_decision"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    subject_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    receipt_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    original_sha256: Mapped[str] = mapped_column(
+        ForeignKey("election_result_source.content_hash"), nullable=False
+    )
+    schema_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    request_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    previous_decision_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True)
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    receipt: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    __table_args__ = (
+        UniqueConstraint("id", "subject_key"),
+        ForeignKeyConstraint(
+            ["previous_decision_id", "subject_key"],
+            [
+                "election_source_reading_decision.id",
+                "election_source_reading_decision.subject_key",
+            ],
+        ),
+        CheckConstraint("decision IN ('checked','withdrawn')", name="valid_decision"),
+        CheckConstraint(
+            "previous_decision_id IS NULL OR previous_decision_id < id",
+            name="ordered_history",
+        ),
+        CheckConstraint(
+            "decision = 'checked' OR previous_decision_id IS NOT NULL",
+            name="withdrawal_has_previous",
+        ),
+        CheckConstraint("jsonb_typeof(receipt) = 'object'", name="receipt_object"),
+        Index(
+            "ix_source_reading_initial",
+            "subject_key",
+            unique=True,
+            postgresql_where=text("previous_decision_id IS NULL"),
+        ),
+        Index("ix_source_reading_receipt", "receipt_sha256", "id"),
+        Index("ix_source_reading_subject", "subject_key", "id"),
+    )
+
+
 class ElectionExternalFinanceGeneration(Base):
     """Immutable federal/local evidence; account confirmation stays separate."""
 

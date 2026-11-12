@@ -220,6 +220,35 @@ choices retain Design review. The separate People/navigation work, incoming
 officeholder membership rules and additional measures from Angel's research stay
 with their existing decisions and owners.
 
+### Expanded build checkpoint, November 12, 2026
+
+The expanded expense, public-subsidy, payee, funder and mixed-authority report
+paths are implemented on the build branch, not released. Checked visible source
+readings have a separate append-only history; blanks, redactions, unreadable fields
+and unknown report versions remain explicit and nonadditive. The current local
+context adapter covers the checked Crow Wing form structure. Reusable recipient
+and publisher proofs, separate report sections inside bundled PDFs, and evidenced
+local amendment decisions remain required work before full local coverage.
+
+The combined disposable-database check reproduces the published result fingerprint,
+5,023 races and 140,815 precinct/race records, then replays 389 existing Board
+account decisions and 14 federal fixture decisions. Expense reads, full JSON/CSV
+exports and sampled original downloads pass without production changes. This proves
+the integration path, not complete source coverage, new identity approvals or
+deployed access. The next acceptance run must also open the actual financial
+original behind each selected federal fixture report, rather than metadata alone.
+
+Local discovery retains its original denominator of 1,941 routing groups and
+7,458 candidacies. Numeric school district identifiers alone are insufficient:
+school group 0001 includes both ISD 1 and SSD 1, which require distinct typed
+recipient scopes. Publisher identity, filing responsibility, campaign identity,
+source reading and effective report version remain separate checked relationships.
+Original capture metadata stays private; public evidence downloads contain only
+the appropriate original documents, never cookies or private collection records.
+
+The expanded release, full source reconciliation, live review and narrated
+walkthrough remain unfinished. The earlier live comparison is described below.
+
 ### Released comparison milestone
 
 The comparison code merged in [PR 2944](https://github.com/alethical-org/alethical/pull/2944).

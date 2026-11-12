@@ -1089,4 +1089,48 @@ it('renders external payees and memo payment detail with amounts=null', async ()
   expect(payments.textContent).toContain('Operating expenditure');
   expect(payments.textContent).toContain('Supplemental memo, not added to spending');
   expect(payments.textContent).not.toContain('Unpaid');
+  await click(container.querySelector<HTMLButtonElement>('.ex-payee-actions button:last-child')!);
+  const sourcePanel = document.querySelector('[role="dialog"]')!;
+  expect(sourcePanel.querySelector('h2')?.textContent).toBe(externalPayee.payee!.name);
+  expect(sourcePanel.textContent).toContain('Operating expenditures');
+  expect(sourcePanel.textContent).toContain('$34');
+  expect(sourcePanel.textContent).not.toContain('[object Object]');
+});
+
+it.each([
+  ['blank', 'Blank in source'],
+  ['redacted', 'Redacted in source'],
+])('keeps %s local fields distinct from zero and date gaps', async (state, label) => {
+  const report = externalFixture();
+  report.source_field_gaps = [
+    {
+      measure: 'cash_on_hand',
+      label: 'Cash on hand',
+      state,
+      literal: '',
+      sources: [
+        {
+          source_sha256: '8'.repeat(64),
+          locator: { page: 2, field: 'cash_on_hand' },
+          quote: '',
+        },
+      ],
+    },
+  ];
+  report.unavailable_measures = [{ measure: 'receipts', state: 'sources_unavailable' }];
+  await render();
+  const card = container.querySelector('.ex-authority-account')!;
+  const row = [...card.querySelectorAll('dl > div')].find((r) =>
+    r.textContent?.includes('Cash on hand'),
+  )!;
+  expect(row?.textContent).toContain(label);
+  expect(row.textContent).not.toContain('$0');
+  expect(card.textContent).toContain('Some figure sources are unavailable');
+  expect(card.textContent).not.toContain('outside the checked account dates');
+  await click(row.querySelector('button')!);
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.querySelector('h2')?.textContent).toBe('Cash on hand');
+  expect(panel.textContent).toContain(label);
+  expect(panel.textContent).toContain('page 2');
+  expect(panel.querySelector('blockquote')).toBeNull();
 });

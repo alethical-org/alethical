@@ -53,12 +53,32 @@ export interface ExternalReport {
   period_end?: string;
   received_date?: string;
   predecessor_report_key?: string | null;
-  effective?: boolean;
+  effective?: boolean | null;
+  version_scope?: string;
+  amendment_status?: string;
   check_status: string;
   figures: ExternalFigure[] | null;
   withheld_measures?: Array<{ measure: string; state: string }>;
+  unavailable_measures?: Array<{ measure: string; state: string }>;
+  source_field_gaps?: SourceFieldGap[];
   sources: Binding[];
 }
+export interface SourceFieldGap {
+  measure: string;
+  label: string;
+  state: string;
+  literal: string;
+  sources: Binding[];
+}
+export const fieldGapLabel = (state: string) =>
+  ({
+    blank: 'Blank in source',
+    ambiguous: 'Unclear',
+    unreadable: 'Unreadable',
+    redacted: 'Redacted in source',
+    not_checked: 'Not checked',
+    unit_not_in_source: 'Unit not reported',
+  })[state] ?? 'Unavailable';
 export interface ExternalPayment {
   currency?: string | null;
   payment_key: string;
@@ -94,7 +114,9 @@ export interface ExternalPayment {
   transaction_type: string;
   memo: Record<string, unknown> | null;
   nonadditive: boolean;
-  effective: boolean;
+  effective: boolean | null;
+  version_scope?: string;
+  amendment_status?: string;
   period_start: string;
   period_end: string;
   sources: Binding[];
@@ -156,8 +178,8 @@ export function selectReport(raw: string, account: ExternalAccount, report: stri
   return [...result].map(([key, value]) => `${key}|${value}`).join(',');
 }
 export function chosenReport(reports: ExternalReport[], requested: string | null) {
-  if (requested) return reports.find((r) => r.report_key === requested && r.effective);
-  const effective = reports.filter((r) => r.effective && r.period_end);
+  if (requested) return reports.find((r) => r.report_key === requested && inspectableReport(r));
+  const effective = reports.filter((r) => r.effective === true && r.period_end);
   const end = effective
     .map((r) => r.period_end!)
     .sort()
@@ -165,6 +187,14 @@ export function chosenReport(reports: ExternalReport[], requested: string | null
   const latest = effective.filter((r) => r.period_end === end);
   return latest.length === 1 ? latest[0] : undefined;
 }
+export const unknownAmendments = (
+  report: Pick<ExternalReport, 'effective' | 'version_scope' | 'amendment_status'>,
+) =>
+  report.effective === null &&
+  report.version_scope === 'exact_document' &&
+  report.amendment_status === 'not_established';
+export const inspectableReport = (report: ExternalReport) =>
+  report.effective === true || unknownAmendments(report);
 export const coverageLabel = (status: string) =>
   ({
     not_collected: 'Reports not collected',

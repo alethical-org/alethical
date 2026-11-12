@@ -10,6 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any, NoReturn
+from urllib.parse import quote, urlencode
 
 from sqlalchemy import cast, func, select
 from sqlalchemy.dialects.postgresql import JSONPATH
@@ -78,11 +79,34 @@ def public_source(source):
 
 
 def _binding(value):
-    return [
-        {k: deepcopy(b[k]) for k in ("source_sha256", "locator", "quote")}
-        for b in storage.bindings(value)
-        if isinstance(b, dict)
-    ]
+    result = []
+    for binding in storage.bindings(value):
+        if not isinstance(binding, dict):
+            continue
+        locator = deepcopy(binding.get("locator", {}))
+        if binding.get("adapter") in storage.LOCAL_READING_ADAPTERS:
+            locator = {
+                k: deepcopy(locator[k])
+                for k in ("page", "row", "field")
+                if k in locator
+            }
+            original = binding.get("locator", {})
+            if original.get("field_id"):
+                locator["field"] = original["field_id"]
+            if binding["adapter"] == "local_native_form:v1":
+                locator["page"] = 1  # The fixed native adapter reads page1 only.
+                if original.get("kind") == "payment":
+                    row_id = (binding.get("facts") or {}).get("source_row_id", "")
+                    if row_id.rsplit(":", 1)[-1].isdigit():
+                        locator["row"] = int(row_id.rsplit(":", 1)[-1])
+        result.append(
+            {
+                "source_sha256": binding["source_sha256"],
+                "locator": locator,
+                "quote": binding["quote"],
+            }
+        )
+    return result
 
 
 def _availability(db, store, hashes):
@@ -267,6 +291,21 @@ def _context(
                     cache=cache,
                 )
             )
+    reading_versions = {}
+    for selected in [
+        g,
+        *[
+            value[1]
+            for key, value in cache.items()
+            if isinstance(key, tuple) and key[0] == "published_review_view"
+        ],
+    ]:
+        state = storage.reading_state(selected, cache)
+        if state:
+            reading_versions[selected["id"]] = state
+            for requirement in storage._reading_requirements(selected, cache).values():
+                if requirement:
+                    hashes.update(requirement["original_hashes"])
     held_sources = {
         r.content_hash: r
         for r in db.scalars(
@@ -290,6 +329,123 @@ def _context(
         for h in sorted(hashes)
     ]
     bodies, available = _availability(db, store, hashes)
+    # Verify each selected generation's healthy local readings once, outside the
+    # candidate loop. Invalid/withdrawn receipts remain explicit unavailable
+    # dependencies; they cannot poison an unrelated checked reading.
+    reading_plans = {}
+    for selected in [
+        g,
+        *[
+            value[1]
+            for key, value in cache.items()
+            if isinstance(key, tuple) and key[0] == "published_review_view"
+        ],
+    ]:
+        plan = reading_plans.setdefault(
+            selected["id"], {"ids": set(), "sources": set()}
+        )
+        plan["sources"].update(source["sha256"] for source in selected["sources"])
+        for rid, requirement in storage._reading_requirements(selected, cache).items():
+            if (
+                requirement
+                and storage._current_readings(selected, {rid}, cache)
+                and all(available.get(h, False) for h in requirement["original_hashes"])
+            ):
+                plan["ids"].add(rid)
+    from alethical.pipeline import election_source_readings as readings
+
+    cache["source_availability"] = available
+    proof_outcomes = {
+        selected_id: {rid: False for rid in state}
+        for selected_id, state in reading_versions.items()
+    }
+    cache["local_reading_outcomes"] = proof_outcomes
+    for selected_id, plan in reading_plans.items():
+        if plan["ids"]:
+            proof = readings.load_verified_reading_context(
+                db,
+                store,
+                plan["ids"],
+                allowed_source_hashes=plan["sources"],
+                partial=True,
+            )
+            cache[("verified_local_readings", selected_id)] = proof
+            proof_outcomes.setdefault(selected_id, {}).update(proof.proof_outcomes)
+            for h in proof.failed_sources:
+                available[h] = False
+    cache["local_reading_views_planned"] = True
+    # All source-dependent identity checks finish before the version is minted.
+    # The later candidate assembly reuses only this request's verdicts, so an LRU
+    # miss/failure cannot change figures after the pin was compared.
+    validation_failures = []
+    if race_id is not None or all_scope:
+        selected_races = (
+            {race.id: race}
+            if race is not None
+            else {
+                r.id: r
+                for r in db.scalars(
+                    select(m.ElectionComparisonRace).where(
+                        m.ElectionComparisonRace.snapshot_id == row.snapshot_id
+                    )
+                )
+            }
+        )
+        cache["selected_races"] = selected_races
+        latest_reviews = {}
+        for review in histories:
+            latest_reviews[
+                (
+                    review.race_id,
+                    review.candidate_id,
+                    review.authority,
+                    review.registration_number,
+                )
+            ] = review
+        for review in latest_reviews.values():
+            selected_race = selected_races.get(review.race_id)
+            selected_candidate = (
+                next(
+                    (
+                        c
+                        for c in selected_race.payload["candidates"]
+                        if c["candidate_id"] == review.candidate_id
+                        and not c.get("is_write_in_aggregate")
+                    ),
+                    None,
+                )
+                if selected_race is not None
+                else None
+            )
+            if (
+                review.decision == "confirmed"
+                and selected_race is not None
+                and selected_candidate is not None
+                and review.identity
+                == reviews.candidate_identity(selected_race, selected_candidate)
+            ):
+                if not storage.account_review_available(
+                    db,
+                    review,
+                    selected_race,
+                    selected_candidate,
+                    store=store,
+                    cache=cache,
+                ):
+                    validation_failures.append(review.request_key)
+    for selected in [
+        g,
+        *[
+            value[1]
+            for key, value in cache.items()
+            if isinstance(key, tuple) and key[0] == "published_review_view"
+        ],
+    ]:
+        for rid, requirement in storage._reading_requirements(selected, cache).items():
+            if requirement and not all(
+                available.get(h, False) for h in requirement["original_hashes"]
+            ):
+                proof_outcomes.setdefault(selected["id"], {})[rid] = False
     outcomes = list(db.scalars(outcome_query.order_by(m.ElectionOutcomeDecision.id)))
     outcome_sources = {
         e.get("sha256") for r in outcomes for e in r.evidence if e.get("sha256")
@@ -316,6 +472,16 @@ def _context(
             "outcomes": [r.request_key for r in outcomes],
             "outcome_captures": sorted(captures),
             "outcome_sources": outcome_available,
+            **(
+                {"source_readings": reading_versions, "reading_proof": proof_outcomes}
+                if reading_versions
+                else {}
+            ),
+            **(
+                {"validation_failures": sorted(validation_failures)}
+                if validation_failures
+                else {}
+            ),
         }
     )
     if version is not None and token != version:
@@ -381,8 +547,8 @@ def _public_coverage(row, available, generation, *, cache=None):
         if k in row
     }
 
-    if not all(
-        available.get(h, False) for h in _coverage_hashes(row, generation, cache=cache)
+    if not storage.claim_sources_available(
+        generation, available, coverage=[row], cache=cache
     ):
         result.update(
             status="unchecked",
@@ -473,8 +639,9 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
             if current is None or current.get("status") != "checked":
                 state = "account_not_in_generation"
             if state == "checked":
-                needed = storage.source_dependencies(g, account_keys=[key], cache=cache)
-                if not all(available.get(h, False) for h in needed):
+                if not storage.claim_sources_available(
+                    g, available, account_keys=[key], cache=cache
+                ):
                     state = "sources_unavailable"
             if state == "checked":
                 # A new source candidate/designation cannot inherit an older review.
@@ -508,6 +675,11 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                 "account_id": key[1],
                 "name": current["name"],
                 "source_candidate_id": current.get("source_candidate_id"),
+                **(
+                    {"issued_id": False, "account_id_kind": "publisher_catalogue_group"}
+                    if current.get("issued_id") is False
+                    else {}
+                ),
                 "period_start": review.period_start.isoformat(),
                 "period_end": review.period_end.isoformat(),
                 "checked_on": review.reviewed_at.date().isoformat(),
@@ -540,8 +712,14 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                     }
                 )
                 continue
-            needed = storage.source_dependencies(g, reports=[report], cache=cache)
-            source_available = all(available.get(h, False) for h in needed)
+            local_fields = bool(storage.local_reading_ids(report))
+            source_available = storage.claim_sources_available(
+                g,
+                available,
+                reports=[report],
+                cache=cache,
+                include_figures=not local_fields,
+            )
             verified = (
                 bool(within)
                 and report["check_status"] == "checked"
@@ -570,10 +748,44 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                     <= f["period_start"]
                     <= f["period_end"]
                     <= review.period_end.isoformat()
+                    and (
+                        not local_fields
+                        or storage.claim_sources_available(
+                            g,
+                            available,
+                            reports=[{**report, "figures": [f]}],
+                            cache=cache,
+                        )
+                    )
                 ]
                 if verified
                 else None
             )
+            field_gaps = []
+            if source_available and local_fields:
+                requirements = storage._reading_requirements(g, cache)
+                for rid in storage.local_reading_ids(report.get("binding")):
+                    requirement = requirements.get(rid)
+                    if requirement and storage._current_readings(g, {rid}, cache):
+                        for gap in requirement.get("field_gaps", []):
+                            field_gaps.append(
+                                {
+                                    k: deepcopy(gap[k])
+                                    for k in ("measure", "label", "state", "literal")
+                                }
+                                | {
+                                    "sources": [
+                                        {
+                                            "source_sha256": gap["source_sha256"],
+                                            "locator": {
+                                                "page": gap["page"],
+                                                "field": gap["field"],
+                                            },
+                                            "quote": gap["literal"],
+                                        }
+                                    ]
+                                }
+                            )
             reports.append(
                 {
                     **{
@@ -593,6 +805,11 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                             "source_sha256",
                         )
                     },
+                    **{
+                        k: deepcopy(report[k])
+                        for k in ("version_scope", "amendment_status")
+                        if k in report
+                    },
                     "figures": figures,
                     "withheld_measures": [
                         {"measure": f["measure"], "state": "period_not_covered"}
@@ -603,6 +820,28 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                         <= f["period_end"]
                         <= review.period_end.isoformat()
                     ],
+                    **(
+                        {
+                            "unavailable_measures": [
+                                {
+                                    "measure": f["measure"],
+                                    "state": "sources_unavailable",
+                                }
+                                for f in report.get("figures") or []
+                                if verified
+                                and local_fields
+                                and not storage.claim_sources_available(
+                                    g,
+                                    available,
+                                    reports=[{**report, "figures": [f]}],
+                                    cache=cache,
+                                )
+                            ],
+                            "source_field_gaps": field_gaps,
+                        }
+                        if local_fields
+                        else {}
+                    ),
                     "status_basis": "sources_unavailable"
                     if not source_available
                     else "operational"
@@ -669,8 +908,9 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
             or report["check_status"] != "checked"
         ):
             continue
-        needed = storage.source_dependencies(g, payments=[payment], cache=cache)
-        if not all(available.get(h, False) for h in needed):
+        if not storage.claim_sources_available(
+            g, available, payments=[payment], cache=cache
+        ):
             continue
         payments.append(
             {
@@ -711,6 +951,11 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                 "period_start": report["period_start"],
                 "period_end": report["period_end"],
                 "effective": report["effective"],
+                **{
+                    k: deepcopy(report[k])
+                    for k in ("version_scope", "amendment_status")
+                    if k in report
+                },
                 "sources": _binding(payment["binding"]),
             }
         )
@@ -743,7 +988,11 @@ def payment_records(db, *, limit=100, offset=0, effective_only=True, **kwargs):
     ):
         _problem(400, "Invalid payment page.")
     result = candidate_finance(db, **kwargs)
-    rows = [p for p in result.pop("payments") if p["effective"] or not effective_only]
+    rows = [
+        p
+        for p in result.pop("payments")
+        if p["effective"] is True or not effective_only
+    ]
     return {
         **result,
         "rows": rows[offset : offset + limit],
@@ -758,6 +1007,12 @@ def payment_records(db, *, limit=100, offset=0, effective_only=True, **kwargs):
 
 def _source_dates(value, generation, available):
     metadata = {source["sha256"]: source for source in generation["sources"]}
+    base = (
+        "/api/v1/finance/elections/"
+        + quote(generation["election_key"], safe="")
+        + "/external-finance/sources/"
+    )
+    pin = urlencode({"generation_id": generation["id"]})
 
     def visit(item):
         if isinstance(item, dict):
@@ -765,6 +1020,7 @@ def _source_dates(value, generation, available):
             if h in metadata and available.get(h, False) and "locator" in item:
                 item["source_copied_at"] = metadata[h]["copied_at"]
                 item["source_url"] = metadata[h]["url"]
+                item["retained_source_url"] = base + h + "?" + pin
             for child in list(item.values()):
                 visit(child)
         elif isinstance(item, list):
@@ -792,10 +1048,9 @@ def _own_payments(entry, indexes, generation, available, cache):
                 or payment["check_status"] != "checked"
             ):
                 continue
-            needed = storage.source_dependencies(
-                generation, payments=[payment], cache=cache
-            )
-            if not all(available.get(h, False) for h in needed):
+            if not storage.claim_sources_available(
+                generation, available, payments=[payment], cache=cache
+            ):
                 continue
             report = indexes["reports"][payment["report_key"]]
             memo = storage.supplemental_memo(payment)
@@ -825,6 +1080,11 @@ def _own_payments(entry, indexes, generation, available, cache):
                 "period_start": report["period_start"],
                 "period_end": report["period_end"],
                 "effective": report["effective"],
+                **{
+                    k: deepcopy(report[k])
+                    for k in ("version_scope", "amendment_status")
+                    if k in report
+                },
                 "sources": _binding(payment["binding"]),
             }
     return [rows[key] for key in sorted(rows)]
@@ -852,14 +1112,16 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
     grouped = {}
     for review in histories:
         grouped.setdefault((review.race_id, review.candidate_id), []).append(review)
-    races = {
-        r.id: r
-        for r in db.scalars(
-            select(m.ElectionComparisonRace).where(
-                m.ElectionComparisonRace.snapshot_id == g["snapshot_id"]
+    races = cache.get("selected_races")
+    if races is None:
+        races = {
+            r.id: r
+            for r in db.scalars(
+                select(m.ElectionComparisonRace).where(
+                    m.ElectionComparisonRace.snapshot_id == g["snapshot_id"]
+                )
             )
-        )
-    }
+        }
     candidates = []
     indexes = _indexes(g)
     for (race_id, candidate_id), history in sorted(grouped.items()):

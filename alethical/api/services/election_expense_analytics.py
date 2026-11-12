@@ -8,6 +8,7 @@ account/report contributes once, including when several candidacies claim it.
 from __future__ import annotations
 
 from collections import defaultdict
+from copy import deepcopy
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, NoReturn
@@ -23,6 +24,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from alethical.api.problems import problem_exception
+from alethical.api.services import finance_versions
 from alethical.api.services.election_source_io import (
     SOURCE_WORKERS,
     request_store,
@@ -1850,6 +1852,19 @@ def _join_external(
             )
         for report in entry["reports"]:
             account_key = (report["authority"], report["account_id"])
+            if (
+                report.get("effective") is None
+                and report.get("amendment_status") == "not_established"
+                and key in displayed
+            ):
+                displayed[key]["gaps"].append(
+                    {
+                        "state": "amendment_status_not_established",
+                        "authority": report["authority"],
+                        "account_id": report["account_id"],
+                        "report_key": report["report_key"],
+                    }
+                )
             # Retain operational report gaps, but never choose them as financial rows.
             if report.get("effective") is not True or not report.get("period_end"):
                 continue
@@ -2047,6 +2062,11 @@ def _join_external(
             if chosen["check_status"] == "checked"
             else chosen["check_status"],
             reported_measures=chosen["figures"] if checked else None,
+            source_field_gaps=deepcopy(chosen.get("source_field_gaps") or [])
+            if checked
+            else [],
+            unavailable_measures=deepcopy(chosen.get("unavailable_measures") or []),
+            withheld_measures=deepcopy(chosen.get("withheld_measures") or []),
             public_subsidy=None,
             public_subsidy_gap="no_checked_subsidy_measure",
             detail_status="partial_itemized" if checked else "unavailable",
@@ -2309,6 +2329,9 @@ def _build(
             not isinstance(value, str) or not re.fullmatch(pattern, value)
         ):
             _bad("Invalid report version pin")
+    # The review stamp is already a database read. Pin before it so a fresh
+    # request never opens READ COMMITTED before the nested finance readers.
+    finance_versions.pin(db)
     try:
         store = request_store(raw_file_store_from_env())
     except Exception:
@@ -2805,6 +2828,15 @@ def _external_csv_rows(data):
             "Original URL": original.get("url"),
             "Source copied at": original.get("copied_at"),
             "Source row ID": (b.get("locator") or {}).get("row"),
+            "Source pages": _csv_join(
+                binding.get("locator", {}).get("page") for binding in bindings or []
+            ),
+            "Source references": _csv_join(
+                binding.get("locator", {}).get("field") for binding in bindings or []
+            ),
+            "Source text": _csv_join(
+                binding.get("quote") for binding in bindings or []
+            ),
         }
 
     for report in reports.values():
@@ -2834,6 +2866,29 @@ def _external_csv_rows(data):
                     "Reported measure value": figure["value"],
                     "Currency": figure.get("currency"),
                     "Unit": figure["unit"],
+                }
+            )
+        for gap in (
+            (report.get("source_field_gaps") or [])
+            + (report.get("unavailable_measures") or [])
+            + (report.get("withheld_measures") or [])
+        ):
+            yield (
+                base
+                | source(gap.get("sources"))
+                | {
+                    "Row type": "External measure gap",
+                    "Measure": gap.get("label"),
+                    "Measure ID": gap["measure"],
+                    "Figure status": {
+                        "blank": "Blank in source",
+                        "ambiguous": "Unclear",
+                        "unreadable": "Unreadable",
+                        "not_checked": "Not checked",
+                        "unit_not_in_source": "Unit not reported",
+                        "sources_unavailable": "Source unavailable",
+                        "period_not_covered": "Outside checked account dates",
+                    }.get(gap["state"], _csv_words(gap["state"])),
                 }
             )
     for row in data["authority_summary"]:

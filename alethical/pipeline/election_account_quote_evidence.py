@@ -118,6 +118,151 @@ def _officers(db, store, source, registration_number):
     return payload["tabcontent"]
 
 
+# These are retained review formats, not aliases for arbitrary untyped claims.
+_LEGACY_BASE = {
+    "kind",
+    "collection_id",
+    "sha256",
+    "url",
+    "request_method",
+    "copied_at",
+    "registration_number",
+    "locator",
+}
+_LEGACY_INFO = {
+    "RegisteredEntityID",
+    "CommitteeName",
+    "CandidateFullName",
+    "PartyAffiliation",
+    "ElectionYear",
+    "OfficeSoughtFullName",
+    "AffidavitOfCandidacyDate",
+    "District",
+    "LTGCFormattedName",
+}
+_LEGACY_FILING = {
+    "FullName",
+    "RegisteredEntityID",
+    "StatementFiled",
+    "ElectionYear",
+    "AffidavitOfCandidacyDate",
+}
+_LEGACY_SITE_LOCATOR = "HTML document linked by exact Board officers /tabcontent href"
+_LEGACY_CLAIMS = {"literal_identity_fields", "literal_registered_websites"}
+
+
+def _legacy_identity(db, store, item, source, collection, registration_number):
+    """Check the exact historical shape; a source link alone asserts no quote."""
+    locator = item.get("locator")
+    if locator in ("/data/0", "/data/filinginfo"):
+        expected_keys = _LEGACY_BASE | {"request_form", "literal_identity_fields"}
+    elif locator == "/tabcontent":
+        expected_keys = _LEGACY_BASE | {"request_form", "literal_registered_websites"}
+    elif locator == _LEGACY_SITE_LOCATOR:
+        expected_keys = _LEGACY_BASE | {
+            "subtype",
+            "parent_sha256",
+            "parent_locator",
+            "requested_url",
+            "retrieval_url",
+            "purpose",
+        }
+    else:
+        raise ComparisonImportError(
+            "Identity quote needs typed literal fields or a supported legacy locator"
+        )
+    require(
+        set(item) == expected_keys,
+        "Identity evidence has mixed or unsupported legacy fields",
+    )
+    metadata = expected_keys - {
+        "kind",
+        "collection_id",
+        "locator",
+        "purpose",
+        *_LEGACY_CLAIMS,
+    }
+    require(
+        item["registration_number"] == registration_number
+        and all(item[key] == source.get(key) for key in metadata),
+        "Legacy identity capture differs from its retained source",
+    )
+    if locator == _LEGACY_SITE_LOCATOR:
+        require(
+            source.get("subtype") == "registered_site"
+            and source.get("request_method") == "GET"
+            and source.get("parent_locator") == "/tabcontent"
+            and _text(source.get("requested_url"))
+            and _text(source.get("retrieval_url"))
+            and _text(item.get("purpose")),
+            "Legacy site needs its exact retained registered-link chain",
+        )
+        parent = _member(collection, source.get("parent_sha256"), registration_number)
+        content = _officers(db, store, parent, registration_number)
+        require(
+            source["requested_url"] in _html(content).links,
+            "Legacy site URL is absent from its exact Board parent",
+        )
+        _original(db, store, source["sha256"])
+        # Purpose is a private review note. Neither it nor this source association
+        # becomes a checked name/title quotation or an automatic identity match.
+        return
+    form = source.get("request_form")
+    tabs = (
+        {"information"}
+        if locator == "/data/0"
+        else {
+            "election_economic_interest_statement",
+            "ltgc_election_economic_interest_statement",
+        }
+        if locator == "/data/filinginfo"
+        else {"officers"}
+    )
+    require(
+        source.get("url") == BOARD_URL
+        and source.get("request_method") == "POST"
+        and isinstance(form, dict)
+        and form.get("id") == registration_number
+        and form.get("tabname") in tabs
+        and _text(form.get("year")),
+        "Legacy identity needs the exact account and Board response tab",
+    )
+    payload = json.loads(
+        _original(db, store, source["sha256"]).decode("utf-8-sig"),
+        object_pairs_hook=_object,
+    )
+    if locator == "/tabcontent":
+        claims = item["literal_registered_websites"]
+        require(
+            isinstance(payload, dict) and _text(payload.get("tabcontent")),
+            "Legacy officers response has no exact HTML field",
+        )
+        require(
+            isinstance(claims, list)
+            and bool(claims)
+            and all(_text(link) for link in claims)
+            and claims == _html(payload["tabcontent"]).links,
+            "Legacy href list differs from the complete retained sequence",
+        )
+        return
+    actual = (
+        payload["data"][0] if locator == "/data/0" else payload["data"]["filinginfo"]
+    )
+    claims = item["literal_identity_fields"]
+    require(
+        isinstance(actual, dict)
+        and isinstance(claims, dict)
+        and set(claims) == (_LEGACY_INFO if locator == "/data/0" else _LEGACY_FILING)
+        and actual.get("RegisteredEntityID") == registration_number
+        and actual.get("ElectionYear") == form["year"]
+        and all(
+            key in actual and type(value) is type(actual[key]) and value == actual[key]
+            for key, value in claims.items()
+        ),
+        "Legacy identity fields differ from their exact retained JSON object",
+    )
+
+
 def _identity(db, store, item, registration_number):
     require(
         _text(item.get("collection_id")), "Identity quote needs its retained collection"
@@ -128,6 +273,13 @@ def _identity(db, store, item, registration_number):
     require(collection is not None, "Identity quote needs its retained collection")
     source = _member(collection, item.get("sha256"), registration_number)
     fields, locator = item.get("literal_fields"), item.get("locator")
+    if isinstance(locator, str):
+        _legacy_identity(db, store, item, source, collection, registration_number)
+        return
+    require(
+        not (_LEGACY_CLAIMS & item.keys()),
+        "Typed and legacy identity fields cannot mix",
+    )
     require(isinstance(fields, dict), "Identity quote needs typed literal fields")
     if locator == {"type": "json_html_excerpts", "pointer": "/tabcontent"}:
         require(set(fields) == {"excerpts"}, "Identity quote has unsupported fields")

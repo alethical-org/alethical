@@ -249,156 +249,163 @@ it('returns from each report with the selected comparison filing and precinct sc
   }
 });
 
-it('keeps external native records together, with source-specific measures and exact retained evidence', async () => {
-  const generation = 'e'.repeat(64),
-    hash = 'f'.repeat(64);
-  const externalContext: d.Context = {
-    ...context,
-    sources: {},
-    source_scopes: {
-      mn_cfb: { status: 'unavailable' },
-      external: {
-        status: 'available',
-        generation_id: generation,
-        authorities: [{ key: 'fec', name: 'Federal Election Commission' }],
+it.each([true, null])(
+  'keeps external native records together with effective=%s and exact evidence',
+  async (effective) => {
+    const generation = 'e'.repeat(64),
+      hash = 'f'.repeat(64);
+    const externalContext: d.Context = {
+      ...context,
+      sources: {},
+      source_scopes: {
+        mn_cfb: { status: 'unavailable' },
+        external: {
+          status: 'available',
+          generation_id: generation,
+          authorities: [{ key: 'fec', name: 'Federal Election Commission' }],
+        },
       },
-    },
-    external_sources: [
-      {
-        generation_id: generation,
-        source_sha256: hash,
-        authority: 'fec',
-        copied_at: '2026-11-10',
+      external_sources: [
+        {
+          generation_id: generation,
+          source_sha256: hash,
+          authority: 'fec',
+          copied_at: '2026-11-10',
+        },
+      ],
+    };
+    const row: d.Payment = {
+      dataset: 'external',
+      row_number: null,
+      record_id: 'external:one',
+      funder_id: 'external-payer',
+      funder_name: 'Example outside group',
+      date: '2026-10-01',
+      amount: '18.99',
+      metric: 'external_communication_cost',
+      resolution: effective === null ? 'amendment_status_not_established' : 'supplemental_memo',
+      fields: {
+        'Vendor name': 'Filed vendor',
+        Purpose: 'Communication',
+        Recipient: 'H6MN00001',
       },
-    ],
-  };
-  const row: d.Payment = {
-    dataset: 'external',
-    row_number: null,
-    record_id: 'external:one',
-    funder_id: 'external-payer',
-    funder_name: 'Example outside group',
-    date: '2026-10-01',
-    amount: '18.99',
-    metric: 'external_communication_cost',
-    resolution: 'supplemental_memo',
-    fields: {
-      'Vendor name': 'Filed vendor',
-      Purpose: 'Communication',
-      Recipient: 'H6MN00001',
-    },
-    claims: [],
-    related_candidacies: [],
-    source_family: 'external',
-    currency: 'USD',
-    authority: 'fec',
-    source_account_id: 'C00000001',
-    external_generation_id: generation,
-    report_key: 'a'.repeat(64),
-    source_report_id: '1000001',
-    source_row_id: 'row-5',
-    direction: 'communication_cost',
-    transaction_type: 'Communication cost',
-    nonadditive: true,
-    effective: true,
-    period_start: '2026-10-01',
-    period_end: '2026-10-14',
-    source_bindings: [
-      {
-        source_sha256: hash,
-        locator: { row: 5 },
-        quote: '18.99 EXACT',
-        source_copied_at: '2026-11-10',
-      },
-    ],
-    source: {
+      claims: [],
+      related_candidacies: [],
       source_family: 'external',
-      generation_id: generation,
-      content_hash: hash,
-      source_sha256: hash,
-      source_url: 'https://example.test/source',
-      copied_at: '2026-11-10',
-      retained_original_state: 'available',
-    },
-  };
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (input: string) => {
-      paths.push(input);
-      const url = new URL(input);
-      if (url.pathname.endsWith('/funders'))
-        return json({
-          ...externalContext,
-          funders: [
-            {
-              ...funder,
-              funder_id: 'external-payer',
-              names: ['Example outside group'],
-              source_family: 'external',
-              registration_number: null,
-              recorded_classifications: [
-                {
-                  category: 'external',
-                  recorded_type: 'Federal Election Commission',
-                  recorded_subtype: null,
-                },
-              ],
-              source_measures: [
-                {
-                  authority: 'fec',
-                  account_id: 'C00000001',
-                  report_key: row.report_key,
-                  source_report_id: '1000001',
-                  measure: 'external_communication_cost',
-                  label: 'Communication cost',
-                  direction: 'communication_cost',
-                  transaction_type: 'Communication cost',
-                  period_start: row.period_start,
-                  period_end: row.period_end,
-                  currency: 'USD',
-                  basis: 'checked_retained_itemized_rows',
-                  effective: true,
-                  nonadditive: true,
-                  attribution: 'supplemental_memo',
-                  state: 'amount_unavailable',
-                  amount: null,
-                  record_count: 1,
-                  sources: row.source_bindings,
-                },
-              ],
-            },
-          ],
-          page,
-        });
-      if (url.pathname.endsWith('/records')) return json({ ...externalContext, rows: [row], page });
-      if (url.pathname.includes('/external-finance/sources/'))
-        return new Response('18.99 EXACT', {
-          headers: { 'Content-Type': 'text/plain' },
-        });
-      return json({ ...externalContext, candidates: [], page });
-    }),
-  );
-  await render();
-  expect(container.textContent).toContain('Minnesota Board records unavailable');
-  expect(container.textContent).toContain('Communication cost');
-  expect(container.textContent).not.toContain('Political committees and funds');
-  await click(buttons('View payments')[0]);
-  const records = paths
-    .map((path) => new URL(path))
-    .filter((url) => url.pathname.endsWith('/records'));
-  expect(records).toHaveLength(1);
-  expect(records[0].searchParams.has('metric')).toBe(false);
-  expect(container.querySelector('.ef-payments')?.textContent).toContain(
-    'Supplemental memo, not added to spending',
-  );
-  await click(buttons('View source')[0]);
-  const panel = document.querySelector('[role="dialog"]')!;
-  expect(panel.textContent).toContain('Federal Election Commission');
-  expect(panel.textContent).toContain('18.99 EXACT');
-  expect(panel.textContent).toContain('CopiedNov 10, 2026');
-  const source = paths
-    .map((path) => new URL(path))
-    .find((url) => url.pathname.includes('/external-finance/sources/'))!;
-  expect(source.searchParams.get('generation_id')).toBe(generation);
-  expect(source.pathname).toContain(hash);
-});
+      currency: 'USD',
+      authority: 'fec',
+      source_account_id: 'C00000001',
+      external_generation_id: generation,
+      report_key: 'a'.repeat(64),
+      source_report_id: '1000001',
+      source_row_id: 'row-5',
+      direction: 'communication_cost',
+      transaction_type: 'Communication cost',
+      nonadditive: effective === true,
+      effective,
+      period_start: '2026-10-01',
+      period_end: '2026-10-14',
+      source_bindings: [
+        {
+          source_sha256: hash,
+          locator: { row: 5 },
+          quote: '18.99 EXACT',
+          source_copied_at: '2026-11-10',
+        },
+      ],
+      source: {
+        source_family: 'external',
+        generation_id: generation,
+        content_hash: hash,
+        source_sha256: hash,
+        source_url: 'https://example.test/source',
+        copied_at: '2026-11-10',
+        retained_original_state: 'available',
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => {
+        paths.push(input);
+        const url = new URL(input);
+        if (url.pathname.endsWith('/funders'))
+          return json({
+            ...externalContext,
+            funders: [
+              {
+                ...funder,
+                funder_id: 'external-payer',
+                names: ['Example outside group'],
+                source_family: 'external',
+                registration_number: null,
+                recorded_classifications: [
+                  {
+                    category: 'external',
+                    recorded_type: 'Federal Election Commission',
+                    recorded_subtype: null,
+                  },
+                ],
+                source_measures: [
+                  {
+                    authority: 'fec',
+                    account_id: 'C00000001',
+                    report_key: row.report_key,
+                    source_report_id: '1000001',
+                    measure: 'external_communication_cost',
+                    label: 'Communication cost',
+                    direction: 'communication_cost',
+                    transaction_type: 'Communication cost',
+                    period_start: row.period_start,
+                    period_end: row.period_end,
+                    currency: 'USD',
+                    basis: 'checked_retained_itemized_rows',
+                    effective,
+                    nonadditive: effective === true,
+                    attribution: row.resolution,
+                    state: 'amount_unavailable',
+                    amount: null,
+                    record_count: 1,
+                    sources: row.source_bindings,
+                  },
+                ],
+              },
+            ],
+            page,
+          });
+        if (url.pathname.endsWith('/records'))
+          return json({ ...externalContext, rows: [row], page });
+        if (url.pathname.includes('/external-finance/sources/'))
+          return new Response('18.99 EXACT', {
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        return json({ ...externalContext, candidates: [], page });
+      }),
+    );
+    await render();
+    expect(container.textContent).toContain('Minnesota Board records unavailable');
+    expect(container.textContent).toContain('Communication cost');
+    expect(container.textContent).not.toContain('Political committees and funds');
+    await click(buttons('View payments')[0]);
+    const records = paths
+      .map((path) => new URL(path))
+      .filter((url) => url.pathname.endsWith('/records'));
+    expect(records).toHaveLength(1);
+    expect(records[0].searchParams.has('metric')).toBe(false);
+    expect(container.querySelector('.ef-payments')?.textContent).toContain(
+      effective === null
+        ? 'Amendments not established; excluded from totals'
+        : 'Supplemental memo, not added to spending',
+    );
+    expect(container.textContent).not.toContain('Earlier filing version');
+    await click(buttons('View source')[0]);
+    const panel = document.querySelector('[role="dialog"]')!;
+    expect(panel.textContent).toContain('Federal Election Commission');
+    expect(panel.textContent).toContain('18.99 EXACT');
+    expect(panel.textContent).toContain('CopiedNov 10, 2026');
+    const source = paths
+      .map((path) => new URL(path))
+      .find((url) => url.pathname.includes('/external-finance/sources/'))!;
+    expect(source.searchParams.get('generation_id')).toBe(generation);
+    expect(source.pathname).toContain(hash);
+  },
+);

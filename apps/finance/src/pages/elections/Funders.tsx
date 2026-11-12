@@ -669,9 +669,11 @@ function NativeMeasures({ rows }: { rows: d.NativeMeasure[] }) {
               Report {row.source_report_id} · {periodLabel(row.period_start, row.period_end)} ·{' '}
               {count(row.record_count)} records
             </p>
-            {row.nonadditive ? (
+            {row.effective === null ? (
+              <p className="ec-muted">Amendments not established; excluded from totals</p>
+            ) : row.nonadditive ? (
               <p className="ec-muted">Supplemental memo, not added to spending</p>
-            ) : !row.effective ? (
+            ) : row.effective === false ? (
               <p className="ec-muted">Earlier filing version</p>
             ) : row.attribution !== 'attributed' ? (
               <p className="ec-muted">Excluded from candidate totals; check filing records</p>
@@ -1126,6 +1128,9 @@ function Payments({
                 {row.effective === false && (
                   <p className="ec-muted">Earlier filing version, not added to totals</p>
                 )}
+                {row.effective === null && (
+                  <p className="ec-muted">Amendments not established; excluded from totals</p>
+                )}
                 {row.resolution !== 'attributed' && (
                   <p className="ec-muted">
                     Excluded from candidate totals ·{' '}
@@ -1136,6 +1141,7 @@ function Payments({
                         outside_reviewed_period: 'Outside checked account dates',
                         outside_selected_period: 'Outside selected payment dates',
                         conflicting_claims: 'Account matches need checking',
+                        amendment_status_not_established: 'Amendments not established',
                       } as Record<string, string>
                     )[row.resolution] || 'Attribution unavailable'}
                   </p>

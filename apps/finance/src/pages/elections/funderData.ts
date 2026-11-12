@@ -131,7 +131,9 @@ export interface Payment {
   transaction_type?: string;
   amount_role?: string;
   nonadditive?: boolean;
-  effective?: boolean;
+  effective?: boolean | null;
+  version_scope?: string;
+  amendment_status?: string;
   period_start?: string;
   period_end?: string;
   source_bindings?: Binding[];
@@ -171,7 +173,9 @@ export interface NativeMeasure {
   period_end: string;
   currency: string;
   basis: string;
-  effective: boolean;
+  effective: boolean | null;
+  version_scope?: string;
+  amendment_status?: string;
   nonadditive: boolean;
   attribution: string;
   state: string;

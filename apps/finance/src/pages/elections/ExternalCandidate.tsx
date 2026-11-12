@@ -6,6 +6,7 @@ import { RetainedEvidence, type ElectionEvidence } from './Evidence';
 import type { RaceAnswer, ResultCandidate } from './data';
 import { count, dateLabel, reportedFigureLabel, reportedMoneyLabel, periodLabel } from './format';
 import * as x from './externalData';
+import { SourceFieldGaps } from './sourceFieldGaps';
 
 export interface ExternalStatus {
   state: 'loading' | 'failed' | 'changed' | 'missing' | 'ready';
@@ -62,7 +63,7 @@ export function ExternalCandidate({
         (r) => r.authority === account.authority && r.account_id === account.account_id,
       );
       const report = choices && x.chosenReport(reports, choices.get(x.accountKey(account)) ?? null);
-      return report ? [report.report_key] : [];
+      return report?.effective === true ? [report.report_key] : [];
     }) ?? [];
   const state: ExternalStatus['state'] =
     read.changed || snapshotChanged
@@ -90,7 +91,7 @@ export function ExternalCandidate({
   useEffect(() => {
     setPage(1);
   }, [data?.version]);
-  const payments = data?.payments.filter((p) => p.effective) ?? [];
+  const payments = data?.payments.filter((p) => p.effective === true) ?? [];
   const prefix = `external:${encodeURIComponent(candidate.candidate_id)}:`;
   function open(kind: string, key: string, index = 0) {
     onSource(`${prefix}${kind}:${key}:${index}`);
@@ -103,18 +104,23 @@ export function ExternalCandidate({
     const [kind, key, index] = sourceParts;
     const [reportKey, figureIndex] = key.split('.');
     const report =
-      kind === 'report' || kind === 'figure'
+      kind === 'report' || kind === 'figure' || kind === 'gap'
         ? data.reports.find((r) => r.report_key === reportKey)
         : undefined;
     const figure =
       kind === 'figure' && /^\d+$/.test(figureIndex ?? '')
         ? report?.figures?.[Number(figureIndex)]
         : undefined;
+    const gap =
+      kind === 'gap' && /^\d+$/.test(figureIndex ?? '')
+        ? report?.source_field_gaps?.[Number(figureIndex)]
+        : undefined;
     const payment =
       kind === 'payment' ? data.payments.find((p) => p.payment_key === key) : undefined;
     const bindings =
       figure?.sources ??
-      report?.sources ??
+      gap?.sources ??
+      (kind === 'report' ? report?.sources : undefined) ??
       payment?.sources ??
       (kind === 'coverage' ? data.coverage.sources : undefined);
     const binding = bindings?.[Number(index)];
@@ -123,19 +129,25 @@ export function ExternalCandidate({
         pdfPage: typeof binding.locator.page === 'number' ? binding.locator.page : undefined,
         attachment: x.externalSourcePath(data, binding.source_sha256),
         evidence: {
-          title: figure
-            ? `${figure.label} · ${reportedFigureLabel(figure)}`
-            : payment
-              ? `${position(payment.direction)} · ${candidate.name}`
-              : report
-                ? `Report ${report.source_report_id ?? report.report_type ?? ''}`
-                : candidate.name,
+          title: gap
+            ? gap.label
+            : figure
+              ? `${figure.label} · ${reportedFigureLabel(figure)}`
+              : payment
+                ? `${position(payment.direction)} · ${candidate.name}`
+                : report
+                  ? `Report ${report.source_report_id ?? report.report_type ?? ''}`
+                  : candidate.name,
           authority: authority(
             report?.authority ?? payment?.authority ?? data.coverage.authority ?? '',
           ),
-          quote: binding.quote,
+          quote: binding.quote || undefined,
           checked: 'Checked',
           rows: [
+            ...(gap ? [{ label: 'Amount', value: x.fieldGapLabel(gap.state) }] : []),
+            ...(report && x.unknownAmendments(report)
+              ? [{ label: 'Amendments', value: 'Not established; excluded from totals' }]
+              : []),
             {
               label: 'Source',
               value: Object.entries(binding.locator)
@@ -391,7 +403,7 @@ function ExternalAccount({
   const id = useId();
   const [open, setOpen] = useState(false);
   const report = x.chosenReport(reports, chosen);
-  const effective = reports.filter((r) => r.effective);
+  const effective = reports.filter((r) => r.effective === true);
   return (
     <div className="ec-account">
       <strong>{account.name}</strong>
@@ -404,9 +416,12 @@ function ExternalAccount({
             {report.report_type} · {periodLabel(report.period_start, report.period_end)}
             {report.received_date ? ` · Received ${dateLabel(report.received_date)}` : ''}
           </p>
-          {report.figures?.length ? (
+          {x.unknownAmendments(report) && (
+            <p className="ec-muted">Amendments not established; excluded from totals</p>
+          )}
+          {report.figures?.length || report.source_field_gaps?.length ? (
             <dl className="ec-external-figures">
-              {report.figures.map((figure, i) => (
+              {report.figures?.map((figure, i) => (
                 <div key={`${figure.measure}:${i}`}>
                   <dt>
                     {figure.label}
@@ -429,12 +444,19 @@ function ExternalAccount({
                   </dd>
                 </div>
               ))}
+              <SourceFieldGaps
+                gaps={report.source_field_gaps}
+                onSource={(gap, index) => onSource(`${report.report_key}.${gap}`, index, 'gap')}
+              />
             </dl>
           ) : (
             <p className="ec-muted">{x.coverageLabel(report.check_status)}</p>
           )}
           {!!report.withheld_measures?.length && (
             <p className="ec-muted">Some figures fall outside the checked account dates</p>
+          )}
+          {!!report.unavailable_measures?.length && (
+            <p className="ec-muted">Some figure sources are unavailable</p>
           )}
           {report.sources.map((_, i) => (
             <button className="ec-link" key={i} onClick={() => onSource(report.report_key, i)}>
@@ -448,7 +470,9 @@ function ExternalAccount({
             ? 'Selected report is unavailable'
             : effective.length
               ? 'The latest report is not resolved'
-              : 'Report figures not held'}
+              : reports.some(x.unknownAmendments)
+                ? 'Choose a filing to inspect; amendments not established'
+                : 'Report figures not held'}
         </p>
       )}
       {reports.length > 0 && (
@@ -465,7 +489,7 @@ function ExternalAccount({
           <ul id={id} hidden={!open}>
             {reports.map((r) => (
               <li key={r.report_key}>
-                {r.effective ? (
+                {x.inspectableReport(r) ? (
                   <label className="ec-filing-choice">
                     <input
                       type="radio"
@@ -483,11 +507,17 @@ function ExternalAccount({
                           ? `Received ${dateLabel(r.received_date)}`
                           : 'Received date unavailable'}
                       </span>
+                      {x.unknownAmendments(r) && (
+                        <span className="ec-filing-period ec-muted">
+                          Amendments not established
+                        </span>
+                      )}
                     </span>
                   </label>
                 ) : (
                   <p>
-                    {r.report_type ?? 'Report'} {r.source_report_id} · Earlier version
+                    {r.report_type ?? 'Report'} {r.source_report_id} ·{' '}
+                    {r.effective === false ? 'Earlier version' : 'Version unavailable'}
                   </p>
                 )}
                 <p className="ec-muted">

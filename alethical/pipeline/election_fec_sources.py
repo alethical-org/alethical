@@ -935,6 +935,8 @@ def extract_fec_source(body: bytes, source: dict, locator: dict):
     rendering is not used as an identity claim.
     `payment_dates` returns separate dissemination/disbursement evidence for SE
     and F57; it never changes the existing payment date subset.
+    `payment_election_context` preserves the filed election code and target
+    geography for SE/F57. It does not infer an election from report dates.
     Figures retain separate report-period and explicitly dated YTD measures.
     No effective flag,
     receipt timestamp, identity alias, predecessor key or account interval is
@@ -975,7 +977,7 @@ def extract_fec_source(body: bytes, source: dict, locator: dict):
         wanted["kind"] = "cover" if kind == "report" else "identity"
     if kind == "authority":
         wanted["kind"] = "header"
-    if kind in {"payment_dates", "payment_address"}:
+    if kind in {"payment_dates", "payment_address", "payment_election_context"}:
         if set(wanted) != {"kind", "row"} or type(wanted.get("row")) is not int:
             raise FecSourceError("Payment detail requires an exact row locator")
         wanted["kind"] = "payment"
@@ -1145,6 +1147,23 @@ def extract_fec_source(body: bytes, source: dict, locator: dict):
             for key in ("authority", "account_id", "source_row_id", "source_report_id")
         } | {"payee_address": address}
         quote = row.extraction("payment_address", facts).quote
+    elif kind == "payment_election_context":
+        if facts.get("schedule") not in {"SE", "F57"}:
+            raise FecSourceError(
+                "This schedule has no supported target election context"
+            )
+        facts = {
+            key: facts[key]
+            for key in (
+                "authority",
+                "account_id",
+                "source_row_id",
+                "source_report_id",
+                "target_source_candidate_id",
+                "election_code",
+                "target_office",
+            )
+        }
     elif kind == "payment_dates":
         if facts.get("schedule") not in {"SE", "F57"}:
             raise FecSourceError("This schedule has no separate event-date fields")

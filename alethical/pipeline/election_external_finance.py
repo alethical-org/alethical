@@ -7,6 +7,7 @@ remain proposals until an adapter verifies the exact fields and quotation.
 
 from __future__ import annotations
 
+from collections import ChainMap
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -124,6 +125,8 @@ def ordered_period(item, *, optional=False):
 class SealedFinanceReadView(dict):
     """An immutable-row projection, never a complete publication payload."""
 
+    reading_requirements: dict
+
     def __init__(self, values, *, scope_key):
         super().__init__(values)
         self.scope_key = scope_key
@@ -165,7 +168,7 @@ def prepare_generation(payload):
 
 
 def report_facts(report):
-    return {
+    result = {
         k: report.get(k)
         for k in (
             "authority",
@@ -180,6 +183,16 @@ def report_facts(report):
             "effective",
         )
     }
+
+    if (
+        report.get("authority", "").startswith("local:")
+        and report.get("version_scope") == "exact_document"
+    ):
+        result.update(
+            version_scope=report["version_scope"],
+            amendment_status=report.get("amendment_status"),
+        )
+    return result
 
 
 def account_facts(account):
@@ -366,7 +379,15 @@ def validate_generation(g):
                 and bool(report["source_report_id"])
                 and isinstance(report["series_id"], str)
                 and bool(report["series_id"])
-                and type(report["effective"]) is bool,
+                and (
+                    type(report["effective"]) is bool
+                    or (
+                        report["effective"] is None
+                        and report["authority"].startswith("local:")
+                        and report.get("version_scope") == "exact_document"
+                        and report.get("amendment_status") == "not_established"
+                    )
+                ),
                 "Report needs its actual source series and version",
             )
             require(
@@ -377,6 +398,14 @@ def validate_generation(g):
                 ),
                 "Report original is not retained",
             )
+            if report.get("version_scope") == "exact_document":
+                require(
+                    report["authority"].startswith("local:")
+                    and report["effective"] is None
+                    and report.get("amendment_status") == "not_established"
+                    and report.get("predecessor_report_key") is None,
+                    "Exact local document does not establish an effective amendment series",
+                )
             operational = report["check_status"] in OPERATIONAL_COVERAGE
             if report["check_status"] != "checked":
                 require(
@@ -549,10 +578,109 @@ def validate_generation(g):
         ) from error
 
 
+LOCAL_READING_ADAPTERS = frozenset({"local_checked_reading:v1", "local_native_form:v1"})
+
+
+def local_reading_ids(value):
+    """Private receipt references in actual fixed-adapter bindings only."""
+    result = set()
+
+    def visit(item):
+        if isinstance(item, dict):
+            if item.get("adapter") in LOCAL_READING_ADAPTERS:
+                receipt = item.get("locator", {}).get("receipt_sha256")
+                require(
+                    fingerprint(receipt),
+                    "Local binding needs an exact checked reading receipt",
+                )
+                result.add(receipt)
+            for key, child in item.items():
+                if key not in {"facts", "raw_metadata"}:
+                    visit(child)
+        elif isinstance(item, (list, tuple)):
+            for child in item:
+                visit(child)
+
+    visit(value)
+    return result
+
+
+def _reading_requirements(g, cache=None):
+    base = getattr(g, "reading_requirements", {})
+    planned = (
+        cache.get(("local_reading_requirements", g["id"]), {})
+        if cache is not None
+        else {}
+    )
+    return ChainMap(planned, base)
+
+
+def plan_readings(db, g, receipt_ids, cache=None):
+    from alethical.pipeline import election_source_readings as readings
+
+    held = _reading_requirements(g, cache)
+    missing = set(receipt_ids) - set(held)
+    if missing:
+        extra = readings.reading_requirements(db, missing)
+        if cache is not None:
+            cache.setdefault(("local_reading_requirements", g["id"]), {}).update(extra)
+        else:
+            return ChainMap(extra, held)
+    return _reading_requirements(g, cache)
+
+
+def reading_state(g, cache=None):
+    sources = {row["sha256"] for row in g["sources"]}
+    return {
+        rid: None
+        if value is None
+        else {
+            "head": value["head"],
+            "missing_generation_sources": sorted(
+                set(value["original_hashes"]) - sources
+            ),
+        }
+        for rid, value in sorted(_reading_requirements(g, cache).items())
+    }
+
+
+def _current_readings(g, ids, cache=None):
+    requirements = _reading_requirements(g, cache)
+    sources = _review_indexes(g, cache)["sources"]
+    outcomes = (
+        cache.get("local_reading_outcomes", {}).get(g["id"], {})
+        if cache is not None
+        else {}
+    )
+    for rid in ids:
+        if rid in outcomes and not outcomes[rid]:
+            return False
+        value = requirements.get(rid)
+        if value is None or value["head"] is None:
+            return False
+        head = value["head"]
+        if (
+            head["decision"] != "checked"
+            or head["receipt_sha256"] != rid
+            or not all(h in sources for h in value["original_hashes"])
+        ):
+            return False
+    return True
+
+
+def claim_sources_available(g, available, **selection):
+    ids = set()
+    hashes = source_dependencies(g, _reading_ids=ids, **selection)
+    return all(available.get(h, False) for h in hashes) and _current_readings(
+        g, ids, selection.get("cache")
+    )
+
+
 class _VerifiedBodies(dict):
     def __init__(self, sources):
         super().__init__()
         self.sources = sources
+        self.reading_context = None
 
 
 def source_bodies(db, store, generation):
@@ -598,11 +726,29 @@ def _validate_binding(generation, bodies, binding, expected, *, authority=None):
         "Binding needs a literal quote and exact locator",
     )
     try:
-        actual = adapter(
+        arguments = (
             bodies[binding["source_sha256"]],
             deepcopy(source),
             deepcopy(binding["locator"]),
         )
+        if binding["adapter"] in LOCAL_READING_ADAPTERS:
+            from alethical.pipeline.election_local_sources import (
+                extract_local_native,
+                extract_local_reading,
+            )
+
+            fixed = {
+                "local_native_form:v1": extract_local_native,
+                "local_checked_reading:v1": extract_local_reading,
+            }
+            require(
+                adapter is fixed[binding["adapter"]]
+                and isinstance(bodies, _VerifiedBodies),
+                "Local context dispatch requires fixed code and verified source bodies",
+            )
+            actual = adapter(*arguments, context=bodies.reading_context)
+        else:
+            actual = adapter(*arguments)
     except Exception as exc:
         raise ComparisonImportError(
             "Source adapter could not verify this extraction"
@@ -722,6 +868,13 @@ def verify_evidence(db, store, g):
         "External generation belongs to a different election",
     )
     bodies = source_bodies(db, store, g)
+    receipt_ids = local_reading_ids(g)
+    if receipt_ids:
+        from alethical.pipeline import election_source_readings as readings
+
+        bodies.reading_context = readings.load_verified_reading_context(
+            db, store, receipt_ids, lock=True, allowed_source_hashes=set(bodies.sources)
+        )
     races = db.scalars(
         select(m.ElectionComparisonRace).where(
             m.ElectionComparisonRace.snapshot_id == snapshot.id
@@ -1101,6 +1254,21 @@ def load_published_view(
             hashes.update(binding_hashes(figure.get("binding")))
     for authority in authorities:
         hashes.update(binding_hashes(authority.get("binding")))
+    from alethical.pipeline import election_source_readings as readings
+
+    receipt_ids = local_reading_ids(
+        [
+            *accounts,
+            *[r.payload for r in reports],
+            *[p.payload for p in payments],
+            *held[3],
+            *authorities,
+        ]
+    )
+    requirements = readings.reading_requirements(db, receipt_ids) if receipt_ids else {}
+    for requirement in requirements.values():
+        if requirement:
+            hashes.update(requirement["original_hashes"])
     path = (
         "$.sources[*] ? ("
         + " || ".join("@.sha256 == " + json.dumps(h) for h in sorted(hashes))
@@ -1112,7 +1280,7 @@ def load_published_view(
         select(scope(path)).where(m.ElectionExternalFinanceGeneration.id == row.id)
     )
     view_type = HistoricalFinanceReadView if historical else PublishedFinanceReadView
-    return row, view_type(
+    view = view_type(
         {
             "format": held[0],
             "id": row.id,
@@ -1128,6 +1296,8 @@ def load_published_view(
         },
         scope_key=scope_key,
     )
+    view.reading_requirements = requirements
+    return row, view
 
 
 def load_review_view(db, generation_id, account_keys, evidence):
@@ -1278,15 +1448,27 @@ def binding_hashes(value):
 
 
 def source_dependencies(
-    g, *, account_keys=(), reports=(), payments=(), coverage=(), evidence=(), cache=None
+    g,
+    *,
+    account_keys=(),
+    reports=(),
+    payments=(),
+    coverage=(),
+    evidence=(),
+    cache=None,
+    _reading_ids=None,
+    include_figures=True,
 ):
     """One source set for claim availability, identity rechecks and response versions."""
     indexes = _review_indexes(g, cache)
     hashes = set()
+    receipt_ids = set()
 
     def record(item, *, figures=False):
         if item is None:
             return
+        receipt_ids.update(local_reading_ids(item.get("binding")))
+        receipt_ids.update(local_reading_ids(item.get("status_binding")))
         if item.get("source_sha256"):
             hashes.add(item["source_sha256"])
         hashes.update(binding_hashes(item.get("binding")))
@@ -1302,7 +1484,7 @@ def source_dependencies(
     for key in account_keys:
         account(key)
     for report in reports:
-        record(report, figures=True)
+        record(report, figures=include_figures)
         account((report["authority"], report["account_id"]))
     for payment in payments:
         record(payment)
@@ -1321,11 +1503,29 @@ def source_dependencies(
         record(item)
         if item.get("kind") == "report_cover":
             record(indexes["reports"].get(item.get("report_key")))
+    requirements = _reading_requirements(g, cache)
+    for rid in receipt_ids:
+        requirement = requirements.get(rid)
+        if requirement:
+            hashes.update(requirement["original_hashes"])
+    if _reading_ids is not None:
+        _reading_ids.update(receipt_ids)
     hashes.discard(None)
     return hashes
 
 
-def retained_bodies(db, store, generation, hashes, *, source_index=None):
+def retained_bodies(
+    db,
+    store,
+    generation,
+    hashes,
+    *,
+    source_index=None,
+    reading_ids=(),
+    reading_context=None,
+    reading_context_planned=False,
+    cache=None,
+):
     if source_index is None:
         source_index = {s["sha256"]: s for s in generation["sources"]}
     require(
@@ -1333,15 +1533,39 @@ def retained_bodies(db, store, generation, hashes, *, source_index=None):
         "Review source is outside its external generation",
     )
     result = _VerifiedBodies(source_index)
+    if reading_ids and reading_context_planned:
+        from alethical.pipeline import election_source_readings as readings
+
+        if not isinstance(reading_context, readings.VerifiedReadingContext):
+            raise ComparisonImportError(
+                "Local reading proof is unavailable in this request"
+            )
+        for rid in reading_ids:
+            reading_context.receipt(rid)
+        result.reading_context = reading_context
     for h in hashes:
         row = db.get(m.ElectionResultSource, h)
         require(row is not None, "Review original is not retained")
         try:
+            require(
+                cache is None or h not in cache.get("failed_review_originals", set()),
+                "Review original failed earlier in this request",
+            )
             result[h] = read_source(store, row)
         except Exception as exc:
+            if cache is not None:
+                cache.setdefault("failed_review_originals", set()).add(h)
+                if "source_availability" in cache:
+                    cache["source_availability"][h] = False
             raise ComparisonImportError(
                 "Review original is unavailable or changed"
             ) from exc
+    if reading_ids and not reading_context_planned:
+        from alethical.pipeline import election_source_readings as readings
+
+        result.reading_context = readings.load_verified_reading_context(
+            db, store, reading_ids, allowed_source_hashes=set(source_index)
+        )
     return result
 
 
@@ -1759,6 +1983,7 @@ def validate_account_review(
     """Exact original-backed external identity; no Board behavior is changed."""
     from alethical.pipeline.election_account_reviews import _validate_quotes
 
+    cache = cache if cache is not None else {}
     generation_id = review_generation_id(evidence)
     _, g = cached_review_generation(db, generation_id, cache)
     require(
@@ -1817,13 +2042,37 @@ def validate_account_review(
                 ),
                 "Name variation needs separate exact alias or name-rendering evidence and reason",
             )
+    reading_ids = local_reading_ids(
+        [
+            publisher,
+            account,
+            evidence,
+            *[
+                indexes["reports"].get(e.get("report_key"))
+                for e in evidence
+                if e.get("kind") == "report_cover"
+            ],
+        ]
+    )
+    plan_readings(db, g, reading_ids, cache)
     hashes = source_dependencies(
         g,
         account_keys=[(authority, registration_number)],
         evidence=evidence,
         cache=cache,
+        _reading_ids=reading_ids,
     )
-    bodies = retained_bodies(db, store, g, hashes, source_index=indexes["sources"])
+    bodies = retained_bodies(
+        db,
+        store,
+        g,
+        hashes,
+        source_index=indexes["sources"],
+        reading_ids=reading_ids,
+        reading_context=cache.get(("verified_local_readings", g["id"])),
+        reading_context_planned=cache.get("local_reading_views_planned", False),
+        cache=cache,
+    )
     if decision == "confirmed":
         validate_binding(
             g,
@@ -1969,6 +2218,16 @@ def validate_account_review(
 
 def account_review_available(db, row, race, candidate, *, store=None, cache=None):
     from alethical.pipeline.raw_file_store import raw_file_store_from_env
+    from alethical.pipeline.election_account_reviews import candidate_identity
+
+    proof_key = (
+        "external_review_proof",
+        row.id,
+        race.id,
+        digest(candidate_identity(race, candidate)),
+    )
+    if cache is not None and proof_key in cache:
+        return cache[proof_key]
 
     try:
         snapshot_id = next(
@@ -1994,6 +2253,9 @@ def account_review_available(db, row, race, candidate, *, store=None, cache=None
             decision=row.decision,
             cache=cache,
         )
-        return True
+        result = True
     except (ComparisonImportError, KeyError, TypeError, StopIteration):
-        return False
+        result = False
+    if cache is not None:
+        cache[proof_key] = result
+    return result

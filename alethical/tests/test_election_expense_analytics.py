@@ -2034,6 +2034,13 @@ def test_external_exclusion_pagination_csv_and_original_dates(db, own_external):
     ctx = own_external
     args = {"election_key": ctx.g["election_key"]}
     first = s.report(db, **args)
+    report_source = first["authority_reports"][0]["sources"][0]
+    assert report_source["retained_source_url"] == (
+        f"/api/v1/finance/elections/{ctx.g['election_key']}/external-finance/sources/"
+        + report_source["source_sha256"]
+        + "?generation_id="
+        + first["external_generation_id"]
+    )
     args.update(snapshot_id=first["snapshot_id"], version=first["version"])
     page = s.payees(db, **args, limit=1)
     pid = page["payees"][0]["payee_id"]
@@ -2050,6 +2057,12 @@ def test_external_exclusion_pagination_csv_and_original_dates(db, own_external):
     assert excluded["excluded_payees"][0]["account_reports"][0]["claims"]
     details = s.payments(db, **args, payee_id=pid)
     assert details["payments"][0]["source"][0]["source_copied_at"]
+    payment_source = details["payments"][0]["source"][0]
+    assert payment_source["retained_source_url"].endswith(
+        payment_source["source_sha256"]
+        + "?generation_id="
+        + first["external_generation_id"]
+    )
     assert details["payments"][0]["reported_amount"] == "-12.34"
     body, _ = s.export(db, **args, excluded_payee_ids=[pid], format="csv")
     rows = list(csv.DictReader(io.StringIO(body)))
@@ -2159,6 +2172,27 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         "effective": True,
         "check_status": "checked",
         "figures": [],
+        "source_field_gaps": [
+            {
+                "measure": "cash_on_hand",
+                "label": "Cash on hand",
+                "state": "blank",
+                "literal": "",
+                "sources": [
+                    {
+                        "source_sha256": "c" * 64,
+                        "locator": {"page": 2, "field": "cash_on_hand"},
+                        "quote": "",
+                    }
+                ],
+            }
+        ],
+        "unavailable_measures": [
+            {"measure": "receipts", "state": "sources_unavailable"}
+        ],
+        "withheld_measures": [
+            {"measure": "prior_spending", "state": "period_not_covered"}
+        ],
         "sources": [],
     }
     account = {
@@ -2221,12 +2255,35 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         None, base, bulk, races, report_keys=[], excluded_payee_ids=[]
     )
     assert len(result["authority_reports"]) == 1
+    assert (
+        result["authority_reports"][0]["source_field_gaps"]
+        == report["source_field_gaps"]
+    )
+    assert (
+        result["authority_reports"][0]["unavailable_measures"]
+        == report["unavailable_measures"]
+    )
+    assert (
+        result["authority_reports"][0]["withheld_measures"]
+        == report["withheld_measures"]
+    )
     assert len(result["authority_reports"][0]["claims"]) == 2
     assert result["authority_reports"][0]["party_group"] == "unknown"
     assert result["authority_summary"][0]["baseline"] == "100.00"
     assert result["authority_summary"][0]["by_party"]["unknown"]["baseline"] == "100.00"
     assert len([p for p in result["payments"] if p.get("authority") == "fec"]) == 1
     csv_rows = list(s._external_csv_rows(result))
+    gap_rows = [row for row in csv_rows if row["Row type"] == "External measure gap"]
+    assert {row["Measure ID"]: row["Figure status"] for row in gap_rows} == {
+        "cash_on_hand": "Blank in source",
+        "receipts": "Source unavailable",
+        "prior_spending": "Outside checked account dates",
+    }
+    blank = next(row for row in gap_rows if row["Measure ID"] == "cash_on_hand")
+    assert blank["Source pages"] == "2"
+    assert blank["Source references"] == "cash_on_hand"
+    assert blank["Source text"] == ""
+    assert "Reported measure value" not in blank
     exported_report = next(
         row for row in csv_rows if row["Row type"] == "External account report"
     )
@@ -2315,6 +2372,34 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         excluded_payee_ids=[],
     )
     assert len(selected["authority_reports"]) == 1
+    unknown = deepcopy(bulk)
+    for item in unknown["candidates"]:
+        for held_report in item["reports"]:
+            held_report.update(
+                effective=None,
+                version_scope="exact_document",
+                amendment_status="not_established",
+            )
+    unresolved = s._join_external(
+        None, s._assemble(*held), unknown, races, report_keys=[], excluded_payee_ids=[]
+    )
+    assert unresolved["authority_reports"] == []
+    assert unresolved["authority_summary"] == []
+    assert not any(p.get("authority") == "fec" for p in unresolved["payments"])
+    assert any(
+        g["state"] == "amendment_status_not_established"
+        for c in unresolved["candidates"]
+        for g in c["gaps"]
+    )
+    with pytest.raises(HTTPException):
+        s._join_external(
+            None,
+            s._assemble(*held),
+            unknown,
+            races,
+            report_keys=[report["report_key"]],
+            excluded_payee_ids=[],
+        )
     with pytest.raises(HTTPException):
         s._join_external(
             None,

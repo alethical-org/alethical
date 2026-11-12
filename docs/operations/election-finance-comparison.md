@@ -191,6 +191,35 @@ reconciled; do not silently manufacture itemized totals or allocate a shared
 account between candidates. Filed addresses support address-location comparisons,
 not claims about where services were delivered or who ultimately benefited.
 
+### Local source readings and unknown amendments
+
+A checked reading binds the retained original, exact page and field, literal text,
+unit and value or gap. Blank, redacted, unreadable, ambiguous, unchecked and absent-unit
+fields stay distinct; none becomes zero. Candidate/account identity and the
+applicable dates need their own checked evidence. Public source views and CSV keep
+the gap and locator; a blank quotation stays blank, never replaced by a label.
+
+Native PDF text is not proof that words are visibly readable. Every admitted field
+must match an individually checked visible field, including its page, literal and
+value. Hidden text beneath a publisher's redaction stays out of displayed quotes
+and extracted report data. Redacted fields retain an empty literal and a gap state.
+Original source bytes remain unchanged; retaining an original does not certify
+that its publisher removed hidden text.
+
+An exact catalogued document does not establish its amendment relationship to
+other documents. Such local reports and payments carry `effective: null`,
+`version_scope: exact_document` and `amendment_status: not_established`. Explicit
+document inspection and source exports remain possible. Automatic latest-report
+selection and additive candidate, party and funder totals require `effective: true`.
+Unknown amendments are never labelled superseded; they stay excluded with the
+reason “Amendments not established”. A checked source-version relationship is
+needed to remove that hold. This hold does not finish recoverable filing coverage.
+
+Each request includes its actual source-proof outcomes in its version. A later
+failed proof cannot change the returned figures under an unchanged version.
+Ordinary reads isolate unavailable proofs so unrelated healthy records remain
+available; staging and publication still require the complete evidence set.
+
 ## Fresh source reads
 
 Election analytics readers share a process-wide pool of 16 source workers. Each

@@ -3,7 +3,7 @@
 import { apiPath } from '../../api/read';
 import type { Page, RetainedSource } from './data';
 import { periodLabel } from './format';
-import type { Binding, ExternalFigure, ExternalAccount } from './externalData';
+import type { Binding, ExternalFigure, ExternalAccount, SourceFieldGap } from './externalData';
 
 export type Party = 'R' | 'DFL' | 'NP' | 'other' | 'unknown';
 export type Geography = 'MN' | 'out_of_state' | 'unknown';
@@ -303,6 +303,9 @@ export interface AuthorityReport {
   party_group: Party;
   party_classification_state: string;
   reported_measures: ExternalFigure[] | null;
+  source_field_gaps?: SourceFieldGap[];
+  unavailable_measures?: Array<{ measure: string; state: string }>;
+  withheld_measures?: Array<{ measure: string; state: string }>;
   reported_itemized_before_exclusions: ReportedAmount[] | null;
   reported_itemized_after_exclusions: ReportedAmount[] | null;
   public_subsidy: null;

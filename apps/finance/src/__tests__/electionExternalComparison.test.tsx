@@ -76,6 +76,54 @@ async function click(button: HTMLElement) {
   await act(async () => button.click());
   await settle();
 }
+it('requires an explicit choice for unknown amendments and keeps it out of comparison totals', async () => {
+  data.reports[0].effective = null;
+  data.reports[0].version_scope = 'exact_document';
+  data.reports[0].amendment_status = 'not_established';
+  await render();
+  expect(container.textContent).toContain('Choose a filing to inspect; amendments not established');
+  expect(container.textContent).not.toContain('$1,200');
+  await click(buttons('Available filings')[0]);
+  expect(container.textContent).not.toContain('Earlier version');
+  await click(container.querySelector('input[type=radio]')!);
+  expect(onSelect).toHaveBeenCalled();
+  await render({ selected: `fec|C00000001|${reportKey}` });
+  expect(container.textContent).toContain('$1,200');
+  expect(container.textContent).toContain('Amendments not established; excluded from totals');
+  expect(onStatus.mock.calls.at(-1)![1].selectedReports).toEqual([]);
+});
+it('shows unreadable local fields with their exact source and no guessed amount', async () => {
+  data.reports[0].source_field_gaps = [
+    {
+      measure: 'cash_on_hand',
+      label: 'Cash on hand',
+      state: 'unreadable',
+      literal: '1?0',
+      sources: [
+        {
+          source_sha256: figureSource,
+          locator: { page: 3, field: 'cash_on_hand' },
+          quote: '1?0',
+        },
+      ],
+    },
+  ];
+  await render();
+  const row = [...container.querySelectorAll('dl > div')].find((r) =>
+    r.textContent?.includes('Cash on hand'),
+  )!;
+  expect(row?.textContent).toContain('Unreadable');
+  expect(row.textContent).not.toContain('$0');
+  await click(row.querySelector('button')!);
+  expect(onSource).toHaveBeenLastCalledWith(
+    `external:${encodeURIComponent(candidate.candidate_id)}:gap:${reportKey}.0:0`,
+  );
+  await render({ source: onSource.mock.calls.at(-1)![0] });
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Unreadable');
+  expect(panel.textContent).toContain('1?0');
+  expect(panel.textContent).toContain('page 3');
+});
 beforeEach(() => {
   clearReadCache();
   vi.clearAllMocks();

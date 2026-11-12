@@ -341,6 +341,10 @@ export function ExpenseReport({
     revision,
   });
   const baseline = report.data;
+  const externalReportCount =
+    baseline?.coverage.external_selected_account_reports ??
+    baseline?.authority_reports?.length ??
+    0;
   const current =
     !!baseline &&
     report.dataPath === baselinePath &&
@@ -826,19 +830,17 @@ export function ExpenseReport({
             <p>Non-itemized spending has no named payee and is shown separately.</p>
             {baseline && (
               <p>
-                {count(baseline.coverage.named_candidacies)} candidates in the election record ·{' '}
-                {count(baseline.coverage.scoped_candidacies)} in this report scope ·{' '}
-                {count(baseline.coverage.selected_account_reports)} Minnesota Board reports ·{' '}
+                {count(baseline.coverage.named_candidacies)}{' '}
+                {baseline.coverage.named_candidacies === 1 ? 'candidate' : 'candidates'} in the
+                election record · {count(baseline.coverage.scoped_candidacies)} in this report scope
+                · {count(baseline.coverage.selected_account_reports)} Minnesota Board{' '}
+                {baseline.coverage.selected_account_reports === 1 ? 'report' : 'reports'} ·{' '}
                 {count(baseline.coverage.checked_detail_account_reports)} with checked detail
                 {baseline.external_status === 'published' && (
                   <>
                     {' · '}
-                    {count(
-                      baseline.coverage.external_selected_account_reports ??
-                        baseline.authority_reports?.length ??
-                        0,
-                    )}{' '}
-                    federal or local reports
+                    {count(externalReportCount)} federal or local{' '}
+                    {externalReportCount === 1 ? 'report' : 'reports'}
                   </>
                 )}
               </p>
@@ -1258,15 +1260,17 @@ function CandidateRow({
           <div className="ex-account">
             <p>Report figures not held</p>
             <p className="ec-muted">
-              {candidate.external_coverage
-                ? coverageLabel(candidate.external_coverage.status)
-                : candidate.filing_authority === 'fec'
-                  ? 'Federal campaign records'
-                  : candidate.filing_authority === 'local'
-                    ? 'Local campaign records'
-                    : candidate.confirmed_account_count
-                      ? 'Selected report unavailable'
-                      : 'No confirmed campaign account'}
+              {candidate.gaps.some((gap) => gap.state === 'amendment_status_not_established')
+                ? 'Amendments not established; excluded from totals'
+                : candidate.external_coverage
+                  ? coverageLabel(candidate.external_coverage.status)
+                  : candidate.filing_authority === 'fec'
+                    ? 'Federal campaign records'
+                    : candidate.filing_authority === 'local'
+                      ? 'Local campaign records'
+                      : candidate.confirmed_account_count
+                        ? 'Selected report unavailable'
+                        : 'No confirmed campaign account'}
             </p>
           </div>
         )}
@@ -1929,7 +1933,7 @@ function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence 
   const first = payee.source[0];
   return {
     evidence: {
-      title: `${payee.payee?.name || 'Payee not shown'} · ${payee.amounts ? moneyLabel(payee.amounts.total) : <ReportedValues values={payee.reported_amounts} />}`,
+      title: `${payee.payee?.name || 'Payee not shown'}${payee.amounts ? ` · ${moneyLabel(payee.amounts.total)}` : ''}`,
       authority: payee.authority_name ?? BOARD,
       checked: 'Checked',
       rows: [
@@ -1943,6 +1947,12 @@ function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence 
           value: payee.purposes.filter(Boolean).join(' · ') || 'Not reported',
         },
         { label: 'Payments', value: count(payee.payment_count) },
+        ...(!payee.amounts
+          ? (payee.reported_amounts ?? []).map((item) => ({
+              label: `${item.label} · ${periodLabel(item.period_start, item.period_end)}`,
+              value: reportedMoneyLabel(item.amount, item.currency),
+            }))
+          : []),
         ...payee.source.map((source) => ({
           label: 'Source location',
           value: sourceLocation(source),
