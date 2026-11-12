@@ -134,7 +134,8 @@ needs no configuration. See `.env.example` for what each variable does.
 | `just push-full` | Upload after running the full backend and frontend suites locally |
 
 The commit hook formats the selected files and includes those results in the
-commit. Before the long tests, the push hook runs GitHub's current security scan
+commit. JavaScript and interface files in `apps/frontend`, `apps/finance` and
+`packages/shared` use the same explicit Prettier settings as CI. Before the long tests, the push hook runs GitHub's current security scan
 for every upload, including uploads without dependency changes. A failed scan
 stops the upload. It uses an isolated copy of the exact commit Git intends to
 upload and installs the frozen JavaScript dependencies once without package

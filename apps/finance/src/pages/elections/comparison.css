@@ -261,7 +261,7 @@
 .ec-copy button {
   min-width: 132px;
 }
-.ec-copy [role="alert"] {
+.ec-copy [role='alert'] {
   color: #8f2a20;
 }
 .ec-votes {
@@ -616,7 +616,7 @@
   gap: 8px 12px;
   margin-top: 14px;
 }
-.ec-evidence-choices [aria-pressed="true"] {
+.ec-evidence-choices [aria-pressed='true'] {
   color: #141b22;
 }
 @media (max-width: 1099px) {
@@ -706,7 +706,7 @@
 }
 
 .ec-precinct-table th:first-child::after {
-  content: "";
+  content: '';
   position: absolute;
   right: 0;
   top: 0;
@@ -753,7 +753,7 @@
 .ec-download > .ec-button {
   min-width: 172px;
 }
-.ec-download > [role="status"] {
+.ec-download > [role='status'] {
   max-width: 260px;
 }
 

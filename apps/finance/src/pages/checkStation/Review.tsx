@@ -1,24 +1,17 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import { registerKindLabel } from "@alethical/shared/committeeMoneyShared";
-import { useDebouncedSearchCommit } from "@alethical/shared/hooks/useDebouncedSearchCommit";
-import { tooShortTitle } from "@alethical/shared/moneyNameSearch";
-import { apiGet, useRead } from "../../api/read";
-import { useFinanceSession } from "../../auth/session";
-import { Link, useLocation } from "../../router";
-import { withFrom } from "../../returnContext";
-import { matchRoute } from "../../routes";
-import { discardDraft, readDraft, saveDraft } from "../../ui/drafts";
-import { Refused } from "../../ui/controls";
-import { BackLink, LoadingLine, WithArrow } from "../../ui/parts";
-import { StationEvidencePanel, type StationEvidence } from "../media/evidence";
-import { MenuButton } from "../media/menu";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { registerKindLabel } from '@alethical/shared/committeeMoneyShared';
+import { useDebouncedSearchCommit } from '@alethical/shared/hooks/useDebouncedSearchCommit';
+import { tooShortTitle } from '@alethical/shared/moneyNameSearch';
+import { apiGet, useRead } from '../../api/read';
+import { useFinanceSession } from '../../auth/session';
+import { Link, useLocation } from '../../router';
+import { withFrom } from '../../returnContext';
+import { matchRoute } from '../../routes';
+import { discardDraft, readDraft, saveDraft } from '../../ui/drafts';
+import { Refused } from '../../ui/controls';
+import { BackLink, LoadingLine, WithArrow } from '../../ui/parts';
+import { StationEvidencePanel, type StationEvidence } from '../media/evidence';
+import { MenuButton } from '../media/menu';
 import {
   FACT_FIELDS,
   PageImage,
@@ -32,7 +25,7 @@ import {
   mediaPath,
   serverKind,
   versionLabel,
-} from "../media/shared";
+} from '../media/shared';
 import type {
   Connection,
   Fact,
@@ -41,7 +34,7 @@ import type {
   Suggestion,
   Suggestions,
   TargetPreview,
-} from "../media/types";
+} from '../media/types';
 import {
   ROLE_TYPES,
   SEARCHABLE_TYPES,
@@ -67,18 +60,16 @@ import {
   type FactEntries,
   type Mode,
   type TargetResult,
-} from "./model";
-import { postCheck } from "./write";
+} from './model';
+import { postCheck } from './write';
 
-type Address = Partial<
-  Record<"file" | "version" | "page" | "check" | "action", string>
->;
+type Address = Partial<Record<'file' | 'version' | 'page' | 'check' | 'action', string>>;
 
 function focusSoon(id: string, scroll = false) {
   setTimeout(() => {
     const element = document.getElementById(id);
     if (!element) return;
-    if (scroll) element.scrollIntoView({ block: "start", behavior: "smooth" });
+    if (scroll) element.scrollIntoView({ block: 'start', behavior: 'smooth' });
     element.focus({ preventScroll: scroll });
   }, 0);
 }
@@ -86,25 +77,9 @@ function focusSoon(id: string, scroll = false) {
 function Warning({ children }: { children: ReactNode }) {
   return (
     <span className="ck-warn">
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M12 3 L22 20 H2 Z"
-          stroke="#9A6114"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M12 10 V14 M12 17 V17.5"
-          stroke="#9A6114"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3 L22 20 H2 Z" stroke="#9A6114" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M12 10 V14 M12 17 V17.5" stroke="#9A6114" strokeWidth="2" strokeLinecap="round" />
       </svg>
       {children}
     </span>
@@ -112,13 +87,7 @@ function Warning({ children }: { children: ReactNode }) {
 }
 function Tick() {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="9" stroke="#0E6A82" strokeWidth="2" />
       <path
         d="M8 12.5 L10.8 15.2 L16 9.5"
@@ -151,7 +120,7 @@ export function Review({
   onDraftChange: () => void;
   onLoaded: (file: FileDetail) => void;
 }) {
-  const read = useRead<FileDetail>(mediaPath(["files", fileKey]));
+  const read = useRead<FileDetail>(mediaPath(['files', fileKey]));
   const file = read.data && read.data.key === fileKey ? read.data : null;
   useEffect(() => {
     if (file) onLoaded(file);
@@ -171,27 +140,16 @@ export function Review({
             Couldn’t load TV station file
           </Refused>
         ) : (
-          <div
-            className="ck-detail-loading"
-            role="status"
-            aria-busy="true"
-            aria-label="Loading"
-          />
+          <div className="ck-detail-loading" role="status" aria-busy="true" aria-label="Loading" />
         )}
       </div>
     );
   if (askedVersion && askedVersion !== file.version_id) {
     const older = file.versions.find((v) => v.id === askedVersion);
-    const current = versionLabel(
-      file.versions.find((v) => v.id === file.version_id),
-    );
-    const lower = (text: string) =>
-      text.charAt(0).toLowerCase() + text.slice(1);
+    const current = versionLabel(file.versions.find((v) => v.id === file.version_id));
+    const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
     return (
-      <section
-        aria-labelledby="mm-h"
-        className="ck-card ck-padded ck-detail ck-mismatch"
-      >
+      <section aria-labelledby="mm-h" className="ck-card ck-padded ck-detail ck-mismatch">
         <h2 id="mm-h">{file.name}</h2>
         <p role="status">
           {older
@@ -223,12 +181,12 @@ export function Review({
   );
 }
 
-type SaveState = "idle" | "busy" | "saved" | "failed";
+type SaveState = 'idle' | 'busy' | 'saved' | 'failed';
 interface Withdrawal {
   id: string;
   reason: string;
   error: string;
-  status: "idle" | "busy" | "failed";
+  status: 'idle' | 'busy' | 'failed';
 }
 interface MoneyResult {
   kind: string;
@@ -258,8 +216,8 @@ function matchingRecords(
   data: Queue | MoneyMatches,
   kind: string,
   fileKey: string,
-): TargetResult[] | "too-short" | "unavailable" {
-  if ("rows" in data)
+): TargetResult[] | 'too-short' | 'unavailable' {
+  if ('rows' in data)
     return data.rows
       .filter((row) => row.key !== fileKey)
       .map((row) => ({
@@ -268,41 +226,36 @@ function matchingRecords(
         line: [
           row.station,
           row.folder_label,
-          row.uploaded_at ? `Uploaded ${day(row.uploaded_at)}` : "",
+          row.uploaded_at ? `Uploaded ${day(row.uploaded_at)}` : '',
         ]
           .filter(Boolean)
-          .join(" · "),
+          .join(' · '),
       }));
   const group = data.money?.groups?.find((item) =>
-    kind === "committee"
-      ? item.kind === "committees"
-      : item.kind === "principals",
+    kind === 'committee' ? item.kind === 'committees' : item.kind === 'principals',
   );
-  if (group?.reason === "query_too_short") return "too-short";
-  if (data.money?.state === "unavailable" || !group) return "unavailable";
-  if (group.state === "not_reported") return [];
-  if (group.state !== "reported" || !Array.isArray(group.results))
-    return "unavailable";
-  return kind === "committee"
+  if (group?.reason === 'query_too_short') return 'too-short';
+  if (data.money?.state === 'unavailable' || !group) return 'unavailable';
+  if (group.state === 'not_reported') return [];
+  if (group.state !== 'reported' || !Array.isArray(group.results)) return 'unavailable';
+  return kind === 'committee'
     ? group.results
-        .filter(
-          (row) => row.kind === "committee" && row.registration_number != null,
-        )
+        .filter((row) => row.kind === 'committee' && row.registration_number != null)
         .map((row) => ({
           id: String(row.registration_number),
-          name: row.name ?? "",
+          name: row.name ?? '',
           line: [
             registerKindLabel(row.filer_kind),
             `Registration number ${row.registration_number}`,
           ]
             .filter(Boolean)
-            .join(" · "),
+            .join(' · '),
         }))
     : group.results
-        .filter((row) => row.kind === "principal" && row.entity_id != null)
+        .filter((row) => row.kind === 'principal' && row.entity_id != null)
         .map((row) => ({
           id: String(row.entity_id),
-          name: row.name ?? "",
+          name: row.name ?? '',
           line: `State entity ID ${row.entity_id}`,
         }));
 }
@@ -335,7 +288,7 @@ function Workbench({
     () => readDraft<Draft>(store) ?? blankDraft(String(page)),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveState, setSaveState] = useState<SaveState>('idle');
   const [stale, setStale] = useState(false);
   const [changed, setChanged] = useState(false);
   const [dupOf, setDupOf] = useState<Fact | Connection | null>(null);
@@ -346,11 +299,9 @@ function Workbench({
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [used, setUsed] = useState<Set<string>>(new Set());
   const [showDismissed, setShowDismissed] = useState(false);
-  const [appliedLookup, setAppliedLookup] = useState("");
+  const [appliedLookup, setAppliedLookup] = useState('');
   const [heldLookup, setHeldLookup] = useState<LookupResults | null>(null);
-  const [previewing, setPreviewing] = useState<"idle" | "busy" | "failed">(
-    "idle",
-  );
+  const [previewing, setPreviewing] = useState<'idle' | 'busy' | 'failed'>('idle');
   const live = useRef(true);
   const previewRequest = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -362,7 +313,7 @@ function Workbench({
   }, []);
 
   const suggestions = useRead<Suggestions>(
-    mediaPath(["files", fileKey, "suggestions"], { version }),
+    mediaPath(['files', fileKey, 'suggestions'], { version }),
     {
       acceptData: (data) => data.key === fileKey && data.version_id === version,
     },
@@ -376,8 +327,8 @@ function Workbench({
     // onDraftChange only re-renders the queue's tags.
   }, [draft, store]);
 
-  const busy = saveState === "busy";
-  const anyBusy = busy || withdrawal?.status === "busy";
+  const busy = saveState === 'busy';
+  const anyBusy = busy || withdrawal?.status === 'busy';
   const rows = checkRows(file);
   const history = historyRows(file);
   const facts = currentFacts(file);
@@ -386,37 +337,31 @@ function Workbench({
   const lookupScope = `${apiBaseUrl}|${accessToken}|${canEdit}|${fileKey}|${version}`;
   const currentScope = useRef(lookupScope);
   currentScope.current = lookupScope;
-  const mayLookUp =
-    !!accessToken && canEdit !== false && draft.mode === "connection";
+  const mayLookUp = !!accessToken && canEdit !== false && draft.mode === 'connection';
   const lookupQuery = conn.query.trim();
   const lookupKey =
     mayLookUp &&
     conn.type &&
-    conn.type !== "issue" &&
-    (lookupQuery || conn.type === "related_document")
+    conn.type !== 'issue' &&
+    (lookupQuery || conn.type === 'related_document')
       ? JSON.stringify([lookupScope, conn.type, lookupQuery])
-      : "";
-  useDebouncedSearchCommit(
-    lookupKey,
-    lookupKey ? appliedLookup : "",
-    setAppliedLookup,
-  );
+      : '';
+  useDebouncedSearchCommit(lookupKey, lookupKey ? appliedLookup : '', setAppliedLookup);
   // Drop the old request as soon as the input changes, including during the pause
   // before the next read. The earlier answer keeps its own query below.
   const lookupPath =
     lookupKey && lookupKey === appliedLookup
-      ? conn.type === "related_document"
-        ? mediaPath(["queue"], { q: lookupQuery, limit: 20 })
-        : `finance/suggestions?${new URLSearchParams({ q: lookupQuery, request_id: "station-check", limit: "10" })}`
+      ? conn.type === 'related_document'
+        ? mediaPath(['queue'], { q: lookupQuery, limit: 20 })
+        : `finance/suggestions?${new URLSearchParams({ q: lookupQuery, request_id: 'station-check', limit: '10' })}`
       : null;
   const lookup = useRead<Queue | MoneyMatches>(lookupPath);
   const remote = useMemo(
-    () =>
-      lookup.data ? matchingRecords(lookup.data, conn.type, fileKey) : null,
+    () => (lookup.data ? matchingRecords(lookup.data, conn.type, fileKey) : null),
     [conn.type, fileKey, lookup.data],
   );
   const remoteRows = Array.isArray(remote) ? remote : null;
-  const lookupTooShort = remote === "too-short";
+  const lookupTooShort = remote === 'too-short';
   useEffect(() => {
     if (lookup.accessDenied) {
       setHeldLookup(null);
@@ -429,14 +374,7 @@ function Workbench({
       query: lookupQuery,
       rows: remoteRows,
     });
-  }, [
-    conn.type,
-    lookup.accessDenied,
-    lookupPath,
-    lookupQuery,
-    lookupScope,
-    remoteRows,
-  ]);
+  }, [conn.type, lookup.accessDenied, lookupPath, lookupQuery, lookupScope, remoteRows]);
   const retainedLookup =
     lookupKey &&
     !lookup.accessDenied &&
@@ -446,32 +384,28 @@ function Workbench({
       ? heldLookup
       : null;
   const currentRows =
-    mayLookUp && conn.type === "issue" && lookupQuery
-      ? [{ id: lookupQuery, name: lookupQuery, line: "" }]
+    mayLookUp && conn.type === 'issue' && lookupQuery
+      ? [{ id: lookupQuery, name: lookupQuery, line: '' }]
       : remoteRows;
   const lookupRows = currentRows ?? retainedLookup?.rows ?? null;
   const lookupStale = currentRows === null && retainedLookup !== null;
   const lookupFailed =
     !!lookupPath &&
     !lookup.pending &&
-    (lookup.failed || lookup.notFound || remote === "unavailable");
+    (lookup.failed || lookup.notFound || remote === 'unavailable');
   const lookupBusy =
-    !!lookupKey &&
-    (!lookupPath || lookup.loading || lookup.pending) &&
-    !lookupFailed;
-  const correcting = fact.correcting
-    ? (facts.find((f) => f.id === fact.correcting) ?? null)
-    : null;
+    !!lookupKey && (!lookupPath || lookup.loading || lookup.pending) && !lookupFailed;
+  const correcting = fact.correcting ? (facts.find((f) => f.id === fact.correcting) ?? null) : null;
 
   function touch() {
     setDupOf(null);
-    setSaveState((was) => (was === "saved" ? "idle" : was));
+    setSaveState((was) => (was === 'saved' ? 'idle' : was));
     setWithdrawn(false);
   }
   function setFact(patch: Partial<FactEntries>, clear?: string) {
     touch();
     setDraft((was) => ({ ...was, fact: { ...was.fact, ...patch } }));
-    if (clear) setErrors((was) => ({ ...was, [clear]: "" }));
+    if (clear) setErrors((was) => ({ ...was, [clear]: '' }));
   }
   function setConn(patch: Partial<ConnectionEntries>, clear?: string) {
     touch();
@@ -479,29 +413,26 @@ function Workbench({
       ...was,
       connection: { ...was.connection, ...patch },
     }));
-    if (clear) setErrors((was) => ({ ...was, [clear]: "" }));
+    if (clear) setErrors((was) => ({ ...was, [clear]: '' }));
   }
   function cancelPreview() {
     previewRequest.current?.abort();
     previewRequest.current = null;
-    setPreviewing("idle");
+    setPreviewing('idle');
     setChanged(false);
   }
   function leaveLookup() {
     if (!previewRequest.current) return;
     cancelPreview();
-    setPreviewing("failed");
+    setPreviewing('failed');
   }
-  function resetTarget(
-    patch: Partial<ConnectionEntries> = {},
-    clear = "target",
-  ) {
+  function resetTarget(patch: Partial<ConnectionEntries> = {}, clear = 'target') {
     cancelPreview();
     setConn(
       {
         target: null,
         preview: null,
-        previewKey: "",
+        previewKey: '',
         moneyChecked: false,
         ...patch,
       },
@@ -510,26 +441,26 @@ function Workbench({
   }
   function switchMode(mode: Mode) {
     if (anyBusy || draft.mode === mode) return;
-    if (mode === "fact") leaveLookup();
+    if (mode === 'fact') leaveLookup();
     setDraft((was) => ({ ...was, mode }));
     setErrors({});
-    setSaveState("idle");
+    setSaveState('idle');
     setStale(false);
     setDupOf(null);
   }
   function startCorrection(target: Fact) {
     leaveLookup();
-    setDraft((was) => ({ ...was, mode: "fact", fact: correctionOf(target) }));
+    setDraft((was) => ({ ...was, mode: 'fact', fact: correctionOf(target) }));
     setErrors({});
-    setSaveState("idle");
+    setSaveState('idle');
     setStale(false);
     setEvidence(null);
-    focusSoon("f-value", true);
+    focusSoon('f-value', true);
   }
   function openWithdraw(id: string) {
     setEvidence(null);
     setWithdrawn(false);
-    setWithdrawal({ id, reason: "", error: "", status: "idle" });
+    setWithdrawal({ id, reason: '', error: '', status: 'idle' });
     focusSoon(`wr-${id}`, true);
   }
 
@@ -538,51 +469,46 @@ function Workbench({
     if (!check || !action) return;
     const row = rows.find((r) => r.id === check);
     if (row) {
-      if (action === "correct" && row.kind === "fact")
-        startCorrection(row.item as Fact);
-      else if (action === "withdraw") openWithdraw(row.id);
+      if (action === 'correct' && row.kind === 'fact') startCorrection(row.item as Fact);
+      else if (action === 'withdraw') openWithdraw(row.id);
     }
-    onAddress({ check: "", action: "" });
+    onAddress({ check: '', action: '' });
     // Runs for the action the address named on arrival.
   }, [check, action]);
 
-  function showEvidence(item: Fact | Connection, kind: "fact" | "connection") {
-    const isFact = kind === "fact";
+  function showEvidence(item: Fact | Connection, kind: 'fact' | 'connection') {
+    const isFact = kind === 'fact';
     const label = isFact ? (item as Fact).kind : connectionLabel(item.kind);
-    const value = isFact
-      ? ((item as Fact).value ?? "")
-      : ((item as Connection).label ?? "");
+    const value = isFact ? ((item as Fact).value ?? '') : ((item as Connection).label ?? '');
     setEvidence({
       title: `${label}: ${value}`,
       authority: `${file.station} public inspection file`,
       rows: [
-        { label: "File", value: file.name },
+        { label: 'File', value: file.name },
         {
-          label: "Source version",
+          label: 'Source version',
           value: versionLabel(file.versions.find((v) => v.id === version)),
         },
-        { label: isFact ? "Fact" : "Connection", value: label },
-        { label: isFact ? "Value" : "Record", value },
-        ...(item.role
-          ? [{ label: isFact ? "Printed role" : "Role", value: item.role }]
-          : []),
+        { label: isFact ? 'Fact' : 'Connection', value: label },
+        { label: isFact ? 'Value' : 'Record', value },
+        ...(item.role ? [{ label: isFact ? 'Printed role' : 'Role', value: item.role }] : []),
       ],
       quote: item.quote ?? undefined,
       page: item.page != null ? String(item.page) : undefined,
       checked: `Checked on ${day(item.checked_at)}`,
       machineText: item.page != null ? pageText(file, item.page) : null,
       actions:
-        item.status === "checked"
+        item.status === 'checked'
           ? [
               ...(isFact
                 ? [
                     {
-                      label: "Correct fact",
+                      label: 'Correct fact',
                       onClick: () => startCorrection(item as Fact),
                     },
                   ]
                 : []),
-              { label: "Withdraw check", onClick: () => openWithdraw(item.id) },
+              { label: 'Withdraw check', onClick: () => openWithdraw(item.id) },
             ]
           : [],
     });
@@ -593,30 +519,30 @@ function Workbench({
     if (busy || stale) return;
     const found = validate(draft, file, fileKey);
     const order =
-      draft.mode === "fact"
+      draft.mode === 'fact'
         ? [
-            ["kind", "fact-btn"],
-            ["value", "f-value"],
-            ["page", "f-page"],
-            ["role", "f-role"],
-            ["org", "f-org"],
-            ["quote", "f-quote"],
-            ["evidence", "f-evidence"],
-            ["confirm", "f-confirm"],
+            ['kind', 'fact-btn'],
+            ['value', 'f-value'],
+            ['page', 'f-page'],
+            ['role', 'f-role'],
+            ['org', 'f-org'],
+            ['quote', 'f-quote'],
+            ['evidence', 'f-evidence'],
+            ['confirm', 'f-confirm'],
           ]
         : [
-            ["type", "conn-btn"],
-            ["target", "c-query"],
-            ["money", "f-money"],
-            ["page", "f-page"],
-            ["quote", "f-quote"],
-            ["evidence", "f-evidence"],
-            ["confirm", "f-confirm"],
+            ['type', 'conn-btn'],
+            ['target', 'c-query'],
+            ['money', 'f-money'],
+            ['page', 'f-page'],
+            ['quote', 'f-quote'],
+            ['evidence', 'f-evidence'],
+            ['confirm', 'f-confirm'],
           ];
     const first = order.find(([name]) => found[name]);
     if (first) {
       setErrors(found);
-      setSaveState("idle");
+      setSaveState('idle');
       focusSoon(first[1]);
       return;
     }
@@ -627,96 +553,80 @@ function Workbench({
       return;
     }
     setErrors({});
-    setSaveState("busy");
+    setSaveState('busy');
     const mode = draft.mode;
     const result = await postCheck(
       apiBaseUrl,
       accessToken,
-      mediaPath([
-        "files",
-        fileKey,
-        "versions",
-        version,
-        mode === "fact" ? "facts" : "connections",
-      ]),
-      mode === "fact" ? factBody(draft.fact) : connectionBody(draft.connection),
+      mediaPath(['files', fileKey, 'versions', version, mode === 'fact' ? 'facts' : 'connections']),
+      mode === 'fact' ? factBody(draft.fact) : connectionBody(draft.connection),
     );
     if (!live.current) return;
-    if (result.state === "saved") {
+    if (result.state === 'saved') {
       setDraft((was) => ({
-        ...blankDraft(mode === "fact" ? was.fact.page : was.connection.page),
+        ...blankDraft(mode === 'fact' ? was.fact.page : was.connection.page),
         mode,
       }));
       setSavedIds((was) => [...was, result.id]);
-      setSaveState("saved");
+      setSaveState('saved');
       refresh();
       suggestions.retry();
       return;
     }
-    if (result.state === "refused") {
-      const where = refusalField(
-        result.detail,
-        draft,
-        Math.max(1, file.page_count),
-      );
-      if (where === "stale") {
+    if (result.state === 'refused') {
+      const where = refusalField(result.detail, draft, Math.max(1, file.page_count));
+      if (where === 'stale') {
         setStale(true);
-        setSaveState("idle");
+        setSaveState('idle');
         return;
       }
-      if (where === "changed") {
+      if (where === 'changed') {
         setChanged(true);
-        setSaveState("idle");
+        setSaveState('idle');
         return;
       }
       if (where) {
         setErrors({ [where.field]: where.message });
-        setSaveState("idle");
+        setSaveState('idle');
         const target = order.find(([name]) => name === where.field);
         if (target) focusSoon(target[1]);
         return;
       }
     }
-    if (
-      result.state === "conflict" &&
-      mode === "fact" &&
-      draft.fact.correcting
-    ) {
+    if (result.state === 'conflict' && mode === 'fact' && draft.fact.correcting) {
       setStale(true);
-      setSaveState("idle");
+      setSaveState('idle');
       return;
     }
-    setSaveState("failed");
+    setSaveState('failed');
   }
 
-  async function withdraw(id: string, kind: "fact" | "connection") {
-    if (!withdrawal || withdrawal.status === "busy") return;
+  async function withdraw(id: string, kind: 'fact' | 'connection') {
+    if (!withdrawal || withdrawal.status === 'busy') return;
     const reason = withdrawal.reason.trim();
     if (!reason) {
-      setWithdrawal({ ...withdrawal, error: "Give a reason" });
+      setWithdrawal({ ...withdrawal, error: 'Give a reason' });
       focusSoon(`wr-${id}`);
       return;
     }
-    setWithdrawal({ ...withdrawal, error: "", status: "busy" });
+    setWithdrawal({ ...withdrawal, error: '', status: 'busy' });
     const result = await postCheck(
       apiBaseUrl,
       accessToken,
-      mediaPath([kind === "fact" ? "facts" : "connections", id, "withdraw"]),
+      mediaPath([kind === 'fact' ? 'facts' : 'connections', id, 'withdraw']),
       { reason },
     );
     if (!live.current) return;
-    if (result.state === "saved" && result.status === "withdrawn") {
+    if (result.state === 'saved' && result.status === 'withdrawn') {
       setWithdrawal(null);
       setWithdrawn(true);
       refresh();
       suggestions.retry();
-      focusSoon("checks-heading");
+      focusSoon('checks-heading');
       return;
     }
     // The check and the typed reason stay; nothing says withdrawn (Round 41 item 3).
-    setWithdrawal((was) =>
-      was && was.id === id ? { ...was, status: "failed" } : was,
-    );
+    setWithdrawal((was) => (was && was.id === id ? { ...was, status: 'failed' } : was));
   }
 
   function runSearch() {
@@ -724,63 +634,49 @@ function Workbench({
     if (!conn.type) {
       setErrors((was) => ({
         ...was,
-        type: "Choose the connection this page shows",
+        type: 'Choose the connection this page shows',
       }));
-      focusSoon("conn-btn");
+      focusSoon('conn-btn');
       return;
     }
     if (!lookupKey) return;
-    setErrors((was) => ({ ...was, target: "" }));
+    setErrors((was) => ({ ...was, target: '' }));
     if (lookupKey !== appliedLookup) setAppliedLookup(lookupKey);
     else if (lookupFailed) lookup.retry();
   }
 
-  async function preview(
-    target: TargetResult,
-    entries: ConnectionEntries = conn,
-  ) {
+  async function preview(target: TargetResult, entries: ConnectionEntries = conn) {
     previewRequest.current?.abort();
     const request = new AbortController();
     previewRequest.current = request;
-    setConn(
-      { target, preview: null, previewKey: "", moneyChecked: false },
-      "target",
-    );
+    setConn({ target, preview: null, previewKey: '', moneyChecked: false }, 'target');
     setChanged(false);
-    setPreviewing("busy");
+    setPreviewing('busy');
     const answer = await apiGet<TargetPreview>(
       apiBaseUrl,
-      mediaPath(["files", fileKey, "versions", version, "target-preview"], {
+      mediaPath(['files', fileKey, 'versions', version, 'target-preview'], {
         kind: entries.type,
         target_id: target.id,
-        role:
-          ROLE_TYPES.includes(entries.type) && entries.role.trim()
-            ? entries.role.trim()
-            : null,
+        role: ROLE_TYPES.includes(entries.type) && entries.role.trim() ? entries.role.trim() : null,
       }),
       accessToken,
       fetch,
       request.signal,
     );
-    if (
-      !live.current ||
-      request.signal.aborted ||
-      currentScope.current !== lookupScope
-    )
-      return;
+    if (!live.current || request.signal.aborted || currentScope.current !== lookupScope) return;
     previewRequest.current = null;
-    if (answer.state !== "ok") {
-      setPreviewing("failed");
+    if (answer.state !== 'ok') {
+      setPreviewing('failed');
       return;
     }
-    setPreviewing("idle");
+    setPreviewing('idle');
     setConn({
       target,
       preview: answer.data,
       previewKey: previewKey({ ...entries, target }, fileKey, version),
       moneyChecked: false,
     });
-    focusSoon("rec-panel");
+    focusSoon('rec-panel');
   }
 
   function useSuggestion(suggestion: Suggestion, id: string) {
@@ -789,81 +685,63 @@ function Workbench({
     setUsed((was) => new Set([...was, id]));
     setDraft((was) => ({
       ...was,
-      mode: "fact",
+      mode: 'fact',
       fact: {
         ...blankFact(String(suggestion.page)),
-        field: FACT_FIELDS.some(([key]) => key === suggestion.field)
-          ? suggestion.field
-          : "",
+        field: FACT_FIELDS.some(([key]) => key === suggestion.field) ? suggestion.field : '',
         value: suggestion.value,
         quote: suggestion.quote,
       },
     }));
     setErrors({});
-    setSaveState("idle");
+    setSaveState('idle');
     setStale(false);
     setDupOf(null);
     onAddress({ page: String(suggestion.page) });
   }
 
-  const fromValue = new URLSearchParams(location.search).get("from");
-  const fromMatch = fromValue
-    ? matchRoute(fromValue.split(/[?#]/, 1)[0])
-    : null;
-  const fromFile =
-    fromMatch?.route.name === "station-file" &&
-    fromMatch.params.key === fileKey;
+  const fromValue = new URLSearchParams(location.search).get('from');
+  const fromMatch = fromValue ? matchRoute(fromValue.split(/[?#]/, 1)[0]) : null;
+  const fromFile = fromMatch?.route.name === 'station-file' && fromMatch.params.key === fileKey;
   const backToFile = (() => {
     if (!fromFile || !fromValue) return null;
-    const [path, query = ""] = fromValue.split("?");
+    const [path, query = ''] = fromValue.split('?');
     const params = new URLSearchParams(query);
-    params.set("version", version);
-    if (page > 1) params.set("page", String(page));
-    else params.delete("page");
-    if (savedIds.length) params.set("new", savedIds.join(","));
+    params.set('version', version);
+    if (page > 1) params.set('page', String(page));
+    else params.delete('page');
+    if (savedIds.length) params.set('new', savedIds.join(','));
     return `${path}?${params.toString()}`;
   })();
   const today = day(new Date().toISOString());
   const versionText = versionLabel(file.versions.find((v) => v.id === version));
-  const scope = [
-    file.station,
-    file.year,
-    file.category,
-    lastSegment(file.folder.label),
-  ]
-    .filter((part) => part !== null && part !== "")
-    .join(" · ");
+  const scope = [file.station, file.year, file.category, lastSegment(file.folder.label)]
+    .filter((part) => part !== null && part !== '')
+    .join(' · ');
   const text = pageText(file, page);
-  const suggestionKey = (s: Suggestion) =>
-    JSON.stringify([s.field, s.value, s.page, s.quote]);
+  const suggestionKey = (s: Suggestion) => JSON.stringify([s.field, s.value, s.page, s.quote]);
   const allSuggestions = suggestions.data?.facts ?? [];
-  const activeCount = allSuggestions.filter(
-    (s) => !dismissed.has(suggestionKey(s)),
-  ).length;
+  const activeCount = allSuggestions.filter((s) => !dismissed.has(suggestionKey(s))).length;
   const shownSuggestions = allSuggestions.filter(
     (s) => showDismissed || !dismissed.has(suggestionKey(s)),
   );
-  const err = (name: string) => errors[name] ?? "";
-  const needRole =
-    fact.field === "organization_address" || fact.field === "officer_name";
-  const needOrg = fact.field === "organization_address";
-  const detailsShown =
-    fact.detailsOpen || !!fact.qualifier || (!needRole && !!fact.role);
-  const agencyChecked = facts.some((f) => f.kind === serverKind("agency_name"));
+  const err = (name: string) => errors[name] ?? '';
+  const needRole = fact.field === 'organization_address' || fact.field === 'officer_name';
+  const needOrg = fact.field === 'organization_address';
+  const detailsShown = fact.detailsOpen || !!fact.qualifier || (!needRole && !!fact.role);
+  const agencyChecked = facts.some((f) => f.kind === serverKind('agency_name'));
   const previewOk =
-    !!conn.preview &&
-    conn.previewKey === previewKey(conn, fileKey, version) &&
-    !changed;
+    !!conn.preview && conn.previewKey === previewKey(conn, fileKey, version) && !changed;
   const saveLabel =
-    saveState === "failed"
-      ? "Try again"
-      : draft.mode === "fact"
+    saveState === 'failed'
+      ? 'Try again'
+      : draft.mode === 'fact'
         ? correcting
-          ? "Save correction"
-          : "Save"
-        : "Save connection";
+          ? 'Save correction'
+          : 'Save'
+        : 'Save connection';
 
-  const savedLine = saveState === "saved" && (
+  const savedLine = saveState === 'saved' && (
     <>
       <span className="ck-saved">
         <Tick />
@@ -881,15 +759,10 @@ function Workbench({
       <span>
         <Tick />
         <span>
-          Already saved ·{" "}
-          <span className="f-num">Checked on {day(dupOf.checked_at)}</span>
+          Already saved · <span className="f-num">Checked on {day(dupOf.checked_at)}</span>
         </span>
       </span>
-      <button
-        type="button"
-        className="ck-link-btn"
-        onClick={() => showEvidence(dupOf, draft.mode)}
-      >
+      <button type="button" className="ck-link-btn" onClick={() => showEvidence(dupOf, draft.mode)}>
         View evidence
       </button>
     </div>
@@ -906,7 +779,7 @@ function Workbench({
           {saveLabel}
         </button>
       )}
-      {draft.mode === "fact" && correcting && (
+      {draft.mode === 'fact' && correcting && (
         <button
           type="button"
           className="f-btn f-btn-secondary"
@@ -929,7 +802,7 @@ function Workbench({
       </div>
     </div>
   );
-  const failedBanner = saveState === "failed" && (
+  const failedBanner = saveState === 'failed' && (
     <Refused>Not saved. Your entries are kept.</Refused>
   );
   const discard = hasEntries(draft) && (
@@ -945,10 +818,10 @@ function Workbench({
           discardDraft(store);
           setDraft(blankDraft(String(page)));
           setErrors({});
-          setSaveState("idle");
+          setSaveState('idle');
           setStale(false);
           setUsed(new Set());
-          focusSoon("fact-btn");
+          focusSoon('fact-btn');
         }}
       >
         Discard draft
@@ -968,7 +841,7 @@ function Workbench({
       wide?: boolean;
     } = {},
   ) => (
-    <label className={`ck-field${options.wide ? " ck-wide" : ""}`}>
+    <label className={`ck-field${options.wide ? ' ck-wide' : ''}`}>
       <span className="ck-label">{label}</span>
       {options.multiline ? (
         <textarea
@@ -985,8 +858,8 @@ function Workbench({
           type="text"
           value={value}
           readOnly={busy || options.readOnly}
-          inputMode={options.numeric ? "numeric" : undefined}
-          className={options.numeric ? "f-num ck-strong" : undefined}
+          inputMode={options.numeric ? 'numeric' : undefined}
+          className={options.numeric ? 'f-num ck-strong' : undefined}
           data-error={err(name) ? true : undefined}
           onChange={(event) => onChange(event.target.value)}
         />
@@ -1010,7 +883,7 @@ function Workbench({
         />
         <span>{words}</span>
       </label>
-      {err("confirm") && <Warning>{err("confirm")}</Warning>}
+      {err('confirm') && <Warning>{err('confirm')}</Warning>}
     </div>
   );
 
@@ -1024,10 +897,7 @@ function Workbench({
               {scope} · Source version {versionText}
             </p>
           </div>
-          <Link
-            className="f-dest ck-open"
-            to={withFrom(fileHref(fileKey, version, page), here)}
-          >
+          <Link className="f-dest ck-open" to={withFrom(fileHref(fileKey, version, page), here)}>
             <span>
               <WithArrow>Open file</WithArrow>
             </span>
@@ -1042,8 +912,8 @@ function Workbench({
                 page={page}
                 alt={`Page ${page} of ${file.page_count} of the original TV station file ${file.name}`}
                 failure={{
-                  text: "Couldn’t load page image",
-                  retry: "Retry image",
+                  text: 'Couldn’t load page image',
+                  retry: 'Retry image',
                 }}
               />
             ) : (
@@ -1058,12 +928,8 @@ function Workbench({
                 onChange={(next) => onAddress({ page: String(next) })}
               />
             )}
-            <div className="f-evidence-quote-label ck-mono">
-              MACHINE-READ TEXT · NOT CHECKED
-            </div>
-            <pre className="ck-machine">
-              {text ?? "Machine-read text not held for this page"}
-            </pre>
+            <div className="f-evidence-quote-label ck-mono">MACHINE-READ TEXT · NOT CHECKED</div>
+            <pre className="ck-machine">{text ?? 'Machine-read text not held for this page'}</pre>
           </div>
         </div>
       </section>
@@ -1071,10 +937,7 @@ function Workbench({
       <section className="ck-card ck-padded" aria-labelledby="sugg-heading">
         <div className="ck-detail-head ck-center">
           <h2 id="sugg-heading">
-            Suggestions{" "}
-            {suggestions.data && (
-              <span className="ck-count f-num">{activeCount}</span>
-            )}
+            Suggestions {suggestions.data && <span className="ck-count f-num">{activeCount}</span>}
           </h2>
           <button
             type="button"
@@ -1093,45 +956,37 @@ function Workbench({
           <ul className="ck-suggestions">
             {shownSuggestions.map((suggestion) => {
               const id = suggestionKey(suggestion);
-              const isDismissed =
-                dismissed.has(id) && !suggestion.already_checked;
-              const isUsed =
-                used.has(id) && !suggestion.already_checked && !isDismissed;
+              const isDismissed = dismissed.has(id) && !suggestion.already_checked;
+              const isUsed = used.has(id) && !suggestion.already_checked && !isDismissed;
               const savedFact = suggestion.already_checked
                 ? facts.find(
-                    (f) =>
-                      f.kind === serverKind(suggestion.field) &&
-                      f.value === suggestion.value,
+                    (f) => f.kind === serverKind(suggestion.field) && f.value === suggestion.value,
                   )
                 : undefined;
-              const kind =
-                fieldLabel(suggestion.field) ||
-                suggestion.field.replaceAll("_", " ");
+              const kind = fieldLabel(suggestion.field) || suggestion.field.replaceAll('_', ' ');
               const status = suggestion.already_checked
-                ? `Already checked${savedFact ? ` · Checked on ${day(savedFact.checked_at)}` : ""}`
+                ? `Already checked${savedFact ? ` · Checked on ${day(savedFact.checked_at)}` : ''}`
                 : isUsed
-                  ? "Used · fills the form below"
+                  ? 'Used · fills the form below'
                   : isDismissed
-                    ? "Dismissed"
-                    : `Read from page ${suggestion.page} · Not checked${suggestion.in_source_text ? "" : " · possible reading error"}`;
+                    ? 'Dismissed'
+                    : `Read from page ${suggestion.page} · Not checked${suggestion.in_source_text ? '' : ' · possible reading error'}`;
               return (
                 <li
                   key={id}
                   data-state={
                     suggestion.already_checked
-                      ? "saved"
+                      ? 'saved'
                       : isDismissed
-                        ? "dismissed"
+                        ? 'dismissed'
                         : isUsed
-                          ? "used"
+                          ? 'used'
                           : undefined
                   }
                 >
                   <div className="ck-sugg-text">
                     <span className="ck-sugg-kind">{kind}</span>
-                    <span className="ck-sugg-value f-num">
-                      {suggestion.value}
-                    </span>
+                    <span className="ck-sugg-value f-num">{suggestion.value}</span>
                     <span className="ck-note f-num">{status}</span>
                   </div>
                   {suggestion.already_checked ? (
@@ -1139,7 +994,7 @@ function Workbench({
                       <button
                         type="button"
                         className="f-btn f-btn-secondary ck-btn"
-                        onClick={() => showEvidence(savedFact, "fact")}
+                        onClick={() => showEvidence(savedFact, 'fact')}
                       >
                         View evidence
                       </button>
@@ -1149,9 +1004,7 @@ function Workbench({
                       type="button"
                       className="f-btn f-btn-secondary ck-btn"
                       onClick={() =>
-                        setDismissed(
-                          (was) => new Set([...was].filter((x) => x !== id)),
-                        )
+                        setDismissed((was) => new Set([...was].filter((x) => x !== id)))
                       }
                     >
                       Restore
@@ -1170,9 +1023,7 @@ function Workbench({
                         type="button"
                         className="f-btn f-btn-secondary ck-btn"
                         aria-label={`Dismiss suggestion: ${kind} ${suggestion.value}`}
-                        onClick={() =>
-                          setDismissed((was) => new Set([...was, id]))
-                        }
+                        onClick={() => setDismissed((was) => new Set([...was, id]))}
                       >
                         Dismiss
                       </button>
@@ -1184,9 +1035,7 @@ function Workbench({
           </ul>
         )}
         {suggestions.data && shownSuggestions.length === 0 && (
-          <div className="mb-dashed">
-            No suggestions waiting for this version
-          </div>
+          <div className="mb-dashed">No suggestions waiting for this version</div>
         )}
       </section>
 
@@ -1196,10 +1045,10 @@ function Workbench({
         className="ck-card ck-padded ck-form-card"
       >
         <h2 id="check-heading" className="f-visually-hidden">
-          {draft.mode === "fact" ? "Check a fact" : "Check a connection"}
+          {draft.mode === 'fact' ? 'Check a fact' : 'Check a connection'}
         </h2>
         <div role="group" aria-label="What to check" className="ck-modes">
-          {(["fact", "connection"] as const).map((mode) => (
+          {(['fact', 'connection'] as const).map((mode) => (
             <button
               key={mode}
               type="button"
@@ -1208,30 +1057,18 @@ function Workbench({
               disabled={anyBusy && draft.mode !== mode}
               onClick={() => switchMode(mode)}
             >
-              {mode === "fact" ? "Check a fact" : "Check a connection"}
+              {mode === 'fact' ? 'Check a fact' : 'Check a connection'}
             </button>
           ))}
         </div>
-        {draft.mode === "fact" ? (
+        {draft.mode === 'fact' ? (
           <form noValidate className="ck-form" onSubmit={save}>
             {discard}
             {failedBanner}
             {stale && (
               <div role="alert" className="f-alert ck-stale">
-                <svg
-                  width="19"
-                  height="19"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="9"
-                    stroke="#c0392b"
-                    strokeWidth="2"
-                  />
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="#c0392b" strokeWidth="2" />
                   <path
                     d="M12 7.5 V13 M12 16 V16.5"
                     stroke="#c0392b"
@@ -1239,9 +1076,7 @@ function Workbench({
                     strokeLinecap="round"
                   />
                 </svg>
-                <div>
-                  This fact was corrected a moment ago. Reload and check.
-                </div>
+                <div>This fact was corrected a moment ago. Reload and check.</div>
                 <button
                   type="button"
                   className="f-btn f-btn-secondary"
@@ -1252,7 +1087,7 @@ function Workbench({
                       fact: blankFact(String(page)),
                     }));
                     refresh();
-                    focusSoon("fact-btn");
+                    focusSoon('fact-btn');
                   }}
                 >
                   Reload
@@ -1260,7 +1095,7 @@ function Workbench({
               </div>
             )}
             <div className="ck-grid">
-              {field("", "f-version", "Source version", versionText, () => {}, {
+              {field('', 'f-version', 'Source version', versionText, () => {}, {
                 readOnly: true,
               })}
               <div className="ck-field">
@@ -1273,73 +1108,48 @@ function Workbench({
                   value={fact.field}
                   wide
                   disabled={busy || !!correcting}
-                  className={`ck-select${err("kind") ? " ck-select-error" : ""}`}
+                  className={`ck-select${err('kind') ? ' ck-select-error' : ''}`}
                   options={FACT_FIELDS.map(([value, label]) => ({
                     value,
                     label,
                   }))}
-                  onChange={(value) => setFact({ field: value }, "kind")}
+                  onChange={(value) => setFact({ field: value }, 'kind')}
                 >
-                  <span className={fact.field ? undefined : "ck-placeholder"}>
-                    {fieldLabel(fact.field) || "Choose a fact"}
+                  <span className={fact.field ? undefined : 'ck-placeholder'}>
+                    {fieldLabel(fact.field) || 'Choose a fact'}
                   </span>
                 </MenuButton>
-                {err("kind") && <Warning>{err("kind")}</Warning>}
+                {err('kind') && <Warning>{err('kind')}</Warning>}
               </div>
               {correcting &&
-                field(
-                  "",
-                  "f-current",
-                  "Current value",
-                  correcting.value ?? "",
-                  () => {},
-                  {
-                    readOnly: true,
-                    wide: true,
-                  },
-                )}
-              {field("value", "f-value", "Value", fact.value, (v) =>
-                setFact({ value: v }, "value"),
+                field('', 'f-current', 'Current value', correcting.value ?? '', () => {}, {
+                  readOnly: true,
+                  wide: true,
+                })}
+              {field('value', 'f-value', 'Value', fact.value, (v) =>
+                setFact({ value: v }, 'value'),
               )}
-              {field(
-                "page",
-                "f-page",
-                "Page",
-                fact.page,
-                (v) => setFact({ page: v }, "page"),
-                {
-                  numeric: true,
-                },
-              )}
+              {field('page', 'f-page', 'Page', fact.page, (v) => setFact({ page: v }, 'page'), {
+                numeric: true,
+              })}
               {needRole &&
-                field("role", "f-role", "Printed role", fact.role, (v) =>
-                  setFact({ role: v }, "role"),
+                field('role', 'f-role', 'Printed role', fact.role, (v) =>
+                  setFact({ role: v }, 'role'),
                 )}
               {needOrg &&
-                field(
-                  "org",
-                  "f-org",
-                  "Printed organization name",
-                  fact.orgName,
-                  (v) => setFact({ orgName: v }, "org"),
+                field('org', 'f-org', 'Printed organization name', fact.orgName, (v) =>
+                  setFact({ orgName: v }, 'org'),
                 )}
             </div>
+            {field('quote', 'f-quote', 'Quote', fact.quote, (v) => setFact({ quote: v }, 'quote'), {
+              multiline: true,
+            })}
             {field(
-              "quote",
-              "f-quote",
-              "Quote",
-              fact.quote,
-              (v) => setFact({ quote: v }, "quote"),
-              {
-                multiline: true,
-              },
-            )}
-            {field(
-              "evidence",
-              "f-evidence",
-              "Supporting evidence",
+              'evidence',
+              'f-evidence',
+              'Supporting evidence',
               fact.evidence,
-              (v) => setFact({ evidence: v }, "evidence"),
+              (v) => setFact({ evidence: v }, 'evidence'),
               {
                 multiline: true,
               },
@@ -1347,19 +1157,11 @@ function Workbench({
             {detailsShown ? (
               <div className="ck-grid">
                 {!needRole &&
-                  field(
-                    "role",
-                    "f-role",
-                    "Printed role (optional)",
-                    fact.role,
-                    (v) => setFact({ role: v }, "role"),
+                  field('role', 'f-role', 'Printed role (optional)', fact.role, (v) =>
+                    setFact({ role: v }, 'role'),
                   )}
-                {field(
-                  "qualifier",
-                  "f-qualifier",
-                  "Qualifier (optional)",
-                  fact.qualifier,
-                  (v) => setFact({ qualifier: v }),
+                {field('qualifier', 'f-qualifier', 'Qualifier (optional)', fact.qualifier, (v) =>
+                  setFact({ qualifier: v }),
                 )}
               </div>
             ) : (
@@ -1371,7 +1173,7 @@ function Workbench({
                   disabled={busy}
                   onClick={() => {
                     setFact({ detailsOpen: true });
-                    focusSoon(needRole ? "f-qualifier" : "f-role");
+                    focusSoon(needRole ? 'f-qualifier' : 'f-role');
                   }}
                 >
                   Add details
@@ -1385,15 +1187,13 @@ function Workbench({
                   type="checkbox"
                   checked={fact.agencyAddress}
                   disabled={busy}
-                  onChange={(event) =>
-                    setFact({ agencyAddress: event.target.checked })
-                  }
+                  onChange={(event) => setFact({ agencyAddress: event.target.checked })}
                 />
                 <span>This is the checked agency’s address</span>
               </label>
             )}
-            {confirmBox("I checked this against the page image", fact, (v) =>
-              setFact({ confirmed: v }, "confirm"),
+            {confirmBox('I checked this against the page image', fact, (v) =>
+              setFact({ confirmed: v }, 'confirm'),
             )}
             {dupNotice}
             {submitRow}
@@ -1403,7 +1203,7 @@ function Workbench({
             {discard}
             {failedBanner}
             <div className="ck-grid">
-              {field("", "c-version", "Source version", versionText, () => {}, {
+              {field('', 'c-version', 'Source version', versionText, () => {}, {
                 readOnly: true,
               })}
               <div className="ck-field">
@@ -1416,7 +1216,7 @@ function Workbench({
                   value={conn.type}
                   wide
                   disabled={busy}
-                  className={`ck-select${err("type") ? " ck-select-error" : ""}`}
+                  className={`ck-select${err('type') ? ' ck-select-error' : ''}`}
                   options={SEARCHABLE_TYPES.map((value) => ({
                     value,
                     label: connectionLabel(value),
@@ -1427,24 +1227,20 @@ function Workbench({
                       {
                         type: value,
                         results: null,
-                        role: ROLE_TYPES.includes(value) ? conn.role : "",
+                        role: ROLE_TYPES.includes(value) ? conn.role : '',
                       },
-                      "type",
+                      'type',
                     );
                   }}
                 >
-                  <span className={conn.type ? undefined : "ck-placeholder"}>
-                    {conn.type
-                      ? connectionLabel(conn.type)
-                      : "Choose a connection"}
+                  <span className={conn.type ? undefined : 'ck-placeholder'}>
+                    {conn.type ? connectionLabel(conn.type) : 'Choose a connection'}
                   </span>
                 </MenuButton>
-                {err("type") && <Warning>{err("type")}</Warning>}
+                {err('type') && <Warning>{err('type')}</Warning>}
               </div>
               {ROLE_TYPES.includes(conn.type) &&
-                field("connRole", "c-role", "Role", conn.role, (v) =>
-                  resetTarget({ role: v }),
-                )}
+                field('connRole', 'c-role', 'Role', conn.role, (v) => resetTarget({ role: v }))}
             </div>
             <div className="ck-field">
               <label htmlFor="c-query" className="ck-label">
@@ -1457,21 +1253,17 @@ function Workbench({
                   autoComplete="off"
                   value={conn.query}
                   readOnly={busy}
-                  data-error={err("target") ? true : undefined}
+                  data-error={err('target') ? true : undefined}
                   onChange={(event) => {
                     const query = event.target.value;
                     if (query.trim() === lookupQuery) setConn({ query });
                     else {
-                      if (!query.trim() && conn.type !== "related_document")
-                        setHeldLookup(null);
+                      if (!query.trim() && conn.type !== 'related_document') setHeldLookup(null);
                       resetTarget({ query, results: null });
                     }
                   }}
                   onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" &&
-                      !event.nativeEvent.isComposing
-                    ) {
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                       event.preventDefault();
                       runSearch();
                     }
@@ -1486,11 +1278,9 @@ function Workbench({
                   Search
                 </button>
               </div>
-              {err("target") && <Warning>{err("target")}</Warning>}
+              {err('target') && <Warning>{err('target')}</Warning>}
             </div>
-            {!conn.target && lookupBusy && (
-              <LoadingLine>Searching…</LoadingLine>
-            )}
+            {!conn.target && lookupBusy && <LoadingLine>Searching…</LoadingLine>}
             {!conn.target && lookupTooShort && (
               <div className="mb-dashed ck-flat" role="status">
                 {tooShortTitle(MONEY_LOOKUP_MIN_LENGTH)}
@@ -1503,7 +1293,7 @@ function Workbench({
               <p className="ck-note" role="status">
                 {retainedLookup?.query
                   ? `Previous results for “${retainedLookup.query}”`
-                  : "Previous results for all records"}
+                  : 'Previous results for all records'}
               </p>
             )}
             {lookupRows && lookupRows.length > 0 && !conn.target && (
@@ -1512,18 +1302,14 @@ function Workbench({
                   <li key={result.id}>
                     <div>
                       <span className="ck-sugg-value f-num">{result.name}</span>
-                      {result.line && (
-                        <span className="ck-note f-num">{result.line}</span>
-                      )}
+                      {result.line && <span className="ck-note f-num">{result.line}</span>}
                     </div>
                     <button
                       type="button"
                       className="f-btn f-btn-secondary ck-btn"
-                      aria-label={`Preview record: ${result.name}${result.line ? `, ${result.line}` : ""}`}
+                      aria-label={`Preview record: ${result.name}${result.line ? `, ${result.line}` : ''}`}
                       aria-disabled={busy || lookupStale || undefined}
-                      onClick={() =>
-                        !busy && !lookupStale && void preview(result)
-                      }
+                      onClick={() => !busy && !lookupStale && void preview(result)}
                     >
                       Preview record
                     </button>
@@ -1531,12 +1317,9 @@ function Workbench({
                 ))}
               </ul>
             )}
-            {currentRows?.length === 0 &&
-              !conn.target &&
-              !lookupBusy &&
-              !lookupFailed && (
-                <div className="mb-dashed ck-flat">No held records match</div>
-              )}
+            {currentRows?.length === 0 && !conn.target && !lookupBusy && !lookupFailed && (
+              <div className="mb-dashed ck-flat">No held records match</div>
+            )}
             {conn.target && (
               <div id="rec-panel" tabIndex={-1} className="ck-record">
                 <div className="ck-record-head">
@@ -1547,7 +1330,7 @@ function Workbench({
                     </span>
                     <span className="ck-note f-num">
                       {connectionLabel(conn.type)}
-                      {conn.target.line ? ` · ${conn.target.line}` : ""}
+                      {conn.target.line ? ` · ${conn.target.line}` : ''}
                     </span>
                   </div>
                   <button
@@ -1556,17 +1339,15 @@ function Workbench({
                     disabled={busy}
                     onClick={() => {
                       resetTarget();
-                      focusSoon("c-query");
+                      focusSoon('c-query');
                     }}
                   >
                     Choose another record
                   </button>
                 </div>
-                {previewing === "busy" && <LoadingLine>Loading…</LoadingLine>}
-                {previewing === "failed" && (
-                  <Refused
-                    onRetry={() => conn.target && void preview(conn.target)}
-                  >
+                {previewing === 'busy' && <LoadingLine>Loading…</LoadingLine>}
+                {previewing === 'failed' && (
+                  <Refused onRetry={() => conn.target && void preview(conn.target)}>
                     Couldn’t load record
                   </Refused>
                 )}
@@ -1582,9 +1363,7 @@ function Workbench({
                         ))}
                       </dl>
                     )}
-                    <p className="ck-note">
-                      A matching name alone does not establish identity
-                    </p>
+                    <p className="ck-note">A matching name alone does not establish identity</p>
                     {hasMoneyContext(conn.preview) && (
                       <div className="ck-check-wrap">
                         <label className="ck-check">
@@ -1594,32 +1373,24 @@ function Workbench({
                             checked={conn.moneyChecked}
                             disabled={busy}
                             onChange={(event) =>
-                              setConn(
-                                { moneyChecked: event.target.checked },
-                                "money",
-                              )
+                              setConn({ moneyChecked: event.target.checked }, 'money')
                             }
                           />
                           <span>I checked this office and district</span>
                         </label>
-                        {err("money") && <Warning>{err("money")}</Warning>}
+                        {err('money') && <Warning>{err('money')}</Warning>}
                       </div>
                     )}
                   </>
                 )}
                 {changed && (
                   <div className="ck-changed">
-                    <Warning>
-                      The selected record changed. Preview it again before
-                      saving.
-                    </Warning>
+                    <Warning>The selected record changed. Preview it again before saving.</Warning>
                     <button
                       type="button"
                       className="f-btn f-btn-secondary"
                       aria-disabled={busy || undefined}
-                      onClick={() =>
-                        !busy && conn.target && void preview(conn.target)
-                      }
+                      onClick={() => !busy && conn.target && void preview(conn.target)}
                     >
                       Preview again
                     </button>
@@ -1628,39 +1399,25 @@ function Workbench({
               </div>
             )}
             <div className="ck-grid">
-              {field(
-                "page",
-                "f-page",
-                "Page",
-                conn.page,
-                (v) => setConn({ page: v }, "page"),
-                {
-                  numeric: true,
-                },
-              )}
+              {field('page', 'f-page', 'Page', conn.page, (v) => setConn({ page: v }, 'page'), {
+                numeric: true,
+              })}
             </div>
+            {field('quote', 'f-quote', 'Quote', conn.quote, (v) => setConn({ quote: v }, 'quote'), {
+              multiline: true,
+            })}
             {field(
-              "quote",
-              "f-quote",
-              "Quote",
-              conn.quote,
-              (v) => setConn({ quote: v }, "quote"),
-              {
-                multiline: true,
-              },
-            )}
-            {field(
-              "evidence",
-              "f-evidence",
-              "Supporting evidence",
+              'evidence',
+              'f-evidence',
+              'Supporting evidence',
               conn.evidence,
-              (v) => setConn({ evidence: v }, "evidence"),
+              (v) => setConn({ evidence: v }, 'evidence'),
               {
                 multiline: true,
               },
             )}
-            {confirmBox("I checked this against the page image", conn, (v) =>
-              setConn({ confirmed: v }, "confirm"),
+            {confirmBox('I checked this against the page image', conn, (v) =>
+              setConn({ confirmed: v }, 'confirm'),
             )}
             {dupNotice}
             {submitRow}
@@ -1670,8 +1427,7 @@ function Workbench({
 
       <section aria-labelledby="checks-heading" className="ck-card ck-padded">
         <h2 id="checks-heading" tabIndex={-1}>
-          Checks on this version{" "}
-          <span className="ck-count f-num">{rows.length}</span>
+          Checks on this version <span className="ck-count f-num">{rows.length}</span>
         </h2>
         <div aria-live="polite">
           {withdrawn && (
@@ -1704,9 +1460,7 @@ function Workbench({
                         className="f-btn f-btn-secondary ck-btn"
                         aria-label={`View evidence: ${row.label} ${row.value}`}
                         aria-disabled={anyBusy || undefined}
-                        onClick={() =>
-                          !anyBusy && showEvidence(row.item, row.kind)
-                        }
+                        onClick={() => !anyBusy && showEvidence(row.item, row.kind)}
                       >
                         View evidence
                       </button>
@@ -1714,10 +1468,10 @@ function Workbench({
                   </div>
                   {open && (
                     <div className="ck-withdraw">
-                      {open.status === "failed" && (
+                      {open.status === 'failed' && (
                         <Refused>
-                          Couldn’t withdraw this check. This is a problem on our
-                          side; your reason is kept.
+                          Couldn’t withdraw this check. This is a problem on our side; your reason
+                          is kept.
                         </Refused>
                       )}
                       <label className="ck-field">
@@ -1726,26 +1480,22 @@ function Workbench({
                           id={`wr-${row.id}`}
                           rows={2}
                           value={open.reason}
-                          readOnly={open.status === "busy"}
+                          readOnly={open.status === 'busy'}
                           data-error={open.error ? true : undefined}
                           onChange={(event) =>
                             setWithdrawal({
                               ...open,
                               reason: event.target.value,
-                              error: "",
+                              error: '',
                             })
                           }
                         />
                         {open.error && <Warning>{open.error}</Warning>}
                       </label>
                       <div className="ck-withdraw-actions">
-                        {open.status === "busy" ? (
+                        {open.status === 'busy' ? (
                           <>
-                            <button
-                              type="button"
-                              aria-disabled="true"
-                              className="f-btn ck-save"
-                            >
+                            <button type="button" aria-disabled="true" className="f-btn ck-save">
                               <span className="ck-spin" aria-hidden="true" />
                               Withdrawing…
                             </button>
@@ -1759,17 +1509,15 @@ function Workbench({
                             className="f-btn ck-save"
                             onClick={() => void withdraw(row.id, row.kind)}
                           >
-                            {open.status === "failed"
-                              ? "Try again"
-                              : "Withdraw check"}
+                            {open.status === 'failed' ? 'Try again' : 'Withdraw check'}
                           </button>
                         )}
                         <button
                           type="button"
                           className="f-btn f-btn-secondary"
-                          aria-disabled={open.status === "busy" || undefined}
+                          aria-disabled={open.status === 'busy' || undefined}
                           onClick={() => {
-                            if (open.status === "busy") return;
+                            if (open.status === 'busy') return;
                             setWithdrawal(null);
                             focusSoon(`ev-${row.id}`);
                           }}
@@ -1791,9 +1539,7 @@ function Workbench({
               {history.map((item) => (
                 <li key={item.key}>
                   <span className="ck-sugg-kind">{item.label}</span>
-                  {item.value && (
-                    <span className="ck-history-value f-num">{item.value}</span>
-                  )}
+                  {item.value && <span className="ck-history-value f-num">{item.value}</span>}
                   <span className="ck-note f-num">{item.meta}</span>
                 </li>
               ))}
@@ -1801,10 +1547,7 @@ function Workbench({
           </>
         )}
       </section>
-      <StationEvidencePanel
-        evidence={evidence}
-        onClose={() => setEvidence(null)}
-      />
+      <StationEvidencePanel evidence={evidence} onClose={() => setEvidence(null)} />
     </div>
   );
 }

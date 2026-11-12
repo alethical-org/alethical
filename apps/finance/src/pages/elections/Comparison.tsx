@@ -1,87 +1,75 @@
-import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
-import { useRead, type Read } from "../../api/read";
-import { Link, navigate, useLocation } from "../../router";
-import { returnTarget } from "../../returnContext";
-import { hrefFor } from "../../routes";
-import { useLiveSearch } from "../../search/useLiveSearch";
-import { useAddressState } from "../../ui/addressState";
-import { Caret, Refused, Updating } from "../../ui/controls";
-import { BackLink, LoadingLine } from "../../ui/parts";
-import { formatMoney } from "../../ui/money";
-import { useBand } from "../../ui/band";
-import { useView, ViewSwitch } from "../../ui/view";
-import { FieldMenu } from "../MoneyByRace";
-import * as d from "./data";
-import { RetainedEvidence, type ElectionEvidence } from "./Evidence";
-import {
-  count,
-  dateLabel,
-  moneyLabel,
-  lineLabel,
-  pageNumber,
-  periodLabel,
-} from "./format";
-import { ExpenseReport } from "./ExpenseReport";
-import { Funders } from "./Funders";
-import { reportHref, funderReturnHref, changeElection } from "./navigation";
-import { CsvDownload } from "./CsvDownload";
-import { ExternalCandidate, type ExternalStatus } from "./ExternalCandidate";
-import "./comparison.css";
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
+import { useRead, type Read } from '../../api/read';
+import { Link, navigate, useLocation } from '../../router';
+import { returnTarget } from '../../returnContext';
+import { hrefFor } from '../../routes';
+import { useLiveSearch } from '../../search/useLiveSearch';
+import { useAddressState } from '../../ui/addressState';
+import { Caret, Refused, Updating } from '../../ui/controls';
+import { BackLink, LoadingLine } from '../../ui/parts';
+import { formatMoney } from '../../ui/money';
+import { useBand } from '../../ui/band';
+import { useView, ViewSwitch } from '../../ui/view';
+import { FieldMenu } from '../MoneyByRace';
+import * as d from './data';
+import { RetainedEvidence, type ElectionEvidence } from './Evidence';
+import { count, dateLabel, moneyLabel, lineLabel, pageNumber, periodLabel } from './format';
+import { ExpenseReport } from './ExpenseReport';
+import { Funders } from './Funders';
+import { reportHref, funderReturnHref, changeElection } from './navigation';
+import { CsvDownload } from './CsvDownload';
+import { ExternalCandidate, type ExternalStatus } from './ExternalCandidate';
+import './comparison.css';
 
-const BOARD = "Minnesota Campaign Finance and Public Disclosure Board";
-const SOS = "Minnesota Secretary of State";
+const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
+const SOS = 'Minnesota Secretary of State';
 const SIZE = 50;
 const defaults = {
-  election: "",
-  report: "",
-  reports: "",
-  externalReports: "",
-  freturn: "",
-  race: "",
-  q: "",
-  list: "",
-  page: "1",
-  pq: "",
-  ppage: "1",
-  pay: "",
-  paypage: "1",
-  source: "",
+  election: '',
+  report: '',
+  reports: '',
+  externalReports: '',
+  freturn: '',
+  race: '',
+  q: '',
+  list: '',
+  page: '1',
+  pq: '',
+  ppage: '1',
+  pay: '',
+  paypage: '1',
+  source: '',
 };
 type Address = typeof defaults;
 type PaymentSourceState = {
   source: string;
   version: string;
-  state: "loading" | "failed" | "changed" | "missing" | "ready";
+  state: 'loading' | 'failed' | 'changed' | 'missing' | 'ready';
 };
-type SetAddress = (
-  changes: Partial<Address>,
-  options?: { replace?: boolean },
-) => void;
-const byVotes = (a: d.ResultCandidate, b: d.ResultCandidate) =>
-  (b.votes ?? -1) - (a.votes ?? -1);
+type SetAddress = (changes: Partial<Address>, options?: { replace?: boolean }) => void;
+const byVotes = (a: d.ResultCandidate, b: d.ResultCandidate) => (b.votes ?? -1) - (a.votes ?? -1);
 const candidateLabel = (candidate: d.ResultCandidate) =>
-  candidate.is_write_in_aggregate ? "Write-in votes" : candidate.name;
-const named = (candidate: d.ResultCandidate) =>
-  !candidate.is_write_in_aggregate;
+  candidate.is_write_in_aggregate ? 'Write-in votes' : candidate.name;
+const named = (candidate: d.ResultCandidate) => !candidate.is_write_in_aggregate;
 const raceName = (race: d.Race) =>
   race.county_name ? `${race.label} · ${race.county_name} County` : race.label;
 const electionLabel = (election: d.ElectionSummary) =>
   `${election.election_date.slice(0, 4)} ${election.stage} election · ${dateLabel(election.election_date)}`;
 const statusLabel = (status: string) =>
   ({
-    unofficial: "Unofficial results",
-    certified: "Certified results",
-    recount: "Recount",
-    tie: "Tie",
-  })[status] ?? "Result status unavailable";
+    unofficial: 'Unofficial results',
+    certified: 'Certified results',
+    recount: 'Recount',
+    tie: 'Tie',
+  })[status] ?? 'Result status unavailable';
 const outcomeLabel = (candidate: d.ResultCandidate) =>
-  candidate.outcome_status === "certified" && candidate.evidence?.length
-    ? candidate.outcome === "elected"
-      ? "Elected"
-      : candidate.outcome === "not_elected"
-        ? "Not elected"
-        : "Pending"
-    : "Pending";
+  candidate.outcome_status === 'certified' && candidate.evidence?.length
+    ? candidate.outcome === 'elected'
+      ? 'Elected'
+      : candidate.outcome === 'not_elected'
+        ? 'Not elected'
+        : 'Pending'
+    : 'Pending';
 function CandidateOutcome({
   candidate,
   onSource,
@@ -94,11 +82,8 @@ function CandidateOutcome({
   return (
     <span className="ec-candidate-outcome">
       {label}
-      {label !== "Pending" && (
-        <button
-          className="ec-link"
-          onClick={() => onSource(`outcome:${candidate.candidate_id}`)}
-        >
+      {label !== 'Pending' && (
+        <button className="ec-link" onClick={() => onSource(`outcome:${candidate.candidate_id}`)}>
           View outcome source
           <span className="ec-sr-only"> for {candidate.name}</span>
         </button>
@@ -131,7 +116,7 @@ function Notice<T>({
       {read.updating && <Updating />}
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          {read.data ? "Couldn’t update results" : message}
+          {read.data ? 'Couldn’t update results' : message}
         </Refused>
       )}
       {read.notFound && <p className="ec-empty">This record is not held</p>}
@@ -154,12 +139,12 @@ function Pager({
   const current = Math.floor(page.offset / page.limit) + 1;
   function move(button: HTMLButtonElement, next: number) {
     onChange(next);
-    const scope = button.closest(".ec-payments") ?? button.closest("section");
-    const heading = scope?.querySelector<HTMLElement>("h2, h3, h5");
+    const scope = button.closest('.ec-payments') ?? button.closest('section');
+    const heading = scope?.querySelector<HTMLElement>('h2, h3, h5');
     if (heading) {
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
-      heading.scrollIntoView?.({ block: "start" });
+      heading.scrollIntoView?.({ block: 'start' });
     }
   }
 
@@ -235,71 +220,63 @@ export function ElectionComparison() {
   const elections = useRead<d.ElectionsAnswer>(d.electionsPath(), {
     keepPrevious: true,
   });
-  const selected = elections.data?.elections.find(
-    (item) => item.election_key === address.election,
-  );
+  const selected = elections.data?.elections.find((item) => item.election_key === address.election);
   const back = returnTarget(location.search) ?? {
-    to: hrefFor("campaign-money"),
-    name: "Campaign money",
+    to: hrefFor('campaign-money'),
+    name: 'Campaign money',
   };
   const funderBack = funderReturnHref(location);
   const reportRace = useRead<d.RaceAnswer>(
-    selected && address.report === "expenses" && address.race
-      ? d.electionRacePath(
-          selected.election_key,
-          address.race,
-          selected.snapshot_id,
-        )
+    selected && address.report === 'expenses' && address.race
+      ? d.electionRacePath(selected.election_key, address.race, selected.snapshot_id)
       : null,
   );
-  const comparisonHref = reportHref(location, "comparison");
-  const selectElection = (value: string) =>
-    navigate(changeElection(location, value));
+  const comparisonHref = reportHref(location, 'comparison');
+  const selectElection = (value: string) => navigate(changeElection(location, value));
   const removeRace = () => {
     const next = new URL(location);
-    next.searchParams.delete("race");
+    next.searchParams.delete('race');
     for (const key of [
-      "fpage",
-      "fcpage",
-      "fdpage",
-      "ffpage",
-      "fapage",
-      "fupage",
-      "fopage",
-      "expenseCandidatePage",
-      "expensePayeePage",
-      "expensePaymentsPage",
-      "expenseSearchPage",
+      'fpage',
+      'fcpage',
+      'fdpage',
+      'ffpage',
+      'fapage',
+      'fupage',
+      'fopage',
+      'expenseCandidatePage',
+      'expensePayeePage',
+      'expensePaymentsPage',
+      'expenseSearchPage',
     ])
       next.searchParams.delete(key);
-    for (const key of ["expenseCandidate", "expensePayee", "expenseSource"])
+    for (const key of ['expenseCandidate', 'expensePayee', 'expenseSource'])
       next.searchParams.delete(key);
     navigate(next.pathname + next.search);
   };
   const yearParams = new URLSearchParams(location.search);
-  for (const key of [...Object.keys(defaults), "votesView", "outView"])
-    yearParams.delete(key);
+  for (const key of [...Object.keys(defaults), 'votesView', 'outView']) yearParams.delete(key);
   for (const key of [...yearParams.keys()])
     if (
-      key.startsWith("expense") ||
+      key.startsWith('expense') ||
       [
-        "fq",
-        "start",
-        "end",
-        "fpage",
-        "funder",
-        "panel",
-        "fcpage",
-        "fdpage",
-        "ffpage",
-        "fapage",
-        "fupage",
-        "fopage",
+        'fq',
+        'start',
+        'end',
+        'fpage',
+        'funder',
+        'panel',
+        'fcpage',
+        'fdpage',
+        'ffpage',
+        'fapage',
+        'fupage',
+        'fopage',
       ].includes(key)
     )
       yearParams.delete(key);
-  const yearHref = `${location.pathname}${yearParams.size ? `?${yearParams}` : ""}`;
-  if (selected && address.report === "funders")
+  const yearHref = `${location.pathname}${yearParams.size ? `?${yearParams}` : ''}`;
+  if (selected && address.report === 'funders')
     return (
       <Funders
         election={selected}
@@ -310,7 +287,7 @@ export function ElectionComparison() {
         onRemoveRace={removeRace}
       />
     );
-  if (selected && address.report === "expenses")
+  if (selected && address.report === 'expenses')
     return (
       <ExpenseReport
         electionKey={selected.election_key}
@@ -331,26 +308,24 @@ export function ElectionComparison() {
         <div className="mr-back">
           <BackLink
             to={funderBack ?? back.to}
-            name={funderBack ? "Funders and election outcomes" : back.name}
+            name={funderBack ? 'Funders and election outcomes' : back.name}
           />
         </div>
         <header className="mr-header">
           <h1 tabIndex={-1} className="f-page-title">
             Money by race
           </h1>
-          <p className="mr-dek">
-            Compare reported votes with campaign money for the same race
-          </p>
+          <p className="mr-dek">Compare reported votes with campaign money for the same race</p>
           <Link to={yearHref} className="ec-link">
             View campaign money by year →
           </Link>
         </header>
         {selected && (
           <nav className="ec-actions" aria-label="Election reports">
-            <Link className="ec-link" to={reportHref(location, "funders")}>
+            <Link className="ec-link" to={reportHref(location, 'funders')}>
               Compare funders
             </Link>
-            <Link className="ec-link" to={reportHref(location, "expenses")}>
+            <Link className="ec-link" to={reportHref(location, 'expenses')}>
               Campaign expense report
             </Link>
           </nav>
@@ -362,7 +337,7 @@ export function ElectionComparison() {
               <FieldMenu
                 name="Election"
                 value={address.election}
-                current={selected ? electionLabel(selected) : "Not held"}
+                current={selected ? electionLabel(selected) : 'Not held'}
                 options={elections.data.elections.map((item) => ({
                   value: item.election_key,
                   label: electionLabel(item),
@@ -374,7 +349,7 @@ export function ElectionComparison() {
                 placeholder="Office or district"
                 query={address.q}
                 here={location.pathname + location.search}
-                commit={(q) => setAddress({ q, page: "1", list: "1" })}
+                commit={(q) => setAddress({ q, page: '1', list: '1' })}
               />
             </div>
             {!selected && <p className="ec-empty">This election is not held</p>}
@@ -406,7 +381,7 @@ function ElectionBody({
   refreshResults: () => void;
 }) {
   const location = useLocation();
-  const showList = !address.race || address.list === "1";
+  const showList = !address.race || address.list === '1';
   const races = useRead<d.RacesAnswer>(
     showList
       ? d.electionRacesPath(election.election_key, {
@@ -420,11 +395,7 @@ function ElectionBody({
   );
   const selectedRead = useRead<d.RaceAnswer>(
     address.race
-      ? d.electionRacePath(
-          election.election_key,
-          address.race,
-          election.snapshot_id,
-        )
+      ? d.electionRacePath(election.election_key, address.race, election.snapshot_id)
       : null,
   );
   const reloadResults = () => {
@@ -434,47 +405,38 @@ function ElectionBody({
   };
   function raceHref(id: string) {
     const params = new URLSearchParams(location.search);
-    params.set("race", id);
+    params.set('race', id);
     for (const key of [
-      "list",
-      "reports",
-      "externalReports",
-      "pq",
-      "ppage",
-      "pay",
-      "paypage",
-      "source",
+      'list',
+      'reports',
+      'externalReports',
+      'pq',
+      'ppage',
+      'pay',
+      'paypage',
+      'source',
     ])
       params.delete(key);
     return `${location.pathname}?${params}`;
   }
   const list = showList && (
     <section className="ec-section" aria-labelledby="ec-races-heading">
-      <h2 id="ec-races-heading">
-        Races{races.data ? ` (${count(races.data.page.total)})` : ""}
-      </h2>
-      <Notice
-        read={races}
-        message="Couldn’t load races"
-        reload={reloadResults}
-      />
+      <h2 id="ec-races-heading">Races{races.data ? ` (${count(races.data.page.total)})` : ''}</h2>
+      <Notice read={races} message="Couldn’t load races" reload={reloadResults} />
       {races.data && (
         <>
           {races.data.query !== address.q && (
             <p className="ec-muted">
-              Showing results for {races.data.query || "all races"} while the
-              search updates
+              Showing results for {races.data.query || 'all races'} while the search updates
             </p>
           )}
-          {races.data.races.length === 0 && (
-            <p className="ec-empty">No matches</p>
-          )}
+          {races.data.races.length === 0 && <p className="ec-empty">No matches</p>}
           <ul className="ec-races">
             {races.data.races.map((race) => (
               <li key={race.id}>
                 <Link
                   to={raceHref(race.id)}
-                  aria-current={race.id === address.race ? "page" : undefined}
+                  aria-current={race.id === address.race ? 'page' : undefined}
                 >
                   {raceName(race)}
                 </Link>
@@ -543,19 +505,15 @@ function RaceComparison({
     }),
     { revision, keepPrevious: true },
   );
-  const [votesView, setVotesView] = useView("votesView");
-  const [outView, setOutView] = useView("outView");
-  const [copy, setCopy] = useState<"idle" | "done" | "failed">("idle");
+  const [votesView, setVotesView] = useView('votesView');
+  const [outView, setOutView] = useView('outView');
+  const [copy, setCopy] = useState<'idle' | 'done' | 'failed'>('idle');
   const [paymentEvidence, setPaymentEvidence] = useState<{
     version: string;
     row: d.PaymentRecord;
   } | null>(null);
-  const [paymentSourceState, setPaymentSourceState] =
-    useState<PaymentSourceState | null>(null);
-  const closeEvidence = useCallback(
-    () => setAddress({ source: "" }),
-    [setAddress],
-  );
+  const [paymentSourceState, setPaymentSourceState] = useState<PaymentSourceState | null>(null);
+  const closeEvidence = useCallback(() => setAddress({ source: '' }), [setAddress]);
   const reload = () => {
     setRevision((value) => value + 1);
     setPaymentEvidence(null);
@@ -567,8 +525,7 @@ function RaceComparison({
     (row: d.PaymentRecord) => {
       if (!data) return;
       setPaymentEvidence((previous) =>
-        previous?.version === data.version &&
-        previous.row.row_number === row.row_number
+        previous?.version === data.version && previous.row.row_number === row.row_number
           ? previous
           : { version: data.version, row },
       );
@@ -576,44 +533,32 @@ function RaceComparison({
     [data],
   );
   const [external, setExternal] = useState<Record<string, ExternalStatus>>({});
-  const onExternalStatus = useCallback(
-    (candidate: string, value: ExternalStatus) => {
-      setExternal((previous) =>
-        JSON.stringify(previous[candidate]) === JSON.stringify(value)
-          ? previous
-          : { ...previous, [candidate]: value },
-      );
-    },
-    [],
-  );
+  const onExternalStatus = useCallback((candidate: string, value: ExternalStatus) => {
+    setExternal((previous) =>
+      JSON.stringify(previous[candidate]) === JSON.stringify(value)
+        ? previous
+        : { ...previous, [candidate]: value },
+    );
+  }, []);
   const externalCandidates = race.candidates.filter(
     (candidate): candidate is d.ResultCandidate & { candidate_id: string } => {
       if (!candidate.candidate_id || !named(candidate)) return false;
-      const board = data?.candidates.find(
-        (c) => c.candidate_id === candidate.candidate_id,
-      );
+      const board = data?.candidates.find((c) => c.candidate_id === candidate.candidate_id);
       // Only exact published coverage or confirmed Board accounts settle its authority.
-      return (
-        !board?.accounts.length && board?.finance_coverage.authority !== "board"
-      );
+      return !board?.accounts.length && board?.finance_coverage.authority !== 'board';
     },
   );
-  const externalStates = externalCandidates.map(
-    (c) => external[c.candidate_id],
-  );
+  const externalStates = externalCandidates.map((c) => external[c.candidate_id]);
   const generations = [
     ...new Set(
-      externalStates.flatMap((s) =>
-        s?.state === "ready" && s.generation ? [s.generation] : [],
-      ),
+      externalStates.flatMap((s) => (s?.state === 'ready' && s.generation ? [s.generation] : [])),
     ),
   ];
   const externalReady =
-    externalStates.every(
-      (s) => s && (s.state === "ready" || s.state === "missing"),
-    ) && generations.length <= 1;
-  const campaignOK = data?.report_availability.state === "available";
-  const outsideOK = data?.outside_spending_availability.state === "available";
+    externalStates.every((s) => s && (s.state === 'ready' || s.state === 'missing')) &&
+    generations.length <= 1;
+  const campaignOK = data?.report_availability.state === 'available';
+  const outsideOK = data?.outside_spending_availability.state === 'available';
   const candidates = data?.candidates.filter(named).sort(byVotes) ?? [];
   const boardCandidates = candidates.filter(
     (c) => !externalCandidates.some((x) => x.candidate_id === c.candidate_id),
@@ -622,33 +567,20 @@ function RaceComparison({
   const boardReportKeys = candidates.flatMap((c) =>
     c.accounts.flatMap((account) => {
       const chosen =
-        boardReportChoices?.get(account.registration_number) ??
-        account.latest_report.report_key;
+        boardReportChoices?.get(account.registration_number) ?? account.latest_report.report_key;
       return chosen ? [chosen] : [];
     }),
   );
   const csvPath =
-    externalReady &&
-    !finance.pending &&
-    !finance.changed &&
-    boardReportChoices !== null
+    externalReady && !finance.pending && !finance.changed && boardReportChoices !== null
       ? d.raceCsvPath(detail, {
           version: data?.version,
           query: address.pq,
-          reports: [
-            ...boardReportKeys,
-            ...externalStates.flatMap((s) => s?.selectedReports ?? []),
-          ],
+          reports: [...boardReportKeys, ...externalStates.flatMap((s) => s?.selectedReports ?? [])],
           externalGeneration: generations[0],
           externalVersions: externalCandidates.flatMap((c) =>
-            external[c.candidate_id]?.state === "ready" &&
-            external[c.candidate_id].version
-              ? [
-                  [c.candidate_id, external[c.candidate_id].version!] as [
-                    string,
-                    string,
-                  ],
-                ]
+            external[c.candidate_id]?.state === 'ready' && external[c.candidate_id].version
+              ? [[c.candidate_id, external[c.candidate_id].version!] as [string, string]]
               : [],
           ),
         })
@@ -661,23 +593,20 @@ function RaceComparison({
     detail,
     data,
     precincts.data,
-    paymentEvidence && paymentEvidence.version === data?.version
-      ? paymentEvidence.row
-      : null,
+    paymentEvidence && paymentEvidence.version === data?.version ? paymentEvidence.row : null,
     selectSource,
   );
   async function copyLink() {
     const params = new URLSearchParams(location.search);
     for (const key of [...params.keys()])
-      if (![...Object.keys(defaults), "votesView", "outView"].includes(key))
-        params.delete(key);
+      if (![...Object.keys(defaults), 'votesView', 'outView'].includes(key)) params.delete(key);
     try {
       await navigator.clipboard.writeText(
         `${window.location.origin}${location.pathname}?${params}`,
       );
-      setCopy("done");
+      setCopy('done');
     } catch {
-      setCopy("failed");
+      setCopy('failed');
     }
   }
   return (
@@ -686,7 +615,7 @@ function RaceComparison({
         <div>
           <h2>{raceName(race)}</h2>
           <p>
-            {detail.stage[0].toUpperCase() + detail.stage.slice(1)} election ·{" "}
+            {detail.stage[0].toUpperCase() + detail.stage.slice(1)} election ·{' '}
             {dateLabel(detail.election_date)}
           </p>
           <strong>{statusLabel(race.result_status)}</strong>
@@ -694,21 +623,13 @@ function RaceComparison({
         <div className="ec-actions">
           <div className="ec-copy">
             <button className="ec-button" onClick={() => void copyLink()}>
-              {copy === "done"
-                ? "Link copied"
-                : copy === "failed"
-                  ? "Try again"
-                  : "Copy link"}
+              {copy === 'done' ? 'Link copied' : copy === 'failed' ? 'Try again' : 'Copy link'}
             </button>
             <span
-              className={copy === "done" ? "ec-sr-only" : undefined}
-              role={copy === "failed" ? "alert" : "status"}
+              className={copy === 'done' ? 'ec-sr-only' : undefined}
+              role={copy === 'failed' ? 'alert' : 'status'}
             >
-              {copy === "failed"
-                ? "Couldn’t copy link"
-                : copy === "done"
-                  ? "Link copied"
-                  : ""}
+              {copy === 'failed' ? 'Couldn’t copy link' : copy === 'done' ? 'Link copied' : ''}
             </span>
           </div>
           <CsvDownload
@@ -722,17 +643,13 @@ function RaceComparison({
         <div className="ec-section-heading">
           <h3 id="ec-votes">Reported votes</h3>
           <div className="ec-actions">
-            <button className="ec-link" onClick={() => selectSource("votes")}>
+            <button className="ec-link" onClick={() => selectSource('votes')}>
               View source
             </button>
-            <ViewSwitch
-              label="Reported votes view"
-              value={votesView}
-              onChange={setVotesView}
-            />
+            <ViewSwitch label="Reported votes view" value={votesView} onChange={setVotesView} />
           </div>
         </div>
-        {votesView === "chart" ? (
+        {votesView === 'chart' ? (
           <div className="ec-card">
             <ul className="ec-votes">
               {sortedCandidates.map((c, i) => (
@@ -746,14 +663,12 @@ function RaceComparison({
                     </span>
                     <span className="ec-number">
                       <strong>{count(c.votes)}</strong>
-                      {c.votes != null &&
-                        voteTotal != null &&
-                        voteTotal > 0 && (
-                          <span className="ec-muted">
-                            {" "}
-                            · {((100 * c.votes) / voteTotal).toFixed(2)}%
-                          </span>
-                        )}
+                      {c.votes != null && voteTotal != null && voteTotal > 0 && (
+                        <span className="ec-muted">
+                          {' '}
+                          · {((100 * c.votes) / voteTotal).toFixed(2)}%
+                        </span>
+                      )}
                     </span>
                   </div>
                   <CandidateOutcome candidate={c} onSource={selectSource} />
@@ -788,16 +703,12 @@ function RaceComparison({
                 {sortedCandidates.map((c, i) => (
                   <tr key={c.candidate_id ?? i}>
                     <th scope="row">{candidateLabel(c)}</th>
-                    <td>
-                      {c.is_write_in_aggregate
-                        ? ""
-                        : (c.party ?? "Not reported")}
-                    </td>
+                    <td>{c.is_write_in_aggregate ? '' : (c.party ?? 'Not reported')}</td>
                     <td className="ec-number">{count(c.votes)}</td>
                     <td className="ec-number">
                       {c.votes != null && voteTotal != null && voteTotal > 0
                         ? `${((100 * c.votes) / voteTotal).toFixed(2)}%`
-                        : "Unavailable"}
+                        : 'Unavailable'}
                     </td>
                     <td>
                       <CandidateOutcome candidate={c} onSource={selectSource} />
@@ -820,17 +731,15 @@ function RaceComparison({
         )}
         {race.seats_to_elect && race.seats_to_elect > 1 && (
           <p className="ec-muted">
-            {!/\bElect\s+\d+\b/i.test(race.label) && (
-              <>Elect {race.seats_to_elect} · </>
-            )}
+            {!/\bElect\s+\d+\b/i.test(race.label) && <>Elect {race.seats_to_elect} · </>}
             Shares use votes cast for candidates, not the number of voters
           </p>
         )}
         {race.diagnostics.length > 0 && (
           <p className="ec-warning">
-            In {count(race.diagnostics.length)} precinct records, votes for this
-            race exceed the separately reported number of voters. The reported
-            figures are preserved; affected precincts are marked.
+            In {count(race.diagnostics.length)} precinct records, votes for this race exceed the
+            separately reported number of voters. The reported figures are preserved; affected
+            precincts are marked.
           </p>
         )}
       </section>
@@ -838,11 +747,7 @@ function RaceComparison({
         <div className="ec-section-heading">
           <h3 id="ec-campaign">Campaign money</h3>
         </div>
-        <Notice
-          read={finance}
-          message="Couldn’t load campaign money"
-          reload={reload}
-        />
+        <Notice read={finance} message="Couldn’t load campaign money" reload={reload} />
         {data && !campaignOK && (
           <Refused onRetry={finance.retry} retrying={finance.pending}>
             Couldn’t load campaign money
@@ -854,34 +759,24 @@ function RaceComparison({
               <article className="ec-card" key={candidate.candidate_id}>
                 <h4>{candidate.name}</h4>
                 {!candidate.accounts.length && (
-                  <p className="ec-muted">
-                    No confirmed campaign account for this candidacy
-                  </p>
+                  <p className="ec-muted">No confirmed campaign account for this candidacy</p>
                 )}
                 {candidate.account_gaps.length > 0 && (
                   <p className="ec-muted">
                     {count(candidate.account_gaps.length)} account relationship
-                    {candidate.account_gaps.length === 1 ? "" : "s"} excluded
-                    from this comparison because the identity, sources or period
-                    is not confirmed
+                    {candidate.account_gaps.length === 1 ? '' : 's'} excluded from this comparison
+                    because the identity, sources or period is not confirmed
                   </p>
                 )}
                 {candidate.accounts.map((account) => (
                   <AccountCard
                     key={account.decision_id}
                     account={account}
-                    selectedKey={selectedReport(
-                      address.reports,
-                      account.registration_number,
-                    )}
+                    selectedKey={selectedReport(address.reports, account.registration_number)}
                     onSelect={(report) =>
                       setAddress({
-                        reports: chooseReport(
-                          address.reports,
-                          account.registration_number,
-                          report,
-                        ),
-                        source: "",
+                        reports: chooseReport(address.reports, account.registration_number, report),
+                        source: '',
                       })
                     }
                     onSource={selectSource}
@@ -895,7 +790,7 @@ function RaceComparison({
           <div className="ec-candidates">
             {generations.length > 1 && (
               <div className="ec-notice" role="status">
-                These records changed{" "}
+                These records changed{' '}
                 <button className="ec-button" onClick={reload}>
                   Reload comparison
                 </button>
@@ -909,9 +804,7 @@ function RaceComparison({
                 revision={revision}
                 selected={address.externalReports}
                 source={address.source}
-                onSelect={(value) =>
-                  setAddress({ externalReports: value, source: "" })
-                }
+                onSelect={(value) => setAddress({ externalReports: value, source: '' })}
                 onSource={selectSource}
                 onStatus={onExternalStatus}
                 reload={reload}
@@ -924,14 +817,8 @@ function RaceComparison({
         <div className="ec-section-heading">
           <h3 id="ec-outside">Spending by outside groups</h3>
           <div className="ec-actions">
-            <span className="ec-muted">
-              Independent expenditures for this contest
-            </span>
-            <ViewSwitch
-              label="Outside spending view"
-              value={outView}
-              onChange={setOutView}
-            />
+            <span className="ec-muted">Independent expenditures for this contest</span>
+            <ViewSwitch label="Outside spending view" value={outView} onChange={setOutView} />
           </div>
         </div>
         {finance.loading && <LoadingLine>Loading…</LoadingLine>}
@@ -946,24 +833,22 @@ function RaceComparison({
               .filter((c) => !c.accounts.length)
               .map((c) => (
                 <p key={c.candidate_id} className="ec-empty">
-                  <strong>{candidateLabel(c)}</strong> · No confirmed
-                  outside-spending records for this candidacy
+                  <strong>{candidateLabel(c)}</strong> · No confirmed outside-spending records for
+                  this candidacy
                 </p>
               ))}
             {boardCandidates.map((c) => {
-              const missingDate =
-                c.outside_spending.excluded_missing_date?.record_count ?? 0;
-              const missingYear =
-                c.outside_spending.excluded_missing_year?.record_count ?? 0;
+              const missingDate = c.outside_spending.excluded_missing_date?.record_count ?? 0;
+              const missingYear = c.outside_spending.excluded_missing_year?.record_count ?? 0;
               return missingDate || missingYear ? (
                 <p key={c.candidate_id} className="ec-muted">
-                  {c.name}: {count(missingDate)} payment records with no date
-                  and {count(missingYear)} with no reported year are excluded
-                  because their reporting period cannot be confirmed
+                  {c.name}: {count(missingDate)} payment records with no date and{' '}
+                  {count(missingYear)} with no reported year are excluded because their reporting
+                  period cannot be confirmed
                 </p>
               ) : null;
             })}
-            {(["PCF", "PTU", "other"] as const).map((category) => (
+            {(['PCF', 'PTU', 'other'] as const).map((category) => (
               <OutsideGroup
                 key={category}
                 category={category}
@@ -984,33 +869,25 @@ function RaceComparison({
             ))}
             {candidates.some(
               (candidate) =>
-                candidate.outside_spending.excluded_outside_reviewed_period
-                  ?.record_count,
+                candidate.outside_spending.excluded_outside_reviewed_period?.record_count,
             ) && (
-              <section
-                className="ec-outside-group"
-                aria-labelledby="ec-excluded"
-              >
+              <section className="ec-outside-group" aria-labelledby="ec-excluded">
                 <h4 id="ec-excluded">Payments outside checked dates</h4>
                 {candidates.map((candidate) => {
-                  const excluded =
-                    candidate.outside_spending.excluded_outside_reviewed_period;
-                  if (!excluded?.record_count || !candidate.candidate_id)
-                    return null;
+                  const excluded = candidate.outside_spending.excluded_outside_reviewed_period;
+                  if (!excluded?.record_count || !candidate.candidate_id) return null;
                   const key = `${candidate.candidate_id}:excluded`;
                   const open = address.pay === key;
                   return (
                     <article className="ec-card" key={key}>
                       <h5>{candidate.name}</h5>
                       <p className="ec-muted">
-                        {count(excluded.record_count)}{" "}
+                        {count(excluded.record_count)}{' '}
                         {excluded.record_count === 1
-                          ? "payment record names"
-                          : "payment records name"}{" "}
-                        the linked account.{" "}
-                        {excluded.record_count === 1
-                          ? "This payment is"
-                          : "These payments are"}{" "}
+                          ? 'payment record names'
+                          : 'payment records name'}{' '}
+                        the linked account.{' '}
+                        {excluded.record_count === 1 ? 'This payment is' : 'These payments are'}{' '}
                         excluded from this candidate’s totals.
                       </p>
                       <button
@@ -1018,9 +895,9 @@ function RaceComparison({
                         aria-expanded={open}
                         onClick={() =>
                           setAddress({
-                            pay: open ? "" : key,
-                            paypage: "1",
-                            source: "",
+                            pay: open ? '' : key,
+                            paypage: '1',
+                            source: '',
                           })
                         }
                       >
@@ -1036,9 +913,7 @@ function RaceComparison({
                           scope="outside_reviewed_period"
                           revision={revision}
                           page={pageNumber(address.paypage)}
-                          onPage={(page) =>
-                            setAddress({ paypage: String(page), source: "" })
-                          }
+                          onPage={(page) => setAddress({ paypage: String(page), source: '' })}
                           onRecord={(row) => {
                             setPaymentEvidence({ version: data.version, row });
                             selectSource(`payment:${row.row_number}`);
@@ -1055,8 +930,8 @@ function RaceComparison({
               </section>
             )}
             <p className="ec-footnote">
-              Outside spending is reported by the spender. For and Against
-              preserve the position in that filing.
+              Outside spending is reported by the spender. For and Against preserve the position in
+              that filing.
             </p>
           </>
         )}
@@ -1064,31 +939,25 @@ function RaceComparison({
       <section className="ec-section" aria-labelledby="ec-precincts">
         <h3 id="ec-precincts">
           Results by precinct
-          {precincts.data ? ` (${count(precincts.data.page.total)})` : ""}
+          {precincts.data ? ` (${count(precincts.data.page.total)})` : ''}
         </h3>
         <SearchField
           label="Search precincts"
           placeholder="Precinct name"
           query={address.pq}
           here={location.pathname + location.search}
-          commit={(pq) => setAddress({ pq, ppage: "1" })}
+          commit={(pq) => setAddress({ pq, ppage: '1' })}
         />
-        <Notice
-          read={precincts}
-          message="Couldn’t load precinct results"
-          reload={reload}
-        />
+        <Notice read={precincts} message="Couldn’t load precinct results" reload={reload} />
         {precincts.data && (
           <>
             {precincts.data.query !== address.pq && (
               <p className="ec-muted">
-                Showing results for {precincts.data.query || "all precincts"}{" "}
-                while the search updates
+                Showing results for {precincts.data.query || 'all precincts'} while the search
+                updates
               </p>
             )}
-            {precincts.data.precincts.length === 0 && (
-              <p className="ec-empty">No matches</p>
-            )}
+            {precincts.data.precincts.length === 0 && <p className="ec-empty">No matches</p>}
             <PrecinctResults
               race={race}
               precincts={precincts.data.precincts}
@@ -1106,17 +975,16 @@ function RaceComparison({
       <section className="ec-section ec-about" aria-labelledby="ec-about">
         <h3 id="ec-about">About these records</h3>
         <p>
-          Results and campaign reports can cover different periods. Read the
-          dates beside each figure before comparing.
+          Results and campaign reports can cover different periods. Read the dates beside each
+          figure before comparing.
         </p>
         <p>
-          Spending and election outcomes are shown together. These records alone
-          do not show whether spending changed an outcome.
+          Spending and election outcomes are shown together. These records alone do not show whether
+          spending changed an outcome.
         </p>
         <p>
-          Board outside spending and each other authority’s spending and support
-          records keep their own filing types and sources. No amounts are
-          allocated to precincts.
+          Board outside spending and each other authority’s spending and support records keep their
+          own filing types and sources. No amounts are allocated to precincts.
         </p>
       </section>
       <section className="ec-sources">
@@ -1139,7 +1007,7 @@ function RaceComparison({
                   className="ec-link"
                   onClick={() => selectSource(`result-file:${source.sha256}`)}
                 >
-                  {source.file ?? "Election source"}
+                  {source.file ?? 'Election source'}
                 </button>
               </li>
             ))}
@@ -1149,58 +1017,50 @@ function RaceComparison({
             <strong>{BOARD}</strong>
           </p>
         )}
-        {data?.copied_at && (
-          <p>Campaign reports · Copied {dateLabel(data.copied_at)}</p>
-        )}
+        {data?.copied_at && <p>Campaign reports · Copied {dateLabel(data.copied_at)}</p>}
         {data?.payment_source?.copied_at && (
-          <p>
-            Outside spending · Copied {dateLabel(data.payment_source.copied_at)}
-          </p>
+          <p>Outside spending · Copied {dateLabel(data.payment_source.copied_at)}</p>
         )}
         {data?.payment_source && (
-          <button
-            className="ec-link"
-            onClick={() => selectSource("outside-file")}
-          >
-            All - Itemized Independent Expenditures Of Over $200 - Campaign
-            Finance.csv
+          <button className="ec-link" onClick={() => selectSource('outside-file')}>
+            All - Itemized Independent Expenditures Of Over $200 - Campaign Finance.csv
           </button>
         )}
       </section>
-      {address.source && !address.source.startsWith("external:") && (
+      {address.source && !address.source.startsWith('external:') && (
         <RetainedEvidence
-          key={`${address.source}:${data?.version ?? ""}`}
+          key={`${address.source}:${data?.version ?? ''}`}
           selection={
             selection ?? {
               evidence: {
-                title: "Source evidence",
-                authority: "",
+                title: 'Source evidence',
+                authority: '',
                 rows: [
                   {
-                    label: "Availability",
+                    label: 'Availability',
                     value:
                       finance.loading || precincts.loading
-                        ? "Loading source evidence…"
-                        : address.source.startsWith("payment:") && address.pay
+                        ? 'Loading source evidence…'
+                        : address.source.startsWith('payment:') && address.pay
                           ? paymentSourceState?.source !== address.source ||
                             paymentSourceState.version !== data?.version ||
-                            paymentSourceState.state === "loading"
-                            ? "Loading payment evidence…"
-                            : paymentSourceState.state === "failed"
-                              ? "Couldn’t load payment source"
-                              : paymentSourceState.state === "changed"
-                                ? "These records changed"
-                                : "This payment is not held on the selected page"
-                          : "This source is not held in the current comparison",
+                            paymentSourceState.state === 'loading'
+                            ? 'Loading payment evidence…'
+                            : paymentSourceState.state === 'failed'
+                              ? 'Couldn’t load payment source'
+                              : paymentSourceState.state === 'changed'
+                                ? 'These records changed'
+                                : 'This payment is not held on the selected page'
+                          : 'This source is not held in the current comparison',
                   },
                 ],
               },
               attachment: null,
               children:
-                address.source.startsWith("payment:") &&
+                address.source.startsWith('payment:') &&
                 paymentSourceState?.source === address.source &&
-                (paymentSourceState.state === "failed" ||
-                  paymentSourceState.state === "changed") ? (
+                (paymentSourceState.state === 'failed' ||
+                  paymentSourceState.state === 'changed') ? (
                   <button className="ec-button" onClick={reload}>
                     Reload comparison
                   </button>
@@ -1217,7 +1077,7 @@ function RaceComparison({
 
 function reportChoices(value: string): Map<string, string> | null {
   if (!value) return new Map();
-  const rows = value.split(",");
+  const rows = value.split(',');
   if (rows.length > 500) return null;
   const chosen = new Map<string, string>();
   for (const row of rows) {
@@ -1229,16 +1089,16 @@ function reportChoices(value: string): Map<string, string> | null {
 }
 function selectedReport(value: string, registration: string): string | null {
   const choices = reportChoices(value);
-  return choices ? (choices.get(registration) ?? null) : "invalid";
+  return choices ? (choices.get(registration) ?? null) : 'invalid';
 }
 function chooseReport(value: string, registration: string, report: string) {
   const choices = reportChoices(value) ?? new Map<string, string>();
   choices.set(registration, report);
-  return [...choices].map(([key, hash]) => `${key}:${hash}`).join(",");
+  return [...choices].map(([key, hash]) => `${key}:${hash}`).join(',');
 }
 
 function reportPeriod(report: d.FinancialReport) {
-  return `${report.filing.report_name} · ${periodLabel(report.period_start, report.period_end)}${report.received_date ? ` · Received ${dateLabel(report.received_date)}` : ""}`;
+  return `${report.filing.report_name} · ${periodLabel(report.period_start, report.period_end)}${report.received_date ? ` · Received ${dateLabel(report.received_date)}` : ''}`;
 }
 
 function emptyPosition(
@@ -1248,7 +1108,7 @@ function emptyPosition(
   return {
     category,
     direction,
-    state: "no_records",
+    state: 'no_records',
     record_count: 0,
     amount: null,
     known_amount_subtotal: null,
@@ -1259,7 +1119,7 @@ function emptyPosition(
     missing_date_count: 0,
     missing_year_count: 0,
     date_year_conflict_count: 0,
-    date_coverage: "no_records",
+    date_coverage: 'no_records',
     first_known_date: null,
     last_known_date: null,
   };
@@ -1282,19 +1142,14 @@ function PrecinctResults({
       : null;
   const note = (precinct: d.Precinct) =>
     precinct.diagnostics.length > 0 && (
-      <p className="ec-warning">
-        Reported votes exceed the separately reported voter count
-      </p>
+      <p className="ec-warning">Reported votes exceed the separately reported voter count</p>
     );
   const source = (precinct: d.Precinct) => (
-    <button
-      className="ec-link"
-      onClick={() => onSource(`precinct:${precinct.key}`)}
-    >
+    <button className="ec-link" onClick={() => onSource(`precinct:${precinct.key}`)}>
       View source<span className="ec-sr-only"> for {precinct.name}</span>
     </button>
   );
-  if (band === "phone")
+  if (band === 'phone')
     return (
       <div className="ec-precincts">
         {precincts.map((precinct) => (
@@ -1302,8 +1157,7 @@ function PrecinctResults({
             <div>
               <h4>{precinct.name}</h4>
               <p className="ec-muted">
-                {precinct.county_name ?? precinct.county} County · Precinct{" "}
-                {precinct.key}
+                {precinct.county_name ?? precinct.county} County · Precinct {precinct.key}
               </p>
               {note(precinct)}
             </div>
@@ -1340,11 +1194,7 @@ function PrecinctResults({
             <th scope="col">County</th>
             {race.candidates.map((c, i) => (
               <th scope="col" key={c.candidate_order_code ?? i}>
-                <span
-                  className={c.is_write_in_aggregate ? "ec-number" : undefined}
-                >
-                  {c.name}
-                </span>
+                <span className={c.is_write_in_aggregate ? 'ec-number' : undefined}>{c.name}</span>
               </th>
             ))}
             <th scope="col">Total votes</th>
@@ -1367,10 +1217,7 @@ function PrecinctResults({
                     r.candidate_order_code === candidate.candidate_order_code,
                 );
                 return (
-                  <td
-                    className="ec-number"
-                    key={candidate.candidate_order_code ?? i}
-                  >
+                  <td className="ec-number" key={candidate.candidate_order_code ?? i}>
                     {count(matches.length === 1 ? matches[0].votes : null)}
                   </td>
                 );
@@ -1398,20 +1245,17 @@ function AccountCard({
   const [filingsOpen, setFilingsOpen] = useState(false);
   const filingsId = useId();
   const report = account.reports?.find(
-    (item) =>
-      item.report_key === (selectedKey ?? account.latest_report.report_key),
+    (item) => item.report_key === (selectedKey ?? account.latest_report.report_key),
   );
   const figures =
-    report?.attribution === "checked" &&
-    report.figure_status === "source_verified"
+    report?.attribution === 'checked' && report.figure_status === 'source_verified'
       ? report.figures
       : null;
   return (
     <div className="ec-account">
-      <strong>{account.committee_name ?? "Campaign account"}</strong>
+      <strong>{account.committee_name ?? 'Campaign account'}</strong>
       <p className="ec-muted">
-        Registration number {account.registration_number} · Checked{" "}
-        {dateLabel(account.checked_on)}
+        Registration number {account.registration_number} · Checked {dateLabel(account.checked_on)}
       </p>
       <button
         className="ec-link"
@@ -1423,19 +1267,18 @@ function AccountCard({
       {!figures && (
         <p className="ec-empty">
           {selectedKey && !report
-            ? "Selected report is unavailable"
-            : !selectedKey &&
-                account.latest_report.state === "ambiguous_latest_report"
-              ? "The latest report is not resolved"
-              : "Report figures not held"}
+            ? 'Selected report is unavailable'
+            : !selectedKey && account.latest_report.state === 'ambiguous_latest_report'
+              ? 'The latest report is not resolved'
+              : 'Report figures not held'}
         </p>
       )}
       {figures && report && (
         <div className="ec-measures">
           {(
             [
-              ["Contributions received", figures.contributions_received],
-              ["Campaign spending", figures.campaign_expenditures],
+              ['Contributions received', figures.contributions_received],
+              ['Campaign spending', figures.campaign_expenditures],
             ] as const
           ).map(([label, measure]) => (
             <div key={label}>
@@ -1445,7 +1288,7 @@ function AccountCard({
                 <dd>{moneyLabel(measure.cash)}</dd>
                 <dt>In-kind</dt>
                 <dd>{moneyLabel(measure.in_kind)}</dd>
-                {"unpaid" in measure && (
+                {'unpaid' in measure && (
                   <>
                     <dt>Unpaid</dt>
                     <dd>{moneyLabel(measure.unpaid)}</dd>
@@ -1457,13 +1300,10 @@ function AccountCard({
               <button
                 className="ec-link"
                 onClick={() =>
-                  onSource(
-                    `report:${account.registration_number}:${report.report_key}`,
-                  )
+                  onSource(`report:${account.registration_number}:${report.report_key}`)
                 }
               >
-                View report{" "}
-                <span className="ec-muted">· Page {measure.source_page}</span>
+                View report <span className="ec-muted">· Page {measure.source_page}</span>
               </button>
             </div>
           ))}
@@ -1500,31 +1340,22 @@ function AccountCard({
                       {periodLabel(r.period_start, r.period_end)}
                     </span>
                     <span className="ec-filing-period ec-muted">
-                      Received{" "}
-                      {r.received_date
-                        ? dateLabel(r.received_date)
-                        : "date unavailable"}
+                      Received {r.received_date ? dateLabel(r.received_date) : 'date unavailable'}
                     </span>
                   </span>
                 </label>
                 <button
                   className="ec-link"
-                  onClick={() =>
-                    onSource(
-                      `report:${account.registration_number}:${r.report_key}`,
-                    )
-                  }
+                  onClick={() => onSource(`report:${account.registration_number}:${r.report_key}`)}
                 >
                   View report
                   <span className="ec-sr-only"> {r.filing.report_name}</span>
                 </button>
                 <p className="ec-muted">
-                  {r.figures
-                    ? "Report figures available"
-                    : "Report figures not held"}
+                  {r.figures ? 'Report figures available' : 'Report figures not held'}
                   {r.filing.amendment_count != null
-                    ? ` · ${r.filing.amendment_count} filed version${r.filing.amendment_count === 1 ? "" : "s"}`
-                    : ""}
+                    ? ` · ${r.filing.amendment_count} filed version${r.filing.amendment_count === 1 ? '' : 's'}`
+                    : ''}
                 </p>
               </li>
             ))}
@@ -1552,7 +1383,7 @@ function OutsideGroup({
   revision: number;
   data: d.ElectionFinanceAnswer;
   detail: d.RaceAnswer;
-  view: "chart" | "table";
+  view: 'chart' | 'table';
   address: Address;
   setAddress: SetAddress;
   onRecord: (row: d.PaymentRecord) => void;
@@ -1566,61 +1397,51 @@ function OutsideGroup({
     .flatMap((candidate) => {
       const groups = candidate.outside_spending.groups ?? [];
       const directions: d.SpendingDirection[] =
-        category === "other"
-          ? groups
-              .filter((g) => g.category === category)
-              .map((g) => g.direction)
+        category === 'other'
+          ? groups.filter((g) => g.category === category).map((g) => g.direction)
           : [
-              "For",
-              "Against",
-              ...(groups.some(
-                (g) => g.category === category && g.direction === "unknown",
-              )
-                ? ["unknown" as const]
+              'For',
+              'Against',
+              ...(groups.some((g) => g.category === category && g.direction === 'unknown')
+                ? ['unknown' as const]
                 : []),
             ];
       return directions.map((direction) => ({
         candidate,
         group:
-          groups.find(
-            (g) => g.category === category && g.direction === direction,
-          ) ?? emptyPosition(category, direction),
+          groups.find((g) => g.category === category && g.direction === direction) ??
+          emptyPosition(category, direction),
         key: `${candidate.candidate_id}:${category}:${direction}`,
       }));
     });
-  const firstBar = rows.find((row) => row.group.state !== "no_records")?.key;
+  const firstBar = rows.find((row) => row.group.state !== 'no_records')?.key;
   const maximum = Math.max(
     1,
-    ...rows.map(({ group }) =>
-      Math.max(0, Number(d.reportedAmount(group) ?? 0)),
-    ),
+    ...rows.map(({ group }) => Math.max(0, Number(d.reportedAmount(group) ?? 0))),
   );
-  if (
-    !rows.length ||
-    (category === "other" && !rows.some((r) => r.group.record_count))
-  )
+  if (!rows.length || (category === 'other' && !rows.some((r) => r.group.record_count)))
     return null;
   const title =
-    category === "PCF"
-      ? "Political committees and funds"
-      : category === "PTU"
-        ? "Party units"
-        : "Other filed spender types";
+    category === 'PCF'
+      ? 'Political committees and funds'
+      : category === 'PTU'
+        ? 'Party units'
+        : 'Other filed spender types';
   return (
     <div className="ec-outside-group">
       <h4>{title}</h4>
       <div className="ec-outside-card">
         {rows.map(({ candidate, group, key }) => {
-          const position = `${group.direction === "unknown" ? "Position not specified" : group.direction} ${candidate.name}`;
+          const position = `${group.direction === 'unknown' ? 'Position not specified' : group.direction} ${candidate.name}`;
           const amount = d.reportedAmount(group);
           const open = address.pay === key;
           const info: ReactNode = (
             <>
               <span className="ec-number">
                 {amount == null
-                  ? group.state === "no_records"
-                    ? "No payments within the checked account dates"
-                    : "Unavailable"
+                  ? group.state === 'no_records'
+                    ? 'No payments within the checked account dates'
+                    : 'Unavailable'
                   : formatMoney(amount)}
               </span>
               {amount != null && Number(amount) < 0 && (
@@ -1628,20 +1449,14 @@ function OutsideGroup({
               )}
               {group.first_known_date && (
                 <span className="ec-muted">
-                  Payments dated{" "}
-                  <span className="ec-date">
-                    {dateLabel(group.first_known_date)}
-                  </span>{" "}
-                  to{" "}
-                  <span className="ec-date">
-                    {dateLabel(group.last_known_date)}
-                  </span>
+                  Payments dated{' '}
+                  <span className="ec-date">{dateLabel(group.first_known_date)}</span> to{' '}
+                  <span className="ec-date">{dateLabel(group.last_known_date)}</span>
                 </span>
               )}
-              {group.date_coverage === "incomplete" && (
+              {group.date_coverage === 'incomplete' && (
                 <span className="ec-muted">
-                  Some payment dates are missing or differ from the reported
-                  year
+                  Some payment dates are missing or differ from the reported year
                 </span>
               )}
               {group.included_unpaid_amount != null &&
@@ -1654,16 +1469,16 @@ function OutsideGroup({
           );
           return (
             <div className="ec-outside-row" key={key}>
-              {group.state === "no_records" ? (
+              {group.state === 'no_records' ? (
                 <p>
-                  <strong>{position}</strong> ·{" "}
-                  {category === "PTU"
-                    ? "No party-unit payments within the checked account dates"
-                    : "No payments within the checked account dates"}
+                  <strong>{position}</strong> ·{' '}
+                  {category === 'PTU'
+                    ? 'No party-unit payments within the checked account dates'
+                    : 'No payments within the checked account dates'}
                 </p>
               ) : (
                 <>
-                  {view === "chart" ? (
+                  {view === 'chart' ? (
                     <div>
                       <strong>{position}</strong>
                       <div className="ec-outside-chart">
@@ -1679,9 +1494,9 @@ function OutsideGroup({
                               <i
                                 style={{
                                   width:
-                                    group.direction === "Against"
+                                    group.direction === 'Against'
                                       ? `${(Math.max(0, Number(amount ?? 0)) / maximum) * 100}%`
-                                      : "0%",
+                                      : '0%',
                                 }}
                               />
                             </span>
@@ -1690,9 +1505,9 @@ function OutsideGroup({
                               <i
                                 style={{
                                   width:
-                                    group.direction === "For"
+                                    group.direction === 'For'
                                       ? `${(Math.max(0, Number(amount ?? 0)) / maximum) * 100}%`
-                                      : "0%",
+                                      : '0%',
                                 }}
                               />
                             </span>
@@ -1712,15 +1527,15 @@ function OutsideGroup({
                     aria-expanded={open}
                     onClick={() =>
                       setAddress({
-                        pay: open ? "" : key,
-                        paypage: "1",
-                        source: "",
+                        pay: open ? '' : key,
+                        paypage: '1',
+                        source: '',
                       })
                     }
                   >
                     <Caret up={open} />
-                    View payments · {count(group.record_count)}{" "}
-                    {group.record_count === 1 ? "payment" : "payments"}
+                    View payments · {count(group.record_count)}{' '}
+                    {group.record_count === 1 ? 'payment' : 'payments'}
                   </button>
                   {open && candidate.candidate_id && (
                     <Payments
@@ -1732,9 +1547,7 @@ function OutsideGroup({
                       revision={revision}
                       direction={group.direction}
                       page={pageNumber(address.paypage)}
-                      onPage={(page) =>
-                        setAddress({ paypage: String(page), source: "" })
-                      }
+                      onPage={(page) => setAddress({ paypage: String(page), source: '' })}
                       onRecord={onRecord}
                       source={address.source}
                       onRestore={onRestore}
@@ -1754,7 +1567,7 @@ function OutsideGroup({
 
 function Payments({
   revision,
-  scope = "attributed",
+  scope = 'attributed',
   detail,
   data,
   candidateId,
@@ -1773,7 +1586,7 @@ function Payments({
   candidateId: string;
   category?: d.SpenderType;
   direction?: d.SpendingDirection;
-  scope?: "attributed" | "outside_reviewed_period";
+  scope?: 'attributed' | 'outside_reviewed_period';
   revision: number;
   page: number;
   onPage: (page: number) => void;
@@ -1784,40 +1597,33 @@ function Payments({
   reload: () => void;
 }) {
   const read = useRead<d.CandidateOutsideRecordsAnswer>(
-    d.candidateOutsideRecordsPath(
-      detail.election_key,
-      detail.race.id,
-      candidateId,
-      {
-        snapshotId: detail.snapshot_id,
-        version: data.version,
-        spenderType: category,
-        direction,
-        scope,
-        limit: SIZE,
-        offset: (page - 1) * SIZE,
-      },
-    ),
+    d.candidateOutsideRecordsPath(detail.election_key, detail.race.id, candidateId, {
+      snapshotId: detail.snapshot_id,
+      version: data.version,
+      spenderType: category,
+      direction,
+      scope,
+      limit: SIZE,
+      offset: (page - 1) * SIZE,
+    }),
     { revision },
   );
   useEffect(() => {
-    const row = read.data?.rows.find(
-      (item) => source === `payment:${item.row_number}`,
-    );
+    const row = read.data?.rows.find((item) => source === `payment:${item.row_number}`);
     if (row) onRestore(row);
-    if (source.startsWith("payment:"))
+    if (source.startsWith('payment:'))
       onSourceState({
         source,
         version: data.version,
         state: read.changed
-          ? "changed"
+          ? 'changed'
           : read.failed
-            ? "failed"
+            ? 'failed'
             : read.loading
-              ? "loading"
+              ? 'loading'
               : row
-                ? "ready"
-                : "missing",
+                ? 'ready'
+                : 'missing',
       });
   }, [
     read.data,
@@ -1839,26 +1645,19 @@ function Payments({
             {read.data.rows.map((row) => (
               <li key={row.row_number}>
                 <span>
-                  <span className="ec-date">{dateLabel(row.fields.Date)}</span>{" "}
-                  ·{" "}
-                  <strong>
-                    {row.fields.Spender ?? "Spender not reported"}
-                  </strong>{" "}
-                  ·{" "}
-                  <span className="ec-number">
-                    {moneyLabel(row.fields.Amount)}
-                  </span>
-                  {scope === "outside_reviewed_period" && (
+                  <span className="ec-date">{dateLabel(row.fields.Date)}</span> ·{' '}
+                  <strong>{row.fields.Spender ?? 'Spender not reported'}</strong> ·{' '}
+                  <span className="ec-number">{moneyLabel(row.fields.Amount)}</span>
+                  {scope === 'outside_reviewed_period' && (
                     <span className="ec-muted">
-                      {" "}
-                      ·{" "}
-                      {row.fields["Spender type"] === "PTU"
-                        ? "Party unit"
-                        : row.fields["Spender type"] === "PCF"
-                          ? "Political committee or fund"
-                          : (row.fields["Spender type"] ??
-                            "Filer type not reported")}{" "}
-                      · {row.fields["For /Against"] ?? "Position not reported"}
+                      {' '}
+                      ·{' '}
+                      {row.fields['Spender type'] === 'PTU'
+                        ? 'Party unit'
+                        : row.fields['Spender type'] === 'PCF'
+                          ? 'Political committee or fund'
+                          : (row.fields['Spender type'] ?? 'Filer type not reported')}{' '}
+                      · {row.fields['For /Against'] ?? 'Position not reported'}
                     </span>
                   )}
                 </span>
@@ -1881,21 +1680,21 @@ function Payments({
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
-  Spender: "Filer",
-  "Spender Reg Num": "Filer registration number",
-  "Spender type": "Filer type",
-  "Spender sub-type": "Filer subtype",
-  "Affected Comte Name": "Candidate account as filed",
-  "Affected Cmte Reg Num": "Candidate account registration number",
-  "For /Against": "Position",
-  Year: "Reported year",
-  "Unpaid amount": "Included unpaid amount",
-  "In kind?": "In-kind",
-  "In kind descr": "In-kind description",
-  "Vendor name": "Vendor",
-  "Vendor city": "Vendor city",
-  "Vendor State": "Vendor state",
-  "Vendor zip": "Vendor ZIP",
+  Spender: 'Filer',
+  'Spender Reg Num': 'Filer registration number',
+  'Spender type': 'Filer type',
+  'Spender sub-type': 'Filer subtype',
+  'Affected Comte Name': 'Candidate account as filed',
+  'Affected Cmte Reg Num': 'Candidate account registration number',
+  'For /Against': 'Position',
+  Year: 'Reported year',
+  'Unpaid amount': 'Included unpaid amount',
+  'In kind?': 'In-kind',
+  'In kind descr': 'In-kind description',
+  'Vendor name': 'Vendor',
+  'Vendor city': 'Vendor city',
+  'Vendor State': 'Vendor state',
+  'Vendor zip': 'Vendor ZIP',
 };
 
 function evidenceFor(
@@ -1907,80 +1706,66 @@ function evidenceFor(
   onSource: (source: string) => void,
 ): ElectionEvidence | null {
   if (!source) return null;
-  if (source.startsWith("outcome:")) {
-    const candidate = detail.race.candidates.find(
-      (item) => item.candidate_id === source.slice(8),
-    );
-    if (!candidate || outcomeLabel(candidate) === "Pending") return null;
+  if (source.startsWith('outcome:')) {
+    const candidate = detail.race.candidates.find((item) => item.candidate_id === source.slice(8));
+    if (!candidate || outcomeLabel(candidate) === 'Pending') return null;
     const record = candidate.evidence![0];
     return {
       evidence: {
         title: `${candidate.name} · ${raceName(detail.race)}`,
-        authority: record.authority ?? "Election authority",
+        authority: record.authority ?? 'Election authority',
         checked: null,
         rows: [
-          { label: "Outcome", value: outcomeLabel(candidate) },
+          { label: 'Outcome', value: outcomeLabel(candidate) },
           {
-            label: "Result status",
+            label: 'Result status',
             value: statusLabel(detail.race.result_status),
           },
-          { label: "Copied", value: dateLabel(record.fetched_at) },
+          { label: 'Copied', value: dateLabel(record.fetched_at) },
           {
-            label: "Source",
+            label: 'Source',
             value: record.locator.page
               ? `Page ${record.locator.page}`
               : record.locator.line_start
                 ? `Line ${record.locator.line_start}`
-                : "Election record",
+                : 'Election record',
           },
         ],
         quote: record.quote,
       },
-      attachment: d.electionSourcePath(
-        detail.election_key,
-        record.sha256,
-        detail.snapshot_id,
-      ),
+      attachment: d.electionSourcePath(detail.election_key, record.sha256, detail.snapshot_id),
       pdfPage: record.locator.page,
     };
   }
-  if (source === "votes") {
+  if (source === 'votes') {
     const hash = detail.race.summary_source_sha256 ?? detail.race.source_sha256;
     if (!hash) return null;
     return {
       evidence: {
-        title: "Reported votes",
+        title: 'Reported votes',
         authority: SOS,
         rows: [
-          { label: "Race", value: raceName(detail.race) },
+          { label: 'Race', value: raceName(detail.race) },
           {
-            label: "Election",
+            label: 'Election',
             value: `${dateLabel(detail.election_date)} · ${detail.stage}`,
           },
-          { label: "Office ID", value: detail.race.office_id },
+          { label: 'Office ID', value: detail.race.office_id },
           {
-            label: "Result status",
+            label: 'Result status',
             value: statusLabel(detail.race.result_status),
           },
-          { label: "Copied", value: dateLabel(detail.copied_at) },
+          { label: 'Copied', value: dateLabel(detail.copied_at) },
         ],
-        quote: detail.race.candidates
-          .map((c) => `${c.name}: ${count(c.votes)}`)
-          .join("\n"),
-        quoteLabel: "REPORTED VOTES",
-        checked: "Not checked",
+        quote: detail.race.candidates.map((c) => `${c.name}: ${count(c.votes)}`).join('\n'),
+        quoteLabel: 'REPORTED VOTES',
+        checked: 'Not checked',
       },
-      attachment: d.electionSourcePath(
-        detail.election_key,
-        hash,
-        detail.snapshot_id,
-      ),
+      attachment: d.electionSourcePath(detail.election_key, hash, detail.snapshot_id),
     };
   }
-  if (source.startsWith("precinct:")) {
-    const precinct = precincts?.precincts.find(
-      (p) => p.key === source.slice(9),
-    );
+  if (source.startsWith('precinct:')) {
+    const precinct = precincts?.precincts.find((p) => p.key === source.slice(9));
     if (!precinct) return null;
     const numbers = precinct.rows.map((r) => r.row_number);
     const start = Math.min(...numbers),
@@ -1990,17 +1775,17 @@ function evidenceFor(
         title: precinct.name,
         authority: SOS,
         rows: [
-          { label: "Race", value: raceName(detail.race) },
-          { label: "County", value: precinct.county_name ?? precinct.county },
-          { label: "County ID", value: precinct.county },
-          { label: "Precinct ID", value: precinct.key.split(":").at(-1)! },
-          { label: "Source location", value: lineLabel(numbers) },
+          { label: 'Race', value: raceName(detail.race) },
+          { label: 'County', value: precinct.county_name ?? precinct.county },
+          { label: 'County ID', value: precinct.county },
+          { label: 'Precinct ID', value: precinct.key.split(':').at(-1)! },
+          { label: 'Source location', value: lineLabel(numbers) },
           {
-            label: "Result status",
+            label: 'Result status',
             value: statusLabel(detail.race.result_status),
           },
         ],
-        checked: "Not checked",
+        checked: 'Not checked',
       },
       attachment: d.electionSourcePath(
         detail.election_key,
@@ -2016,44 +1801,38 @@ function evidenceFor(
       selectedLines: numbers,
     };
   }
-  if (source.startsWith("result-file:")) {
-    const item = detail.sources.find(
-      (item) => item.sha256 === source.slice(12),
-    );
+  if (source.startsWith('result-file:')) {
+    const item = detail.sources.find((item) => item.sha256 === source.slice(12));
     return item
       ? {
           evidence: {
-            title: item.file ?? "Election source",
+            title: item.file ?? 'Election source',
             authority: SOS,
             rows: [
               {
-                label: "Copied",
+                label: 'Copied',
                 value: dateLabel(item.fetched_at ?? detail.copied_at),
               },
             ],
           },
-          attachment: d.electionSourcePath(
-            detail.election_key,
-            item.sha256,
-            detail.snapshot_id,
-          ),
+          attachment: d.electionSourcePath(detail.election_key, item.sha256, detail.snapshot_id),
         }
       : null;
   }
   if (!finance) return null;
-  if (source === "outside-file")
+  if (source === 'outside-file')
     return {
       evidence: {
-        title: "Itemized independent expenditures",
+        title: 'Itemized independent expenditures',
         authority: BOARD,
         rows: [
           {
-            label: "Copied",
+            label: 'Copied',
             value: dateLabel(finance.payment_source?.copied_at),
           },
           {
-            label: "Record numbering",
-            value: "Logical records, header excluded",
+            label: 'Record numbering',
+            value: 'Logical records, header excluded',
           },
         ],
       },
@@ -2066,26 +1845,22 @@ function evidenceFor(
           )
         : null,
     };
-  if (
-    source.startsWith("payment:") &&
-    payment &&
-    source === `payment:${payment.row_number}`
-  ) {
+  if (source.startsWith('payment:') && payment && source === `payment:${payment.row_number}`) {
     const fields = payment.fields;
     return {
       evidence: {
-        title: "Outside spending payment",
+        title: 'Outside spending payment',
         authority: BOARD,
         rows: Object.entries(fields).map(([label, value]) => ({
           label: PAYMENT_LABELS[label] ?? label,
-          value: value == null ? "Not reported" : String(value),
+          value: value == null ? 'Not reported' : String(value),
         })),
-        quoteLabel: "SOURCE RECORD",
+        quoteLabel: 'SOURCE RECORD',
         quote: `Record ${payment.row_number}`,
         checked:
-          payment.resolution === "outside_checked_period"
-            ? "Outside checked account dates; excluded from candidate totals"
-            : "Account relationship and reporting period checked",
+          payment.resolution === 'outside_checked_period'
+            ? 'Outside checked account dates; excluded from candidate totals'
+            : 'Account relationship and reporting period checked',
       },
       attachment: finance.payment_release_id
         ? d.spendingSourcePath(
@@ -2097,12 +1872,12 @@ function evidenceFor(
         : null,
     };
   }
-  const [kind, registration, key] = source.split(":");
+  const [kind, registration, key] = source.split(':');
   const account = finance.candidates
     .flatMap((c) => c.accounts)
     .find((a) => a.registration_number === registration);
   if (!account) return null;
-  if (kind === "report") {
+  if (kind === 'report') {
     const report = account.reports?.find((r) => r.report_key === key);
     if (!report) return null;
     return {
@@ -2111,33 +1886,33 @@ function evidenceFor(
         authority: BOARD,
         rows: [
           {
-            label: "Committee",
+            label: 'Committee',
             value: account.committee_name ?? `Registration ${registration}`,
           },
-          { label: "Registration number", value: registration },
+          { label: 'Registration number', value: registration },
           {
-            label: "Reporting period",
+            label: 'Reporting period',
             value: periodLabel(report.period_start, report.period_end),
           },
-          { label: "Received", value: dateLabel(report.received_date) },
+          { label: 'Received', value: dateLabel(report.received_date) },
           {
-            label: "Filed versions",
+            label: 'Filed versions',
             value: count(report.filing.amendment_count),
           },
           {
-            label: "Effective amendment",
+            label: 'Effective amendment',
             value: count(report.filing.effective_amendment_index),
           },
           {
-            label: "Availability",
+            label: 'Availability',
             value: report.document_hash
               ? report.figures
-                ? "Report and figures held"
-                : "Report held; figures not attributed to this candidacy and period"
-              : "Report listed; original document not held",
+                ? 'Report and figures held'
+                : 'Report held; figures not attributed to this candidacy and period'
+              : 'Report listed; original document not held',
           },
         ],
-        page: "2",
+        page: '2',
         checked: `Checked ${dateLabel(account.checked_on)}`,
       },
       attachment:
@@ -2151,49 +1926,41 @@ function evidenceFor(
       pdfPage: 2,
     };
   }
-  if (kind === "account") {
+  if (kind === 'account') {
     const item = account.evidence[Number(key)];
     if (!item) return null;
     const attachment =
-      item.kind === "ballot"
-        ? d.electionSourcePath(
-            detail.election_key,
-            item.sha256,
-            detail.snapshot_id,
-          )
-        : item.kind === "report_cover" && finance.collection_id
-          ? d.financeReportSourcePath(
-              detail.election_key,
-              item.sha256,
-              finance.collection_id,
-            )
+      item.kind === 'ballot'
+        ? d.electionSourcePath(detail.election_key, item.sha256, detail.snapshot_id)
+        : item.kind === 'report_cover' && finance.collection_id
+          ? d.financeReportSourcePath(detail.election_key, item.sha256, finance.collection_id)
           : d.accountEvidencePath(item);
     return {
       evidence: {
-        title: "Campaign account sources",
-        authority: item.kind === "ballot" ? SOS : BOARD,
+        title: 'Campaign account sources',
+        authority: item.kind === 'ballot' ? SOS : BOARD,
         rows: [
-          { label: "Registration number", value: registration },
-          { label: "Source", value: item.kind.replaceAll("_", " ") },
+          { label: 'Registration number', value: registration },
+          { label: 'Source', value: item.kind.replaceAll('_', ' ') },
           {
-            label: "Location",
+            label: 'Location',
             value:
               item.locator ??
               (item.page
                 ? `Page ${item.page}`
                 : item.row_number
                   ? `Line ${item.row_number}`
-                  : "Original source"),
+                  : 'Original source'),
           },
           {
-            label: "Checked period",
+            label: 'Checked period',
             value: periodLabel(account.period_start, account.period_end),
           },
         ],
         checked: `Checked ${dateLabel(account.checked_on)}`,
       },
       attachment,
-      pdfPage: item.kind === "report_cover" ? 1 : undefined,
+      pdfPage: item.kind === 'report_cover' ? 1 : undefined,
       children: (
         <div className="ec-evidence-choices">
           {account.evidence.map((e, i) => (
@@ -2203,8 +1970,8 @@ function evidenceFor(
               aria-pressed={i === Number(key)}
               onClick={() => onSource(`account:${registration}:${i}`)}
             >
-              {e.kind.replaceAll("_", " ")}
-              {e.kind === "candidate_identity" ? ` ${i + 1}` : ""}
+              {e.kind.replaceAll('_', ' ')}
+              {e.kind === 'candidate_identity' ? ` ${i + 1}` : ''}
             </button>
           ))}
         </div>

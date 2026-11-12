@@ -574,6 +574,46 @@ def test_separate_payer_original_loss_withholds_only_its_payments(db, external):
     assert after["version"] != before["version"]
 
 
+def test_bulk_keeps_source_links_used_only_by_account_review(db, external):
+    import hashlib
+
+    ctx = external
+    body = ctx.originals[ctx.source_hash] + b"\n"
+    identity_hash = hashlib.sha256(body).hexdigest()
+    metadata = deepcopy(ctx.g["sources"][-1])
+    metadata["sha256"] = identity_hash
+    ctx.g["sources"].append(metadata)
+    ctx.originals[identity_hash] = body
+    designation = next(e for e in ctx.args["evidence"] if e["kind"] == "designation")
+    designation["sha256"] = identity_hash
+    designation["binding"]["source_sha256"] = identity_hash
+    rehash(ctx.g)
+    for evidence in ctx.args["evidence"]:
+        if "generation_id" in evidence:
+            evidence["generation_id"] = ctx.g["id"]
+    checked(db, ctx)
+    result = reads.bulk_finance(db, election_key=ctx.g["election_key"], store=ctx.store)
+    source = next((s for s in result["sources"] if s["sha256"] == identity_hash), None)
+    assert source is not None, "Checked identity source has no reader source link"
+    assert source == reads.public_source(metadata)
+    assert (
+        reads.source_body(
+            db,
+            election_key=ctx.g["election_key"],
+            generation_id=ctx.g["id"],
+            source_hash=identity_hash,
+            store=ctx.store,
+        )[0]
+        == body
+    )
+    held = db.get(m.ElectionResultSource, identity_hash)
+    ctx.store.objects.pop(held.object_key)
+    after = reads.bulk_finance(db, election_key=ctx.g["election_key"], store=ctx.store)
+    assert identity_hash not in {s["sha256"] for s in after["sources"]}
+    assert after["version"] != result["version"]
+    assert not after["candidates"][0]["accounts"]
+
+
 def test_bulk_projects_each_referenced_historical_generation_once(
     db, external, monkeypatch
 ):

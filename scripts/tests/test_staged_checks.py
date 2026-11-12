@@ -154,6 +154,23 @@ class StagedChecks(GitFixture):
         )
         self.assertEqual(self.git("stash", "list").stdout, "")
 
+    def test_finance_and_shared_selection_use_the_frontend_ci_settings(self):
+        files = [
+            self.root / "apps/finance/src/selected.ts",
+            self.root / "packages/shared/src/selected.ts",
+        ]
+        for path in files:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('export const label={text:"Whole dollars"}\n')
+        self.git("add", "--", *(str(path) for path in files))
+        self.git("commit", "-qm", "Format Finance and shared selection")
+        for path in files:
+            self.assertEqual(
+                self.show("HEAD", path),
+                "export const label = { text: 'Whole dollars' };\n",
+            )
+        self.assertEqual(self.git("status", "--porcelain").stdout, "")
+
     def test_filename_with_spaces_is_formatted_and_committed(self):
         self.file.write_text("export const spaced={value:1}\n")
         self.git("add", "--", str(self.file))

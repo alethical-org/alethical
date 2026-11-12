@@ -4,10 +4,10 @@
  * reads or public anchors. This module adds no fetch or authentication transport.
  * Dollar values stay exact source decimal strings until ui/money.formatMoney.
  * Missing records, withheld totals and reported zero remain separate states. */
-import { apiPath } from "../../api/read";
+import { apiPath } from '../../api/read';
 
 export type DecimalUSD = string;
-export type ElectionStage = "general" | "primary" | "special";
+export type ElectionStage = 'general' | 'primary' | 'special';
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type Coverage = Record<string, JsonValue>;
@@ -94,8 +94,8 @@ export interface ResultCandidate {
   is_write_in_aggregate: boolean;
   votes: number | null;
   /** Only checked authority evidence supplies an outcome; vote order never does. */
-  outcome: "elected" | "not_elected" | null;
-  outcome_status?: "certified" | "pending";
+  outcome: 'elected' | 'not_elected' | null;
+  outcome_status?: 'certified' | 'pending';
   evidence?: Array<{
     sha256: string;
     authority?: string;
@@ -108,8 +108,8 @@ export interface ResultCandidate {
   candidate_source_row?: number | null;
 }
 export interface ExpectedCertificationAuthority {
-  status: "expected" | "unknown";
-  level: "state" | "county" | null;
+  status: 'expected' | 'unknown';
+  level: 'state' | 'county' | null;
   name: string | null;
   county_ids: string[];
   certification_observed: false;
@@ -140,11 +140,10 @@ export interface Race {
   total_votes: number | null;
   coverage: Coverage;
   diagnostics: ResultDiagnostic[];
-  precinct_voter_bound_status:
-    "not_checked" | "discrepancies" | "no_discrepancies_found";
+  precinct_voter_bound_status: 'not_checked' | 'discrepancies' | 'no_discrepancies_found';
   expected_certification_authority?: ExpectedCertificationAuthority;
   seats_to_elect?: number | null;
-  seats_source?: "office_title" | null;
+  seats_source?: 'office_title' | null;
 }
 export interface RacesAnswer extends ResultContext {
   query: string;
@@ -200,15 +199,15 @@ export interface SourceLinesAnswer {
   snapshot_id?: string;
   collection_id?: string;
   source: RetainedSource;
-  encoding: "utf-8" | "windows-1252";
+  encoding: 'utf-8' | 'windows-1252';
   lines: Array<{ number: number; text: string }>;
   page: LinePage;
 }
 
-export type SpenderType = "PCF" | "PTU" | "other";
-export type SpendingDirection = "For" | "Against" | "unknown";
+export type SpenderType = 'PCF' | 'PTU' | 'other';
+export type SpendingDirection = 'For' | 'Against' | 'unknown';
 export interface SpendingMeasure {
-  state: "reported" | "amount_unavailable" | "no_records";
+  state: 'reported' | 'amount_unavailable' | 'no_records';
   record_count: number;
   amount: DecimalUSD | null;
   /** A known subtotal is not a substitute for a withheld total. */
@@ -220,7 +219,7 @@ export interface SpendingMeasure {
   missing_date_count: number;
   missing_year_count: number;
   date_year_conflict_count: number;
-  date_coverage: "no_records" | "incomplete" | "dates_present";
+  date_coverage: 'no_records' | 'incomplete' | 'dates_present';
   first_known_date: string | null;
   last_known_date: string | null;
 }
@@ -246,12 +245,12 @@ export interface OutsideContext {
   election_key: string;
   election_snapshot_id: string;
   reported_year: number;
-  year_basis: "source_reported_calendar_year";
+  year_basis: 'source_reported_calendar_year';
   election_stage_available: false;
   scope_note: string;
   complete_election_spending: false;
-  candidate_attribution: "not_attributed";
-  currency: "USD";
+  candidate_attribution: 'not_attributed';
+  currency: 'USD';
   version: string;
   release_id: string;
   source: PaymentSource;
@@ -265,7 +264,7 @@ export interface SpendingFilters {
 }
 export interface OutsideSpendingAnswer extends OutsideContext {
   inventory: Record<
-    "all_source_records" | "reported_year" | "missing_year" | "other_years",
+    'all_source_records' | 'reported_year' | 'missing_year' | 'other_years',
     SpendingMeasure
   >;
   filters: {
@@ -281,43 +280,38 @@ export interface OutsideSpendingAnswer extends OutsideContext {
 }
 export interface PaymentFields {
   Spender: string | null;
-  "Spender Reg Num": string | null;
-  "Spender type": string | null;
-  "Spender sub-type": string | null;
-  "Affected Comte Name": string | null;
-  "Affected Cmte Reg Num": string | null;
-  "For /Against": string | null;
+  'Spender Reg Num': string | null;
+  'Spender type': string | null;
+  'Spender sub-type': string | null;
+  'Affected Comte Name': string | null;
+  'Affected Cmte Reg Num': string | null;
+  'For /Against': string | null;
   Year: number | null;
   Date: string | null;
   Type: string | null;
   Amount: DecimalUSD | null;
-  "Unpaid amount": DecimalUSD | null;
-  "In kind?": string | null;
-  "In kind descr": string | null;
+  'Unpaid amount': DecimalUSD | null;
+  'In kind?': string | null;
+  'In kind descr': string | null;
   Purpose: string | null;
-  "Vendor name": string | null;
-  "Vendor city": string | null;
-  "Vendor State": string | null;
-  "Vendor zip": string | null;
+  'Vendor name': string | null;
+  'Vendor city': string | null;
+  'Vendor State': string | null;
+  'Vendor zip': string | null;
 }
 export interface PaymentRecord {
   row_number: number;
-  resolution:
-    "not_attributed" | "checked_account_and_period" | "outside_checked_period";
+  resolution: 'not_attributed' | 'checked_account_and_period' | 'outside_checked_period';
   fields: PaymentFields;
 }
 export interface OutsideRecordsAnswer extends OutsideContext {
-  scope: "year" | "missing_year";
+  scope: 'year' | 'missing_year';
   rows: PaymentRecord[];
   page: Page;
 }
 
 export type AccountState =
-  | "checked"
-  | "partial"
-  | "unavailable"
-  | "no_confirmed_link"
-  | "write_in_aggregate";
+  'checked' | 'partial' | 'unavailable' | 'no_confirmed_link' | 'write_in_aggregate';
 export interface AccountEvidence {
   kind: string;
   sha256: string;
@@ -329,7 +323,7 @@ export interface AccountEvidence {
   locator?: string;
   collection_id?: string;
   source_election_key?: string;
-  source_state?: "available" | "unavailable";
+  source_state?: 'available' | 'unavailable';
   retained_source_url?: string;
 }
 export interface ReportFiling {
@@ -368,18 +362,17 @@ export interface FinancialReport {
   financial_source: Partial<RetainedSource>;
   period_start: string | null;
   period_end: string | null;
-  period_basis: "calendar_year_to_date" | "reported_period" | null;
+  period_basis: 'calendar_year_to_date' | 'reported_period' | null;
   received_date: string | null;
-  attribution: "checked" | "period_not_covered" | "period_unavailable";
-  figure_status: "source_verified" | "unavailable";
+  attribution: 'checked' | 'period_not_covered' | 'period_unavailable';
+  figure_status: 'source_verified' | 'unavailable';
   source_figure_status: string | null;
   figures: ReportFigures | null;
   unavailable_reason: string | null;
   complete_election_spending: false;
 }
 export interface LatestReport {
-  state:
-    "reported" | "unavailable" | "no_held_report" | "ambiguous_latest_report";
+  state: 'reported' | 'unavailable' | 'no_held_report' | 'ambiguous_latest_report';
   report_key: string | null;
   figures: ReportFigures | null;
   period_start?: string | null;
@@ -388,7 +381,7 @@ export interface LatestReport {
 export interface CheckedAccount {
   registration_number: string;
   committee_name: string | null;
-  authority: "mn_cfb";
+  authority: 'mn_cfb';
   decision_id: number;
   period_start: string;
   period_end: string;
@@ -402,23 +395,19 @@ export interface AccountGap {
   registration_number: string;
   authority?: string;
   state:
-    | "withdrawn"
-    | "rejected"
-    | "identity_changed"
-    | "sources_unavailable"
-    | "period_not_covered";
+    'withdrawn' | 'rejected' | 'identity_changed' | 'sources_unavailable' | 'period_not_covered';
 }
 export interface CandidateFinanceCoverage {
   state:
-    | "matched"
-    | "write_in_aggregate"
-    | "collection_unavailable"
-    | "candidate_source_identity_unavailable"
-    | "ambiguous_coverage"
-    | "not_in_collection_roster"
-    | "roster_source_unavailable"
-    | "roster_version_mismatch"
-    | "candidate_identity_mismatch";
+    | 'matched'
+    | 'write_in_aggregate'
+    | 'collection_unavailable'
+    | 'candidate_source_identity_unavailable'
+    | 'ambiguous_coverage'
+    | 'not_in_collection_roster'
+    | 'roster_source_unavailable'
+    | 'roster_version_mismatch'
+    | 'candidate_identity_mismatch';
   collection_id?: string;
   candidate_id?: string;
   stable_id?: string;
@@ -431,7 +420,7 @@ export interface CandidateFinanceCoverage {
   source_row?: number;
   municipal_fips_code?: string | null;
   school_district_number?: string | null;
-  authority?: "board" | "federal" | "county_local";
+  authority?: 'board' | 'federal' | 'county_local';
   authority_scope?: string;
   outside_support_scope?: string;
   link_state?: string;
@@ -453,11 +442,11 @@ export interface FinanceCandidate extends ResultCandidate {
   account_gaps: AccountGap[];
   accounts: CheckedAccount[];
   finance_coverage: CandidateFinanceCoverage;
-  report_state: AccountState | "not_collected";
+  report_state: AccountState | 'not_collected';
   outside_spending: CandidateOutsideSpending;
 }
 export interface SectionAvailability {
-  state: "available" | "unavailable";
+  state: 'available' | 'unavailable';
   reason: string | null;
 }
 export interface FinanceContext {
@@ -473,7 +462,7 @@ export interface FinanceContext {
   payment_version: string;
   payment_source: PaymentSource | null;
   copied_at: string | null;
-  currency: "USD";
+  currency: 'USD';
   complete_election_spending: false;
   sources: RetainedSource[];
   coverage: Coverage | null;
@@ -495,29 +484,21 @@ export interface CandidateOutsideRecordsAnswer extends FinanceContext {
   page: Page;
 }
 
-const root = (electionKey: string) => ["finance", "elections", electionKey];
-const race = (electionKey: string, raceId: string) => [
-  ...root(electionKey),
-  "races",
-  raceId,
-];
-export const electionsPath = () => apiPath(["finance", "elections"]);
+const root = (electionKey: string) => ['finance', 'elections', electionKey];
+const race = (electionKey: string, raceId: string) => [...root(electionKey), 'races', raceId];
+export const electionsPath = () => apiPath(['finance', 'elections']);
 export function electionRacesPath(
   electionKey: string,
   options: PageQuery & { snapshotId?: string | null; query?: string } = {},
 ) {
-  return apiPath([...root(electionKey), "races"], {
+  return apiPath([...root(electionKey), 'races'], {
     snapshot_id: options.snapshotId,
     q: options.query,
     limit: options.limit,
     offset: options.offset,
   });
 }
-export function electionRacePath(
-  electionKey: string,
-  raceId: string,
-  snapshotId?: string | null,
-) {
+export function electionRacePath(electionKey: string, raceId: string, snapshotId?: string | null) {
   return apiPath(race(electionKey, raceId), { snapshot_id: snapshotId });
 }
 export function electionPrecinctsPath(
@@ -529,7 +510,7 @@ export function electionPrecinctsPath(
     county?: string | null;
   },
 ) {
-  return apiPath([...race(electionKey, raceId), "precincts"], {
+  return apiPath([...race(electionKey, raceId), 'precincts'], {
     snapshot_id: options.snapshotId,
     q: options.query,
     county: options.county,
@@ -542,7 +523,7 @@ export function electionFinancePath(
   raceId: string,
   options: { snapshotId?: string | null; version?: string | null } = {},
 ) {
-  return apiPath([...race(electionKey, raceId), "finance"], {
+  return apiPath([...race(electionKey, raceId), 'finance'], {
     snapshot_id: options.snapshotId,
     version: options.version,
   });
@@ -559,10 +540,10 @@ function spendingQuery(filters: SpendingFilters) {
  * an exact filter here, so restore only those 2 explicitly requested blanks. */
 function spendingPath(parts: string[], query: Parameters<typeof apiPath>[1]) {
   const built = apiPath(parts, query);
-  const [path, search = ""] = built.split("?");
+  const [path, search = ''] = built.split('?');
   const params = new URLSearchParams(search);
-  for (const key of ["spender_registration", "target_registration"]) {
-    if (query?.[key] === "") params.set(key, "");
+  for (const key of ['spender_registration', 'target_registration']) {
+    if (query?.[key] === '') params.set(key, '');
   }
   return params.size ? `${path}?${params}` : path;
 }
@@ -574,7 +555,7 @@ export function electionOutsideSpendingPath(
     releaseId?: string | null;
   } = {},
 ) {
-  return spendingPath([...root(electionKey), "outside-spending"], {
+  return spendingPath([...root(electionKey), 'outside-spending'], {
     election_snapshot_id: options.snapshotId,
     version: options.version,
     release_id: options.releaseId,
@@ -588,10 +569,10 @@ export function electionOutsideRecordsPath(
       version: string;
       releaseId: string;
       snapshotId?: string | null;
-      scope?: "year" | "missing_year";
+      scope?: 'year' | 'missing_year';
     },
 ) {
-  return spendingPath([...root(electionKey), "outside-spending", "records"], {
+  return spendingPath([...root(electionKey), 'outside-spending', 'records'], {
     election_snapshot_id: options.snapshotId,
     version: options.version,
     release_id: options.releaseId,
@@ -610,17 +591,11 @@ export function candidateOutsideRecordsPath(
     version: string;
     spenderType?: SpenderType;
     direction?: SpendingDirection;
-    scope?: "attributed" | "outside_reviewed_period";
+    scope?: 'attributed' | 'outside_reviewed_period';
   },
 ) {
   return apiPath(
-    [
-      ...race(electionKey, raceId),
-      "finance",
-      "candidates",
-      candidateId,
-      "outside-spending",
-    ],
+    [...race(electionKey, raceId), 'finance', 'candidates', candidateId, 'outside-spending'],
     {
       snapshot_id: options.snapshotId,
       version: options.version,
@@ -632,12 +607,8 @@ export function candidateOutsideRecordsPath(
     },
   );
 }
-export function electionSourcePath(
-  electionKey: string,
-  sourceHash: string,
-  snapshotId: string,
-) {
-  return apiPath([...root(electionKey), "sources", sourceHash], {
+export function electionSourcePath(electionKey: string, sourceHash: string, snapshotId: string) {
+  return apiPath([...root(electionKey), 'sources', sourceHash], {
     snapshot_id: snapshotId,
   });
 }
@@ -647,7 +618,7 @@ export function spendingSourcePath(
   version: string,
   releaseId: string,
 ) {
-  return apiPath([...root(electionKey), "outside-spending", "source"], {
+  return apiPath([...root(electionKey), 'outside-spending', 'source'], {
     election_snapshot_id: snapshotId,
     version,
     release_id: releaseId,
@@ -659,7 +630,7 @@ export function electionSourceLinesPath(
   snapshotId: string,
   options: LineQuery = {},
 ) {
-  return apiPath([...root(electionKey), "sources", sourceHash, "lines"], {
+  return apiPath([...root(electionKey), 'sources', sourceHash, 'lines'], {
     snapshot_id: snapshotId,
     ...options,
   });
@@ -669,21 +640,14 @@ export function financeReportSourcePath(
   documentHash: string,
   collectionId: string,
 ) {
-  return apiPath([...root(electionKey), "finance", "sources", documentHash], {
+  return apiPath([...root(electionKey), 'finance', 'sources', documentHash], {
     collection_id: collectionId,
   });
 }
-export function financeSourcePath(
-  electionKey: string,
-  sourceHash: string,
-  collectionId: string,
-) {
-  return apiPath(
-    [...root(electionKey), "finance", "sources", sourceHash, "raw"],
-    {
-      collection_id: collectionId,
-    },
-  );
+export function financeSourcePath(electionKey: string, sourceHash: string, collectionId: string) {
+  return apiPath([...root(electionKey), 'finance', 'sources', sourceHash, 'raw'], {
+    collection_id: collectionId,
+  });
 }
 export function financeSourceLinesPath(
   electionKey: string,
@@ -691,39 +655,30 @@ export function financeSourceLinesPath(
   collectionId: string,
   options: LineQuery = {},
 ) {
-  return apiPath(
-    [...root(electionKey), "finance", "sources", sourceHash, "lines"],
-    {
-      collection_id: collectionId,
-      ...options,
-    },
-  );
+  return apiPath([...root(electionKey), 'finance', 'sources', sourceHash, 'lines'], {
+    collection_id: collectionId,
+    ...options,
+  });
 }
 /** Derive the authenticated API path from proved historical membership. Never
  * fetch an arbitrary retained_source_url or guess the selected election instead. */
 export function accountEvidencePath(
   evidence: AccountEvidence,
-  mode: "raw" | "lines" = "raw",
+  mode: 'raw' | 'lines' = 'raw',
   options: LineQuery = {},
 ): string | null {
   const hash = /^[a-f0-9]{64}$/;
   if (
-    evidence.source_state !== "available" ||
+    evidence.source_state !== 'available' ||
     !evidence.collection_id ||
     !hash.test(evidence.collection_id) ||
     !hash.test(evidence.sha256) ||
     !evidence.source_election_key ||
-    !/^mn-\d{4}-\d{2}-\d{2}-(general|primary|special)$/.test(
-      evidence.source_election_key,
-    )
+    !/^mn-\d{4}-\d{2}-\d{2}-(general|primary|special)$/.test(evidence.source_election_key)
   )
     return null;
-  return mode === "raw"
-    ? financeSourcePath(
-        evidence.source_election_key,
-        evidence.sha256,
-        evidence.collection_id,
-      )
+  return mode === 'raw'
+    ? financeSourcePath(evidence.source_election_key, evidence.sha256, evidence.collection_id)
     : financeSourceLinesPath(
         evidence.source_election_key,
         evidence.sha256,
@@ -734,9 +689,9 @@ export function accountEvidencePath(
 /** Do not replace an unavailable total with its known subtotal, or parse a dollar
  * string through Number before the existing display formatter receives it. */
 export function reportedAmount(
-  measure: Pick<SpendingMeasure, "state" | "amount"> | null | undefined,
+  measure: Pick<SpendingMeasure, 'state' | 'amount'> | null | undefined,
 ): DecimalUSD | null {
-  return measure?.state === "reported" ? measure.amount : null;
+  return measure?.state === 'reported' ? measure.amount : null;
 }
 
 /** Export the displayed scope, not just its visible precinct page. */
@@ -751,19 +706,13 @@ export function raceCsvPath(
   },
 ) {
   const params = new URLSearchParams({ snapshot_id: detail.snapshot_id });
-  if (options.version) params.set("version", options.version);
+  if (options.version) params.set('version', options.version);
   if (detail.race.outcome_review?.version)
-    params.set("outcome_version", detail.race.outcome_review.version);
-  if (options.query) params.set("q", options.query);
-  for (const report of [...new Set(options.reports)])
-    params.append("report_key", report);
-  if (options.externalGeneration)
-    params.set("external_generation_id", options.externalGeneration);
+    params.set('outcome_version', detail.race.outcome_review.version);
+  if (options.query) params.set('q', options.query);
+  for (const report of [...new Set(options.reports)]) params.append('report_key', report);
+  if (options.externalGeneration) params.set('external_generation_id', options.externalGeneration);
   for (const [candidate, version] of options.externalVersions ?? [])
-    params.append("external_version", `${candidate}:${version}`);
-  return (
-    apiPath([...race(detail.election_key, detail.race.id), "export.csv"]) +
-    "?" +
-    params
-  );
+    params.append('external_version', `${candidate}:${version}`);
+  return apiPath([...race(detail.election_key, detail.race.id), 'export.csv']) + '?' + params;
 }

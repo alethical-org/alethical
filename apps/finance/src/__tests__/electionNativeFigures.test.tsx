@@ -1,17 +1,17 @@
-import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   AuthorityFigures,
   AuthorityComparisons,
   authorityEvidence,
-} from "../pages/elections/expenseExternal";
-vi.mock("../ui/band", () => ({ useBand: () => "desktop" }));
+} from '../pages/elections/expenseExternal';
+vi.mock('../ui/band', () => ({ useBand: () => 'desktop' }));
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 beforeEach(() => {
-  container = document.createElement("div");
+  container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
 });
@@ -20,38 +20,35 @@ afterEach(async () => {
   container.remove();
 });
 const binding = {
-  source_sha256: "a".repeat(64),
+  source_sha256: 'a'.repeat(64),
   locator: { row: 2 },
-  quote: "literal source",
+  quote: 'literal source',
 };
-const native = (
-  key = "b".repeat(64),
-  classification = "single_ballot_party",
-) => ({
-  authority: "fec",
-  authority_name: "Federal Election Commission",
-  account_id: "C00000001",
-  account_name: "Synthetic committee",
+const native = (key = 'b'.repeat(64), classification = 'single_ballot_party') => ({
+  authority: 'fec',
+  authority_name: 'Federal Election Commission',
+  account_id: 'C00000001',
+  account_name: 'Synthetic committee',
   report_key: key,
-  source_report_id: "101",
-  report_type: "F3:Q3",
-  series_id: "period",
+  source_report_id: '101',
+  report_type: 'F3:Q3',
+  series_id: 'period',
   predecessor_report_key: null,
   effective: true,
-  period_start: "2026-07-01",
-  period_end: "2026-09-30",
-  received_date: "2026-10-15",
-  check_status: "checked",
+  period_start: '2026-07-01',
+  period_end: '2026-09-30',
+  received_date: '2026-10-15',
+  check_status: 'checked',
   sources: [binding],
   reported_measures: [
     {
-      measure: "total_disbursements",
-      label: "Disbursements this period",
-      value: "12.99",
-      unit: "money",
-      currency: "CAD",
-      period_start: "2026-07-01",
-      period_end: "2026-09-30",
+      measure: 'total_disbursements',
+      label: 'Disbursements this period',
+      value: '12.99',
+      unit: 'money',
+      currency: 'CAD',
+      period_start: '2026-07-01',
+      period_end: '2026-09-30',
       sources: [binding],
     },
   ],
@@ -60,100 +57,81 @@ const native = (
   memo_detail_count: 0,
   claims: [],
   display_claims: [],
-  party_group: "unknown",
+  party_group: 'unknown',
   party_classification_state: classification,
 });
-it("keeps source currency and display truncation on a native cover figure", async () => {
+it('keeps source currency and display truncation on a native cover figure', async () => {
   const account = native();
   await act(async () =>
-    root.render(
-      <AuthorityFigures
-        account={account as any}
-        enabled
-        showSource={() => {}}
-      />,
-    ),
+    root.render(<AuthorityFigures account={account as any} enabled showSource={() => {}} />),
   );
-  expect(container.textContent).toContain("12 CAD");
-  expect(container.textContent).not.toContain("12.99");
+  expect(container.textContent).toContain('12 CAD');
+  expect(container.textContent).not.toContain('12.99');
 });
-it("keeps the same currency visible in the exact figure evidence panel", () => {
+it('keeps the same currency visible in the exact figure evidence panel', () => {
   const account = native();
   const evidence = authorityEvidence(
     {
-      election_key: "mn-2026-11-03-general",
-      external_generation_id: "c".repeat(64),
+      election_key: 'mn-2026-11-03-general',
+      external_generation_id: 'c'.repeat(64),
     } as any,
     account as any,
     `external-report:${account.report_key}:figure.0:0`,
   );
-  const money = evidence!.evidence.rows.find(
-    (row) => row.label === "Disbursements this period",
-  );
-  expect(money!.value).toBe("12 CAD");
+  const money = evidence!.evidence.rows.find((row) => row.label === 'Disbursements this period');
+  expect(money!.value).toBe('12 CAD');
 });
-it("does not describe mixed-party account money as missing candidate party", async () => {
-  const mixed = native("b".repeat(64), "mixed_ballot_parties");
+it('does not describe mixed-party account money as missing candidate party', async () => {
+  const mixed = native('b'.repeat(64), 'mixed_ballot_parties');
   const unknown = {
-    ...native("d".repeat(64), "ballot_party_not_in_source"),
-    account_id: "C00000002",
+    ...native('d'.repeat(64), 'ballot_party_not_in_source'),
+    account_id: 'C00000002',
   };
   const claim = (id: string, party: string) => ({
-    race_id: "race",
+    race_id: 'race',
     candidate_id: id,
     name: id,
-    filed_party: party === "unknown" ? null : party,
+    filed_party: party === 'unknown' ? null : party,
     party_group: party,
   });
-  mixed.claims = [
-    claim("candidate-r", "R"),
-    claim("candidate-dfl", "DFL"),
-  ] as any;
+  mixed.claims = [claim('candidate-r', 'R'), claim('candidate-dfl', 'DFL')] as any;
   mixed.display_claims = mixed.claims;
-  unknown.claims = [claim("candidate-unknown", "unknown")] as any;
+  unknown.claims = [claim('candidate-unknown', 'unknown')] as any;
   unknown.display_claims = unknown.claims;
   const summary = (report: any, amount: string) => ({
     authority: report.authority,
     authority_name: report.authority_name,
     account_id: report.account_id,
     report_key: report.report_key,
-    measure: "fec_schedule_b_disbursements",
-    label: "FEC Schedule B disbursements",
-    basis: "itemized_schedule_b",
-    currency: "USD",
+    measure: 'fec_schedule_b_disbursements',
+    label: 'FEC Schedule B disbursements',
+    basis: 'itemized_schedule_b',
+    currency: 'USD',
     period_start: report.period_start,
     period_end: report.period_end,
     baseline: amount,
     adjusted: amount,
     by_party: {
-      R: { baseline: "0.00", adjusted: "0.00" },
-      DFL: { baseline: "0.00", adjusted: "0.00" },
-      NP: { baseline: "0.00", adjusted: "0.00" },
-      other: { baseline: "0.00", adjusted: "0.00" },
+      R: { baseline: '0.00', adjusted: '0.00' },
+      DFL: { baseline: '0.00', adjusted: '0.00' },
+      NP: { baseline: '0.00', adjusted: '0.00' },
+      other: { baseline: '0.00', adjusted: '0.00' },
       unknown: { baseline: amount, adjusted: amount },
     },
     by_filed_address: {},
   });
   const data = {
     authority_reports: [mixed, unknown],
-    authority_summary: [summary(mixed, "100.00"), summary(unknown, "200.00")],
+    authority_summary: [summary(mixed, '100.00'), summary(unknown, '200.00')],
   };
-  await act(async () =>
-    root.render(<AuthorityComparisons data={data as any} />),
-  );
-  const rows = Array.from(container.querySelectorAll("tr"));
+  await act(async () => root.render(<AuthorityComparisons data={data as any} />));
+  const rows = Array.from(container.querySelectorAll('tr'));
   const unassigned = rows.find(
-    (row) =>
-      row.querySelector("th")?.textContent === "Party cannot be assigned",
+    (row) => row.querySelector('th')?.textContent === 'Party cannot be assigned',
   );
-  expect(
-    unassigned,
-    "mixed-account money requires its own existing party label",
-  ).toBeTruthy();
-  expect(unassigned!.textContent).toContain("$100");
-  const missing = rows.find(
-    (row) => row.querySelector("th")?.textContent === "Party not reported",
-  );
-  expect(missing!.textContent).toContain("$200");
-  expect(missing!.textContent).not.toContain("$300");
+  expect(unassigned, 'mixed-account money requires its own existing party label').toBeTruthy();
+  expect(unassigned!.textContent).toContain('$100');
+  const missing = rows.find((row) => row.querySelector('th')?.textContent === 'Party not reported');
+  expect(missing!.textContent).toContain('$200');
+  expect(missing!.textContent).not.toContain('$300');
 });

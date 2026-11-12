@@ -1,35 +1,29 @@
-import { useEffect, useId, useState } from "react";
-import { useRead } from "../../api/read";
-import { Caret, Refused, Updating } from "../../ui/controls";
-import { LoadingLine } from "../../ui/parts";
-import { RetainedEvidence, type ElectionEvidence } from "./Evidence";
-import type { RaceAnswer, ResultCandidate } from "./data";
-import {
-  count,
-  dateLabel,
-  reportedFigureLabel,
-  reportedMoneyLabel,
-  periodLabel,
-} from "./format";
-import * as x from "./externalData";
+import { useEffect, useId, useState } from 'react';
+import { useRead } from '../../api/read';
+import { Caret, Refused, Updating } from '../../ui/controls';
+import { LoadingLine } from '../../ui/parts';
+import { RetainedEvidence, type ElectionEvidence } from './Evidence';
+import type { RaceAnswer, ResultCandidate } from './data';
+import { count, dateLabel, reportedFigureLabel, reportedMoneyLabel, periodLabel } from './format';
+import * as x from './externalData';
 
 export interface ExternalStatus {
-  state: "loading" | "failed" | "changed" | "missing" | "ready";
+  state: 'loading' | 'failed' | 'changed' | 'missing' | 'ready';
   generation?: string;
   version?: string;
   selectedReports?: string[];
 }
 const position = (value: string) =>
   ({
-    direct_contribution: "Direct contribution",
-    independent_for: "Independent spending for",
-    independent_against: "Independent spending against",
-    coordinated_party: "Coordinated party spending",
-    communication_cost: "Communication cost",
-    electioneering: "Electioneering communication",
-    other: "Other transaction",
-    unknown: "Position not stated",
-  })[value] ?? "Position not stated";
+    direct_contribution: 'Direct contribution',
+    independent_for: 'Independent spending for',
+    independent_against: 'Independent spending against',
+    coordinated_party: 'Coordinated party spending',
+    communication_cost: 'Communication cost',
+    electioneering: 'Electioneering communication',
+    other: 'Other transaction',
+    unknown: 'Position not stated',
+  })[value] ?? 'Position not stated';
 
 /** Same campaign-card and source-panel patterns, with each authority's own
  * measures. A Board read is never a prerequisite for an external filing. */
@@ -54,11 +48,7 @@ export function ExternalCandidate({
   onStatus: (candidate: string, value: ExternalStatus) => void;
   reload: () => void;
 }) {
-  const path = x.externalCandidatePath(
-    detail.election_key,
-    detail.race.id,
-    candidate.candidate_id,
-  );
+  const path = x.externalCandidatePath(detail.election_key, detail.race.id, candidate.candidate_id);
   const read = useRead<x.ExternalCandidate>(path, {
     revision,
     keepPrevious: true,
@@ -69,43 +59,32 @@ export function ExternalCandidate({
   const selectedKeys =
     data?.accounts.flatMap((account) => {
       const reports = data.reports.filter(
-        (r) =>
-          r.authority === account.authority &&
-          r.account_id === account.account_id,
+        (r) => r.authority === account.authority && r.account_id === account.account_id,
       );
-      const report =
-        choices &&
-        x.chosenReport(reports, choices.get(x.accountKey(account)) ?? null);
+      const report = choices && x.chosenReport(reports, choices.get(x.accountKey(account)) ?? null);
       return report ? [report.report_key] : [];
     }) ?? [];
-  const state: ExternalStatus["state"] =
+  const state: ExternalStatus['state'] =
     read.changed || snapshotChanged
-      ? "changed"
+      ? 'changed'
       : read.failed
-        ? "failed"
+        ? 'failed'
         : read.pending
-          ? "loading"
+          ? 'loading'
           : read.notFound
-            ? "missing"
+            ? 'missing'
             : data
-              ? "ready"
-              : "loading";
-  const selectionStamp = selectedKeys.join(",");
+              ? 'ready'
+              : 'loading';
+  const selectionStamp = selectedKeys.join(',');
   useEffect(() => {
     onStatus(candidate.candidate_id, {
       state,
       generation: data?.generation_id,
       version: data?.version,
-      selectedReports: selectionStamp ? selectionStamp.split(",") : [],
+      selectedReports: selectionStamp ? selectionStamp.split(',') : [],
     });
-  }, [
-    candidate.candidate_id,
-    state,
-    data?.generation_id,
-    data?.version,
-    selectionStamp,
-    onStatus,
-  ]);
+  }, [candidate.candidate_id, state, data?.generation_id, data?.version, selectionStamp, onStatus]);
   const [page, setPage] = useState(1);
   const [paymentsOpen, setPaymentsOpen] = useState(false);
   useEffect(() => {
@@ -117,39 +96,31 @@ export function ExternalCandidate({
     onSource(`${prefix}${kind}:${key}:${index}`);
   }
   const authority = (key: string) =>
-    data?.authorities.find((a) => a.key === key)?.name ??
-    "Filing authority unavailable";
-  const sourceParts = source.startsWith(prefix)
-    ? source.slice(prefix.length).split(":")
-    : [];
+    data?.authorities.find((a) => a.key === key)?.name ?? 'Filing authority unavailable';
+  const sourceParts = source.startsWith(prefix) ? source.slice(prefix.length).split(':') : [];
   let evidence: ElectionEvidence | null = null;
   if (data && !snapshotChanged && !read.changed && sourceParts.length === 3) {
     const [kind, key, index] = sourceParts;
-    const [reportKey, figureIndex] = key.split(".");
+    const [reportKey, figureIndex] = key.split('.');
     const report =
-      kind === "report" || kind === "figure"
+      kind === 'report' || kind === 'figure'
         ? data.reports.find((r) => r.report_key === reportKey)
         : undefined;
     const figure =
-      kind === "figure" && /^\d+$/.test(figureIndex ?? "")
+      kind === 'figure' && /^\d+$/.test(figureIndex ?? '')
         ? report?.figures?.[Number(figureIndex)]
         : undefined;
     const payment =
-      kind === "payment"
-        ? data.payments.find((p) => p.payment_key === key)
-        : undefined;
+      kind === 'payment' ? data.payments.find((p) => p.payment_key === key) : undefined;
     const bindings =
       figure?.sources ??
       report?.sources ??
       payment?.sources ??
-      (kind === "coverage" ? data.coverage.sources : undefined);
+      (kind === 'coverage' ? data.coverage.sources : undefined);
     const binding = bindings?.[Number(index)];
     if (binding && /^\d+$/.test(index)) {
       evidence = {
-        pdfPage:
-          typeof binding.locator.page === "number"
-            ? binding.locator.page
-            : undefined,
+        pdfPage: typeof binding.locator.page === 'number' ? binding.locator.page : undefined,
         attachment: x.externalSourcePath(data, binding.source_sha256),
         evidence: {
           title: figure
@@ -157,27 +128,24 @@ export function ExternalCandidate({
             : payment
               ? `${position(payment.direction)} · ${candidate.name}`
               : report
-                ? `Report ${report.source_report_id ?? report.report_type ?? ""}`
+                ? `Report ${report.source_report_id ?? report.report_type ?? ''}`
                 : candidate.name,
           authority: authority(
-            report?.authority ??
-              payment?.authority ??
-              data.coverage.authority ??
-              "",
+            report?.authority ?? payment?.authority ?? data.coverage.authority ?? '',
           ),
           quote: binding.quote,
-          checked: "Checked",
+          checked: 'Checked',
           rows: [
             {
-              label: "Source",
+              label: 'Source',
               value: Object.entries(binding.locator)
-                .map(([k, v]) => `${k.replaceAll("_", " ")} ${v}`)
-                .join(" · "),
+                .map(([k, v]) => `${k.replaceAll('_', ' ')} ${v}`)
+                .join(' · '),
             },
             ...(report || payment
               ? [
                   {
-                    label: "Reporting period",
+                    label: 'Reporting period',
                     value: periodLabel(
                       (report ?? payment)!.period_start,
                       (report ?? payment)!.period_end,
@@ -186,34 +154,34 @@ export function ExternalCandidate({
                 ]
               : []),
             ...(report?.received_date
-              ? [{ label: "Received", value: dateLabel(report.received_date) }]
+              ? [{ label: 'Received', value: dateLabel(report.received_date) }]
               : []),
             ...(payment
               ? [
-                  { label: "Filing account", value: payment.account_id },
-                  { label: "Date", value: dateLabel(payment.date) },
+                  { label: 'Filing account', value: payment.account_id },
+                  { label: 'Date', value: dateLabel(payment.date) },
                   {
-                    label: "Amount",
+                    label: 'Amount',
                     value: reportedMoneyLabel(payment.amount, payment.currency),
                   },
                   {
-                    label: "Payee",
-                    value: x.payeeName(payment.payee) ?? "Not reported",
+                    label: 'Payee',
+                    value: x.payeeName(payment.payee) ?? 'Not reported',
                   },
                   {
-                    label: "Filed address",
-                    value: x.paymentAddress(payment) || "Unavailable",
+                    label: 'Filed address',
+                    value: x.paymentAddress(payment) || 'Unavailable',
                   },
                   {
-                    label: "Purpose",
-                    value: payment.purpose ?? "Not reported",
+                    label: 'Purpose',
+                    value: payment.purpose ?? 'Not reported',
                   },
-                  { label: "Type", value: payment.transaction_type },
+                  { label: 'Type', value: payment.transaction_type },
                   ...(payment.nonadditive
                     ? [
                         {
-                          label: "Status",
-                          value: "Supplemental memo, not added to spending",
+                          label: 'Status',
+                          value: 'Supplemental memo, not added to spending',
                         },
                       ]
                     : []),
@@ -222,7 +190,7 @@ export function ExternalCandidate({
             ...(binding.source_copied_at
               ? [
                   {
-                    label: "Copied",
+                    label: 'Copied',
                     value: dateLabel(binding.source_copied_at),
                   },
                 ]
@@ -237,9 +205,9 @@ export function ExternalCandidate({
       <h4>{candidate.name}</h4>
       {read.loading && <LoadingLine>Loading campaign reports…</LoadingLine>}
       {read.updating && <Updating />}
-      {state === "changed" && (
+      {state === 'changed' && (
         <div className="ec-notice" role="status">
-          These records changed{" "}
+          These records changed{' '}
           <button className="ec-button" onClick={reload}>
             Reload comparison
           </button>
@@ -247,36 +215,26 @@ export function ExternalCandidate({
       )}
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          {data
-            ? "Couldn’t update campaign reports"
-            : "Couldn’t load campaign reports"}
+          {data ? 'Couldn’t update campaign reports' : 'Couldn’t load campaign reports'}
         </Refused>
       )}
-      {read.notFound && (
-        <p className="ec-muted">Campaign reports unavailable</p>
-      )}
+      {read.notFound && <p className="ec-muted">Campaign reports unavailable</p>}
       {data && !snapshotChanged && (
         <>
-          {(read.failed || read.updating) && (
-            <p className="ec-muted">Showing previous records</p>
-          )}
+          {(read.failed || read.updating) && <p className="ec-muted">Showing previous records</p>}
           {!data.accounts.length && (
             <p className="ec-muted">{x.coverageLabel(data.coverage.status)}</p>
           )}
           {data.account_gaps.length > 0 && (
             <p className="ec-muted">
               {count(data.account_gaps.length)} account relationship
-              {data.account_gaps.length === 1 ? "" : "s"} not confirmed
+              {data.account_gaps.length === 1 ? '' : 's'} not confirmed
             </p>
           )}
           {data.coverage.sources?.map((_, i) => (
-            <button
-              key={i}
-              className="ec-link"
-              onClick={() => open("coverage", "record", i)}
-            >
+            <button key={i} className="ec-link" onClick={() => open('coverage', 'record', i)}>
               View filing status source
-              {data.coverage.sources!.length > 1 ? ` ${i + 1}` : ""}
+              {data.coverage.sources!.length > 1 ? ` ${i + 1}` : ''}
             </button>
           ))}
           {data.accounts.map((account) => (
@@ -284,22 +242,12 @@ export function ExternalCandidate({
               key={x.accountKey(account)}
               account={account}
               reports={data.reports.filter(
-                (r) =>
-                  r.authority === account.authority &&
-                  r.account_id === account.account_id,
+                (r) => r.authority === account.authority && r.account_id === account.account_id,
               )}
-              chosen={
-                choices
-                  ? (choices.get(x.accountKey(account)) ?? null)
-                  : "invalid"
-              }
+              chosen={choices ? (choices.get(x.accountKey(account)) ?? null) : 'invalid'}
               authority={authority(account.authority)}
-              onSelect={(key) =>
-                onSelect(x.selectReport(selected, account, key))
-              }
-              onSource={(key, index, kind) =>
-                open(kind ?? "report", key, index)
-              }
+              onSelect={(key) => onSelect(x.selectReport(selected, account, key))}
+              onSource={(key, index, kind) => open(kind ?? 'report', key, index)}
             />
           ))}
           <div className="ec-report-history">
@@ -317,71 +265,54 @@ export function ExternalCandidate({
                 aria-label={`Spending and support for ${candidate.name}`}
               >
                 <h5>Spending and support</h5>
-                {!payments.length && (
-                  <p className="ec-muted">No checked payment records</p>
-                )}
+                {!payments.length && <p className="ec-muted">No checked payment records</p>}
                 <ul className="ec-external-payments">
                   {payments.slice((page - 1) * 50, page * 50).map((payment) => (
                     <li key={payment.payment_key}>
                       <strong>
-                        {position(payment.direction)} ·{" "}
+                        {position(payment.direction)} ·{' '}
                         {reportedMoneyLabel(payment.amount, payment.currency)}
                       </strong>
                       <p>
-                        {dateLabel(payment.date)} · Filing account{" "}
-                        {payment.account_id}
+                        {dateLabel(payment.date)} · Filing account {payment.account_id}
                       </p>
-                      {x.payeeName(payment.payee) && (
-                        <p>{x.payeeName(payment.payee)}</p>
-                      )}
-                      {x.paymentAddress(payment) && (
-                        <p>{x.paymentAddress(payment)}</p>
-                      )}
+                      {x.payeeName(payment.payee) && <p>{x.payeeName(payment.payee)}</p>}
+                      {x.paymentAddress(payment) && <p>{x.paymentAddress(payment)}</p>}
                       {payment.purpose && <p>{payment.purpose}</p>}
                       <p className="ec-muted">
-                        {authority(payment.authority)} ·{" "}
-                        {payment.transaction_type}
+                        {authority(payment.authority)} · {payment.transaction_type}
                       </p>
                       <p className="ec-muted">
                         {periodLabel(payment.period_start, payment.period_end)}
                       </p>
                       {payment.nonadditive && (
-                        <p className="ec-muted">
-                          Supplemental memo, not added to spending
-                        </p>
+                        <p className="ec-muted">Supplemental memo, not added to spending</p>
                       )}
                       {payment.sources.map((_, i) => (
                         <button
                           key={i}
                           className="ec-link"
-                          onClick={() =>
-                            open("payment", payment.payment_key, i)
-                          }
+                          onClick={() => open('payment', payment.payment_key, i)}
                         >
                           View source
-                          {payment.sources.length > 1 ? ` ${i + 1}` : ""}
+                          {payment.sources.length > 1 ? ` ${i + 1}` : ''}
                         </button>
                       ))}
                     </li>
                   ))}
                 </ul>
                 {payments.length > 50 && (
-                  <nav
-                    className="ec-pager"
-                    aria-label={`Payment pages for ${candidate.name}`}
-                  >
+                  <nav className="ec-pager" aria-label={`Payment pages for ${candidate.name}`}>
                     <button
                       className="ec-button"
                       disabled={page === 1}
                       onClick={(e) => {
                         setPage(page - 1);
-                        const h = e.currentTarget
-                          .closest("section")
-                          ?.querySelector("h5");
+                        const h = e.currentTarget.closest('section')?.querySelector('h5');
                         if (h) {
                           h.tabIndex = -1;
                           h.focus();
-                          h.scrollIntoView?.({ block: "start" });
+                          h.scrollIntoView?.({ block: 'start' });
                         }
                       }}
                     >
@@ -395,13 +326,11 @@ export function ExternalCandidate({
                       disabled={page * 50 >= payments.length}
                       onClick={(e) => {
                         setPage(page + 1);
-                        const h = e.currentTarget
-                          .closest("section")
-                          ?.querySelector("h5");
+                        const h = e.currentTarget.closest('section')?.querySelector('h5');
                         if (h) {
                           h.tabIndex = -1;
                           h.focus();
-                          h.scrollIntoView?.({ block: "start" });
+                          h.scrollIntoView?.({ block: 'start' });
                         }
                       }}
                     >
@@ -413,8 +342,8 @@ export function ExternalCandidate({
             )}
           </div>
           <p className="ec-muted">
-            Each report keeps its own measures and dates. Overlapping reports
-            and supplemental memos are not added.
+            Each report keeps its own measures and dates. Overlapping reports and supplemental memos
+            are not added.
           </p>
           <p className="ec-muted">Copied {dateLabel(data.copied_at)}</p>
         </>
@@ -425,18 +354,18 @@ export function ExternalCandidate({
             evidence ?? {
               attachment: null,
               evidence: {
-                title: "Source evidence",
-                authority: "",
+                title: 'Source evidence',
+                authority: '',
                 rows: [
                   {
-                    label: "Availability",
-                    value: read.pending ? "Loading…" : "Source unavailable",
+                    label: 'Availability',
+                    value: read.pending ? 'Loading…' : 'Source unavailable',
                   },
                 ],
               },
             }
           }
-          onClose={() => onSource("")}
+          onClose={() => onSource('')}
           onReload={reload}
         />
       )}
@@ -467,17 +396,13 @@ function ExternalAccount({
     <div className="ec-account">
       <strong>{account.name}</strong>
       <p className="ec-muted">
-        {authority} · {account.account_id} · Checked{" "}
-        {dateLabel(account.checked_on)}
+        {authority} · {account.account_id} · Checked {dateLabel(account.checked_on)}
       </p>
       {report ? (
         <>
           <p className="ec-period ec-muted">
-            {report.report_type} ·{" "}
-            {periodLabel(report.period_start, report.period_end)}
-            {report.received_date
-              ? ` · Received ${dateLabel(report.received_date)}`
-              : ""}
+            {report.report_type} · {periodLabel(report.period_start, report.period_end)}
+            {report.received_date ? ` · Received ${dateLabel(report.received_date)}` : ''}
           </p>
           {report.figures?.length ? (
             <dl className="ec-external-figures">
@@ -495,13 +420,7 @@ function ExternalAccount({
                       <button
                         className="ec-link ec-filing-period"
                         key={sourceIndex}
-                        onClick={() =>
-                          onSource(
-                            `${report.report_key}.${i}`,
-                            sourceIndex,
-                            "figure",
-                          )
-                        }
+                        onClick={() => onSource(`${report.report_key}.${i}`, sourceIndex, 'figure')}
                       >
                         View source
                         <span className="ec-sr-only"> for {figure.label}</span>
@@ -515,27 +434,21 @@ function ExternalAccount({
             <p className="ec-muted">{x.coverageLabel(report.check_status)}</p>
           )}
           {!!report.withheld_measures?.length && (
-            <p className="ec-muted">
-              Some figures fall outside the checked account dates
-            </p>
+            <p className="ec-muted">Some figures fall outside the checked account dates</p>
           )}
           {report.sources.map((_, i) => (
-            <button
-              className="ec-link"
-              key={i}
-              onClick={() => onSource(report.report_key, i)}
-            >
-              View report{report.sources.length > 1 ? ` ${i + 1}` : ""}
+            <button className="ec-link" key={i} onClick={() => onSource(report.report_key, i)}>
+              View report{report.sources.length > 1 ? ` ${i + 1}` : ''}
             </button>
           ))}
         </>
       ) : (
         <p className="ec-muted">
           {chosen
-            ? "Selected report is unavailable"
+            ? 'Selected report is unavailable'
             : effective.length
-              ? "The latest report is not resolved"
-              : "Report figures not held"}
+              ? 'The latest report is not resolved'
+              : 'Report figures not held'}
         </p>
       )}
       {reports.length > 0 && (
@@ -561,35 +474,30 @@ function ExternalAccount({
                       onChange={() => onSelect(r.report_key)}
                     />
                     <span>
-                      {r.report_type ?? "Report"} {r.source_report_id}
+                      {r.report_type ?? 'Report'} {r.source_report_id}
                       <span className="ec-filing-period">
                         {periodLabel(r.period_start, r.period_end)}
                       </span>
                       <span className="ec-filing-period ec-muted">
                         {r.received_date
                           ? `Received ${dateLabel(r.received_date)}`
-                          : "Received date unavailable"}
+                          : 'Received date unavailable'}
                       </span>
                     </span>
                   </label>
                 ) : (
                   <p>
-                    {r.report_type ?? "Report"} {r.source_report_id} · Earlier
-                    version
+                    {r.report_type ?? 'Report'} {r.source_report_id} · Earlier version
                   </p>
                 )}
                 <p className="ec-muted">
-                  {r.check_status === "checked"
-                    ? "Report figures available"
+                  {r.check_status === 'checked'
+                    ? 'Report figures available'
                     : x.coverageLabel(r.check_status)}
                 </p>
                 {r.sources.map((_, i) => (
-                  <button
-                    key={i}
-                    className="ec-link"
-                    onClick={() => onSource(r.report_key, i)}
-                  >
-                    View report{r.sources.length > 1 ? ` ${i + 1}` : ""}
+                  <button key={i} className="ec-link" onClick={() => onSource(r.report_key, i)}>
+                    View report{r.sources.length > 1 ? ` ${i + 1}` : ''}
                   </button>
                 ))}
               </li>

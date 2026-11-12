@@ -1,23 +1,21 @@
-import { apiPath } from "../../api/read";
-import type { Page } from "./data";
-import type { Binding } from "./externalData";
+import { apiPath } from '../../api/read';
+import type { Page } from './data';
+import type { Binding } from './externalData';
 
 export type Metric =
-  | "direct_contributions"
-  | "independent_For"
-  | "independent_Against"
-  | "independent_unknown"
-  | "other_receipts";
+  | 'direct_contributions'
+  | 'independent_For'
+  | 'independent_Against'
+  | 'independent_unknown'
+  | 'other_receipts';
 export interface Measure {
-  state: "no_records" | "amount_unavailable" | "reported";
+  state: 'no_records' | 'amount_unavailable' | 'reported';
   record_count: number;
   amount: string | null;
   known_amount_subtotal: string | null;
   missing_amount_count: number;
   withheld_reason?:
-    | "source_specific_reporting_periods"
-    | "source_currency_not_usd"
-    | "overlapping_source_periods";
+    'source_specific_reporting_periods' | 'source_currency_not_usd' | 'overlapping_source_periods';
 }
 export interface OutcomeCounts {
   candidacies: number;
@@ -88,7 +86,7 @@ export interface Funder {
     recorded_type: string | null;
     recorded_subtype: string | null;
   }>;
-  amounts: Record<Exclude<Metric, "other_receipts">, Measure>;
+  amounts: Record<Exclude<Metric, 'other_receipts'>, Measure>;
   supported_outcomes: OutcomeCounts;
   opposed_outcomes: OutcomeCounts;
   support_count_review: { state: string };
@@ -117,7 +115,7 @@ export interface Candidate {
   evidence: OutcomeEvidence[];
   candidate_source_sha256: string | null;
   candidate_source_row: number | null;
-  amounts: Record<Exclude<Metric, "other_receipts">, Measure>;
+  amounts: Record<Exclude<Metric, 'other_receipts'>, Measure>;
 }
 export interface Payment {
   currency?: string | null;
@@ -151,7 +149,7 @@ export interface Payment {
   source:
     | Source
     | {
-        source_family: "external";
+        source_family: 'external';
         generation_id: string;
         content_hash: string;
         source_sha256: string;
@@ -195,46 +193,43 @@ export interface RecordsAnswer extends Context {
 }
 export const PAGE_SIZE = 50;
 export const metricLabels: Record<Metric, string> = {
-  direct_contributions: "Direct contributions",
-  independent_For: "Independent spending for",
-  independent_Against: "Independent spending against",
-  independent_unknown: "Independent spending, position not stated",
-  other_receipts: "Other receipts",
+  direct_contributions: 'Direct contributions',
+  independent_For: 'Independent spending for',
+  independent_Against: 'Independent spending against',
+  independent_unknown: 'Independent spending, position not stated',
+  other_receipts: 'Other receipts',
 };
 export const resultLabel = (status: string) =>
   ({
-    unofficial: "Unofficial results",
-    certified: "Certified results",
-    recount: "Recount",
-    tie: "Tie",
-  })[status] ?? "Result status unavailable";
+    unofficial: 'Unofficial results',
+    certified: 'Certified results',
+    recount: 'Recount',
+    tie: 'Tie',
+  })[status] ?? 'Result status unavailable';
 export function analyticsPath(
   election: string,
-  section: "funders" | "candidates" | "records" | "export",
+  section: 'funders' | 'candidates' | 'records' | 'export',
   scope: Scope,
   pins?: Pins | null,
   offset = 0,
   extra: Record<string, string | number | undefined> = {},
 ) {
-  return apiPath(["finance", "elections", election, "analytics", section], {
+  return apiPath(['finance', 'elections', election, 'analytics', section], {
     ...scope,
     ...pins,
     limit: PAGE_SIZE,
     offset,
     ...extra,
-    ...(section === "export" ? { format: "csv" } : {}),
+    ...(section === 'export' ? { format: 'csv' } : {}),
   });
 }
 export function inputDate(value: string): string | null {
-  if (!value) return "";
+  if (!value) return '';
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
   if (!match) return null;
   const iso = `${match[3]}-${match[1]}-${match[2]}`;
   const date = new Date(`${iso}T12:00:00Z`);
-  return Number.isFinite(date.getTime()) &&
-    date.toISOString().slice(0, 10) === iso
-    ? iso
-    : null;
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === iso ? iso : null;
 }
 export const dateInput = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -242,24 +237,9 @@ export const dateInput = (value: string) =>
     : value;
 /** Source and download routes are constructed here, never accepted from documents. */
 export function sourcePath(context: Context, dataset: string) {
-  if (
-    !["contributions", "expenditures", "independent_expenditures"].includes(
-      dataset,
-    )
-  )
-    return null;
-  return apiPath(
-    [
-      "finance",
-      "elections",
-      context.election_key,
-      "analytics",
-      "sources",
-      dataset,
-    ],
-    {
-      snapshot_id: context.snapshot_id,
-      version: context.version,
-    },
-  );
+  if (!['contributions', 'expenditures', 'independent_expenditures'].includes(dataset)) return null;
+  return apiPath(['finance', 'elections', context.election_key, 'analytics', 'sources', dataset], {
+    snapshot_id: context.snapshot_id,
+    version: context.version,
+  });
 }

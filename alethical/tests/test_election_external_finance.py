@@ -347,6 +347,74 @@ def publish(db, ctx):
     return s.publish_generation(db, ctx.store, ctx.g["id"], expected_previous=None)
 
 
+def test_evidence_checks_every_payment_without_reparsing_interleaved_sources(
+    db, external
+):
+    from functools import lru_cache
+
+    ctx = external
+    generation = deepcopy(ctx.g)
+    originals = dict(ctx.originals)
+    groups = []
+    for group in range(5):
+        payments = []
+        for row in range(3):
+            payment = deepcopy(ctx.g["payments"][0])
+            payment["source_row_id"] = f"source-{group}-row-{row}"
+            payment["payment_key"] = digest(payment["source_row_id"])
+            payments.append(payment)
+        facts = [s.payment_facts(payment) for payment in payments]
+        body = json.dumps({"records": facts}, sort_keys=True).encode()
+        fingerprint = hashlib.sha256(body).hexdigest()
+        originals[fingerprint] = body
+        generation["sources"].append(
+            {
+                **next(r for r in ctx.g["sources"] if r["sha256"] == ctx.source_hash),
+                "sha256": fingerprint,
+            }
+        )
+        for row, payment in enumerate(payments):
+            payment["source_sha256"] = fingerprint
+            payment["binding"] = {
+                "source_sha256": fingerprint,
+                "adapter": "bounded-payment-parser:v1",
+                "locator": {"row": row},
+                "quote": json.dumps(facts[row], sort_keys=True),
+                "facts": facts[row],
+            }
+        groups.append(payments)
+    # Database hash ordering interleaves originals beyond the parser's capacity.
+    generation["payments"] = [
+        groups[group][row] for row in range(3) for group in range(5)
+    ]
+    rehash(generation)
+    checked = []
+
+    @lru_cache(maxsize=4)
+    def parse(body):
+        return json.loads(body)
+
+    def adapter(body, source, locator):
+        facts = parse(body)["records"][locator["row"]]
+        checked.append(facts["source_row_id"])
+        return s.CheckedExtraction(facts, json.dumps(facts, sort_keys=True))
+
+    s.register_adapter("bounded-payment-parser:v1", adapter)
+    for body in originals.values():
+        s.archive_source(db, ctx.store, body)
+    s.verify_evidence(db, ctx.store, generation)
+    assert sorted(checked) == sorted(p["source_row_id"] for p in generation["payments"])
+    assert parse.cache_info().misses == 5
+    changed = deepcopy(generation)
+    changed["payments"][-1]["amount"] = "999.00"
+    changed["payments"][-1]["binding"]["facts"]["amount"] = "999.00"
+    rehash(changed)
+    with pytest.raises(
+        s.ComparisonImportError, match="Extracted fields or quote differ"
+    ):
+        s.verify_evidence(db, ctx.store, changed)
+
+
 def test_exact_decimals_zero_missing_and_history_are_preserved(db, external):
     ctx = external
     stage(db, ctx)

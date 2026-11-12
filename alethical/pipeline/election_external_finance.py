@@ -776,7 +776,10 @@ def verify_evidence(db, store, g):
                 authority=account["authority"],
                 joins=("authority", "account_id"),
             )
-    for report in g["reports"]:
+    # Stored rows arrive in hash order. Keep each original's checks together so
+    # bounded source parsers do not repeatedly decode interleaved large filings.
+    # This changes only verification order, never the generation or its checks.
+    for report in sorted(g["reports"], key=lambda r: r.get("source_sha256") or ""):
         if report.get("binding"):
             account = next(
                 r
@@ -863,7 +866,7 @@ def verify_evidence(db, store, g):
                         "period_end",
                     ),
                 )
-    for payment in g["payments"]:
+    for payment in sorted(g["payments"], key=lambda r: r["source_sha256"]):
         if payment["check_status"] == "checked":
             require(
                 bound_to(payment["binding"], payment["source_sha256"]),

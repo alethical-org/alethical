@@ -162,11 +162,22 @@ def _context(
         history_query.order_by(m.ElectionCampaignAccountDecision.id)
     ).all()
     account_keys = {(r.authority, r.registration_number) for r in histories}
+    # Review-only originals still need public source metadata. They may not be
+    # referenced by a current account/report binding (for example, a dated FEC
+    # designation), but readers must be able to open the proof behind the join.
+    review_hashes = set()
+    for review in histories:
+        for evidence in review.evidence:
+            if evidence.get("sha256"):
+                review_hashes.add(evidence["sha256"])
+            review_hashes.update(storage.binding_hashes(evidence.get("binding")))
+            review_hashes.update(storage.binding_hashes(evidence.get("status_binding")))
     _, g = storage.load_published_view(
         db,
         row,
         account_keys,
         stable_id=candidate.get("candidate_stable_id") if candidate else None,
+        extra_hashes=review_hashes,
         include_own_payments=all_scope,
     )
     # All history for each generation is planned before validating a single

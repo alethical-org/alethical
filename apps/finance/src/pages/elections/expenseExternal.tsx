@@ -1,20 +1,14 @@
-import type { ElectionEvidence } from "./Evidence";
+import type { ElectionEvidence } from './Evidence';
 import type {
   AuthorityReport,
   ExpenseAnswer,
   ReportedAmount,
   AuthoritySummary,
-} from "./expenseReportData";
-import { PARTY_LABELS, sumMoney } from "./expenseReportData";
-import { useBand } from "../../ui/band";
-import { externalSourcePath } from "./externalData";
-import {
-  count,
-  dateLabel,
-  reportedFigureLabel,
-  reportedMoneyLabel,
-  periodLabel,
-} from "./format";
+} from './expenseReportData';
+import { PARTY_LABELS, sumMoney } from './expenseReportData';
+import { useBand } from '../../ui/band';
+import { externalSourcePath } from './externalData';
+import { count, dateLabel, reportedFigureLabel, reportedMoneyLabel, periodLabel } from './format';
 
 /** Reuses the expense account treatment. Native measures retain their scope;
  * neither cover figures nor memorandum details are blended into Board totals. */
@@ -37,8 +31,7 @@ export function AuthorityFigures({
         {account.authority_name} · {account.account_id}
       </p>
       <p>
-        {account.report_type} ·{" "}
-        {periodLabel(account.period_start, account.period_end)}
+        {account.report_type} · {periodLabel(account.period_start, account.period_end)}
       </p>
       {account.received_date && (
         <p className="ec-muted">Received {dateLabel(account.received_date)}</p>
@@ -74,54 +67,40 @@ export function AuthorityFigures({
       </dl>
       {!account.reported_measures?.length && <p>Report figures unavailable</p>}
       <p className="ec-muted">Public subsidy unavailable</p>
-      {(account.reported_itemized_before_exclusions ?? []).map(
-        (item, index) => {
-          const adjusted = after.find((row) => sameMeasure(row, item));
-          return (
-            <div
-              className="ex-itemized-measure"
-              key={`${item.measure}:${item.basis}:${index}`}
-            >
-              <h5>{item.label}</h5>
-              {(item.period_start !== account.period_start ||
-                item.period_end !== account.period_end) && (
-                <p className="ec-muted">
-                  {periodLabel(item.period_start, item.period_end)}
-                </p>
-              )}
-              <dl className="ex-metrics">
-                <div>
-                  <dt>Before exclusions</dt>
-                  <dd>{reportedMoneyLabel(item.amount, item.currency)}</dd>
-                </div>
-                <div>
-                  <dt>After exclusions</dt>
-                  <dd>{reportedMoneyLabel(adjusted?.amount, item.currency)}</dd>
-                </div>
-              </dl>
-            </div>
-          );
-        },
-      )}
+      {(account.reported_itemized_before_exclusions ?? []).map((item, index) => {
+        const adjusted = after.find((row) => sameMeasure(row, item));
+        return (
+          <div className="ex-itemized-measure" key={`${item.measure}:${item.basis}:${index}`}>
+            <h5>{item.label}</h5>
+            {(item.period_start !== account.period_start ||
+              item.period_end !== account.period_end) && (
+              <p className="ec-muted">{periodLabel(item.period_start, item.period_end)}</p>
+            )}
+            <dl className="ex-metrics">
+              <div>
+                <dt>Before exclusions</dt>
+                <dd>{reportedMoneyLabel(item.amount, item.currency)}</dd>
+              </div>
+              <div>
+                <dt>After exclusions</dt>
+                <dd>{reportedMoneyLabel(adjusted?.amount, item.currency)}</dd>
+              </div>
+            </dl>
+          </div>
+        );
+      })}
       <p className="ec-muted">
-        Itemized records may be partial; their sum is separate from the report
-        total
+        Itemized records may be partial; their sum is separate from the report total
       </p>
       {account.memo_detail_count > 0 && (
         <p className="ec-muted">
-          {count(account.memo_detail_count)} supplemental memo{" "}
-          {account.memo_detail_count === 1 ? "record" : "records"}, not added to
-          spending
+          {count(account.memo_detail_count)} supplemental memo{' '}
+          {account.memo_detail_count === 1 ? 'record' : 'records'}, not added to spending
         </p>
       )}
       {account.sources.map((_, i) => (
-        <button
-          key={i}
-          className="ec-link"
-          disabled={!enabled}
-          onClick={() => source("report", i)}
-        >
-          View report{account.sources.length > 1 ? ` ${i + 1}` : ""}
+        <button key={i} className="ec-link" disabled={!enabled} onClick={() => source('report', i)}>
+          View report{account.sources.length > 1 ? ` ${i + 1}` : ''}
         </button>
       ))}
     </section>
@@ -141,19 +120,17 @@ export function authorityEvidence(
   account: AuthorityReport,
   key: string,
 ): ElectionEvidence | null {
-  const [prefix, reportKey, kind, rawIndex] = key.split(":");
+  const [prefix, reportKey, kind, rawIndex] = key.split(':');
   if (
-    prefix !== "external-report" ||
+    prefix !== 'external-report' ||
     reportKey !== account.report_key ||
-    !/^\d+$/.test(rawIndex ?? "")
+    !/^\d+$/.test(rawIndex ?? '')
   )
     return null;
   const figureIndex = /^figure\.(\d+)$/.exec(kind)?.[1];
   const figure =
-    figureIndex === undefined
-      ? undefined
-      : account.reported_measures?.[Number(figureIndex)];
-  if (kind !== "report" && !figure) return null;
+    figureIndex === undefined ? undefined : account.reported_measures?.[Number(figureIndex)];
+  if (kind !== 'report' && !figure) return null;
   const binding = (figure?.sources ?? account.sources)[Number(rawIndex)];
   if (!binding) return null;
   return {
@@ -166,29 +143,25 @@ export function authorityEvidence(
           binding.source_sha256,
         )
       : null,
-    pdfPage:
-      typeof binding.locator.page === "number"
-        ? binding.locator.page
-        : undefined,
+    pdfPage: typeof binding.locator.page === 'number' ? binding.locator.page : undefined,
     evidence: {
       title:
-        figure?.label ??
-        `${account.account_name || account.account_id} · ${account.report_type}`,
+        figure?.label ?? `${account.account_name || account.account_id} · ${account.report_type}`,
       authority: account.authority_name,
-      checked: "Checked",
+      checked: 'Checked',
       quote: binding.quote,
       rows: [
-        { label: "Filing account", value: account.account_id },
-        { label: "Report", value: account.source_report_id },
+        { label: 'Filing account', value: account.account_id },
+        { label: 'Report', value: account.source_report_id },
         {
-          label: "Reporting period",
+          label: 'Reporting period',
           value: periodLabel(
             figure?.period_start ?? account.period_start,
             figure?.period_end ?? account.period_end,
           ),
         },
         ...(account.received_date
-          ? [{ label: "Received", value: dateLabel(account.received_date) }]
+          ? [{ label: 'Received', value: dateLabel(account.received_date) }]
           : []),
         ...(figure
           ? [
@@ -199,13 +172,13 @@ export function authorityEvidence(
             ]
           : []),
         {
-          label: "Source location",
+          label: 'Source location',
           value: Object.entries(binding.locator)
-            .map(([k, v]) => `${k.replaceAll("_", " ")} ${v}`)
-            .join(" · "),
+            .map(([k, v]) => `${k.replaceAll('_', ' ')} ${v}`)
+            .join(' · '),
         },
         ...(binding.source_copied_at
-          ? [{ label: "Copied", value: dateLabel(binding.source_copied_at) }]
+          ? [{ label: 'Copied', value: dateLabel(binding.source_copied_at) }]
           : []),
       ],
     },
@@ -236,89 +209,67 @@ export function AuthorityComparisons({ data }: { data: ExpenseAnswer }) {
     <section className="ec-section">
       <h2>Other filing authorities</h2>
       <p className="ec-muted">
-        Itemized spending by party and filed payee address; separate totals for
-        each measure and reporting period
+        Itemized spending by party and filed payee address; separate totals for each measure and
+        reporting period
       </p>
       {groups.map(([key, rows]) => {
         const first = rows[0];
         const unassigned = (row: AuthoritySummary) => {
           const report = data.authority_reports?.find(
-            (item) =>
-              item.authority === row.authority &&
-              item.report_key === row.report_key,
+            (item) => item.authority === row.authority && item.report_key === row.report_key,
           );
           return (
-            report?.party_group === "unknown" &&
-            report.party_classification_state !== "ballot_party_not_in_source"
+            report?.party_group === 'unknown' &&
+            report.party_classification_state !== 'ballot_party_not_in_source'
           );
         };
-        const partyRows = Object.entries(PARTY_LABELS).map(
-          ([party, label]) => ({
-            label,
-            before: sumMoney(
-              rows
-                .filter((row) => party !== "unknown" || !unassigned(row))
-                .map(
-                  (row) =>
-                    row.by_party[party as keyof typeof PARTY_LABELS]?.baseline,
-                ),
-            ),
-            after: sumMoney(
-              rows
-                .filter((row) => party !== "unknown" || !unassigned(row))
-                .map(
-                  (row) =>
-                    row.by_party[party as keyof typeof PARTY_LABELS]?.adjusted,
-                ),
-            ),
-          }),
-        );
+        const partyRows = Object.entries(PARTY_LABELS).map(([party, label]) => ({
+          label,
+          before: sumMoney(
+            rows
+              .filter((row) => party !== 'unknown' || !unassigned(row))
+              .map((row) => row.by_party[party as keyof typeof PARTY_LABELS]?.baseline),
+          ),
+          after: sumMoney(
+            rows
+              .filter((row) => party !== 'unknown' || !unassigned(row))
+              .map((row) => row.by_party[party as keyof typeof PARTY_LABELS]?.adjusted),
+          ),
+        }));
         if (rows.some(unassigned)) {
           partyRows.push({
-            label: "Party cannot be assigned",
-            before: sumMoney(
-              rows
-                .filter(unassigned)
-                .map((row) => row.by_party.unknown?.baseline),
-            ),
-            after: sumMoney(
-              rows
-                .filter(unassigned)
-                .map((row) => row.by_party.unknown?.adjusted),
-            ),
+            label: 'Party cannot be assigned',
+            before: sumMoney(rows.filter(unassigned).map((row) => row.by_party.unknown?.baseline)),
+            after: sumMoney(rows.filter(unassigned).map((row) => row.by_party.unknown?.adjusted)),
           });
         }
         const geographyRows = [
-          ["MN", "Minnesota"],
-          ["out_of_state", "Out of state"],
-          ["unknown", "Location unavailable"],
+          ['MN', 'Minnesota'],
+          ['out_of_state', 'Out of state'],
+          ['unknown', 'Location unavailable'],
         ].map(([geo, label]) => ({
           label,
           before: sumMoney(
             rows.map(
               (row) =>
-                row.by_filed_address[
-                  geo as keyof AuthoritySummary["by_filed_address"]
-                ]?.baseline,
+                row.by_filed_address[geo as keyof AuthoritySummary['by_filed_address']]?.baseline,
             ),
           ),
           after: sumMoney(
             rows.map(
               (row) =>
-                row.by_filed_address[
-                  geo as keyof AuthoritySummary["by_filed_address"]
-                ]?.adjusted,
+                row.by_filed_address[geo as keyof AuthoritySummary['by_filed_address']]?.adjusted,
             ),
           ),
         }));
         const total = {
-          label: "Itemized total",
+          label: 'Itemized total',
           before: sumMoney(rows.map((row) => row.baseline)),
           after: sumMoney(rows.map((row) => row.adjusted)),
         };
         const sections: Array<[string, typeof partyRows]> = [
-          ["Party", partyRows],
-          ["Payee location", geographyRows],
+          ['Party', partyRows],
+          ['Payee location', geographyRows],
         ];
         return (
           <article className="ex-authority-comparison" key={key}>
@@ -326,18 +277,16 @@ export function AuthorityComparisons({ data }: { data: ExpenseAnswer }) {
               {first.authority_name} · {first.label}
             </h3>
             <p>
-              {periodLabel(first.period_start, first.period_end)} ·{" "}
-              {count(rows.length)} account reports
+              {periodLabel(first.period_start, first.period_end)} · {count(rows.length)} account
+              reports
             </p>
-            <p className="ec-muted">
-              Known itemized subtotal; unavailable detail is not zero
-            </p>
+            <p className="ec-muted">Known itemized subtotal; unavailable detail is not zero</p>
             {sections.map(([title, values]) => {
               const items = [...values, total];
               return (
                 <div key={title} className="ex-native-summary">
                   <h4>{title}</h4>
-                  {band === "phone" ? (
+                  {band === 'phone' ? (
                     <ul className="ex-summary-cards">
                       {items.map((row) => (
                         <li key={row.label}>
@@ -345,15 +294,11 @@ export function AuthorityComparisons({ data }: { data: ExpenseAnswer }) {
                           <dl className="ex-metrics">
                             <div>
                               <dt>Before exclusions</dt>
-                              <dd>
-                                {reportedMoneyLabel(row.before, first.currency)}
-                              </dd>
+                              <dd>{reportedMoneyLabel(row.before, first.currency)}</dd>
                             </div>
                             <div>
                               <dt>After exclusions</dt>
-                              <dd>
-                                {reportedMoneyLabel(row.after, first.currency)}
-                              </dd>
+                              <dd>{reportedMoneyLabel(row.after, first.currency)}</dd>
                             </div>
                           </dl>
                         </li>

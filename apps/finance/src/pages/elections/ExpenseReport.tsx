@@ -7,19 +7,19 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from "react";
+} from 'react';
 
-import { useRead, type Read } from "../../api/read";
-import { REQUEST_TIMEOUT_MS } from "../../api/client";
-import { useFinanceSession } from "../../auth/session";
-import { useLocation } from "../../router";
-import { useLiveSearch } from "../../search/useLiveSearch";
-import { useAddressState } from "../../ui/addressState";
-import { Caret, Refused, Updating } from "../../ui/controls";
-import { BackLink, LoadingLine } from "../../ui/parts";
-import { useBand } from "../../ui/band";
-import { FieldMenu } from "../MoneyByRace";
-import { RetainedEvidence, type ElectionEvidence } from "./Evidence";
+import { useRead, type Read } from '../../api/read';
+import { REQUEST_TIMEOUT_MS } from '../../api/client';
+import { useFinanceSession } from '../../auth/session';
+import { useLocation } from '../../router';
+import { useLiveSearch } from '../../search/useLiveSearch';
+import { useAddressState } from '../../ui/addressState';
+import { Caret, Refused, Updating } from '../../ui/controls';
+import { BackLink, LoadingLine } from '../../ui/parts';
+import { useBand } from '../../ui/band';
+import { FieldMenu } from '../MoneyByRace';
+import { RetainedEvidence, type ElectionEvidence } from './Evidence';
 import {
   count,
   dateLabel,
@@ -28,16 +28,12 @@ import {
   reportedMoneyLabel,
   pageNumber,
   periodLabel,
-} from "./format";
-import * as d from "./expenseReportData";
-import { externalSourcePath, coverageLabel } from "./externalData";
-import {
-  AuthorityFigures,
-  AuthorityComparisons,
-  authorityEvidence,
-} from "./expenseExternal";
-import "./comparison.css";
-import "./expenseReport.css";
+} from './format';
+import * as d from './expenseReportData';
+import { externalSourcePath, coverageLabel } from './externalData';
+import { AuthorityFigures, AuthorityComparisons, authorityEvidence } from './expenseExternal';
+import './comparison.css';
+import './expenseReport.css';
 
 /** The race page owns navigation and election choice; this isolated view owns
  * only expense-prefixed address state. It never changes identity/source review. */
@@ -51,35 +47,32 @@ export interface ExpenseReportProps {
   onRemoveRace?: () => void;
 }
 const defaults = {
-  expenseQuery: "",
-  expenseReports: "",
-  expenseExcluded: "",
-  expenseCandidate: "",
-  expenseCandidatePage: "1",
-  expensePayeePage: "1",
-  expensePaymentsPage: "1",
-  expensePayeeQuery: "",
-  expenseSearchPage: "1",
-  expensePayee: "",
-  expenseSource: "",
+  expenseQuery: '',
+  expenseReports: '',
+  expenseExcluded: '',
+  expenseCandidate: '',
+  expenseCandidatePage: '1',
+  expensePayeePage: '1',
+  expensePaymentsPage: '1',
+  expensePayeeQuery: '',
+  expenseSearchPage: '1',
+  expensePayee: '',
+  expenseSource: '',
 };
 type Address = typeof defaults;
-type SetAddress = (
-  changes: Partial<Address>,
-  options?: { replace?: boolean },
-) => void;
-const BOARD = "Minnesota Campaign Finance and Public Disclosure Board";
-const SOS = "Minnesota Secretary of State";
-const partyOrder: d.Party[] = ["R", "DFL", "NP", "other", "unknown"];
+type SetAddress = (changes: Partial<Address>, options?: { replace?: boolean }) => void;
+const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
+const SOS = 'Minnesota Secretary of State';
+const partyOrder: d.Party[] = ['R', 'DFL', 'NP', 'other', 'unknown'];
 const paymentSourceKey = (payment: d.Payment, data: d.ExpenseAnswer) =>
   `payment:${data.version}:${payment.report_key}:${payment.record_id}`;
 const payeeSourceKey = (payee: d.Payee, data: d.ExpenseAnswer) =>
-  `payee:${data.version}:${payee.payee_id ?? payee.report_keys.join(",")}`;
+  `payee:${data.version}:${payee.payee_id ?? payee.report_keys.join(',')}`;
 const EvidenceRestore = createContext<{
   sourceKey: string;
   rememberPayee: (payee: d.Payee, data: d.ExpenseAnswer) => void;
   rememberPayment: (payment: d.Payment, data: d.ExpenseAnswer) => void;
-}>({ sourceKey: "", rememberPayee: () => {}, rememberPayment: () => {} });
+}>({ sourceKey: '', rememberPayee: () => {}, rememberPayment: () => {} });
 const pins = (answer: d.ExpenseAnswer | null) =>
   answer ? { snapshot_id: answer.snapshot_id, version: answer.version } : null;
 const position = (value: string) => (pageNumber(value) - 1) * d.PAGE_SIZE;
@@ -103,7 +96,7 @@ function Notice({
       {read.updating && <Updating />}
       {read.changed ? (
         <div className="ec-notice" role="status">
-          These records changed{" "}
+          These records changed{' '}
           <button className="ec-link" onClick={reload}>
             Reload comparison
           </button>
@@ -111,7 +104,7 @@ function Notice({
       ) : (
         read.failed && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            {read.data ? "Couldn’t update results" : message}
+            {read.data ? 'Couldn’t update results' : message}
           </Refused>
         )
       )}
@@ -119,37 +112,20 @@ function Notice({
     </>
   );
 }
-function Scope({
-  read,
-  path,
-}: {
-  read: Read<d.ExpenseAnswer>;
-  path: string | null;
-}) {
+function Scope({ read, path }: { read: Read<d.ExpenseAnswer>; path: string | null }) {
   if (!read.data || read.dataPath === path) return null;
   return (
     <p className="ex-retained" role="status">
       Showing previous report scope · {dateLabel(read.data.election_date)}
       {read.data.filters.candidate_query
         ? ` · Candidates matching “${read.data.filters.candidate_query}”`
-        : ""}
-      {read.data.filters.payee_query
-        ? ` · Payees matching “${read.data.filters.payee_query}”`
-        : ""}{" "}
-      ·{" "}
-      {read.data.filters.report_keys?.length
-        ? "Selected reports"
-        : "Latest available reports"}
+        : ''}
+      {read.data.filters.payee_query ? ` · Payees matching “${read.data.filters.payee_query}”` : ''}{' '}
+      · {read.data.filters.report_keys?.length ? 'Selected reports' : 'Latest available reports'}
     </p>
   );
 }
-function Pager({
-  page,
-  move,
-}: {
-  page: d.ExpenseAnswer["page"];
-  move: (value: string) => void;
-}) {
+function Pager({ page, move }: { page: d.ExpenseAnswer['page']; move: (value: string) => void }) {
   if (page.total <= page.limit && page.offset === 0) return null;
   return (
     <nav className="ec-pager" aria-label="Result pages">
@@ -164,7 +140,7 @@ function Pager({
         Previous
       </button>
       <span>
-        Page {Math.floor(page.offset / page.limit) + 1} of{" "}
+        Page {Math.floor(page.offset / page.limit) + 1} of{' '}
         {Math.max(1, Math.ceil(page.total / page.limit))}
       </span>
       <button
@@ -181,18 +157,16 @@ function Pager({
   );
 }
 function focusList(button: HTMLButtonElement) {
-  const heading = button
-    .closest("section")
-    ?.querySelector<HTMLElement>("h2,h3,h4,h5");
+  const heading = button.closest('section')?.querySelector<HTMLElement>('h2,h3,h4,h5');
   heading?.focus({ preventScroll: true });
-  heading?.scrollIntoView?.({ block: "start" });
+  heading?.scrollIntoView?.({ block: 'start' });
 }
 function Search({
   label,
   value,
   commit,
   here,
-  placeholder = "Name",
+  placeholder = 'Name',
 }: {
   label: string;
   value: string;
@@ -201,12 +175,7 @@ function Search({
   placeholder?: string;
 }) {
   const id = useId();
-  const [draft, setDraft, apply] = useLiveSearch(
-    value,
-    here,
-    commit,
-    (text) => text,
-  );
+  const [draft, setDraft, apply] = useLiveSearch(value, here, commit, (text) => text);
   return (
     <form
       className="ec-search"
@@ -239,13 +208,13 @@ function Money({
   value,
   covered,
   total,
-  unit = "accounts",
+  unit = 'accounts',
   accountCoverage,
 }: {
   value: string | null | undefined;
   covered?: number;
   total?: number;
-  unit?: "accounts" | "candidates";
+  unit?: 'accounts' | 'candidates';
   accountCoverage?: { covered: number; total: number };
 }) {
   return (
@@ -253,8 +222,7 @@ function Money({
       <strong>{moneyLabel(value)}</strong>
       {value != null &&
         ((covered != null && total != null && covered < total) ||
-          (accountCoverage &&
-            accountCoverage.covered < accountCoverage.total)) && (
+          (accountCoverage && accountCoverage.covered < accountCoverage.total)) && (
           <small>
             Known subtotal
             <br />
@@ -264,13 +232,11 @@ function Money({
                 <br />
               </>
             )}
-            {accountCoverage &&
-              accountCoverage.covered < accountCoverage.total && (
-                <>
-                  Covers {count(accountCoverage.covered)} of{" "}
-                  {count(accountCoverage.total)} accounts
-                </>
-              )}
+            {accountCoverage && accountCoverage.covered < accountCoverage.total && (
+              <>
+                Covers {count(accountCoverage.covered)} of {count(accountCoverage.total)} accounts
+              </>
+            )}
           </small>
         )}
     </span>
@@ -292,9 +258,9 @@ function Metrics({ values }: { values: Array<[string, ReactNode]> }) {
 function sourceLocation(source: d.SourceLocation) {
   return source.locator
     ? Object.entries(source.locator)
-        .map(([key, value]) => `${key.replaceAll("_", " ")} ${value}`)
-        .join(" · ")
-    : `${source.page ? `Page ${source.page}` : "Page not held"}${source.line ? `, line ${source.line}` : ""}`;
+        .map(([key, value]) => `${key.replaceAll('_', ' ')} ${value}`)
+        .join(' · ')
+    : `${source.page ? `Page ${source.page}` : 'Page not held'}${source.line ? `, line ${source.line}` : ''}`;
 }
 function amountEntries(
   amounts: d.Amounts | null,
@@ -302,10 +268,10 @@ function amountEntries(
 ): Array<[string, ReactNode]> {
   return amounts
     ? [
-        ["Amount", <Money value={amounts.total} />],
-        ["Paid", <Money value={amounts.paid} />],
-        ["Unpaid", <Money value={amounts.unpaid} />],
-        ["In-kind", <Money value={amounts.in_kind} />],
+        ['Amount', <Money value={amounts.total} />],
+        ['Paid', <Money value={amounts.paid} />],
+        ['Unpaid', <Money value={amounts.unpaid} />],
+        ['In-kind', <Money value={amounts.in_kind} />],
       ]
     : (reported ?? []).map((item) => [
         `${item.label} · ${periodLabel(item.period_start, item.period_end)}`,
@@ -317,21 +283,13 @@ function paymentEntries(payment: d.Payment): Array<[string, ReactNode]> {
     ? amountEntries(payment.amounts)
     : [
         [
-          payment.measure_label ?? "Reported amount",
+          payment.measure_label ?? 'Reported amount',
           reportedMoneyLabel(payment.reported_amount, payment.currency),
         ],
-        ["Filing authority", payment.authority_name ?? "Unavailable"],
-        [
-          "Reporting period",
-          periodLabel(payment.period_start, payment.period_end),
-        ],
+        ['Filing authority', payment.authority_name ?? 'Unavailable'],
+        ['Reporting period', periodLabel(payment.period_start, payment.period_end)],
         ...(payment.nonadditive
-          ? [
-              ["Status", "Supplemental memo, not added to spending"] as [
-                string,
-                ReactNode,
-              ],
-            ]
+          ? [['Status', 'Supplemental memo, not added to spending'] as [string, ReactNode]]
           : []),
       ];
 }
@@ -364,9 +322,7 @@ export function ExpenseReport({
   const location = useLocation();
   const [address, setAddress] = useAddressState(defaults);
   const [revision, setRevision] = useState(0);
-  const [copy, setCopy] = useState<"ready" | "copying" | "done" | "failed">(
-    "ready",
-  );
+  const [copy, setCopy] = useState<'ready' | 'copying' | 'done' | 'failed'>('ready');
   const reports = d.exactKeys(address.expenseReports, 500);
   const exclusions = d.exactKeys(address.expenseExcluded, 200);
   const valid =
@@ -379,7 +335,7 @@ export function ExpenseReport({
     report_keys: reports ?? [],
     excluded_payee_ids: exclusions ?? [],
   };
-  const baselinePath = valid ? d.expensePath(electionKey, "", query) : null;
+  const baselinePath = valid ? d.expensePath(electionKey, '', query) : null;
   const report = useRead<d.ExpenseAnswer>(baselinePath, {
     keepPrevious: true,
     revision,
@@ -403,17 +359,13 @@ export function ExpenseReport({
     candidate_query: queryText,
   };
   const candidateSeedPath =
-    current && queryText
-      ? d.expensePath(electionKey, "", candidateQuery)
-      : null;
+    current && queryText ? d.expensePath(electionKey, '', candidateQuery) : null;
   const candidateSeed = useRead<d.ExpenseAnswer>(candidateSeedPath, {
     keepPrevious: true,
     revision,
   });
   const candidateSeedCurrent =
-    candidateSeed.dataPath === candidateSeedPath &&
-    !candidateSeed.failed &&
-    !candidateSeed.pending;
+    candidateSeed.dataPath === candidateSeedPath && !candidateSeed.failed && !candidateSeed.pending;
   const candidatePage = position(address.expenseCandidatePage);
   const candidatePins = queryText
     ? candidateSeedCurrent
@@ -426,7 +378,7 @@ export function ExpenseReport({
     candidatePage && candidatePins
       ? d.expensePath(
           electionKey,
-          "",
+          '',
           queryText ? candidateQuery : query,
           candidatePins,
           candidatePage,
@@ -436,11 +388,7 @@ export function ExpenseReport({
     keepPrevious: true,
     revision,
   });
-  const candidates = candidatePage
-    ? candidatePageRead
-    : queryText
-      ? candidateSeed
-      : report;
+  const candidates = candidatePage ? candidatePageRead : queryText ? candidateSeed : report;
   const candidatesPath = candidatePage
     ? candidatePagePath
     : queryText
@@ -450,7 +398,7 @@ export function ExpenseReport({
     current && queryText
       ? d.expensePath(
           electionKey,
-          "payees",
+          'payees',
           { ...query, excluded_payee_ids: [], payee_query: queryText },
           pins(baseline),
           position(address.expenseSearchPage),
@@ -471,15 +419,10 @@ export function ExpenseReport({
     key: string;
     evidence: ElectionEvidence;
   } | null>(null);
-  const rememberPayment = useCallback(
-    (payment: d.Payment, data: d.ExpenseAnswer) => {
-      const key = paymentSourceKey(payment, data);
-      setPaymentSource((previous) =>
-        previous?.key === key ? previous : { key, payment, data },
-      );
-    },
-    [],
-  );
+  const rememberPayment = useCallback((payment: d.Payment, data: d.ExpenseAnswer) => {
+    const key = paymentSourceKey(payment, data);
+    setPaymentSource((previous) => (previous?.key === key ? previous : { key, payment, data }));
+  }, []);
   const rememberPayee = useCallback(
     (payee: d.Payee, data: d.ExpenseAnswer) => {
       const key = payeeSourceKey(payee, data);
@@ -493,9 +436,7 @@ export function ExpenseReport({
                 children: (
                   <div className="ex-source-reports">
                     {data.account_reports
-                      .filter((account) =>
-                        payee.report_keys.includes(account.report_key),
-                      )
+                      .filter((account) => payee.report_keys.includes(account.report_key))
                       .map((account) => (
                         <button
                           className="ec-link"
@@ -506,7 +447,7 @@ export function ExpenseReport({
                             })
                           }
                         >
-                          View report · Account {account.registration_number} ·{" "}
+                          View report · Account {account.registration_number} ·{' '}
                           {account.filing.report_name}
                         </button>
                       ))}
@@ -521,12 +462,7 @@ export function ExpenseReport({
   useEffect(() => {
     setPaymentSource(null);
     setPayeeSource(null);
-  }, [
-    baseline?.election_key,
-    baseline?.snapshot_id,
-    baseline?.collection_id,
-    baseline?.version,
-  ]);
+  }, [baseline?.election_key, baseline?.snapshot_id, baseline?.collection_id, baseline?.version]);
   const sourceAccount = baseline?.account_reports.find(
     (account) => sourceKey === `report:${account.report_key}`,
   );
@@ -547,47 +483,43 @@ export function ExpenseReport({
       : null;
   const reload = useCallback(() => {
     setRevision((value) => value + 1);
-    setAddress({ expenseSource: "" });
+    setAddress({ expenseSource: '' });
     setPaymentSource(null);
   }, [setAddress]);
   useEffect(() => {
-    setCopy("ready");
+    setCopy('ready');
     setOpenReport(null);
   }, [location.href]);
   const download = useCsvDownload(
-    current && baseline
-      ? d.expensePath(electionKey, "export", query, pins(baseline))
-      : null,
+    current && baseline ? d.expensePath(electionKey, 'export', query, pins(baseline)) : null,
   );
   async function copyLink() {
-    setCopy("copying");
+    setCopy('copying');
     const href = d.copyExpenseLink(location);
     try {
       await navigator.clipboard.writeText(href);
-      if (window.location.href === location.href) setCopy("done");
+      if (window.location.href === location.href) setCopy('done');
     } catch {
-      if (window.location.href === location.href) setCopy("failed");
+      if (window.location.href === location.href) setCopy('failed');
     }
   }
   const groups = baseline ? d.optionGroups(baseline) : [];
-  const selectedReports = reports?.join(",") || "";
+  const selectedReports = reports?.join(',') || '';
   const periodChoice = selectedReports
     ? (groups.find(
-        (group) =>
-          [...group.keys].sort().join(",") ===
-          [...(reports ?? [])].sort().join(","),
-      )?.label ?? "Selected reports")
-    : "Latest available reports";
+        (group) => [...group.keys].sort().join(',') === [...(reports ?? [])].sort().join(','),
+      )?.label ?? 'Selected reports')
+    : 'Latest available reports';
   const changeScope = (changes: Partial<Address>) =>
     setAddress({
       ...changes,
-      expenseCandidate: "",
-      expenseCandidatePage: "1",
-      expensePayeePage: "1",
-      expensePaymentsPage: "1",
-      expenseSearchPage: "1",
-      expensePayee: "",
-      expenseSource: "",
+      expenseCandidate: '',
+      expenseCandidatePage: '1',
+      expensePayeePage: '1',
+      expensePaymentsPage: '1',
+      expenseSearchPage: '1',
+      expensePayee: '',
+      expenseSource: '',
     });
   const showPayment = (payment: d.Payment, data: d.ExpenseAnswer) => {
     rememberPayment(payment, data);
@@ -598,18 +530,13 @@ export function ExpenseReport({
     setAddress({ expenseSource: payeeSourceKey(payee, data) });
   };
   return (
-    <EvidenceRestore.Provider
-      value={{ sourceKey, rememberPayee, rememberPayment }}
-    >
+    <EvidenceRestore.Provider value={{ sourceKey, rememberPayee, rememberPayment }}>
       <main className="f-page ec-page ex-page">
         <div className="f-content">
           <BackLink to={backHref} name="race comparison" />
           <header className="ex-heading">
             <h1>Campaign expense report</h1>
-            <p>
-              Compare candidate spending, public subsidies and reported payee
-              locations
-            </p>
+            <p>Compare candidate spending, public subsidies and reported payee locations</p>
           </header>
           <div className="ec-finder ex-finder">
             {elections && onElectionChange ? (
@@ -617,15 +544,14 @@ export function ExpenseReport({
                 name="Election"
                 value={electionKey}
                 current={
-                  elections.find((election) => election.value === electionKey)
-                    ?.label ?? electionKey
+                  elections.find((election) => election.value === electionKey)?.label ?? electionKey
                 }
                 options={elections}
                 onChange={(key) => {
                   changeScope({
-                    expenseReports: "",
-                    expenseExcluded: "",
-                    expenseQuery: "",
+                    expenseReports: '',
+                    expenseExcluded: '',
+                    expenseQuery: '',
                   });
                   onElectionChange(key);
                 }}
@@ -636,7 +562,7 @@ export function ExpenseReport({
                 <strong>
                   {baseline
                     ? `${baseline.election_date.slice(0, 4)} general election · ${dateLabel(baseline.election_date)}`
-                    : "Election records"}
+                    : 'Election records'}
                 </strong>
               </div>
             )}
@@ -645,15 +571,13 @@ export function ExpenseReport({
               value={selectedReports}
               current={periodChoice}
               options={[
-                { value: "", label: "Latest available reports" },
+                { value: '', label: 'Latest available reports' },
                 ...groups.map((group) => ({
-                  value: group.keys.join(","),
+                  value: group.keys.join(','),
                   label: group.label,
                 })),
               ]}
-              onChange={(value) =>
-                changeScope({ expenseReports: value, expenseExcluded: "" })
-              }
+              onChange={(value) => changeScope({ expenseReports: value, expenseExcluded: '' })}
             />
             <Search
               label="Search candidates or payees"
@@ -664,12 +588,12 @@ export function ExpenseReport({
           </div>
           {raceId && (
             <div className="ex-scope">
-              <h2>{raceLabel || "Selected race"}</h2>
+              <h2>{raceLabel || 'Selected race'}</h2>
               {onRemoveRace && (
                 <button
                   className="ec-link"
                   onClick={() => {
-                    changeScope({ expenseReports: "", expenseExcluded: "" });
+                    changeScope({ expenseReports: '', expenseExcluded: '' });
                     onRemoveRace();
                   }}
                 >
@@ -680,15 +604,15 @@ export function ExpenseReport({
           )}
           {!valid && (
             <p role="alert" className="ec-notice">
-              This report link has an invalid search or selection{" "}
+              This report link has an invalid search or selection{' '}
               <button
                 className="ec-link"
                 onClick={() =>
                   changeScope({
-                    expenseQuery: "",
-                    expensePayeeQuery: "",
-                    expenseReports: "",
-                    expenseExcluded: "",
+                    expenseQuery: '',
+                    expensePayeeQuery: '',
+                    expenseReports: '',
+                    expenseExcluded: '',
                   })
                 }
               >
@@ -700,25 +624,21 @@ export function ExpenseReport({
             <div>
               <button
                 className="ec-button"
-                data-done={copy === "done" || undefined}
-                disabled={copy === "copying"}
+                data-done={copy === 'done' || undefined}
+                disabled={copy === 'copying'}
                 onClick={() => void copyLink()}
               >
-                {copy === "done"
-                  ? "Link copied"
-                  : copy === "failed"
-                    ? "Try again"
-                    : "Copy link"}
+                {copy === 'done' ? 'Link copied' : copy === 'failed' ? 'Try again' : 'Copy link'}
               </button>
               <p role="status">
-                {copy === "done" ? (
+                {copy === 'done' ? (
                   <span className="ex-sr-only">Link copied</span>
-                ) : copy === "failed" ? (
-                  "Couldn’t copy link"
-                ) : copy === "copying" ? (
+                ) : copy === 'failed' ? (
+                  'Couldn’t copy link'
+                ) : copy === 'copying' ? (
                   <span className="ex-sr-only">Copying…</span>
                 ) : (
-                  ""
+                  ''
                 )}
               </p>
             </div>
@@ -729,35 +649,31 @@ export function ExpenseReport({
                 onClick={download.run}
               >
                 {download.pending
-                  ? "Preparing download…"
+                  ? 'Preparing download…'
                   : download.failed
-                    ? "Try again"
-                    : "Download CSV"}
+                    ? 'Try again'
+                    : 'Download CSV'}
               </button>
               <p role="status">
                 {download.changed ? (
                   <span>
-                    These records changed{" "}
+                    These records changed{' '}
                     <button className="ec-link" onClick={reload}>
                       Reload comparison
                     </button>
                   </span>
                 ) : download.failed ? (
-                  "Couldn’t download report"
+                  'Couldn’t download report'
                 ) : download.done ? (
                   <span className="ex-sr-only">Download started</span>
                 ) : (
-                  ""
+                  ''
                 )}
               </p>
             </div>
           </div>
           <Scope read={report} path={baselinePath} />
-          <Notice
-            read={report}
-            message="Couldn’t load party comparison"
-            reload={reload}
-          />
+          <Notice read={report} message="Couldn’t load party comparison" reload={reload} />
           {baseline && (
             <>
               <PartyComparison data={baseline} />
@@ -784,11 +700,7 @@ export function ExpenseReport({
               </section>
               <section className="ec-section ex-locations">
                 <h2>Payee locations</h2>
-                <Notice
-                  read={report}
-                  message="Couldn’t load payee locations"
-                  reload={reload}
-                />
+                <Notice read={report} message="Couldn’t load payee locations" reload={reload} />
               </section>
             </>
           )}
@@ -796,21 +708,17 @@ export function ExpenseReport({
           <section className="ec-section ex-candidates">
             <h2 tabIndex={-1}>
               Candidates
-              {candidates.data ? ` (${count(candidates.data.page.total)})` : ""}
+              {candidates.data ? ` (${count(candidates.data.page.total)})` : ''}
             </h2>
             <Scope read={candidates} path={candidatesPath} />
             {(candidates !== report || !baseline) && (
-              <Notice
-                read={candidates}
-                message="Couldn’t load candidates"
-                reload={reload}
-              />
+              <Notice read={candidates} message="Couldn’t load candidates" reload={reload} />
             )}
             {candidates.data && (
               <>
                 {candidates.data.candidates?.length ? (
                   <div
-                    className={`ex-candidate-list${candidates.data.authority_reports?.length ? " ex-mixed-authorities" : ""}`}
+                    className={`ex-candidate-list${candidates.data.authority_reports?.length ? ' ex-mixed-authorities' : ''}`}
                   >
                     <div className="ex-candidate-columns" aria-hidden="true">
                       <span>Candidate</span>
@@ -843,9 +751,7 @@ export function ExpenseReport({
                           setOpenReport(key);
                           setAddress({ expenseSource: `report:${key}` });
                         }}
-                        showExternalSource={(value) =>
-                          setAddress({ expenseSource: value })
-                        }
+                        showExternalSource={(value) => setAddress({ expenseSource: value })}
                         showPayment={showPayment}
                         showPayee={showPayee}
                       />
@@ -853,9 +759,7 @@ export function ExpenseReport({
                   </div>
                 ) : (
                   <p className="ec-empty">
-                    {queryText
-                      ? "No matching candidates"
-                      : "No candidates held"}
+                    {queryText ? 'No matching candidates' : 'No candidates held'}
                   </p>
                 )}
                 <Pager
@@ -869,24 +773,16 @@ export function ExpenseReport({
             <section className="ec-section ex-search-payees">
               <h2 tabIndex={-1}>
                 Payees
-                {payeeSearch.data
-                  ? ` (${count(payeeSearch.data.page.total)})`
-                  : ""}
+                {payeeSearch.data ? ` (${count(payeeSearch.data.page.total)})` : ''}
               </h2>
               <Scope read={payeeSearch} path={payeeSearchPath} />
-              <Notice
-                read={payeeSearch}
-                message="Couldn’t load payees"
-                reload={reload}
-              />
+              <Notice read={payeeSearch} message="Couldn’t load payees" reload={reload} />
               {payeeSearch.data && (
                 <>
                   <PayeeList
                     data={payeeSearch.data}
                     enabled={
-                      current &&
-                      payeeSearch.dataPath === payeeSearchPath &&
-                      !payeeSearch.failed
+                      current && payeeSearch.dataPath === payeeSearchPath && !payeeSearch.failed
                     }
                     excluded={exclusions ?? []}
                     query={{
@@ -895,20 +791,18 @@ export function ExpenseReport({
                       payee_query: queryText,
                     }}
                     selected={
-                      address.expensePayee.startsWith("search:")
+                      address.expensePayee.startsWith('search:')
                         ? address.expensePayee.slice(7)
-                        : ""
+                        : ''
                     }
                     choose={(id) =>
                       setAddress({
-                        expensePayee: id ? `search:${id}` : "",
-                        expensePaymentsPage: "1",
+                        expensePayee: id ? `search:${id}` : '',
+                        expensePaymentsPage: '1',
                       })
                     }
                     paymentPage={address.expensePaymentsPage}
-                    setPaymentPage={(value) =>
-                      setAddress({ expensePaymentsPage: value })
-                    }
+                    setPaymentPage={(value) => setAddress({ expensePaymentsPage: value })}
                     showPayment={showPayment}
                     showPayee={showPayee}
                     revision={revision}
@@ -924,43 +818,33 @@ export function ExpenseReport({
           )}
           <section className="ec-section ex-about">
             <h2>About these records</h2>
+            <p>Payee locations use addresses in the filings, not where work took place.</p>
             <p>
-              Payee locations use addresses in the filings, not where work took
-              place.
+              Public subsidy received and campaign spending are separate figures. These records do
+              not trace subsidy dollars to individual payees.
             </p>
-            <p>
-              Public subsidy received and campaign spending are separate
-              figures. These records do not trace subsidy dollars to individual
-              payees.
-            </p>
-            <p>
-              Non-itemized spending has no named payee and is shown separately.
-            </p>
+            <p>Non-itemized spending has no named payee and is shown separately.</p>
             {baseline && (
               <p>
-                {count(baseline.coverage.named_candidacies)} candidates in the
-                election record · {count(baseline.coverage.scoped_candidacies)}{" "}
-                in this report scope ·{" "}
-                {count(baseline.coverage.selected_account_reports)} Minnesota
-                Board reports ·{" "}
-                {count(baseline.coverage.checked_detail_account_reports)} with
-                checked detail
-                {baseline.external_status === "published" && (
+                {count(baseline.coverage.named_candidacies)} candidates in the election record ·{' '}
+                {count(baseline.coverage.scoped_candidacies)} in this report scope ·{' '}
+                {count(baseline.coverage.selected_account_reports)} Minnesota Board reports ·{' '}
+                {count(baseline.coverage.checked_detail_account_reports)} with checked detail
+                {baseline.external_status === 'published' && (
                   <>
-                    {" · "}
+                    {' · '}
                     {count(
                       baseline.coverage.external_selected_account_reports ??
                         baseline.authority_reports?.length ??
                         0,
-                    )}{" "}
+                    )}{' '}
                     federal or local reports
                   </>
                 )}
               </p>
             )}
             <p>
-              Account money is counted once. These figures do not cover every
-              candidate’s spending.
+              Account money is counted once. These figures do not cover every candidate’s spending.
             </p>
           </section>
           <section className="ex-sources">
@@ -976,11 +860,7 @@ export function ExpenseReport({
               Candidate records
             </p>
             {[
-              ...new Set(
-                baseline?.authority_reports?.map(
-                  (report) => report.authority_name,
-                ) ?? [],
-              ),
+              ...new Set(baseline?.authority_reports?.map((report) => report.authority_name) ?? []),
             ].map((name) => (
               <p key={name}>
                 <strong>{name}</strong>
@@ -993,7 +873,7 @@ export function ExpenseReport({
             <RetainedEvidence
               selection={selection}
               onClose={() => {
-                setAddress({ expenseSource: "" });
+                setAddress({ expenseSource: '' });
                 setOpenReport(null);
               }}
               onReload={reload}
@@ -1024,28 +904,26 @@ function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
     accounts: data.account_reports.filter(
       (account) =>
         account.party_group === party &&
-        (party !== "unknown" ||
-          account.party_classification_state === "ballot_party_not_in_source"),
+        (party !== 'unknown' ||
+          account.party_classification_state === 'ballot_party_not_in_source'),
     ),
   }));
   const mixed = data.account_reports.filter(
     (account) =>
-      account.party_group === "unknown" &&
-      account.party_classification_state !== "ballot_party_not_in_source",
+      account.party_group === 'unknown' &&
+      account.party_classification_state !== 'ballot_party_not_in_source',
   );
   if (mixed.length)
     categories.push({
-      key: "unassigned",
-      name: "Party cannot be assigned",
+      key: 'unassigned',
+      name: 'Party cannot be assigned',
       candidates: null,
       accounts: mixed,
     });
-  const rows = categories.filter(
-    (row) => row.candidates || row.accounts.length,
-  );
+  const rows = categories.filter((row) => row.candidates || row.accounts.length);
   const total = {
-    key: "total",
-    name: "Total",
+    key: 'total',
+    name: 'Total',
     candidates: data.coverage.scoped_candidacies,
     accounts: data.account_reports,
   };
@@ -1056,21 +934,19 @@ function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
         return {
           covered: available.length,
           total: row.accounts.length,
-          unit: "accounts" as const,
+          unit: 'accounts' as const,
         };
       const candidates = new Set(
         available.flatMap((account) =>
           account.display_claims
-            .filter(
-              (claim) => row.key === "total" || claim.party_group === row.key,
-            )
+            .filter((claim) => row.key === 'total' || claim.party_group === row.key)
             .map(d.claimKey),
         ),
       );
       return {
         covered: candidates.size,
         total: row.candidates,
-        unit: "candidates" as const,
+        unit: 'candidates' as const,
         accountCoverage: {
           covered: available.length,
           total: row.accounts.length,
@@ -1106,27 +982,23 @@ function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
       />,
     ];
   };
-  const periods = new Set(
-    data.summary.periods.map((period) => `${period.start}:${period.end}`),
-  );
+  const periods = new Set(data.summary.periods.map((period) => `${period.start}:${period.end}`));
   return (
     <section className="ec-section">
       <h2>Party comparison</h2>
-      <p className="ec-muted">
-        Spending and subsidies: {data.summary.authority_name ?? BOARD}
-      </p>
+      <p className="ec-muted">Spending and subsidies: {data.summary.authority_name ?? BOARD}</p>
       {periods.size > 1 && <p className="ec-muted">Periods vary</p>}
-      {band === "phone" ? (
+      {band === 'phone' ? (
         <ul className="ex-summary-cards">
           {[...rows, total].map((row) => (
             <li key={row.key}>
               <h3>{row.name}</h3>
               <Metrics
                 values={[
-                  "Candidates",
-                  "Public subsidy received",
-                  "Before exclusions",
-                  "After exclusions",
+                  'Candidates',
+                  'Public subsidy received',
+                  'Before exclusions',
+                  'After exclusions',
                 ].map((name, index) => [name, values(row)[index]])}
               />
             </li>
@@ -1149,10 +1021,7 @@ function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
             </thead>
             <tbody>
               {[...rows, total].map((row) => (
-                <tr
-                  key={row.key}
-                  className={row.key === "total" ? "ex-total" : ""}
-                >
+                <tr key={row.key} className={row.key === 'total' ? 'ex-total' : ''}>
                   <th scope="row">{row.name}</th>
                   {values(row).map((value, index) => (
                     <td key={index}>{value}</td>
@@ -1165,16 +1034,14 @@ function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
       )}
       {mixed.map((account) => (
         <p className="ec-muted" key={account.report_key}>
-          Shared campaign account {account.registration_number} ·{" "}
-          {account.party_classification_state === "mixed_ballot_parties"
-            ? "Shared account, different ballot parties"
-            : "Party evidence unavailable"}
+          Shared campaign account {account.registration_number} ·{' '}
+          {account.party_classification_state === 'mixed_ballot_parties'
+            ? 'Shared account, different ballot parties'
+            : 'Party evidence unavailable'}
           <br />
           {account.claims
-            .map(
-              (claim) => `${claim.name} (${d.partyLabel(claim.filed_party)})`,
-            )
-            .join(" · ")}
+            .map((claim) => `${claim.name} (${d.partyLabel(claim.filed_party)})`)
+            .join(' · ')}
         </p>
       ))}
     </section>
@@ -1185,45 +1052,38 @@ function LocationComparison({ data }: { data: d.ExpenseAnswer }) {
   const band = useBand();
   const before = data.summary.baseline_checked_itemized_detail;
   const after = data.summary.adjusted_checked_itemized_detail;
-  const rows: Array<
-    [string, string | null | undefined, string | null | undefined]
-  > = [
+  const rows: Array<[string, string | null | undefined, string | null | undefined]> = [
+    ['Minnesota', before.by_filed_address.MN?.total, after.by_filed_address.MN?.total],
     [
-      "Minnesota",
-      before.by_filed_address.MN?.total,
-      after.by_filed_address.MN?.total,
-    ],
-    [
-      "Out of state",
+      'Out of state',
       before.by_filed_address.out_of_state?.total,
       after.by_filed_address.out_of_state?.total,
     ],
     [
-      "Location unavailable",
+      'Location unavailable',
       before.by_filed_address.unknown?.total,
       after.by_filed_address.unknown?.total,
     ],
-    ["Itemized total", before.amounts?.total, after.amounts?.total],
+    ['Itemized total', before.amounts?.total, after.amounts?.total],
   ];
-  const nonItemized =
-    data.summary.non_itemized_on_checked_detail_reports?.total;
+  const nonItemized = data.summary.non_itemized_on_checked_detail_reports?.total;
   const coveredCandidates = new Set(
     data.account_reports
-      .filter((account) => account.detail_status === "checked")
+      .filter((account) => account.detail_status === 'checked')
       .flatMap((account) => account.display_claims.map(d.claimKey)),
   ).size;
   return (
     <>
       <p className="ec-muted">{data.summary.authority_name ?? BOARD}</p>
-      {band === "phone" ? (
+      {band === 'phone' ? (
         <ul className="ex-summary-cards">
           {rows.map(([name, first, last]) => (
             <li key={name}>
               <h3>{name}</h3>
               <Metrics
                 values={[
-                  ["Before exclusions", <Money value={first} />],
-                  ["After exclusions", <Money value={last} />],
+                  ['Before exclusions', <Money value={first} />],
+                  ['After exclusions', <Money value={last} />],
                 ]}
               />
             </li>
@@ -1241,10 +1101,7 @@ function LocationComparison({ data }: { data: d.ExpenseAnswer }) {
             </thead>
             <tbody>
               {rows.map(([name, first, last]) => (
-                <tr
-                  key={name}
-                  className={name === "Itemized total" ? "ex-total" : ""}
-                >
+                <tr key={name} className={name === 'Itemized total' ? 'ex-total' : ''}>
                   <th scope="row">{name}</th>
                   <td>
                     <Money value={first} />
@@ -1261,15 +1118,13 @@ function LocationComparison({ data }: { data: d.ExpenseAnswer }) {
       {(data.summary.withheld_detail_accounts > 0 ||
         coveredCandidates < data.coverage.scoped_candidacies) && (
         <p className="ec-muted">
-          Known subtotal · Covers {count(coveredCandidates)} of{" "}
-          {count(data.coverage.scoped_candidacies)} candidates ·{" "}
+          Known subtotal · Covers {count(coveredCandidates)} of{' '}
+          {count(data.coverage.scoped_candidacies)} candidates ·{' '}
           {count(before.available_account_reports)} checked account reports
         </p>
       )}
       <div className="ex-nonitemized">
-        <Metrics
-          values={[["Non-itemized spending", <Money value={nonItemized} />]]}
-        />
+        <Metrics values={[['Non-itemized spending', <Money value={nonItemized} />]]} />
       </div>
     </>
   );
@@ -1309,18 +1164,14 @@ function CandidateRow({
   const accounts = baseline.account_reports.filter((account) =>
     candidate.accounts.some((entry) => entry.report_key === account.report_key),
   );
-  const externalAccounts = (baseline.authority_reports ?? []).filter(
-    (account) =>
-      account.display_claims.some((claim) => d.claimKey(claim) === key),
+  const externalAccounts = (baseline.authority_reports ?? []).filter((account) =>
+    account.display_claims.some((claim) => d.claimKey(claim) === key),
   );
-  const ownMoney = (account: Pick<d.AccountReport, "display_claims">) =>
+  const ownMoney = (account: Pick<d.AccountReport, 'display_claims'>) =>
     [...account.display_claims]
       .filter(
         (claim) =>
-          !queryText ||
-          claim.name
-            .toLocaleLowerCase()
-            .includes(queryText.toLocaleLowerCase()),
+          !queryText || claim.name.toLocaleLowerCase().includes(queryText.toLocaleLowerCase()),
       )
       .sort(byName)[0];
   const rows = accounts.filter(
@@ -1335,7 +1186,7 @@ function CandidateRow({
         <p>
           {[candidate.office, candidate.district, candidate.jurisdiction]
             .filter(Boolean)
-            .join(" · ")}
+            .join(' · ')}
         </p>
         <button
           className="ec-link"
@@ -1343,11 +1194,11 @@ function CandidateRow({
           aria-expanded={open}
           onClick={() =>
             setAddress({
-              expenseCandidate: open ? "" : key,
-              expensePayeePage: "1",
-              expensePayee: "",
-              expensePaymentsPage: "1",
-              expenseSource: "",
+              expenseCandidate: open ? '' : key,
+              expensePayeePage: '1',
+              expensePayee: '',
+              expensePaymentsPage: '1',
+              expenseSource: '',
             })
           }
         >
@@ -1366,14 +1217,9 @@ function CandidateRow({
           />
         ))}
         {references.map((account) => (
-          <div
-            className="ex-account ex-account-reference"
-            key={account.report_key}
-          >
+          <div className="ex-account ex-account-reference" key={account.report_key}>
             <p>
-              <strong>
-                Shared campaign account {account.registration_number}
-              </strong>
+              <strong>Shared campaign account {account.registration_number}</strong>
               <br />
               Account figures shown with {ownMoney(account)?.name}
             </p>
@@ -1395,20 +1241,13 @@ function CandidateRow({
               showSource={showExternalSource}
             />
           ) : (
-            <div
-              className="ex-account ex-account-reference"
-              key={account.report_key}
-            >
+            <div className="ex-account ex-account-reference" key={account.report_key}>
               <strong>Shared campaign account {account.account_id}</strong>
               <p>Account figures shown with {ownMoney(account)?.name}</p>
               <button
                 className="ec-link"
                 disabled={!enabled}
-                onClick={() =>
-                  showExternalSource(
-                    `external-report:${account.report_key}:report:0`,
-                  )
-                }
+                onClick={() => showExternalSource(`external-report:${account.report_key}:report:0`)}
               >
                 View report
               </button>
@@ -1421,20 +1260,18 @@ function CandidateRow({
             <p className="ec-muted">
               {candidate.external_coverage
                 ? coverageLabel(candidate.external_coverage.status)
-                : candidate.filing_authority === "fec"
-                  ? "Federal campaign records"
-                  : candidate.filing_authority === "local"
-                    ? "Local campaign records"
+                : candidate.filing_authority === 'fec'
+                  ? 'Federal campaign records'
+                  : candidate.filing_authority === 'local'
+                    ? 'Local campaign records'
                     : candidate.confirmed_account_count
-                      ? "Selected report unavailable"
-                      : "No confirmed campaign account"}
+                      ? 'Selected report unavailable'
+                      : 'No confirmed campaign account'}
             </p>
           </div>
         )}
         {candidate.gaps.length > 0 && accounts.length > 0 && (
-          <p className="ec-muted">
-            Some account or report figures are not held
-          </p>
+          <p className="ec-muted">Some account or report figures are not held</p>
         )}
       </div>
       {open && enabled && (
@@ -1466,16 +1303,12 @@ function AccountFigures({
   showReport: (key: string) => void;
 }) {
   const shared = account.claims.length > 1;
-  const link = candidate.accounts.find(
-    (entry) => entry.report_key === account.report_key,
-  );
+  const link = candidate.accounts.find((entry) => entry.report_key === account.report_key);
   return (
     <div className="ex-account">
       <div className="ex-account-title">
         <strong>
-          {shared
-            ? "Shared campaign account"
-            : link?.committee_name || "Campaign account"}{" "}
+          {shared ? 'Shared campaign account' : link?.committee_name || 'Campaign account'}{' '}
           {account.registration_number}
         </strong>
         <span>{account.filing.report_name || account.filing.report_type}</span>
@@ -1486,15 +1319,13 @@ function AccountFigures({
         )}
         {shared && (
           <p>
-            {account.party_classification_state === "mixed_ballot_parties"
-              ? "Shared account, different ballot parties"
-              : "Account money counted once"}
+            {account.party_classification_state === 'mixed_ballot_parties'
+              ? 'Shared account, different ballot parties'
+              : 'Account money counted once'}
             <br />
             {account.claims
-              .map(
-                (claim) => `${claim.name} (${d.partyLabel(claim.filed_party)})`,
-              )
-              .join(" · ")}
+              .map((claim) => `${claim.name} (${d.partyLabel(claim.filed_party)})`)
+              .join(' · ')}
           </p>
         )}
         <button
@@ -1507,21 +1338,15 @@ function AccountFigures({
       </div>
       <Metrics
         values={[
-          [
-            "Public subsidy received",
-            <Money value={account.public_subsidy?.total} />,
-          ],
-          ["Cash", <Money value={account.campaign_expenses?.paid} />],
-          ["In-kind", <Money value={account.campaign_expenses?.in_kind} />],
-          ["Unpaid", <Money value={account.campaign_expenses?.unpaid} />],
-          ["Report total", <Money value={account.campaign_expenses?.total} />],
-          [
-            "After exclusions",
-            <Money value={d.adjustedReportTotal(account)} />,
-          ],
+          ['Public subsidy received', <Money value={account.public_subsidy?.total} />],
+          ['Cash', <Money value={account.campaign_expenses?.paid} />],
+          ['In-kind', <Money value={account.campaign_expenses?.in_kind} />],
+          ['Unpaid', <Money value={account.campaign_expenses?.unpaid} />],
+          ['Report total', <Money value={account.campaign_expenses?.total} />],
+          ['After exclusions', <Money value={d.adjustedReportTotal(account)} />],
         ]}
       />
-      {account.detail_gap === "expense_detail_unreconciled" && (
+      {account.detail_gap === 'expense_detail_unreconciled' && (
         <p className="ex-gap">
           <strong>Amounts do not match</strong>
           <br />
@@ -1530,8 +1355,8 @@ function AccountFigures({
           The expense rows do not match the report total
         </p>
       )}
-      {account.detail_status !== "checked" &&
-        account.detail_gap !== "expense_detail_unreconciled" && (
+      {account.detail_status !== 'checked' &&
+        account.detail_gap !== 'expense_detail_unreconciled' && (
           <p className="ex-gap">Itemized detail unavailable</p>
         )}
     </div>
@@ -1572,13 +1397,13 @@ function CandidatePayees({
       (claim) => d.claimKey(claim) === d.claimKey(candidate),
     ),
   };
-  const seedPath = d.expensePath(baseline.election_key, "", query);
+  const seedPath = d.expensePath(baseline.election_key, '', query);
   const seed = useRead<d.ExpenseAnswer>(seedPath, { revision });
   const path =
     seed.data && !seed.failed
       ? d.expensePath(
           baseline.election_key,
-          "payees",
+          'payees',
           { ...query, payee_query: address.expensePayeeQuery },
           pins(seed.data),
           position(address.expensePayeePage),
@@ -1599,9 +1424,9 @@ function CandidatePayees({
         commit={(value) =>
           setAddress({
             expensePayeeQuery: value,
-            expensePayeePage: "1",
-            expensePayee: "",
-            expensePaymentsPage: "1",
+            expensePayeePage: '1',
+            expensePayee: '',
+            expensePaymentsPage: '1',
           })
         }
       />
@@ -1612,26 +1437,22 @@ function CandidatePayees({
         <>
           <PayeeList
             data={payees.data}
-            enabled={
-              payees.dataPath === path && !payees.failed && !payees.updating
-            }
+            enabled={payees.dataPath === path && !payees.failed && !payees.updating}
             excluded={excluded}
             query={{ ...query, payee_query: address.expensePayeeQuery }}
             selected={
               address.expensePayee.startsWith(payeePrefix)
                 ? address.expensePayee.slice(payeePrefix.length)
-                : ""
+                : ''
             }
             choose={(id) =>
               setAddress({
-                expensePayee: id ? `${payeePrefix}${id}` : "",
-                expensePaymentsPage: "1",
+                expensePayee: id ? `${payeePrefix}${id}` : '',
+                expensePaymentsPage: '1',
               })
             }
             paymentPage={address.expensePaymentsPage}
-            setPaymentPage={(value) =>
-              setAddress({ expensePaymentsPage: value })
-            }
+            setPaymentPage={(value) => setAddress({ expensePaymentsPage: value })}
             showPayment={showPayment}
             showPayee={showPayee}
             revision={revision}
@@ -1639,9 +1460,7 @@ function CandidatePayees({
           />
           <Pager
             page={payees.data.page}
-            move={(value) =>
-              setAddress({ expensePayeePage: value, expensePayee: "" })
-            }
+            move={(value) => setAddress({ expensePayeePage: value, expensePayee: '' })}
           />
         </>
       )}
@@ -1678,26 +1497,23 @@ function PayeeList({
 }) {
   const { sourceKey, rememberPayee } = useContext(EvidenceRestore);
   useEffect(() => {
-    const selected = data.payees?.find(
-      (payee) => payeeSourceKey(payee, data) === sourceKey,
-    );
+    const selected = data.payees?.find((payee) => payeeSourceKey(payee, data) === sourceKey);
     if (selected && enabled) rememberPayee(selected, data);
   }, [data, sourceKey, rememberPayee, enabled]);
-  if (!data.payees?.length)
-    return <p className="ec-empty">No matching payees</p>;
+  if (!data.payees?.length) return <p className="ec-empty">No matching payees</p>;
   return (
     <ul className="ex-payee-list">
       {data.payees.map((payee) => {
-        const id = payee.payee_id ?? `unknown:${payee.report_keys.join(",")}`;
+        const id = payee.payee_id ?? `unknown:${payee.report_keys.join(',')}`;
         return (
           <li key={id}>
             <div className="ex-payee-main">
               <div>
-                <h5>{payee.payee?.name || "Payee not shown"}</h5>
+                <h5>{payee.payee?.name || 'Payee not shown'}</h5>
                 {d.addressLines(payee.payee).map((line, index) => (
                   <p key={index}>{line}</p>
                 ))}
-                {payee.geography === "unknown" && <p>Location unavailable</p>}
+                {payee.geography === 'unknown' && <p>Location unavailable</p>}
                 {payee.payee_id && excluded.includes(payee.payee_id) && (
                   <p>
                     <strong>Excluded</strong>
@@ -1706,23 +1522,16 @@ function PayeeList({
               </div>
               <Metrics
                 values={[
-                  [
-                    "Purpose",
-                    payee.purposes.filter(Boolean).join(" · ") ||
-                      "Not reported",
-                  ],
+                  ['Purpose', payee.purposes.filter(Boolean).join(' · ') || 'Not reported'],
                   ...amountEntries(payee.amounts, payee.reported_amounts),
                 ]}
               />
               <div className="ex-payee-actions">
                 <button
                   className="ec-link"
-                  disabled={
-                    !enabled ||
-                    (!payee.payee_id && payee.report_keys.length !== 1)
-                  }
+                  disabled={!enabled || (!payee.payee_id && payee.report_keys.length !== 1)}
                   aria-expanded={selected === id}
-                  onClick={() => choose(selected === id ? "" : id)}
+                  onClick={() => choose(selected === id ? '' : id)}
                 >
                   <Caret up={selected === id} />
                   View payments ({count(payee.payment_count)})
@@ -1775,14 +1584,12 @@ function Payments({
 }) {
   // Unnamed rows belong to an exact report group, never a synthetic payee identity.
   const unnamedReportKey =
-    !payee.payee_id && payee.report_keys.length === 1
-      ? payee.report_keys[0]
-      : undefined;
+    !payee.payee_id && payee.report_keys.length === 1 ? payee.report_keys[0] : undefined;
   const path =
     payee.payee_id || unnamedReportKey
       ? d.expensePath(
           data.election_key,
-          "payments",
+          'payments',
           query,
           pins(data),
           position(page),
@@ -1807,11 +1614,7 @@ function Payments({
       ) : (
         <>
           <Scope read={read} path={path} />
-          <Notice
-            read={read}
-            message="Couldn’t load payments"
-            reload={reload}
-          />
+          <Notice read={read} message="Couldn’t load payments" reload={reload} />
           {read.data && (
             <>
               <ul>
@@ -1819,28 +1622,20 @@ function Payments({
                   <li key={`${payment.report_key}:${payment.record_id}`}>
                     <Metrics
                       values={[
-                        [
-                          "Date",
-                          payment.date
-                            ? dateLabel(payment.date)
-                            : "Date not shown",
-                        ],
-                        ["Purpose", payment.purpose || "Not reported"],
+                        ['Date', payment.date ? dateLabel(payment.date) : 'Date not shown'],
+                        ['Purpose', payment.purpose || 'Not reported'],
                         ...paymentEntries(payment),
                       ]}
                     />
                     {payment.underlying_vendor && (
                       <p>
-                        Underlying vendor:{" "}
-                        {payment.underlying_vendor.name || "Name not shown"} ·{" "}
+                        Underlying vendor: {payment.underlying_vendor.name || 'Name not shown'} ·{' '}
                         {payment.relationship}
                       </p>
                     )}
                     <button
                       className="ec-link"
-                      disabled={
-                        read.dataPath !== path || read.failed || read.updating
-                      }
+                      disabled={read.dataPath !== path || read.failed || read.updating}
                       onClick={() => showPayment(payment, read.data!)}
                     >
                       View source
@@ -1878,8 +1673,8 @@ function Exclusions({
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState("1");
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState('1');
   const [applyTarget, setApplyTarget] = useState<string | null>(null);
   const wrapper = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -1890,7 +1685,7 @@ function Exclusions({
     open && (enabled || applyTarget !== null)
       ? d.expensePath(
           data.election_key,
-          "payees",
+          'payees',
           { ...query, excluded_payee_ids: [], payee_query: search },
           pins(data),
           position(page),
@@ -1904,21 +1699,17 @@ function Exclusions({
     if (
       applyTarget !== null &&
       enabled &&
-      [...(data.filters.excluded_payee_ids ?? [])].sort().join(",") ===
-        applyTarget
+      [...(data.filters.excluded_payee_ids ?? [])].sort().join(',') === applyTarget
     ) {
       setApplyTarget(null);
       setOpen(false);
       trigger.current?.focus();
     }
   }, [applyTarget, enabled, data.filters.excluded_payee_ids]);
-  const applying =
-    applyTarget !== null && (applyRead.pending || applyRead.updating);
+  const applying = applyTarget !== null && (applyRead.pending || applyRead.updating);
   useEffect(() => {
     if (!open) return;
-    panel.current
-      ?.querySelector<HTMLInputElement>('input[type="search"]')
-      ?.focus();
+    panel.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
     const close = (event: PointerEvent) => {
       if (!wrapper.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -1927,18 +1718,18 @@ function Exclusions({
       }
     };
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         event.preventDefault();
         setOpen(false);
         setApplyTarget(null);
         trigger.current?.focus();
       }
     };
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", escape);
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', escape);
     return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", escape);
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', escape);
     };
   }, [open]);
   const selected = data.filters.excluded_payee_ids ?? [];
@@ -1946,10 +1737,7 @@ function Exclusions({
   const after = data.summary.adjusted_checked_itemized_detail.amounts?.total;
   const removed =
     before != null && after != null
-      ? d.sumMoney([
-          before,
-          after.startsWith("-") ? after.slice(1) : `-${after}`,
-        ])
+      ? d.sumMoney([before, after.startsWith('-') ? after.slice(1) : `-${after}`])
       : null;
   return (
     <div className="ex-exclusions" ref={wrapper} data-open={open || undefined}>
@@ -1963,8 +1751,8 @@ function Exclusions({
           aria-controls={panelId}
           onClick={() => {
             setDraft(d.exactKeys(address.expenseExcluded, 200) ?? []);
-            setSearch("");
-            setPage("1");
+            setSearch('');
+            setPage('1');
             setOpen(!open);
           }}
         >
@@ -1974,7 +1762,7 @@ function Exclusions({
           <button
             className="ec-link"
             disabled={!enabled}
-            onClick={() => setAddress({ expenseExcluded: "" })}
+            onClick={() => setAddress({ expenseExcluded: '' })}
           >
             Clear exclusions
           </button>
@@ -1994,7 +1782,7 @@ function Exclusions({
             here={here}
             commit={(value) => {
               setSearch(value);
-              setPage("1");
+              setPage('1');
             }}
           />
           {applyTarget !== null && applyRead.failed && !applyRead.changed && (
@@ -2004,7 +1792,7 @@ function Exclusions({
           )}
           {applyTarget !== null && applyRead.changed && (
             <div className="ec-notice" role="status">
-              These records changed{" "}
+              These records changed{' '}
               <button className="ec-link" onClick={reload}>
                 Reload comparison
               </button>
@@ -2016,7 +1804,7 @@ function Exclusions({
             <>
               <ul>
                 {read.data.payees?.map((payee) => (
-                  <li key={payee.payee_id ?? payee.report_keys.join(",")}>
+                  <li key={payee.payee_id ?? payee.report_keys.join(',')}>
                     <label>
                       <input
                         type="checkbox"
@@ -2025,12 +1813,9 @@ function Exclusions({
                           read.dataPath !== path ||
                           read.updating ||
                           read.failed ||
-                          (!draft.includes(payee.payee_id ?? "") &&
-                            draft.length >= 200)
+                          (!draft.includes(payee.payee_id ?? '') && draft.length >= 200)
                         }
-                        checked={
-                          !!payee.payee_id && draft.includes(payee.payee_id)
-                        }
+                        checked={!!payee.payee_id && draft.includes(payee.payee_id)}
                         onChange={(event) => {
                           const id = payee.payee_id;
                           if (id)
@@ -2042,10 +1827,8 @@ function Exclusions({
                         }}
                       />
                       <span>
-                        <strong>
-                          {payee.payee?.name || "Payee not shown"}
-                        </strong>
-                        <small>{d.addressLines(payee.payee).join(", ")}</small>
+                        <strong>{payee.payee?.name || 'Payee not shown'}</strong>
+                        <small>{d.addressLines(payee.payee).join(', ')}</small>
                       </span>
                       <strong className="ex-number">
                         {payee.amounts ? (
@@ -2066,8 +1849,8 @@ function Exclusions({
             <button
               className="ec-link"
               onClick={() => {
-                setSearch("");
-                setPage("1");
+                setSearch('');
+                setPage('1');
               }}
             >
               Clear search
@@ -2084,8 +1867,8 @@ function Exclusions({
               draft.length > 200
             }
             onClick={() => {
-              const next = [...new Set(draft)].sort().join(",");
-              if (next === [...selected].sort().join(",")) {
+              const next = [...new Set(draft)].sort().join(',');
+              if (next === [...selected].sort().join(',')) {
                 setOpen(false);
                 trigger.current?.focus();
                 return;
@@ -2094,7 +1877,7 @@ function Exclusions({
               setAddress({ expenseExcluded: next });
             }}
           >
-            {applying ? "Applying exclusions…" : "Apply exclusions"}
+            {applying ? 'Applying exclusions…' : 'Apply exclusions'}
           </button>
         </div>
       )}
@@ -2106,7 +1889,7 @@ function Exclusions({
                 <Metrics
                   values={[
                     [
-                      payee.payee.name || "Payee not shown",
+                      payee.payee.name || 'Payee not shown',
                       payee.amounts ? (
                         <Money value={payee.amounts.total} />
                       ) : (
@@ -2115,14 +1898,11 @@ function Exclusions({
                     ],
                   ]}
                 />
-                <span className="ec-muted">
-                  {d.addressLines(payee.payee).join(", ")}
-                </span>
+                <span className="ec-muted">{d.addressLines(payee.payee).join(', ')}</span>
                 {payee.account_reports.map((account) => (
                   <div className="ex-part" key={account.report_key}>
                     <span>
-                      {account.claims.map((claim) => claim.name).join(" / ")} ·
-                      Account{" "}
+                      {account.claims.map((claim) => claim.name).join(' / ')} · Account{' '}
                       {account.account_id ?? account.registration_number}
                     </span>
                     <strong className="ex-number">
@@ -2137,14 +1917,7 @@ function Exclusions({
               </li>
             ))}
           </ul>
-          <Metrics
-            values={[
-              [
-                "Excluded spending · Minnesota Board",
-                <Money value={removed} />,
-              ],
-            ]}
-          />
+          <Metrics values={[['Excluded spending · Minnesota Board', <Money value={removed} />]]} />
         </div>
       ) : (
         <p className="ec-muted">No exclusions applied</p>
@@ -2152,29 +1925,26 @@ function Exclusions({
     </div>
   );
 }
-function payeeEvidence(
-  data: d.ExpenseAnswer,
-  payee: d.Payee,
-): ElectionEvidence {
+function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence {
   const first = payee.source[0];
   return {
     evidence: {
-      title: `${payee.payee?.name || "Payee not shown"} · ${payee.amounts ? moneyLabel(payee.amounts.total) : <ReportedValues values={payee.reported_amounts} />}`,
+      title: `${payee.payee?.name || 'Payee not shown'} · ${payee.amounts ? moneyLabel(payee.amounts.total) : <ReportedValues values={payee.reported_amounts} />}`,
       authority: payee.authority_name ?? BOARD,
-      checked: "Checked",
+      checked: 'Checked',
       rows: [
-        { label: "Payee", value: payee.payee?.name || "Payee not shown" },
+        { label: 'Payee', value: payee.payee?.name || 'Payee not shown' },
         {
-          label: "Address as shown",
-          value: d.addressLines(payee.payee).join(", "),
+          label: 'Address as shown',
+          value: d.addressLines(payee.payee).join(', '),
         },
         {
-          label: "Purpose",
-          value: payee.purposes.filter(Boolean).join(" · ") || "Not reported",
+          label: 'Purpose',
+          value: payee.purposes.filter(Boolean).join(' · ') || 'Not reported',
         },
-        { label: "Payments", value: count(payee.payment_count) },
+        { label: 'Payments', value: count(payee.payment_count) },
         ...payee.source.map((source) => ({
-          label: "Source location",
+          label: 'Source location',
           value: sourceLocation(source),
         })),
       ],
@@ -2182,141 +1952,120 @@ function payeeEvidence(
         payee.source
           .map((source) => source.text ?? source.quote)
           .filter(Boolean)
-          .join("\n") || undefined,
-      quoteLabel: "SOURCE TEXT",
+          .join('\n') || undefined,
+      quoteLabel: 'SOURCE TEXT',
     },
-    attachment: first
-      ? expenseSourcePath(data, first.source_sha256, payee.authority)
-      : null,
+    attachment: first ? expenseSourcePath(data, first.source_sha256, payee.authority) : null,
     pdfPage: first?.page,
   };
 }
 
-function reportEvidence(
-  data: d.ExpenseAnswer,
-  account: d.AccountReport,
-): ElectionEvidence {
+function reportEvidence(data: d.ExpenseAnswer, account: d.AccountReport): ElectionEvidence {
   const document = account.source.document;
   const location = (page: number | undefined, lines: number[] | undefined) =>
     page
-      ? `Page ${page}${lines?.length ? `, ${lineLabel(lines).toLowerCase()}` : ""}`
-      : "Source location not held";
+      ? `Page ${page}${lines?.length ? `, ${lineLabel(lines).toLowerCase()}` : ''}`
+      : 'Source location not held';
   return {
     evidence: {
-      title: `${account.claims.map((claim) => claim.name).join(" / ")} · ${account.filing.report_name}`,
+      title: `${account.claims.map((claim) => claim.name).join(' / ')} · ${account.filing.report_name}`,
       authority: BOARD,
-      checked: account.figure_status === "checked" ? "Checked" : "Not checked",
+      checked: account.figure_status === 'checked' ? 'Checked' : 'Not checked',
       rows: [
-        { label: "Source", value: document.file || "Retained campaign report" },
+        { label: 'Source', value: document.file || 'Retained campaign report' },
         {
-          label: "Copied",
-          value: dateLabel(
-            document.fetched_at || document.copied_at || document.held_at,
-          ),
+          label: 'Copied',
+          value: dateLabel(document.fetched_at || document.copied_at || document.held_at),
         },
-        { label: "Campaign account", value: account.registration_number },
+        { label: 'Campaign account', value: account.registration_number },
         {
-          label: "Report",
+          label: 'Report',
           value: account.filing.report_name || account.filing.report_type,
         },
         {
-          label: "Reporting period",
+          label: 'Reporting period',
           value: periodLabel(account.period_start, account.period_end),
         },
         {
-          label: "Effective amendment",
+          label: 'Effective amendment',
           value:
             account.filing.effective_amendment_index == null
-              ? "Not shown"
+              ? 'Not shown'
               : String(account.filing.effective_amendment_index),
         },
-        { label: "Received", value: dateLabel(account.received_date) },
+        { label: 'Received', value: dateLabel(account.received_date) },
         {
-          label: "Public subsidy received",
+          label: 'Public subsidy received',
           value: moneyLabel(account.public_subsidy?.total),
         },
         {
-          label: "Subsidy source location",
+          label: 'Subsidy source location',
           value: account.public_subsidy
-            ? location(
-                account.public_subsidy.source_page,
-                account.public_subsidy.source_lines,
-              )
-            : "Unavailable",
+            ? location(account.public_subsidy.source_page, account.public_subsidy.source_lines)
+            : 'Unavailable',
         },
         {
-          label: "Campaign spending · Report total",
+          label: 'Campaign spending · Report total',
           value: moneyLabel(account.campaign_expenses?.total),
         },
         {
-          label: "Expense source location",
+          label: 'Expense source location',
           value: account.campaign_expenses
-            ? location(
-                account.expense_source.page,
-                account.expense_source.summary_lines,
-              )
-            : "Unavailable",
+            ? location(account.expense_source.page, account.expense_source.summary_lines)
+            : 'Unavailable',
         },
         ...account.claims.map((claim) => ({
-          label: "Account membership · Party from official election record",
-          value: `${claim.name} · ${d.partyLabel(claim.filed_party)}${claim.filed_party ? ` (${claim.filed_party})` : ""}`,
+          label: 'Account membership · Party from official election record',
+          value: `${claim.name} · ${d.partyLabel(claim.filed_party)}${claim.filed_party ? ` (${claim.filed_party})` : ''}`,
         })),
         ...account.claims.flatMap((claim) =>
           (claim.party_sources ?? []).map((source) => ({
             label: `Official party source · ${claim.name}`,
-            value: `${source.kind === "official_result" ? "Official result" : "Candidate record"}, row ${source.row_number} · Literal ${source.party_value} · ${source.availability === "available" ? "Source held" : "Source unavailable"} · ${source.source_sha256}`,
+            value: `${source.kind === 'official_result' ? 'Official result' : 'Candidate record'}, row ${source.row_number} · Literal ${source.party_value} · ${source.availability === 'available' ? 'Source held' : 'Source unavailable'} · ${source.source_sha256}`,
           })),
         ),
-        { label: "Source version", value: account.source.sha256 },
+        { label: 'Source version', value: account.source.sha256 },
       ],
     },
     attachment: retainedReportPath(data, account.source.sha256),
-    pdfPage: account.campaign_expenses
-      ? account.expense_source.page
-      : undefined,
+    pdfPage: account.campaign_expenses ? account.expense_source.page : undefined,
   };
 }
-function paymentEvidence(
-  data: d.ExpenseAnswer,
-  payment: d.Payment,
-): ElectionEvidence {
+function paymentEvidence(data: d.ExpenseAnswer, payment: d.Payment): ElectionEvidence {
   const first = payment.source[0];
   return {
     evidence: {
-      title: `${payment.payee?.name || "Payee not shown"} · ${payment.amounts ? moneyLabel(payment.amounts.total) : reportedMoneyLabel(payment.reported_amount, payment.currency)}`,
+      title: `${payment.payee?.name || 'Payee not shown'} · ${payment.amounts ? moneyLabel(payment.amounts.total) : reportedMoneyLabel(payment.reported_amount, payment.currency)}`,
       authority: payment.authority_name ?? BOARD,
-      checked: "Checked",
+      checked: 'Checked',
       rows: [
-        { label: "Payee", value: payment.payee?.name || "Payee not shown" },
+        { label: 'Payee', value: payment.payee?.name || 'Payee not shown' },
         {
-          label: "Address as shown",
-          value: d.addressLines(payment.payee).join(", "),
+          label: 'Address as shown',
+          value: d.addressLines(payment.payee).join(', '),
         },
-        { label: "Purpose", value: payment.purpose || "Not reported" },
+        { label: 'Purpose', value: payment.purpose || 'Not reported' },
         {
-          label: "Date",
-          value: payment.date ? dateLabel(payment.date) : "Date not shown",
+          label: 'Date',
+          value: payment.date ? dateLabel(payment.date) : 'Date not shown',
         },
         ...(payment.amounts
           ? [
-              { label: "Amount", value: moneyLabel(payment.amounts.total) },
-              { label: "Paid", value: moneyLabel(payment.amounts.paid) },
-              { label: "Unpaid", value: moneyLabel(payment.amounts.unpaid) },
-              { label: "In-kind", value: moneyLabel(payment.amounts.in_kind) },
+              { label: 'Amount', value: moneyLabel(payment.amounts.total) },
+              { label: 'Paid', value: moneyLabel(payment.amounts.paid) },
+              { label: 'Unpaid', value: moneyLabel(payment.amounts.unpaid) },
+              { label: 'In-kind', value: moneyLabel(payment.amounts.in_kind) },
             ]
           : [
               {
-                label: payment.measure_label ?? "Reported amount",
-                value: reportedMoneyLabel(
-                  payment.reported_amount,
-                  payment.currency,
-                ),
+                label: payment.measure_label ?? 'Reported amount',
+                value: reportedMoneyLabel(payment.reported_amount, payment.currency),
               },
               ...(payment.nonadditive
                 ? [
                     {
-                      label: "Status",
-                      value: "Supplemental memo, not added to spending",
+                      label: 'Status',
+                      value: 'Supplemental memo, not added to spending',
                     },
                   ]
                 : []),
@@ -2324,18 +2073,18 @@ function paymentEvidence(
         ...(payment.underlying_vendor
           ? [
               {
-                label: "Underlying vendor",
-                value: payment.underlying_vendor.name || "Name not shown",
+                label: 'Underlying vendor',
+                value: payment.underlying_vendor.name || 'Name not shown',
               },
-              { label: "Relationship as shown", value: payment.relationship },
+              { label: 'Relationship as shown', value: payment.relationship },
             ]
           : []),
         {
-          label: "Reporting period",
+          label: 'Reporting period',
           value: periodLabel(payment.period_start, payment.period_end),
         },
         ...payment.source.map((source) => ({
-          label: "Source location",
+          label: 'Source location',
           value: sourceLocation(source),
         })),
       ],
@@ -2343,21 +2092,15 @@ function paymentEvidence(
         payment.source
           .map((source) => source.text ?? source.quote)
           .filter(Boolean)
-          .join("\n") || undefined,
-      quoteLabel: "SOURCE TEXT",
+          .join('\n') || undefined,
+      quoteLabel: 'SOURCE TEXT',
     },
-    attachment: first
-      ? expenseSourcePath(data, first.source_sha256, payment.authority)
-      : null,
+    attachment: first ? expenseSourcePath(data, first.source_sha256, payment.authority) : null,
     pdfPage: first?.page,
   };
 }
-function expenseSourcePath(
-  data: d.ExpenseAnswer,
-  hash: string,
-  authority?: string,
-) {
-  return authority && authority !== "mn_cfb"
+function expenseSourcePath(data: d.ExpenseAnswer, hash: string, authority?: string) {
+  return authority && authority !== 'mn_cfb'
     ? data.external_generation_id
       ? externalSourcePath(
           {
@@ -2372,13 +2115,13 @@ function expenseSourcePath(
 function retainedReportPath(data: d.ExpenseAnswer, hash: string) {
   return (
     [
-      "finance",
-      "elections",
+      'finance',
+      'elections',
       encodeURIComponent(data.election_key),
-      "finance",
-      "sources",
+      'finance',
+      'sources',
       encodeURIComponent(hash),
-    ].join("/") + `?collection_id=${encodeURIComponent(data.collection_id)}`
+    ].join('/') + `?collection_id=${encodeURIComponent(data.collection_id)}`
   );
 }
 
@@ -2396,11 +2139,8 @@ function useCsvDownload(path: string | null) {
   const controller = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const running = useRef<string | null>(null);
-  const allowed =
-    session.status === "granted" && !session.revoked && !!session.accessToken;
-  const key = [path, session.accessToken, allowed, session.apiBaseUrl].join(
-    "|",
-  );
+  const allowed = session.status === 'granted' && !session.revoked && !!session.accessToken;
+  const key = [path, session.accessToken, allowed, session.apiBaseUrl].join('|');
   const latest = useRef(key);
   latest.current = key;
   useEffect(
@@ -2418,30 +2158,23 @@ function useCsvDownload(path: string | null) {
     controller.current?.abort();
     const requestController = new AbortController();
     controller.current = requestController;
-    const timer = setTimeout(
-      () => requestController.abort(),
-      REQUEST_TIMEOUT_MS,
-    );
+    const timer = setTimeout(() => requestController.abort(), REQUEST_TIMEOUT_MS);
     setState({ key, pending: true });
     try {
-      const response = await fetch(
-        `${session.apiBaseUrl.replace(/\/+$/, "")}/api/v1/${path}`,
-        {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-          cache: "no-store",
-          redirect: "error",
-          signal: requestController.signal,
-        },
-      );
+      const response = await fetch(`${session.apiBaseUrl.replace(/\/+$/, '')}/api/v1/${path}`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+        cache: 'no-store',
+        redirect: 'error',
+        signal: requestController.signal,
+      });
       if (response.status === 401 || response.status === 403) {
         session.retry?.();
-        throw new Error("Access unavailable");
+        throw new Error('Access unavailable');
       }
       if (response.status === 409) {
         const problem = await response.json().catch(() => null);
         if (
-          problem?.type ===
-            "https://api.alethical.com/problems/records-changed" &&
+          problem?.type === 'https://api.alethical.com/problems/records-changed' &&
           latest.current === key &&
           request === generation.current
         ) {
@@ -2452,9 +2185,9 @@ function useCsvDownload(path: string | null) {
       if (
         !response.ok ||
         response.redirected ||
-        !response.headers.get("content-type")?.startsWith("text/csv")
+        !response.headers.get('content-type')?.startsWith('text/csv')
       )
-        throw new Error("CSV unavailable");
+        throw new Error('CSV unavailable');
       const blob = await response.blob();
       if (
         latest.current !== key ||
@@ -2463,20 +2196,19 @@ function useCsvDownload(path: string | null) {
       )
         return;
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
+      const anchor = document.createElement('a');
       anchor.href = url;
       const filename = response.headers
-        .get("Content-Disposition")
+        .get('Content-Disposition')
         ?.match(/filename="([a-zA-Z0-9._-]+\.csv)"/)?.[1];
-      anchor.download = filename || "campaign-expenses.csv";
+      anchor.download = filename || 'campaign-expenses.csv';
       document.body.append(anchor);
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
       setState({ key, done: true });
     } catch {
-      if (latest.current === key && request === generation.current)
-        setState({ key, failed: true });
+      if (latest.current === key && request === generation.current) setState({ key, failed: true });
     } finally {
       clearTimeout(timer);
       if (request === generation.current) running.current = null;

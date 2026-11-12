@@ -1,65 +1,63 @@
-import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearReadCache } from "../api/read";
-import { MediaBuys, browseRow } from "../pages/MediaBuys";
-import { StationFile } from "../pages/StationFile";
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearReadCache } from '../api/read';
+import { MediaBuys, browseRow } from '../pages/MediaBuys';
+import { StationFile } from '../pages/StationFile';
 import {
   PrintedAgency,
   StationFolder,
   TVStation,
   agencySpellingGroups,
-} from "../pages/StationRecords";
-import { copiedLines, day, savedAt } from "../pages/media/shared";
-import { markQuote } from "../pages/media/evidence";
-import * as routes from "../routes";
-import { matchRoute } from "../routes";
-import { navigate, useLocation } from "../router";
-import { withFrom } from "../returnContext";
+} from '../pages/StationRecords';
+import { copiedLines, day, savedAt } from '../pages/media/shared';
+import { markQuote } from '../pages/media/evidence';
+import * as routes from '../routes';
+import { matchRoute } from '../routes';
+import { navigate, useLocation } from '../router';
+import { withFrom } from '../returnContext';
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
-vi.mock("../auth/session", () => ({
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+vi.mock('../auth/session', () => ({
   useFinanceSession: () => ({
-    apiBaseUrl: "https://api.example.test",
-    accessToken: "test-token",
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'test-token',
   }),
 }));
 
 let container: HTMLDivElement;
 let root: Root;
-const VERSION = "a".repeat(64);
-const OLD = "b".repeat(64);
-const KEY = "kare-1234";
+const VERSION = 'a'.repeat(64);
+const OLD = 'b'.repeat(64);
+const KEY = 'kare-1234';
 const STATIONS = [
   {
-    call_sign: "KSTP-TV",
-    facility_id: "1",
-    fcc_url: "https://publicfiles.fcc.gov/a",
-    newest_upload: "2026-04-15",
-    last_list_check: "2026-10-22",
-    last_file_copy: "2026-10-22",
+    call_sign: 'KSTP-TV',
+    facility_id: '1',
+    fcc_url: 'https://publicfiles.fcc.gov/a',
+    newest_upload: '2026-04-15',
+    last_list_check: '2026-10-22',
+    last_file_copy: '2026-10-22',
   },
   {
-    call_sign: "KARE",
-    facility_id: "2",
-    fcc_url: "https://publicfiles.fcc.gov/b",
-    newest_upload: "2026-03-11",
-    last_list_check: "2026-10-22",
-    last_file_copy: "2026-10-22",
+    call_sign: 'KARE',
+    facility_id: '2',
+    fcc_url: 'https://publicfiles.fcc.gov/b',
+    newest_upload: '2026-03-11',
+    last_list_check: '2026-10-22',
+    last_file_copy: '2026-10-22',
   },
 ];
 const FILE = {
   key: KEY,
-  name: "invoice.pdf",
-  label: "invoice.pdf",
-  folder_label: "Political File / 2026 / Local / Example Committee",
-  station: "KARE",
+  name: 'invoice.pdf',
+  label: 'invoice.pdf',
+  folder_label: 'Political File / 2026 / Local / Example Committee',
+  station: 'KARE',
   year: 2026,
-  category: "Local",
+  category: 'Local',
   uploaded_at: null,
-  first_saved_at: "2026-03-05T03:14:00Z",
+  first_saved_at: '2026-03-05T03:14:00Z',
   version_id: VERSION,
   version_count: 2,
   source_changed: false,
@@ -68,92 +66,90 @@ const DETAIL = {
   ...FILE,
   agencies: [],
   folder: {
-    key: "kare-folder",
-    label: "Political File / 2026 / Local / Example Committee",
+    key: 'kare-folder',
+    label: 'Political File / 2026 / Local / Example Committee',
   },
-  fcc_url: "https://publicfiles.fcc.gov",
+  fcc_url: 'https://publicfiles.fcc.gov',
   fcc_available: true,
   versions: [
-    { id: VERSION, first_saved_at: "2026-03-05T15:14:00Z", uploaded_at: null },
-    { id: OLD, first_saved_at: "2026-03-04T22:40:00Z", uploaded_at: null },
+    { id: VERSION, first_saved_at: '2026-03-05T15:14:00Z', uploaded_at: null },
+    { id: OLD, first_saved_at: '2026-03-04T22:40:00Z', uploaded_at: null },
   ],
   page_count: 2,
   pages: [
-    { number: 1, text: "BILL TO: EXAMPLE MEDIA", text_status: "ready" },
-    { number: 2, text: "GROSS TOTAL $500.00", text_status: "ready" },
+    { number: 1, text: 'BILL TO: EXAMPLE MEDIA', text_status: 'ready' },
+    { number: 2, text: 'GROSS TOTAL $500.00', text_status: 'ready' },
   ],
   facts: [
     {
-      id: "fact-1",
-      kind: "Gross amount",
-      status: "checked",
+      id: 'fact-1',
+      kind: 'Gross amount',
+      status: 'checked',
       version_id: VERSION,
-      value: "$500.00",
-      quote: "GROSS TOTAL $500.00",
+      value: '$500.00',
+      quote: 'GROSS TOTAL $500.00',
       page: 2,
-      checked_at: "2026-10-02",
+      checked_at: '2026-10-02',
       history: [],
     },
     {
-      id: "fact-2",
-      kind: "Bill to",
-      status: "checked",
+      id: 'fact-2',
+      kind: 'Bill to',
+      status: 'checked',
       version_id: VERSION,
-      value: "EXAMPLE MEDIA BUYING",
-      quote: "BILL TO: EXAMPLE MEDIA BUYING",
+      value: 'EXAMPLE MEDIA BUYING',
+      quote: 'BILL TO: EXAMPLE MEDIA BUYING',
       page: 1,
-      checked_at: "2026-10-02",
+      checked_at: '2026-10-02',
       history: [],
     },
   ],
   dates: [],
   connections: [
     {
-      id: "conn-1",
-      kind: "committee",
-      status: "checked",
+      id: 'conn-1',
+      kind: 'committee',
+      status: 'checked',
       version_id: VERSION,
-      target: { kind: "committee", id: "90001" },
-      label: "Example Committee",
-      role: "Advertiser",
-      quote: "BILL TO: EXAMPLE MEDIA",
+      target: { kind: 'committee', id: '90001' },
+      label: 'Example Committee',
+      role: 'Advertiser',
+      quote: 'BILL TO: EXAMPLE MEDIA',
       page: 1,
-      checked_at: "2026-10-03",
+      checked_at: '2026-10-03',
     },
   ],
   current_source_version: VERSION,
 };
 
 function json(data: unknown, status = 200) {
-  return new Response(status === 200 ? JSON.stringify({ data }) : "{}", {
+  return new Response(status === 200 ? JSON.stringify({ data }) : '{}', {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { 'content-type': 'application/json' },
   });
 }
 function serve(answer: (url: URL) => Response | Promise<Response>) {
   const fetcher = vi.fn(async (input: string, init?: RequestInit) => {
     const url = new URL(input);
-    if (url.pathname.endsWith("/pages/1") || url.pathname.endsWith("/pages/2"))
-      return new Response(new Blob(["x"], { type: "image/png" }), {
-        headers: { "content-type": "image/png" },
+    if (url.pathname.endsWith('/pages/1') || url.pathname.endsWith('/pages/2'))
+      return new Response(new Blob(['x'], { type: 'image/png' }), {
+        headers: { 'content-type': 'image/png' },
       });
-    if (url.pathname.endsWith("/sources"))
-      return json({ stations: STATIONS, text_reader_version: "x" });
+    if (url.pathname.endsWith('/sources'))
+      return json({ stations: STATIONS, text_reader_version: 'x' });
     const response = answer(url);
     const signal = init?.signal;
     if (!(response instanceof Promise) || !signal) return response;
     // A browser abort frees the request slot even if a mocked old server reply
     // is deliberately held until after a newer query has already completed.
     return new Promise<Response>((resolve, reject) => {
-      const abort = () => reject(new DOMException("Aborted", "AbortError"));
-      signal.addEventListener("abort", abort, { once: true });
+      const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+      signal.addEventListener('abort', abort, { once: true });
       if (signal.aborted) abort();
-      response
-        .then(resolve, reject)
-        .finally(() => signal.removeEventListener("abort", abort));
+      response.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
     });
   });
-  vi.stubGlobal("fetch", fetcher);
+  vi.stubGlobal('fetch', fetcher);
   return fetcher;
 }
 async function flush() {
@@ -169,11 +165,11 @@ async function render(path: string, node: () => React.ReactNode) {
   });
   await flush();
 }
-const text = () => (container.textContent ?? "").replace(/\u00a0/g, " ");
+const text = () => (container.textContent ?? '').replace(/\u00a0/g, ' ');
 async function click(text: string) {
-  const element = [
-    ...container.querySelectorAll<HTMLElement>("button, a"),
-  ].find((e) => e.textContent?.includes(text));
+  const element = [...container.querySelectorAll<HTMLElement>('button, a')].find((e) =>
+    e.textContent?.includes(text),
+  );
   expect(element, text).toBeTruthy();
   await act(async () => element!.click());
   await flush();
@@ -181,11 +177,11 @@ async function click(text: string) {
 
 beforeEach(() => {
   clearReadCache();
-  container = document.createElement("div");
+  container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
   window.scrollTo = vi.fn();
-  URL.createObjectURL = vi.fn(() => "blob:page");
+  URL.createObjectURL = vi.fn(() => 'blob:page');
   URL.revokeObjectURL = vi.fn();
 });
 afterEach(() => {
@@ -195,43 +191,41 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Media buys", () => {
+describe('Media buys', () => {
   function browseAnswer(url: URL) {
-    const q = url.searchParams.get("q") ?? "";
+    const q = url.searchParams.get('q') ?? '';
     return json({
-      tab: url.searchParams.get("tab") ?? "folders",
+      tab: url.searchParams.get('tab') ?? 'folders',
       q,
-      page: Number(url.searchParams.get("page") ?? 1),
+      page: Number(url.searchParams.get('page') ?? 1),
       page_size: 12,
       total: 1,
       years: [2026],
-      categories: ["State"],
-      rows: [
-        { key: q || "all", label: q || "All held records", file_count: 1 },
-      ],
+      categories: ['State'],
+      rows: [{ key: q || 'all', label: q || 'All held records', file_count: 1 }],
     });
   }
 
-  it.each(["folders", "agencies", "stations", "years"])(
-    "finds an agency name when broad search starts on %s",
+  it.each(['folders', 'agencies', 'stations', 'years'])(
+    'finds an agency name when broad search starts on %s',
     async (tab) => {
       const fetcher = serve((url) => {
-        const group = url.searchParams.get("tab");
+        const group = url.searchParams.get('tab');
         return json({
           tab: group,
-          q: "Example",
+          q: 'Example',
           page: 1,
           page_size: 12,
-          total: group === "agencies" ? 1 : 0,
+          total: group === 'agencies' ? 1 : 0,
           capped: false,
           years: [],
           categories: [],
           rows:
-            group === "agencies"
+            group === 'agencies'
               ? [
                   {
-                    key: "Example Agency",
-                    label: "Example Agency",
+                    key: 'Example Agency',
+                    label: 'Example Agency',
                     file_count: 2,
                   },
                 ]
@@ -239,69 +233,67 @@ describe("Media buys", () => {
         });
       });
       await render(`/media-buys?tab=${tab}&q=Example`, () => <MediaBuys />);
-      expect(text()).toContain("Example Agency");
+      expect(text()).toContain('Example Agency');
       const groups = fetcher.mock.calls
-        .filter(([url]) => url.includes("/browse"))
+        .filter(([url]) => url.includes('/browse'))
         .map(([url]) => new URL(url));
-      expect(new Set(groups.map((url) => url.searchParams.get("tab")))).toEqual(
-        new Set(["folders", "agencies", "stations", "years"]),
+      expect(new Set(groups.map((url) => url.searchParams.get('tab')))).toEqual(
+        new Set(['folders', 'agencies', 'stations', 'years']),
       );
-      expect(
-        groups.every((url) => url.searchParams.get("search_scope") === "tab"),
-      ).toBe(true);
+      expect(groups.every((url) => url.searchParams.get('search_scope') === 'tab')).toBe(true);
     },
   );
 
-  it("keeps another category’s results when a broad-search group fails", async () => {
+  it('keeps another category’s results when a broad-search group fails', async () => {
     serve((url) => {
-      const tab = url.searchParams.get("tab");
-      if (tab === "folders") return json(null, 503);
+      const tab = url.searchParams.get('tab');
+      if (tab === 'folders') return json(null, 503);
       return json({
         tab,
-        q: "Example",
+        q: 'Example',
         page: 1,
         page_size: 12,
-        total: tab === "agencies" ? 1 : 0,
+        total: tab === 'agencies' ? 1 : 0,
         capped: false,
         years: [],
         categories: [],
         rows:
-          tab === "agencies"
+          tab === 'agencies'
             ? [
                 {
-                  key: "Example Agency",
-                  label: "Example Agency",
+                  key: 'Example Agency',
+                  label: 'Example Agency',
                   file_count: 2,
                 },
               ]
             : [],
       });
     });
-    await render("/media-buys?q=Example", () => <MediaBuys />);
-    expect(text()).toContain("Example Agency");
-    expect(text()).toContain("Try again");
-    expect(text()).not.toContain("TV station folders (0)");
+    await render('/media-buys?q=Example', () => <MediaBuys />);
+    expect(text()).toContain('Example Agency');
+    expect(text()).toContain('Try again');
+    expect(text()).not.toContain('TV station folders (0)');
   });
 
-  it("expands to 12 rows, pins each group’s own source version, and keeps the return address", async () => {
+  it('expands to 12 rows, pins each group’s own source version, and keeps the return address', async () => {
     const fetcher = serve((url) => {
-      const tab = url.searchParams.get("tab") ?? "folders";
-      const page = Number(url.searchParams.get("page") ?? 1);
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      const page = Number(url.searchParams.get('page') ?? 1);
       return json({
-        version: (tab === "agencies" ? "a" : "b").repeat(16),
+        version: (tab === 'agencies' ? 'a' : 'b').repeat(16),
         tab,
-        q: url.searchParams.get("q") ?? "",
-        station: "",
+        q: url.searchParams.get('q') ?? '',
+        station: '',
         year: null,
-        category: "",
+        category: '',
         page,
         page_size: 12,
-        total: tab === "agencies" ? 30 : 0,
+        total: tab === 'agencies' ? 30 : 0,
         capped: false,
         years: [],
         categories: [],
         rows:
-          tab === "agencies"
+          tab === 'agencies'
             ? Array.from({ length: 12 }, (_, index) => ({
                 key: `Agency ${page}-${index}`,
                 label: `Agency ${page}-${index}`,
@@ -310,381 +302,330 @@ describe("Media buys", () => {
             : [],
       });
     });
-    await render("/media-buys?tab=years&q=Agency&from=%2Fhome", () => (
-      <MediaBuys />
-    ));
-    expect(container.querySelectorAll(".mb-list li")).toHaveLength(5);
-    expect(container.querySelector(".mb-pager")).toBeNull();
-    container.querySelector<HTMLAnchorElement>(".mb-view-all")!.focus();
-    await click("View all matching agency names");
-    expect(document.activeElement).toBe(
-      container.querySelector(".mb-search-heading h2"),
-    );
-    expect(container.querySelectorAll(".mb-list li")).toHaveLength(12);
-    expect(text()).toContain("Page 1 of 3");
-    await click("Next");
-    expect(text()).toContain("Page 2 of 3");
+    await render('/media-buys?tab=years&q=Agency&from=%2Fhome', () => <MediaBuys />);
+    expect(container.querySelectorAll('.mb-list li')).toHaveLength(5);
+    expect(container.querySelector('.mb-pager')).toBeNull();
+    container.querySelector<HTMLAnchorElement>('.mb-view-all')!.focus();
+    await click('View all matching agency names');
+    expect(document.activeElement).toBe(container.querySelector('.mb-search-heading h2'));
+    expect(container.querySelectorAll('.mb-list li')).toHaveLength(12);
+    expect(text()).toContain('Page 1 of 3');
+    await click('Next');
+    expect(text()).toContain('Page 2 of 3');
     const request = fetcher.mock.calls
       .map(([url]) => new URL(url))
       .reverse()
-      .find((url) => url.searchParams.get("tab") === "agencies");
-    expect(request?.searchParams.get("page")).toBe("2");
-    expect(request?.searchParams.get("version")).toBe("a".repeat(16));
-    const row = container.querySelector<HTMLAnchorElement>(".mb-row")!;
-    expect(new URL(row.href).searchParams.get("from")).toBe(
+      .find((url) => url.searchParams.get('tab') === 'agencies');
+    expect(request?.searchParams.get('page')).toBe('2');
+    expect(request?.searchParams.get('version')).toBe('a'.repeat(16));
+    const row = container.querySelector<HTMLAnchorElement>('.mb-row')!;
+    expect(new URL(row.href).searchParams.get('from')).toBe(
       window.location.pathname + window.location.search,
     );
-    container.querySelector<HTMLAnchorElement>(".mb-all-results")!.focus();
-    await click("Back to all results");
-    expect(document.activeElement).toBe(
-      container.querySelector(".mb-search-heading h2"),
-    );
-    expect(container.querySelectorAll(".mb-list li")).toHaveLength(5);
-    await click("Clear search");
-    expect(document.activeElement).toBe(container.querySelector("#tv-search"));
-    expect(new URLSearchParams(window.location.search).get("tab")).toBe(
-      "years",
-    );
-    expect(new URLSearchParams(window.location.search).get("from")).toBe(
-      "/home",
-    );
+    container.querySelector<HTMLAnchorElement>('.mb-all-results')!.focus();
+    await click('Back to all results');
+    expect(document.activeElement).toBe(container.querySelector('.mb-search-heading h2'));
+    expect(container.querySelectorAll('.mb-list li')).toHaveLength(5);
+    await click('Clear search');
+    expect(document.activeElement).toBe(container.querySelector('#tv-search'));
+    expect(new URLSearchParams(window.location.search).get('tab')).toBe('years');
+    expect(new URLSearchParams(window.location.search).get('from')).toBe('/home');
   });
 
-  it("keeps recovery filters on an empty folder group and restores browsing filters on clear", async () => {
+  it('keeps recovery filters on an empty folder group and restores browsing filters on clear', async () => {
     const fetcher = serve((url) => {
-      const tab = url.searchParams.get("tab") ?? "folders";
-      const station = url.searchParams.get("station") ?? "";
-      const browsing = !url.searchParams.get("q");
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      const station = url.searchParams.get('station') ?? '';
+      const browsing = !url.searchParams.get('q');
       return json({
         tab,
-        q: url.searchParams.get("q") ?? "",
+        q: url.searchParams.get('q') ?? '',
         station,
-        year: Number(url.searchParams.get("year")) || null,
-        category: url.searchParams.get("category") ?? "",
-        page: Number(url.searchParams.get("page") ?? 1),
+        year: Number(url.searchParams.get('year')) || null,
+        category: url.searchParams.get('category') ?? '',
+        page: Number(url.searchParams.get('page') ?? 1),
         page_size: 12,
-        total: tab === "folders" ? (browsing ? 25 : !station ? 1 : 0) : 0,
+        total: tab === 'folders' ? (browsing ? 25 : !station ? 1 : 0) : 0,
         capped: false,
         years: [2025],
-        categories: ["State"],
+        categories: ['State'],
         rows:
-          (browsing || !station) && tab === "folders"
-            ? [{ key: "folder", label: "Recovered folder", file_count: 1 }]
+          (browsing || !station) && tab === 'folders'
+            ? [{ key: 'folder', label: 'Recovered folder', file_count: 1 }]
             : [],
       });
     });
     await render(
-      "/media-buys?tab=folders&q=Example&station=KARE&year=2025&category=State&page=2",
+      '/media-buys?tab=folders&q=Example&station=KARE&year=2025&category=State&page=2',
       () => <MediaBuys />,
     );
-    expect(text()).toContain("TV station folders (0)");
-    expect(text()).toContain("Station: KARE");
-    expect(text()).toContain("Clear all");
-    expect(container.querySelector(".mb-list")).toBeNull();
-    await click("Clear all");
-    expect(text()).toContain("Recovered folder");
+    expect(text()).toContain('TV station folders (0)');
+    expect(text()).toContain('Station: KARE');
+    expect(text()).toContain('Clear all');
+    expect(container.querySelector('.mb-list')).toBeNull();
+    await click('Clear all');
+    expect(text()).toContain('Recovered folder');
     const otherReads = fetcher.mock.calls
       .map(([url]) => new URL(url))
       .filter(
-        (url) =>
-          url.pathname.endsWith("/browse") &&
-          url.searchParams.get("tab") !== "folders",
+        (url) => url.pathname.endsWith('/browse') && url.searchParams.get('tab') !== 'folders',
       );
     expect(
       otherReads.every(
         (url) =>
-          !url.searchParams.has("station") &&
-          !url.searchParams.has("year") &&
-          !url.searchParams.has("category"),
+          !url.searchParams.has('station') &&
+          !url.searchParams.has('year') &&
+          !url.searchParams.has('category'),
       ),
     ).toBe(true);
-    await click("Clear search");
+    await click('Clear search');
     const restored = new URLSearchParams(window.location.search);
-    expect(restored.get("station")).toBe("KARE");
-    expect(restored.get("year")).toBe("2025");
-    expect(restored.get("category")).toBe("State");
-    expect(restored.get("page")).toBe("2");
+    expect(restored.get('station')).toBe('KARE');
+    expect(restored.get('year')).toBe('2025');
+    expect(restored.get('category')).toBe('State');
+    expect(restored.get('page')).toBe('2');
   });
 
-  it("keeps capped query totals separate from catalogue counts", async () => {
+  it('keeps capped query totals separate from catalogue counts', async () => {
     serve((url) => {
-      const tab = url.searchParams.get("tab");
+      const tab = url.searchParams.get('tab');
       return json({
         tab,
-        q: "Example",
+        q: 'Example',
         page: 1,
         page_size: 12,
-        total: tab === "folders" ? 500 : 0,
-        capped: tab === "folders",
+        total: tab === 'folders' ? 500 : 0,
+        capped: tab === 'folders',
         tab_counts: { folders: 900, agencies: 800, stations: 3, years: 5 },
         years: [],
         categories: [],
-        rows:
-          tab === "folders"
-            ? [{ key: "folder", label: "Example folder", file_count: 17 }]
-            : [],
+        rows: tab === 'folders' ? [{ key: 'folder', label: 'Example folder', file_count: 17 }] : [],
       });
     });
-    await render("/media-buys?q=Example", () => <MediaBuys />);
-    expect(text()).toContain("TV station folders (At least 500)");
-    expect(text()).toContain(
-      "Results are limited to 500; add a word to narrow the search",
-    );
-    expect(text()).toContain("Agency names (0)");
-    expect(text()).not.toContain("900");
-    expect(text()).not.toContain("800");
+    await render('/media-buys?q=Example', () => <MediaBuys />);
+    expect(text()).toContain('TV station folders (At least 500)');
+    expect(text()).toContain('Results are limited to 500; add a word to narrow the search');
+    expect(text()).toContain('Agency names (0)');
+    expect(text()).not.toContain('900');
+    expect(text()).not.toContain('800');
   });
 
-  it("restarts only the expanded group when its pinned source changes", async () => {
+  it('restarts only the expanded group when its pinned source changes', async () => {
     let restarted = false;
     const fetcher = serve((url) => {
-      const tab = url.searchParams.get("tab") ?? "folders";
-      if (tab === "agencies" && url.searchParams.get("page") === "2") {
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      if (tab === 'agencies' && url.searchParams.get('page') === '2') {
         restarted = true;
         return new Response(
           JSON.stringify({
-            type: "https://api.alethical.com/problems/records-changed",
+            type: 'https://api.alethical.com/problems/records-changed',
           }),
-          { status: 409, headers: { "content-type": "application/json" } },
+          { status: 409, headers: { 'content-type': 'application/json' } },
         );
       }
       return json({
-        version: (restarted ? "c" : "a").repeat(16),
+        version: (restarted ? 'c' : 'a').repeat(16),
         tab,
-        q: "Example",
-        station: "",
+        q: 'Example',
+        station: '',
         year: null,
-        category: "",
+        category: '',
         page: 1,
         page_size: 12,
-        total: tab === "agencies" ? 25 : 0,
+        total: tab === 'agencies' ? 25 : 0,
         capped: false,
         years: [],
         categories: [],
         rows:
-          tab === "agencies"
+          tab === 'agencies'
             ? [
                 {
-                  key: "agency",
-                  label: restarted ? "Refreshed agency" : "Held agency",
+                  key: 'agency',
+                  label: restarted ? 'Refreshed agency' : 'Held agency',
                   file_count: 1,
                 },
               ]
             : [],
       });
     });
-    await render("/media-buys?q=Example&view=agencies", () => <MediaBuys />);
-    await click("Next");
-    expect(text()).toContain(
-      "These records changed. Reload the list. Previous results are shown.",
-    );
-    expect(text()).toContain("Held agency");
+    await render('/media-buys?q=Example&view=agencies', () => <MediaBuys />);
+    await click('Next');
+    expect(text()).toContain('These records changed. Reload the list. Previous results are shown.');
+    expect(text()).toContain('Held agency');
     const before = fetcher.mock.calls.length;
-    await click("Try again");
-    expect(text()).toContain("Refreshed agency");
-    expect(text()).not.toContain("These records changed");
-    const newReads = fetcher.mock.calls
-      .slice(before)
-      .map(([url]) => new URL(url));
+    await click('Try again');
+    expect(text()).toContain('Refreshed agency');
+    expect(text()).not.toContain('These records changed');
+    const newReads = fetcher.mock.calls.slice(before).map(([url]) => new URL(url));
     expect(newReads).toHaveLength(2);
-    expect(
-      newReads.every((url) => url.searchParams.get("tab") === "agencies"),
-    ).toBe(true);
-    expect(newReads[1].searchParams.get("version")).toBe("c".repeat(16));
-    expect(newReads[0].searchParams.get("tab")).toBe("agencies");
-    expect(newReads[0].searchParams.get("page")).toBe("1");
-    expect(newReads[0].searchParams.has("version")).toBe(false);
+    expect(newReads.every((url) => url.searchParams.get('tab') === 'agencies')).toBe(true);
+    expect(newReads[1].searchParams.get('version')).toBe('c'.repeat(16));
+    expect(newReads[0].searchParams.get('tab')).toBe('agencies');
+    expect(newReads[0].searchParams.get('page')).toBe('1');
+    expect(newReads[0].searchParams.has('version')).toBe(false);
   });
 
-  it.each(["&view=agencies&agenciesPage=2", ""])(
-    "validates saved source pins when remounting the exact detail return address (%s)",
+  it.each(['&view=agencies&agenciesPage=2', ''])(
+    'validates saved source pins when remounting the exact detail return address (%s)',
     async (view) => {
       let changed = false;
       const fetcher = serve((url) => {
-        const tab = url.searchParams.get("tab") ?? "folders";
-        const version = (
-          tab === "agencies" ? (changed ? "c" : "a") : "b"
-        ).repeat(16);
-        if (
-          url.searchParams.has("version") &&
-          url.searchParams.get("version") !== version
-        )
+        const tab = url.searchParams.get('tab') ?? 'folders';
+        const version = (tab === 'agencies' ? (changed ? 'c' : 'a') : 'b').repeat(16);
+        if (url.searchParams.has('version') && url.searchParams.get('version') !== version)
           return new Response(
             JSON.stringify({
-              type: "https://api.alethical.com/problems/records-changed",
+              type: 'https://api.alethical.com/problems/records-changed',
             }),
-            { status: 409, headers: { "content-type": "application/json" } },
+            { status: 409, headers: { 'content-type': 'application/json' } },
           );
         return json({
           version,
           tab,
-          q: "Example",
-          page: Number(url.searchParams.get("page") ?? 1),
+          q: 'Example',
+          page: Number(url.searchParams.get('page') ?? 1),
           page_size: 12,
-          total: tab === "agencies" ? 25 : 0,
+          total: tab === 'agencies' ? 25 : 0,
           years: [],
           categories: [],
           rows:
-            tab === "agencies"
+            tab === 'agencies'
               ? [
                   {
-                    key: "agency",
-                    label: changed ? "New agency" : "Old agency",
+                    key: 'agency',
+                    label: changed ? 'New agency' : 'Old agency',
                     file_count: 1,
                   },
                 ]
               : [],
         });
       });
-      await render("/media-buys?q=Example" + view, () => <MediaBuys />);
-      const row = container.querySelector<HTMLAnchorElement>(".mb-row")!;
-      const from = new URL(row.href).searchParams.get("from")!;
-      expect(
-        new URL(from, window.location.origin).searchParams.has(
-          "agenciesSource",
-        ),
-      ).toBe(true);
+      await render('/media-buys?q=Example' + view, () => <MediaBuys />);
+      const row = container.querySelector<HTMLAnchorElement>('.mb-row')!;
+      const from = new URL(row.href).searchParams.get('from')!;
+      expect(new URL(from, window.location.origin).searchParams.has('agenciesSource')).toBe(true);
       await act(async () => root.render(null));
       clearReadCache();
       changed = true;
       const before = fetcher.mock.calls.length;
       await render(from, () => <MediaBuys />);
-      expect(text()).toContain("These records changed. Reload the list.");
-      expect(text()).not.toContain("Previous results are shown");
-      expect(text()).not.toContain("New agency");
+      expect(text()).toContain('These records changed. Reload the list.');
+      expect(text()).not.toContain('Previous results are shown');
+      expect(text()).not.toContain('New agency');
       const returned = fetcher.mock.calls
         .slice(before)
         .map(([url]) => new URL(url))
-        .filter((url) => url.pathname.endsWith("/browse"));
+        .filter((url) => url.pathname.endsWith('/browse'));
       expect(returned).toHaveLength(4);
       expect(
         returned
-          .find((url) => url.searchParams.get("tab") === "agencies")
-          ?.searchParams.get("version"),
-      ).toBe("a".repeat(16));
+          .find((url) => url.searchParams.get('tab') === 'agencies')
+          ?.searchParams.get('version'),
+      ).toBe('a'.repeat(16));
       const beforeRetry = fetcher.mock.calls.length;
-      await click("Try again");
-      expect(text()).toContain("New agency");
-      expect(text()).not.toContain("These records changed");
-      const retried = fetcher.mock.calls
-        .slice(beforeRetry)
-        .map(([url]) => new URL(url));
+      await click('Try again');
+      expect(text()).toContain('New agency');
+      expect(text()).not.toContain('These records changed');
+      const retried = fetcher.mock.calls.slice(beforeRetry).map(([url]) => new URL(url));
       expect(
         retried.every(
           (url) =>
-            url.searchParams.get("tab") === "agencies" &&
-            url.searchParams.get("page") === "1",
+            url.searchParams.get('tab') === 'agencies' && url.searchParams.get('page') === '1',
         ),
       ).toBe(true);
     },
   );
 
-  it("recovers a stale group page address to the last page without claiming no matches", async () => {
+  it('recovers a stale group page address to the last page without claiming no matches', async () => {
     const fetcher = serve((url) => {
-      const tab = url.searchParams.get("tab") ?? "folders";
-      const page = Number(url.searchParams.get("page") ?? 1);
+      const tab = url.searchParams.get('tab') ?? 'folders';
+      const page = Number(url.searchParams.get('page') ?? 1);
       return json({
-        version: "a".repeat(16),
+        version: 'a'.repeat(16),
         tab,
-        q: "Example",
+        q: 'Example',
         page,
         page_size: 12,
-        total: tab === "agencies" ? 25 : 0,
+        total: tab === 'agencies' ? 25 : 0,
         years: [],
         categories: [],
         rows:
-          tab === "agencies" && page <= 3
-            ? [{ key: "agency", label: "Last agency", file_count: 1 }]
+          tab === 'agencies' && page <= 3
+            ? [{ key: 'agency', label: 'Last agency', file_count: 1 }]
             : [],
       });
     });
-    await render(
-      "/media-buys?q=Example&view=agencies&agenciesPage=42&foldersPage=2",
-      () => <MediaBuys />,
-    );
-    expect(text()).toContain("Last agency");
-    expect(text()).toContain("Page 3 of 3");
-    expect(text()).not.toContain("No matches");
-    expect(
-      new URLSearchParams(window.location.search).get("agenciesPage"),
-    ).toBe("3");
-    expect(new URLSearchParams(window.location.search).get("foldersPage")).toBe(
-      "2",
-    );
+    await render('/media-buys?q=Example&view=agencies&agenciesPage=42&foldersPage=2', () => (
+      <MediaBuys />
+    ));
+    expect(text()).toContain('Last agency');
+    expect(text()).toContain('Page 3 of 3');
+    expect(text()).not.toContain('No matches');
+    expect(new URLSearchParams(window.location.search).get('agenciesPage')).toBe('3');
+    expect(new URLSearchParams(window.location.search).get('foldersPage')).toBe('2');
     expect(
       fetcher.mock.calls
         .map(([url]) => new URL(url))
         .some(
           (url) =>
-            url.searchParams.get("tab") === "agencies" &&
-            url.searchParams.get("page") === "3" &&
-            url.searchParams.get("version") === "a".repeat(16),
+            url.searchParams.get('tab') === 'agencies' &&
+            url.searchParams.get('page') === '3' &&
+            url.searchParams.get('version') === 'a'.repeat(16),
         ),
     ).toBe(true);
   });
 
-  it("keeps the selected station label and recovery when source options fail", async () => {
+  it('keeps the selected station label and recovery when source options fail', async () => {
     const fetcher = serve(browseAnswer);
     const fallback = fetcher.getMockImplementation()!;
     fetcher.mockImplementation((input, init) =>
-      new URL(input).pathname.endsWith("/sources")
+      new URL(input).pathname.endsWith('/sources')
         ? Promise.resolve(json({}, 503))
         : fallback(input, init),
     );
-    await render("/media-buys?station=KARE", () => <MediaBuys />);
-    expect(text()).toContain("Station: KARE");
-    await click("Clear all");
-    expect(text()).toContain("Station: All stations");
-    expect(new URLSearchParams(window.location.search).has("station")).toBe(
-      false,
-    );
+    await render('/media-buys?station=KARE', () => <MediaBuys />);
+    expect(text()).toContain('Station: KARE');
+    await click('Clear all');
+    expect(text()).toContain('Station: All stations');
+    expect(new URLSearchParams(window.location.search).has('station')).toBe(false);
   });
 
   it.each([404, 503, 200])(
-    "does not call a retained empty group empty after an unavailable reply (%s)",
+    'does not call a retained empty group empty after an unavailable reply (%s)',
     async (status) => {
       serve((url) => {
-        const tab = url.searchParams.get("tab") ?? "folders";
-        const q = url.searchParams.get("q") ?? "";
-        if (q === "Unavailable" && tab === "folders")
-          return json({ state: "unavailable" }, status);
+        const tab = url.searchParams.get('tab') ?? 'folders';
+        const q = url.searchParams.get('q') ?? '';
+        if (q === 'Unavailable' && tab === 'folders') return json({ state: 'unavailable' }, status);
         return json({
           tab,
           q,
           page: 1,
           page_size: 12,
-          total: tab === "agencies" ? 1 : 0,
+          total: tab === 'agencies' ? 1 : 0,
           capped: false,
           years: [],
           categories: [],
-          rows:
-            tab === "agencies"
-              ? [{ key: "agency", label: "Held agency", file_count: 1 }]
-              : [],
+          rows: tab === 'agencies' ? [{ key: 'agency', label: 'Held agency', file_count: 1 }] : [],
         });
       });
-      await render("/media-buys?q=First", () => <MediaBuys />);
-      await typeSearch("Unavailable");
+      await render('/media-buys?q=First', () => <MediaBuys />);
+      await typeSearch('Unavailable');
       await settleSearch();
-      const group = container.querySelector<HTMLElement>(
-        '[aria-label="TV station folders"]',
-      )!;
-      expect(group.textContent).toContain("Try again");
-      expect(group.textContent).not.toContain("No matches");
-      expect(group.querySelector("h3")?.textContent).toBe("TV station folders");
-      expect(text()).toContain("Held agency");
-      expect(text()).not.toContain("This record is no longer available");
+      const group = container.querySelector<HTMLElement>('[aria-label="TV station folders"]')!;
+      expect(group.textContent).toContain('Try again');
+      expect(group.textContent).not.toContain('No matches');
+      expect(group.querySelector('h3')?.textContent).toBe('TV station folders');
+      expect(text()).toContain('Held agency');
+      expect(text()).not.toContain('This record is no longer available');
     },
   );
 
   async function typeSearch(value: string) {
-    const input = container.querySelector<HTMLInputElement>("#tv-search")!;
+    const input = container.querySelector<HTMLInputElement>('#tv-search')!;
     await act(async () => {
-      Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )!.set!.call(input, value);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
 
@@ -695,8 +636,8 @@ describe("Media buys", () => {
     await flush();
   }
 
-  it.each(["folders", "agencies", "stations", "years"])(
-    "updates and clears the %s search without submitting, retaining filters and context",
+  it.each(['folders', 'agencies', 'stations', 'years'])(
+    'updates and clears the %s search without submitting, retaining filters and context',
     async (tab) => {
       const fetcher = serve(browseAnswer);
       await render(
@@ -704,146 +645,130 @@ describe("Media buys", () => {
         () => <MediaBuys />,
       );
       const count = fetcher.mock.calls.length;
-      await typeSearch("d");
-      await typeSearch("de");
-      await typeSearch(" dem ");
+      await typeSearch('d');
+      await typeSearch('de');
+      await typeSearch(' dem ');
       expect(fetcher).toHaveBeenCalledTimes(count);
       await settleSearch();
       expect(fetcher).toHaveBeenCalledTimes(count + 4);
-      expect(
-        container.querySelector(".mb-search-heading h2")?.textContent,
-      ).toBe("Results for “dem”");
-      const params = new URLSearchParams(window.location.search);
-      expect(params.get("q")).toBe("dem");
-      expect(params.get("page")).toBe("2");
-      expect(params.get("tab")).toBe(tab);
-      expect(params.get("station")).toBe("KARE");
-      expect(params.get("year")).toBe("2026");
-      expect(params.get("category")).toBe("State");
-      expect(params.get("from")).toBe("/home");
-      await typeSearch("");
-      await settleSearch();
-      expect(new URLSearchParams(window.location.search).has("q")).toBe(false);
-      expect(container.querySelector(".mb-count")?.textContent).not.toContain(
-        "matching",
+      expect(container.querySelector('.mb-search-heading h2')?.textContent).toBe(
+        'Results for “dem”',
       );
-      expect(text()).toContain("All held records");
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('q')).toBe('dem');
+      expect(params.get('page')).toBe('2');
+      expect(params.get('tab')).toBe(tab);
+      expect(params.get('station')).toBe('KARE');
+      expect(params.get('year')).toBe('2026');
+      expect(params.get('category')).toBe('State');
+      expect(params.get('from')).toBe('/home');
+      await typeSearch('');
+      await settleSearch();
+      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+      expect(container.querySelector('.mb-count')?.textContent).not.toContain('matching');
+      expect(text()).toContain('All held records');
     },
   );
 
-  it("still submits immediately and does not repeat the request after the typing delay", async () => {
+  it('still submits immediately and does not repeat the request after the typing delay', async () => {
     const fetcher = serve(browseAnswer);
-    await render("/media-buys", () => <MediaBuys />);
-    await typeSearch("demuth");
+    await render('/media-buys', () => <MediaBuys />);
+    await typeSearch('demuth');
     await act(async () => {
       container
-        .querySelector("form")!
-        .dispatchEvent(
-          new Event("submit", { bubbles: true, cancelable: true }),
-        );
+        .querySelector('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     await flush();
-    expect(text()).toContain("“demuth”");
+    expect(text()).toContain('“demuth”');
     const count = fetcher.mock.calls.length;
     await settleSearch();
     expect(fetcher).toHaveBeenCalledTimes(count);
   });
 
-  it("preserves a word separator when typing pauses before the next word", async () => {
+  it('preserves a word separator when typing pauses before the next word', async () => {
     serve(browseAnswer);
-    await render("/media-buys", () => <MediaBuys />);
-    await typeSearch("lisa ");
+    await render('/media-buys', () => <MediaBuys />);
+    await typeSearch('lisa ');
     await settleSearch();
-    const input = container.querySelector<HTMLInputElement>("#tv-search")!;
-    expect(input.value).toBe("lisa ");
-    expect(new URLSearchParams(window.location.search).get("q")).toBe("lisa");
-    await typeSearch(input.value + "demuth");
+    const input = container.querySelector<HTMLInputElement>('#tv-search')!;
+    expect(input.value).toBe('lisa ');
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('lisa');
+    await typeSearch(input.value + 'demuth');
     await settleSearch();
-    expect(new URLSearchParams(window.location.search).get("q")).toBe(
-      "lisa demuth",
-    );
-    expect(container.querySelector(".mb-search-heading h2")?.textContent).toBe(
-      "Results for “lisa demuth”",
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('lisa demuth');
+    expect(container.querySelector('.mb-search-heading h2')?.textContent).toBe(
+      'Results for “lisa demuth”',
     );
   });
 
-  it("keeps earlier results during typing requests and failures, and ignores late answers", async () => {
+  it('keeps earlier results during typing requests and failures, and ignores late answers', async () => {
     const finishOld: Array<(response: Response) => void> = [];
     serve((url) => {
-      if (url.searchParams.get("q") === "dem")
+      if (url.searchParams.get('q') === 'dem')
         return new Promise<Response>((resolve) => {
           finishOld.push(resolve);
         });
-      if (url.searchParams.get("q") === "failed") return json(null, 503);
+      if (url.searchParams.get('q') === 'failed') return json(null, 503);
       return browseAnswer(url);
     });
-    await render("/media-buys?q=demuth", () => <MediaBuys />);
-    await typeSearch("dem");
+    await render('/media-buys?q=demuth', () => <MediaBuys />);
+    await typeSearch('dem');
     await settleSearch();
-    expect(text()).toContain("“demuth”");
-    expect(text()).toContain("Updating");
-    await typeSearch("");
+    expect(text()).toContain('“demuth”');
+    expect(text()).toContain('Updating');
+    await typeSearch('');
     await settleSearch();
-    expect(text()).toContain("All held records");
+    expect(text()).toContain('All held records');
     for (const finish of finishOld)
-      finish(browseAnswer(new URL("https://api.example.test/browse?q=dem")));
+      finish(browseAnswer(new URL('https://api.example.test/browse?q=dem')));
     await settleSearch();
-    expect(text()).toContain("All held records");
-    expect(container.querySelector(".mb-count")?.textContent).not.toContain(
-      "matching",
-    );
-    await typeSearch("failed");
+    expect(text()).toContain('All held records');
+    expect(container.querySelector('.mb-count')?.textContent).not.toContain('matching');
+    await typeSearch('failed');
     await settleSearch();
-    expect(text()).toContain("All held records");
-    expect(text()).toContain("Try again");
-    expect(text()).not.toContain("No TV station folders match");
+    expect(text()).toContain('All held records');
+    expect(text()).toContain('Try again');
+    expect(text()).not.toContain('No TV station folders match');
   });
 
-  it("cancels pending typing when browser history restores another query", async () => {
+  it('cancels pending typing when browser history restores another query', async () => {
     const fetcher = serve(browseAnswer);
-    await render("/media-buys?q=demuth", () => <MediaBuys />);
-    await typeSearch("unfinished");
+    await render('/media-buys?q=demuth', () => <MediaBuys />);
+    await typeSearch('unfinished');
     await act(async () => {
-      window.history.replaceState(null, "", "/media-buys?q=restored");
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      window.history.replaceState(null, '', '/media-buys?q=restored');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     });
     await settleSearch();
-    expect(container.querySelector<HTMLInputElement>("#tv-search")?.value).toBe(
-      "restored",
-    );
-    expect(window.location.search).toBe("?q=restored");
-    expect(fetcher.mock.calls.some(([url]) => url.includes("unfinished"))).toBe(
-      false,
-    );
-    await typeSearch("leaving");
+    expect(container.querySelector<HTMLInputElement>('#tv-search')?.value).toBe('restored');
+    expect(window.location.search).toBe('?q=restored');
+    expect(fetcher.mock.calls.some(([url]) => url.includes('unfinished'))).toBe(false);
+    await typeSearch('leaving');
     await act(async () => root.render(null));
     await settleSearch();
-    expect(window.location.search).toBe("?q=restored");
+    expect(window.location.search).toBe('?q=restored');
   });
 
-  it("cancels a draft when history returns to another tab with the same applied query", async () => {
+  it('cancels a draft when history returns to another tab with the same applied query', async () => {
     const fetcher = serve(browseAnswer);
-    await render("/media-buys?year=2026", () => <MediaBuys />);
-    await typeSearch("unfinished");
+    await render('/media-buys?year=2026', () => <MediaBuys />);
+    await typeSearch('unfinished');
     await act(async () => {
-      window.history.replaceState(null, "", "/media-buys?tab=years");
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      window.history.replaceState(null, '', '/media-buys?tab=years');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     });
     await settleSearch();
-    expect(container.querySelector<HTMLInputElement>("#tv-search")?.value).toBe(
-      "",
-    );
-    expect(window.location.search).toBe("?tab=years");
-    expect(fetcher.mock.calls.some(([url]) => url.includes("unfinished"))).toBe(
-      false,
-    );
+    expect(container.querySelector<HTMLInputElement>('#tv-search')?.value).toBe('');
+    expect(window.location.search).toBe('?tab=years');
+    expect(fetcher.mock.calls.some(([url]) => url.includes('unfinished'))).toBe(false);
   });
 
-  it("returns a station-filtered list to its safe earlier station with query intact", async () => {
+  it('returns a station-filtered list to its safe earlier station with query intact', async () => {
     const fetcher = serve(() =>
       json({
-        tab: "folders",
-        q: "",
+        tab: 'folders',
+        q: '',
         page: 1,
         page_size: 12,
         total: 0,
@@ -853,117 +778,33 @@ describe("Media buys", () => {
         rows: [],
       }),
     );
-    const station = withFrom(
-      "/media-buys/stations/kare",
-      "/media-buys?tab=stations",
-    );
-    await render(
-      withFrom("/media-buys?station=KARE&year=2025", station),
-      () => <MediaBuys />,
-    );
-    const back = container.querySelector<HTMLAnchorElement>("a.f-back");
-    expect(back?.textContent).toBe("Back to TV station");
-    expect(back?.getAttribute("href")).toBe(station);
+    const station = withFrom('/media-buys/stations/kare', '/media-buys?tab=stations');
+    await render(withFrom('/media-buys?station=KARE&year=2025', station), () => <MediaBuys />);
+    const back = container.querySelector<HTMLAnchorElement>('a.f-back');
+    expect(back?.textContent).toBe('Back to TV station');
+    expect(back?.getAttribute('href')).toBe(station);
     expect(
       fetcher.mock.calls.some(
-        ([url]) =>
-          String(url).includes("station=KARE") &&
-          String(url).includes("year=2025"),
+        ([url]) => String(url).includes('station=KARE') && String(url).includes('year=2025'),
       ),
     ).toBe(true);
-    await click("Back to TV station");
+    await click('Back to TV station');
     expect(window.location.pathname + window.location.search).toBe(station);
   });
 
   it.each([
     undefined,
-    "https://outside.test/",
-    "//outside.test/media-buys",
-    "/\\outside.test",
-    "/not-a-page",
-    "/sign-in",
-    "%broken",
-  ])(
-    "keeps the top-level list without an invented return for %s",
-    async (from) => {
-      serve(() =>
-        json({
-          tab: "folders",
-          q: "",
-          page: 1,
-          page_size: 12,
-          total: 0,
-          capped: false,
-          years: [],
-          categories: [],
-          rows: [],
-        }),
-      );
-      await render(
-        "/media-buys?station=KARE&year=2025" +
-          (from === undefined ? "" : "&from=" + encodeURIComponent(from)),
-        () => <MediaBuys />,
-      );
-      expect(container.querySelector("a.f-back")).toBeNull();
-      expect(container.querySelector("h1")?.textContent).toBe("Media buys");
-    },
-  );
-
-  it("reads the private browse route and prints each tab’s rows as the drawing does", async () => {
-    const fetcher = serve(() =>
-      json({
-        tab: "agencies",
-        q: "",
-        page: 1,
-        page_size: 12,
-        total: 500,
-        capped: true,
-        years: [2026],
-        categories: [],
-        rows: [
-          {
-            key: "opaque-key",
-            label: "EXAMPLE AGENCY LLC",
-            file_count: 2,
-            unchecked: true,
-            stations: ["KARE", "KSTP-TV"],
-          },
-        ],
-      }),
-    );
-    await render("/media-buys?tab=agencies", () => <MediaBuys />);
-    const text = container.textContent ?? "";
-    expect(text).toContain("At least 500 agency names");
-    // The shared scrolling tab row (Round 35): 1 line, with a cue on phone.
-    expect(
-      document.querySelector('.f-scroll-tabs [role="tablist"]'),
-    ).not.toBeNull();
-    expect(text).toContain(
-      "Names as printed, with each spelling listed separately",
-    );
-    expect(text).toContain("KARE, KSTP-TV");
-    expect(text).toContain("Not checked");
-    expect(text).toContain("2 files");
-    expect(text).toContain("Machine-read names are marked Not checked");
-    expect(text).toContain("About these records");
-    expect(text).toContain("TV station files copied Oct 22, 2026");
-    expect(
-      container.querySelector(
-        'a[href^="/media-buys/agencies/opaque-key?from="]',
-      ),
-    ).toBeTruthy();
-    const browse = fetcher.mock.calls
-      .map(([url]) => String(url))
-      .find((url) => url.includes("/browse"));
-    expect(browse).toContain("tab=agencies");
-    expect(browse).not.toContain("station=");
-  });
-
-  it("names the broad query when all categories are empty", async () => {
+    'https://outside.test/',
+    '//outside.test/media-buys',
+    '/\\outside.test',
+    '/not-a-page',
+    '/sign-in',
+    '%broken',
+  ])('keeps the top-level list without an invented return for %s', async (from) => {
     serve(() =>
       json({
-        tab: "folders",
-        q: "walz",
+        tab: 'folders',
+        q: '',
         page: 1,
         page_size: 12,
         total: 0,
@@ -973,18 +814,85 @@ describe("Media buys", () => {
         rows: [],
       }),
     );
-    await render("/media-buys?q=walz", () => <MediaBuys />);
-    expect(text()).toContain("No matches for “walz”");
-    expect(container.querySelector(".mb-list")).toBeNull();
+    await render(
+      '/media-buys?station=KARE&year=2025' +
+        (from === undefined ? '' : '&from=' + encodeURIComponent(from)),
+      () => <MediaBuys />,
+    );
+    expect(container.querySelector('a.f-back')).toBeNull();
+    expect(container.querySelector('h1')?.textContent).toBe('Media buys');
+  });
+
+  it('reads the private browse route and prints each tab’s rows as the drawing does', async () => {
+    const fetcher = serve(() =>
+      json({
+        tab: 'agencies',
+        q: '',
+        page: 1,
+        page_size: 12,
+        total: 500,
+        capped: true,
+        years: [2026],
+        categories: [],
+        rows: [
+          {
+            key: 'opaque-key',
+            label: 'EXAMPLE AGENCY LLC',
+            file_count: 2,
+            unchecked: true,
+            stations: ['KARE', 'KSTP-TV'],
+          },
+        ],
+      }),
+    );
+    await render('/media-buys?tab=agencies', () => <MediaBuys />);
+    const text = container.textContent ?? '';
+    expect(text).toContain('At least 500 agency names');
+    // The shared scrolling tab row (Round 35): 1 line, with a cue on phone.
+    expect(document.querySelector('.f-scroll-tabs [role="tablist"]')).not.toBeNull();
+    expect(text).toContain('Names as printed, with each spelling listed separately');
+    expect(text).toContain('KARE, KSTP-TV');
+    expect(text).toContain('Not checked');
+    expect(text).toContain('2 files');
+    expect(text).toContain('Machine-read names are marked Not checked');
+    expect(text).toContain('About these records');
+    expect(text).toContain('TV station files copied Oct 22, 2026');
+    expect(
+      container.querySelector('a[href^="/media-buys/agencies/opaque-key?from="]'),
+    ).toBeTruthy();
+    const browse = fetcher.mock.calls
+      .map(([url]) => String(url))
+      .find((url) => url.includes('/browse'));
+    expect(browse).toContain('tab=agencies');
+    expect(browse).not.toContain('station=');
+  });
+
+  it('names the broad query when all categories are empty', async () => {
+    serve(() =>
+      json({
+        tab: 'folders',
+        q: 'walz',
+        page: 1,
+        page_size: 12,
+        total: 0,
+        capped: false,
+        years: [],
+        categories: [],
+        rows: [],
+      }),
+    );
+    await render('/media-buys?q=walz', () => <MediaBuys />);
+    expect(text()).toContain('No matches for “walz”');
+    expect(container.querySelector('.mb-list')).toBeNull();
     act(() => root.unmount());
     root = createRoot(container);
   });
 
-  it("shows served tab totals, station years and tab-scoped search requests", async () => {
+  it('shows served tab totals, station years and tab-scoped search requests', async () => {
     const fetcher = serve(() =>
       json({
-        tab: "stations",
-        q: "KARE",
+        tab: 'stations',
+        q: 'KARE',
         page: 1,
         page_size: 12,
         total: 1,
@@ -994,8 +902,8 @@ describe("Media buys", () => {
         tab_counts: { folders: 700, agencies: 610, stations: 3, years: 5 },
         rows: [
           {
-            key: "KARE",
-            label: "KARE",
+            key: 'KARE',
+            label: 'KARE',
             file_count: 80,
             folder_count: 12,
             years: [2026, 2024],
@@ -1003,26 +911,26 @@ describe("Media buys", () => {
         ],
       }),
     );
-    await render("/media-buys?tab=stations&q=KARE", () => <MediaBuys />);
+    await render('/media-buys?tab=stations&q=KARE', () => <MediaBuys />);
     expect(
       fetcher.mock.calls
         .map(([url]) => String(url))
-        .some((url) => url.includes("search_scope=tab")),
+        .some((url) => url.includes('search_scope=tab')),
     ).toBe(true);
-    expect(text()).not.toContain("TV station folders700");
-    expect(text()).not.toContain("Agency names610");
-    expect(text()).toContain("Stations (1)");
-    expect(text()).toContain("Results for “KARE”");
-    expect(container.textContent).toContain("Folders held for 2026, 2024");
+    expect(text()).not.toContain('TV station folders700');
+    expect(text()).not.toContain('Agency names610');
+    expect(text()).toContain('Stations (1)');
+    expect(text()).toContain('Results for “KARE”');
+    expect(container.textContent).toContain('Folders held for 2026, 2024');
   });
 
-  it.each(["stations", "agencies"])(
-    "names empty %s results without calling them files",
+  it.each(['stations', 'agencies'])(
+    'names empty %s results without calling them files',
     async (tab) => {
       serve(() =>
         json({
           tab,
-          q: "unknown",
+          q: 'unknown',
           page: 1,
           page_size: 12,
           total: 0,
@@ -1032,16 +940,16 @@ describe("Media buys", () => {
         }),
       );
       await render(`/media-buys?tab=${tab}&q=unknown`, () => <MediaBuys />);
-      expect(container.textContent).toContain("No matches for “unknown”");
-      expect(container.textContent).not.toContain("No TV station files match");
+      expect(container.textContent).toContain('No matches for “unknown”');
+      expect(container.textContent).not.toContain('No TV station files match');
     },
   );
 
-  it("shows the checking entrance only once its page is built", async () => {
+  it('shows the checking entrance only once its page is built', async () => {
     serve(() =>
       json({
-        tab: "folders",
-        q: "",
+        tab: 'folders',
+        q: '',
         page: 1,
         page_size: 12,
         total: 0,
@@ -1051,27 +959,25 @@ describe("Media buys", () => {
         rows: [],
       }),
     );
-    await render("/media-buys", () => <MediaBuys />);
-    expect(container.textContent).not.toContain("Check TV station files");
-    expect(container.textContent).toContain("No matches");
+    await render('/media-buys', () => <MediaBuys />);
+    expect(container.textContent).not.toContain('Check TV station files');
+    expect(container.textContent).toContain('No matches');
     act(() => root.unmount());
     root = createRoot(container);
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
-    await render("/media-buys", () => <MediaBuys />);
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await render('/media-buys', () => <MediaBuys />);
     expect(
-      container
-        .querySelector('a[href^="/media-buys/check"]')
-        ?.textContent?.replace(/\u00a0/g, " "),
-    ).toContain("Check TV station files");
+      container.querySelector('a[href^="/media-buys/check"]')?.textContent?.replace(/\u00a0/g, ' '),
+    ).toContain('Check TV station files');
   });
 
-  it("keeps earlier rows after a failed filter change and never calls them empty", async () => {
+  it('keeps earlier rows after a failed filter change and never calls them empty', async () => {
     serve((url) =>
-      url.searchParams.get("station") === "KARE"
+      url.searchParams.get('station') === 'KARE'
         ? json(null, 503)
         : json({
-            tab: "folders",
-            q: "",
+            tab: 'folders',
+            q: '',
             page: 1,
             page_size: 12,
             total: 1,
@@ -1080,117 +986,109 @@ describe("Media buys", () => {
             categories: [],
             rows: [
               {
-                key: "kare-f",
-                label: "Political File / 2026 / Held folder",
+                key: 'kare-f',
+                label: 'Political File / 2026 / Held folder',
                 file_count: 2,
-                station: "KARE",
+                station: 'KARE',
                 year: 2026,
-                category: "Local",
+                category: 'Local',
               },
             ],
           }),
     );
-    await render("/media-buys", () => <MediaBuys />);
-    expect(container.textContent).toContain("Held folder");
-    expect(container.textContent).toContain("KARE · 2026 · Local");
-    await click("Station:");
-    await click("KARE");
-    expect(container.textContent).toContain("Held folder");
-    expect(container.textContent).toContain("Previous results are shown");
-    expect(container.textContent).toContain("Try again");
-    expect(container.textContent).not.toContain("No TV station files match");
+    await render('/media-buys', () => <MediaBuys />);
+    expect(container.textContent).toContain('Held folder');
+    expect(container.textContent).toContain('KARE · 2026 · Local');
+    await click('Station:');
+    await click('KARE');
+    expect(container.textContent).toContain('Held folder');
+    expect(container.textContent).toContain('Previous results are shown');
+    expect(container.textContent).toContain('Try again');
+    expect(container.textContent).not.toContain('No TV station files match');
   });
 
-  it("opens a search result at its exact version", () => {
+  it('opens a search result at its exact version', () => {
+    expect(browseRow('folders', { ...FILE, match_label: 'Matched the file name' }).href).toBe(
+      `/media-buys/files/${KEY}?version=${VERSION}`,
+    );
     expect(
-      browseRow("folders", { ...FILE, match_label: "Matched the file name" })
-        .href,
-    ).toBe(`/media-buys/files/${KEY}?version=${VERSION}`);
-    expect(
-      browseRow("years", {
-        key: "2024",
-        label: "2024",
+      browseRow('years', {
+        key: '2024',
+        label: '2024',
         year: 2024,
         file_count: 3,
         folder_count: 1,
       }),
     ).toMatchObject({
-      note: "1 TV station folder",
-      end: "3 files",
-      href: "/media-buys?year=2024",
+      note: '1 TV station folder',
+      end: '3 files',
+      href: '/media-buys?year=2024',
     });
     expect(
-      browseRow("stations", {
-        key: "kare",
-        label: "KARE",
+      browseRow('stations', {
+        key: 'kare',
+        label: 'KARE',
         file_count: 1,
         folder_count: 2,
       }),
     ).toMatchObject({
-      mid: "2 folders",
-      end: "1 file",
-      href: "/media-buys/stations/kare",
+      mid: '2 folders',
+      end: '1 file',
+      href: '/media-buys/stations/kare',
     });
   });
 
-  it("names each station’s copy date only when the dates differ", () => {
-    expect(copiedLines(STATIONS)).toEqual([
-      "TV station files copied Oct 22, 2026",
-    ]);
-    expect(
-      copiedLines([
-        STATIONS[0],
-        { ...STATIONS[1], last_file_copy: "2026-10-20" },
-      ]),
-    ).toEqual([
-      "KSTP-TV: TV station files copied Oct 22, 2026",
-      "KARE: TV station files copied Oct 20, 2026",
+  it('names each station’s copy date only when the dates differ', () => {
+    expect(copiedLines(STATIONS)).toEqual(['TV station files copied Oct 22, 2026']);
+    expect(copiedLines([STATIONS[0], { ...STATIONS[1], last_file_copy: '2026-10-20' }])).toEqual([
+      'KSTP-TV: TV station files copied Oct 22, 2026',
+      'KARE: TV station files copied Oct 20, 2026',
     ]);
   });
 });
 
-describe("TV station folder, station and printed agency name", () => {
-  it("deduplicates only the same file/version and keeps the other original spelling", () => {
+describe('TV station folder, station and printed agency name', () => {
+  it('deduplicates only the same file/version and keeps the other original spelling', () => {
     const agency = (key: string, name: string, files: (typeof FILE)[]) => ({
       key,
       name,
       unchecked: false,
       addresses: [],
-      groups: [{ station: "KARE", year: 2026, files }],
+      groups: [{ station: 'KARE', year: 2026, files }],
     });
     const groups = agencySpellingGroups([
-      agency("exact", "Example Media", [FILE]),
-      agency("variant", "Exmaple Media", [
+      agency('exact', 'Example Media', [FILE]),
+      agency('variant', 'Exmaple Media', [
         FILE,
         { ...FILE, version_id: OLD },
-        { ...FILE, key: "kare-other" },
+        { ...FILE, key: 'kare-other' },
       ]),
     ]);
     expect(groups.map((group) => group.files.length)).toEqual([1, 2]);
-    expect(groups[0].files[0].alsoPrintedAs).toEqual(["Exmaple Media"]);
+    expect(groups[0].files[0].alsoPrintedAs).toEqual(['Exmaple Media']);
     expect(groups[1].files.map((file) => [file.key, file.version_id])).toEqual([
       [KEY, OLD],
-      ["kare-other", VERSION],
+      ['kare-other', VERSION],
     ]);
-    expect(FILE).not.toHaveProperty("alsoPrintedAs");
+    expect(FILE).not.toHaveProperty('alsoPrintedAs');
   });
 
-  it("loads strong agency spellings pinned to exact source state and keeps their checks separate", async () => {
+  it('loads strong agency spellings pinned to exact source state and keeps their checks separate', async () => {
     const fetcher = serve((url) => {
-      if (url.pathname.endsWith("/spellings")) {
-        expect(url.searchParams.get("version")).toBe("c".repeat(16));
+      if (url.pathname.endsWith('/spellings')) {
+        expect(url.searchParams.get('version')).toBe('c'.repeat(16));
         return json({
-          key: "agency",
-          version: "c".repeat(16),
+          key: 'agency',
+          version: 'c'.repeat(16),
           spellings: [
             {
-              key: "variant",
-              name: "Exmaple Media",
+              key: 'variant',
+              name: 'Exmaple Media',
               unchecked: true,
               addresses: [],
               groups: [
                 {
-                  station: "KARE",
+                  station: 'KARE',
                   year: 2026,
                   files: [{ ...FILE, agency_unchecked: true }],
                 },
@@ -1199,69 +1097,63 @@ describe("TV station folder, station and printed agency name", () => {
           ],
         });
       }
-      if (url.pathname.endsWith("/similar-names"))
-        return json({ rows: [], has_more: false, key: "agency" });
+      if (url.pathname.endsWith('/similar-names'))
+        return json({ rows: [], has_more: false, key: 'agency' });
       return json({
-        key: "agency",
-        name: "Example Media",
-        version: "c".repeat(16),
+        key: 'agency',
+        name: 'Example Media',
+        version: 'c'.repeat(16),
         unchecked: false,
         addresses: [],
         groups: [
           {
-            station: "KARE",
+            station: 'KARE',
             year: 2026,
             files: [
               {
                 ...FILE,
                 agency_unchecked: false,
-                agency_checked_at: "2026-11-01",
+                agency_checked_at: '2026-11-01',
               },
             ],
           },
         ],
       });
     });
-    await render("/media-buys/agencies/agency", () => (
-      <PrintedAgency match={matchRoute("/media-buys/agencies/agency")!} />
+    await render('/media-buys/agencies/agency', () => (
+      <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
     ));
     expect(fetcher).toHaveBeenCalled();
-    expect(container.textContent).toContain("Also printed as: Exmaple Media");
-    expect(
-      container.querySelectorAll('a[href*="/media-buys/files/"]'),
-    ).toHaveLength(1);
-    expect(container.textContent).toContain("Checked on Nov 1, 2026");
-    expect(container.textContent).not.toContain(
-      "Each spelling is kept separate",
-    );
+    expect(container.textContent).toContain('Also printed as: Exmaple Media');
+    expect(container.querySelectorAll('a[href*="/media-buys/files/"]')).toHaveLength(1);
+    expect(container.textContent).toContain('Checked on Nov 1, 2026');
+    expect(container.textContent).not.toContain('Each spelling is kept separate');
   });
-  it("keeps filtered-list context through folder, file and related station returns", async () => {
+  it('keeps filtered-list context through folder, file and related station returns', async () => {
     function Flow() {
       const location = useLocation();
       const match = matchRoute(location.pathname)!;
-      if (match.route.name === "station-folder")
-        return <StationFolder match={match} />;
-      if (match.route.name === "station-file")
-        return <StationFile match={match} />;
-      if (match.route.name === "station") return <TVStation match={match} />;
+      if (match.route.name === 'station-folder') return <StationFolder match={match} />;
+      if (match.route.name === 'station-file') return <StationFile match={match} />;
+      if (match.route.name === 'station') return <TVStation match={match} />;
       return <MediaBuys />;
     }
     serve((url) => {
-      if (url.pathname.includes("/files/")) return json(DETAIL);
-      if (url.pathname.includes("/folders/"))
+      if (url.pathname.includes('/files/')) return json(DETAIL);
+      if (url.pathname.includes('/folders/'))
         return json({
-          key: "kare-folder",
-          label: "Political File / 2025 / Local / Example Committee",
-          station: "KARE",
+          key: 'kare-folder',
+          label: 'Political File / 2025 / Local / Example Committee',
+          station: 'KARE',
           year: 2025,
-          category: "Local",
-          fcc_url: "https://publicfiles.fcc.gov",
+          category: 'Local',
+          fcc_url: 'https://publicfiles.fcc.gov',
           relationship: null,
           files: [FILE],
         });
       return json({
-        tab: "folders",
-        q: "",
+        tab: 'folders',
+        q: '',
         page: 1,
         page_size: 12,
         total: 1,
@@ -1270,117 +1162,96 @@ describe("TV station folder, station and printed agency name", () => {
         categories: [],
         rows: [
           {
-            key: "kare-folder",
-            label: "Example Committee",
-            station: "KARE",
+            key: 'kare-folder',
+            label: 'Example Committee',
+            station: 'KARE',
             year: 2025,
             file_count: 1,
           },
         ],
       });
     });
-    const station = withFrom(
-      "/media-buys/stations/kare",
-      "/media-buys?tab=stations",
-    );
-    const filtered = withFrom("/media-buys?station=KARE&year=2025", station);
+    const station = withFrom('/media-buys/stations/kare', '/media-buys?tab=stations');
+    const filtered = withFrom('/media-buys?station=KARE&year=2025', station);
     await render(filtered, () => <Flow />);
-    await click("Example Committee");
+    await click('Example Committee');
     const originalFolder = window.location.pathname + window.location.search;
     const related = container.querySelector<HTMLAnchorElement>(
       'a[href^="/media-buys/stations/KARE"]',
     )!;
-    const relatedFrom = new URL(related.href).searchParams.get("from")!;
-    expect(
-      new URL(relatedFrom, "https://finance.test").searchParams.get("from"),
-    ).toContain("station=KARE&year=2025");
-    await click("invoice.pdf");
-    expect(new URLSearchParams(window.location.search).get("version")).toBe(
-      VERSION,
+    const relatedFrom = new URL(related.href).searchParams.get('from')!;
+    expect(new URL(relatedFrom, 'https://finance.test').searchParams.get('from')).toContain(
+      'station=KARE&year=2025',
     );
-    await click("Back to TV station folder");
-    expect(window.location.pathname).toBe("/media-buys/folders/kare-folder");
-    expect(window.location.search).not.toBe("");
-    await click("Back to Media buys");
-    expect(window.location.pathname).toBe("/media-buys");
-    expect(new URLSearchParams(window.location.search).get("station")).toBe(
-      "KARE",
-    );
-    expect(new URLSearchParams(window.location.search).get("year")).toBe(
-      "2025",
-    );
-    expect(container.querySelector("a.f-back")?.textContent).toBe(
-      "Back to TV station",
-    );
-    expect(originalFolder).toContain("from=");
+    await click('invoice.pdf');
+    expect(new URLSearchParams(window.location.search).get('version')).toBe(VERSION);
+    await click('Back to TV station folder');
+    expect(window.location.pathname).toBe('/media-buys/folders/kare-folder');
+    expect(window.location.search).not.toBe('');
+    await click('Back to Media buys');
+    expect(window.location.pathname).toBe('/media-buys');
+    expect(new URLSearchParams(window.location.search).get('station')).toBe('KARE');
+    expect(new URLSearchParams(window.location.search).get('year')).toBe('2025');
+    expect(container.querySelector('a.f-back')?.textContent).toBe('Back to TV station');
+    expect(originalFolder).toContain('from=');
   });
 
-  it("says a missing folder is no longer available, never a list of zero files", async () => {
+  it('says a missing folder is no longer available, never a list of zero files', async () => {
     serve(() => json(null, 404));
-    await render("/media-buys/folders/missing", () => (
-      <StationFolder match={matchRoute("/media-buys/folders/missing")!} />
+    await render('/media-buys/folders/missing', () => (
+      <StationFolder match={matchRoute('/media-buys/folders/missing')!} />
     ));
-    expect(container.textContent).toContain(
-      "This folder is no longer available",
-    );
-    expect(container.textContent).not.toContain("No files to show");
+    expect(container.textContent).toContain('This folder is no longer available');
+    expect(container.textContent).not.toContain('No files to show');
   });
 
-  it("lists a folder’s files at their exact versions with its one checked connection", async () => {
+  it('lists a folder’s files at their exact versions with its one checked connection', async () => {
     serve(() =>
       json({
-        key: "kare-folder",
-        label: "Political File / 2026 / Local / Example Committee",
-        station: "KARE",
+        key: 'kare-folder',
+        label: 'Political File / 2026 / Local / Example Committee',
+        station: 'KARE',
         year: 2026,
-        category: "Local",
-        fcc_url: "https://publicfiles.fcc.gov",
+        category: 'Local',
+        fcc_url: 'https://publicfiles.fcc.gov',
         relationship: {
           ...DETAIL.connections[0],
-          target: { kind: "committee", id: "90001" },
+          target: { kind: 'committee', id: '90001' },
         },
         files: [FILE],
       }),
     );
-    await render("/media-buys/folders/kare-folder", () => (
-      <StationFolder match={matchRoute("/media-buys/folders/kare-folder")!} />
+    await render('/media-buys/folders/kare-folder', () => (
+      <StationFolder match={matchRoute('/media-buys/folders/kare-folder')!} />
     ));
-    const text = container.textContent ?? "";
-    expect(text).toContain("TV STATION FOLDER");
-    expect(text).toContain("1 file held");
-    expect(text).toContain("2 saved versions");
-    expect(text).toContain("FIRST SAVED");
-    expect(text).toContain("Mar 4, 2026");
-    expect(text).toContain("Unavailable");
+    const text = container.textContent ?? '';
+    expect(text).toContain('TV STATION FOLDER');
+    expect(text).toContain('1 file held');
+    expect(text).toContain('2 saved versions');
+    expect(text).toContain('FIRST SAVED');
+    expect(text).toContain('Mar 4, 2026');
+    expect(text).toContain('Unavailable');
+    expect(text).toContain('Folder checked as relating to this committee · Checked on Oct 3, 2026');
     expect(text).toContain(
-      "Folder checked as relating to this committee · Checked on Oct 3, 2026",
-    );
-    expect(text).toContain(
-      "Folder listing read from the FCC public inspection file on Oct 22, 2026",
+      'Folder listing read from the FCC public inspection file on Oct 22, 2026',
     );
     expect(
-      container.querySelector(
-        `a[href^="/media-buys/files/${KEY}?version=${VERSION}&from="]`,
-      ),
+      container.querySelector(`a[href^="/media-buys/files/${KEY}?version=${VERSION}&from="]`),
     ).toBeTruthy();
-    expect(
-      container.querySelector('a[href^="/media-buys/stations/KARE"]'),
-    ).toBeTruthy();
+    expect(container.querySelector('a[href^="/media-buys/stations/KARE"]')).toBeTruthy();
   });
 
-  it("shows a failed folder with Try again, not a missing one", async () => {
+  it('shows a failed folder with Try again, not a missing one', async () => {
     serve(() => json(null, 500));
-    await render("/media-buys/folders/kare-folder", () => (
-      <StationFolder match={matchRoute("/media-buys/folders/kare-folder")!} />
+    await render('/media-buys/folders/kare-folder', () => (
+      <StationFolder match={matchRoute('/media-buys/folders/kare-folder')!} />
     ));
-    expect(container.textContent).toContain(
-      "Couldn’t load folder. This is a problem on our side.",
-    );
-    expect(container.textContent).toContain("Try again");
-    expect(container.textContent).not.toContain("no longer available");
+    expect(container.textContent).toContain('Couldn’t load folder. This is a problem on our side.');
+    expect(container.textContent).toContain('Try again');
+    expect(container.textContent).not.toContain('no longer available');
   });
 
-  it("prints a station’s years with a link to that year’s folders", async () => {
+  it('prints a station’s years with a link to that year’s folders', async () => {
     serve(() =>
       json({
         ...STATIONS[1],
@@ -1393,7 +1264,7 @@ describe("TV station folder, station and printed agency name", () => {
         },
         folder_count: 2,
         folder_failures: 0,
-        latest_check_at: "2026-10-03T01:00:00Z",
+        latest_check_at: '2026-10-03T01:00:00Z',
         years: [
           {
             year: 2026,
@@ -1423,146 +1294,134 @@ describe("TV station folder, station and printed agency name", () => {
         ],
       }),
     );
-    await render("/media-buys/stations/KARE", () => (
-      <TVStation match={matchRoute("/media-buys/stations/KARE")!} />
+    await render('/media-buys/stations/KARE', () => (
+      <TVStation match={matchRoute('/media-buys/stations/KARE')!} />
     ));
-    const text = container.textContent ?? "";
-    expect(text).toContain("Records held, by year");
-    expect(text).toContain("TV station files held3");
-    expect(text).toContain("None held");
-    expect(text).toContain("Other stations held");
-    expect(text).toContain("Latest station upload held");
-    expect(text).toContain("Latest review checkOct 2, 2026");
-    expect(
-      container.querySelector('[aria-label="2026"]')?.textContent,
-    ).toContain("Unique file contents2");
-    expect(
-      container.querySelector('[aria-label="2026"]')?.textContent,
-    ).toContain("Folders we couldn’t list2");
-    expect(
-      container.querySelector('[aria-label="Year unavailable"]')?.textContent,
-    ).toContain("Files we couldn’t download1");
+    const text = container.textContent ?? '';
+    expect(text).toContain('Records held, by year');
+    expect(text).toContain('TV station files held3');
+    expect(text).toContain('None held');
+    expect(text).toContain('Other stations held');
+    expect(text).toContain('Latest station upload held');
+    expect(text).toContain('Latest review checkOct 2, 2026');
+    expect(container.querySelector('[aria-label="2026"]')?.textContent).toContain(
+      'Unique file contents2',
+    );
+    expect(container.querySelector('[aria-label="2026"]')?.textContent).toContain(
+      'Folders we couldn’t list2',
+    );
+    expect(container.querySelector('[aria-label="Year unavailable"]')?.textContent).toContain(
+      'Files we couldn’t download1',
+    );
     // The station-wide counts, once, for all years, with the drawn notes: gaps in
     // the collection are never hidden.
     const all = container.querySelector('[aria-label="All years"]')!;
-    const metrics = [...all.querySelectorAll(".mb-metrics > div")].map(
-      (d) => d.textContent,
-    );
+    const metrics = [...all.querySelectorAll('.mb-metrics > div')].map((d) => d.textContent);
     expect(metrics).toEqual([
-      "TV station files held3",
-      "Unique file contents3",
-      "Files whose text could not be fully read0",
-      "Files we couldn’t download0",
-      "Folders we couldn’t list0",
+      'TV station files held3',
+      'Unique file contents3',
+      'Files whose text could not be fully read0',
+      'Files we couldn’t download0',
+      'Folders we couldn’t list0',
     ]);
     expect(text).toContain(
-      "Files we couldn’t download and folders we couldn’t list are collection gaps on our side, not statements about the station",
+      'Files we couldn’t download and folders we couldn’t list are collection gaps on our side, not statements about the station',
     );
     expect(
-      container.querySelector(
-        'a[href^="/media-buys?station=KARE&year=2026&from="]',
-      ),
+      container.querySelector('a[href^="/media-buys?station=KARE&year=2026&from="]'),
     ).toBeTruthy();
-    expect(
-      container.querySelector('a[href^="/media-buys/stations/KSTP-TV?from="]'),
-    ).toBeTruthy();
+    expect(container.querySelector('a[href^="/media-buys/stations/KSTP-TV?from="]')).toBeTruthy();
   });
 
-  it("prints each agency name check on its own Minnesota day, never a file or address date", async () => {
+  it('prints each agency name check on its own Minnesota day, never a file or address date', async () => {
     serve(() =>
       json({
-        name: "Exact Agency",
-        key: "agency",
+        name: 'Exact Agency',
+        key: 'agency',
         unchecked: false,
         addresses: [],
         groups: [
           {
-            station: "KARE",
+            station: 'KARE',
             year: 2026,
             files: [
               {
                 ...FILE,
-                key: "checked",
+                key: 'checked',
                 agency_unchecked: false,
-                agency_checked_at: "2026-11-04T02:00:00Z",
+                agency_checked_at: '2026-11-04T02:00:00Z',
               },
               {
                 ...FILE,
-                key: "mixed",
+                key: 'mixed',
                 agency_unchecked: false,
                 agency_checked_at: null,
               },
               {
                 ...FILE,
-                key: "unchecked",
+                key: 'unchecked',
                 agency_unchecked: true,
-                agency_checked_at: "2026-11-04T02:00:00Z",
+                agency_checked_at: '2026-11-04T02:00:00Z',
               },
             ],
           },
         ],
       }),
     );
-    await render("/media-buys/agencies/agency", () => (
-      <PrintedAgency match={matchRoute("/media-buys/agencies/agency")!} />
+    await render('/media-buys/agencies/agency', () => (
+      <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
     ));
-    expect(container.textContent).toContain("Checked on Nov 3, 2026");
+    expect(container.textContent).toContain('Checked on Nov 3, 2026');
     expect(container.textContent?.match(/Checked on/g)).toHaveLength(1);
-    expect(container.textContent).toContain("Machine-read · Not checked");
+    expect(container.textContent).toContain('Machine-read · Not checked');
   });
 
-  it("opens agency address evidence at its quoted page and version, with both payment searches", async () => {
-    vi.spyOn(routes, "isBuilt").mockImplementation(
-      (name) => name === "payments-under-name",
-    );
+  it('opens agency address evidence at its quoted page and version, with both payment searches', async () => {
+    vi.spyOn(routes, 'isBuilt').mockImplementation((name) => name === 'payments-under-name');
     serve(() =>
       json({
-        name: "Exact Agency",
-        key: "agency",
+        name: 'Exact Agency',
+        key: 'agency',
         unchecked: true,
         groups: [
           {
-            station: "KARE",
+            station: 'KARE',
             year: 2026,
             files: [{ ...FILE, agency_unchecked: true }],
           },
         ],
         addresses: [
           {
-            address: "100 Main",
+            address: '100 Main',
             evidence: [
               {
                 file_key: KEY,
-                file_name: "invoice.pdf",
+                file_name: 'invoice.pdf',
                 version_id: OLD,
                 page: 4,
-                checked_at: "2026-10-01",
-                quote: "BILL TO EXACT AGENCY AT 100 MAIN",
+                checked_at: '2026-10-01',
+                quote: 'BILL TO EXACT AGENCY AT 100 MAIN',
               },
             ],
           },
         ],
       }),
     );
-    await render("/media-buys/agencies/agency", () => (
-      <PrintedAgency match={matchRoute("/media-buys/agencies/agency")!} />
+    await render('/media-buys/agencies/agency', () => (
+      <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
     ));
-    const text = container.textContent ?? "";
-    expect(text).toContain("1 file · KARE");
-    expect(text).toContain("Machine-read · Not checked");
-    expect(text).toContain("Checked on Oct 1, 2026");
-    expect(container.querySelector("blockquote")?.textContent).toBe(
-      "BILL TO EXACT AGENCY AT 100 MAIN",
+    const text = container.textContent ?? '';
+    expect(text).toContain('1 file · KARE');
+    expect(text).toContain('Machine-read · Not checked');
+    expect(text).toContain('Checked on Oct 1, 2026');
+    expect(container.querySelector('blockquote')?.textContent).toBe(
+      'BILL TO EXACT AGENCY AT 100 MAIN',
     );
-    expect(text).toContain(
-      "A payment under this name does not prove the file was paid",
+    expect(text).toContain('A payment under this name does not prove the file was paid');
+    const evidence = [...container.querySelectorAll('a')].find((a) =>
+      a.textContent?.replace(/\u00a0/g, ' ').includes('View evidence'),
     );
-    const evidence = [...container.querySelectorAll("a")].find((a) =>
-      a.textContent?.replace(/\u00a0/g, " ").includes("View evidence"),
-    );
-    expect(evidence?.getAttribute("href")).toBe(
-      `/media-buys/files/${KEY}?version=${OLD}&page=4`,
-    );
+    expect(evidence?.getAttribute('href')).toBe(`/media-buys/files/${KEY}?version=${OLD}&page=4`);
     expect(
       container.querySelector(
         'a[href="/money/names/Exact%20Agency?role=payee&dataset=expenditures"]',
@@ -1575,189 +1434,154 @@ describe("TV station folder, station and printed agency name", () => {
     ).toBeTruthy();
   });
 
-  it("says so when no address is checked for a spelling", async () => {
+  it('says so when no address is checked for a spelling', async () => {
     serve(() =>
       json({
-        name: "Exact Agency",
-        key: "agency",
+        name: 'Exact Agency',
+        key: 'agency',
         unchecked: false,
         groups: [],
         addresses: [],
       }),
     );
-    await render("/media-buys/agencies/agency", () => (
-      <PrintedAgency match={matchRoute("/media-buys/agencies/agency")!} />
+    await render('/media-buys/agencies/agency', () => (
+      <PrintedAgency match={matchRoute('/media-buys/agencies/agency')!} />
     ));
-    expect(container.textContent).toContain(
-      "No address has been checked for this spelling",
-    );
-    expect(container.textContent).toContain("Payment records");
+    expect(container.textContent).toContain('No address has been checked for this spelling');
+    expect(container.textContent).toContain('Payment records');
   });
 });
 
-describe("TV station file", () => {
-  it("shows the version’s checks, writes the page to the address and marks the quote in evidence", async () => {
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+describe('TV station file', () => {
+  it('shows the version’s checks, writes the page to the address and marks the quote in evidence', async () => {
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     const fetcher = serve((url) =>
-      url.searchParams.get("version") === OLD
+      url.searchParams.get('version') === OLD
         ? json({ ...DETAIL, version_id: OLD, facts: [], connections: [] })
         : json(DETAIL),
     );
     await render(`/media-buys/files/${KEY}`, () => (
       <StationFile match={matchRoute(`/media-buys/files/${KEY}`)!} />
     ));
-    const text = container.textContent ?? "";
-    expect(text).toContain("TV STATION FILE");
-    expect(text).toContain("2026 · Local · Example Committee");
-    expect(text).toContain("Upload date unavailable");
-    expect(text).toContain("Gross amount");
-    expect(text).toContain("Checked on Oct 2, 2026 · Page 2");
+    const text = container.textContent ?? '';
+    expect(text).toContain('TV STATION FILE');
+    expect(text).toContain('2026 · Local · Example Committee');
+    expect(text).toContain('Upload date unavailable');
+    expect(text).toContain('Gross amount');
+    expect(text).toContain('Checked on Oct 2, 2026 · Page 2');
     expect(text).toContain(
-      "Checked as committee · Advertiser · this version · Checked on Oct 3, 2026",
+      'Checked as committee · Advertiser · this version · Checked on Oct 3, 2026',
     );
-    expect(text).toContain(
-      `For the version first saved ${savedAt("2026-03-05T15:14:00Z")}`,
+    expect(text).toContain(`For the version first saved ${savedAt('2026-03-05T15:14:00Z')}`);
+    expect(container.querySelector('a#check-link')?.getAttribute('href')).toContain(
+      `/media-buys/check?file=${KEY}&version=${VERSION}&from=`,
     );
     expect(
-      container.querySelector("a#check-link")?.getAttribute("href"),
-    ).toContain(`/media-buys/check?file=${KEY}&version=${VERSION}&from=`);
-    expect(
-      fetcher.mock.calls.some(([url]) =>
-        String(url).includes(`/pages/1?version=${VERSION}`),
-      ),
+      fetcher.mock.calls.some(([url]) => String(url).includes(`/pages/1?version=${VERSION}`)),
     ).toBe(true);
 
     await act(async () => {
-      const opener = container.querySelector("#vf-fact-1") as HTMLButtonElement;
+      const opener = container.querySelector('#vf-fact-1') as HTMLButtonElement;
       opener.focus();
       opener.click();
     });
     await flush();
-    expect(window.location.search).toContain("page=2");
+    expect(window.location.search).toContain('page=2');
     const panel = document.querySelector('[role="dialog"]')!;
-    expect(panel.textContent).toContain("Gross amount: $500.00");
-    expect(panel.textContent).toContain("KARE public inspection file");
-    expect(panel.querySelector("mark")?.textContent).toBe(
-      "GROSS TOTAL $500.00",
-    );
+    expect(panel.textContent).toContain('Gross amount: $500.00');
+    expect(panel.textContent).toContain('KARE public inspection file');
+    expect(panel.querySelector('mark')?.textContent).toBe('GROSS TOTAL $500.00');
     expect(
-      panel.querySelector(`a[href*="check=fact-1"][href*="action=correct"]`)
-        ?.textContent,
-    ).toBe("Correct fact");
-    expect(panel.querySelector(`a[href*="action=withdraw"]`)?.textContent).toBe(
-      "Withdraw check",
-    );
+      panel.querySelector(`a[href*="check=fact-1"][href*="action=correct"]`)?.textContent,
+    ).toBe('Correct fact');
+    expect(panel.querySelector(`a[href*="action=withdraw"]`)?.textContent).toBe('Withdraw check');
     await act(async () =>
-      (
-        panel.querySelector(
-          '[aria-label="Close source evidence"]',
-        ) as HTMLButtonElement
-      ).click(),
+      (panel.querySelector('[aria-label="Close source evidence"]') as HTMLButtonElement).click(),
     );
     await flush();
-    expect(window.location.search).toContain("page=2");
-    expect(document.activeElement?.id).toBe("vf-fact-1");
+    expect(window.location.search).toContain('page=2');
+    expect(document.activeElement?.id).toBe('vf-fact-1');
 
-    await click("Saved versions:");
-    await click("Earlier contents");
+    await click('Saved versions:');
+    await click('Earlier contents');
     expect(window.location.search).toContain(`version=${OLD}`);
-    expect(container.textContent).toContain(
-      "No checked facts for this version",
-    );
-    expect(container.querySelector("a#check-link")).toBeNull();
+    expect(container.textContent).toContain('No checked facts for this version');
+    expect(container.querySelector('a#check-link')).toBeNull();
   });
 
-  it("warns when a checked quote is not on its page and when the page has no text", async () => {
+  it('warns when a checked quote is not on its page and when the page has no text', async () => {
     serve(() =>
       json({
         ...DETAIL,
         pages: [
-          { number: 1, text: "BILL TO: EXAMPLE MEDIA", text_status: "ready" },
-          { number: 2, text: null, text_status: "pending" },
+          { number: 1, text: 'BILL TO: EXAMPLE MEDIA', text_status: 'ready' },
+          { number: 2, text: null, text_status: 'pending' },
         ],
       }),
     );
     await render(`/media-buys/files/${KEY}`, () => (
       <StationFile match={matchRoute(`/media-buys/files/${KEY}`)!} />
     ));
-    await act(async () =>
-      (container.querySelector("#vf-fact-2") as HTMLButtonElement).click(),
-    );
+    await act(async () => (container.querySelector('#vf-fact-2') as HTMLButtonElement).click());
     await flush();
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-      "The checked quote isn’t found exactly in this page’s machine-read text",
+      'The checked quote isn’t found exactly in this page’s machine-read text',
     );
     await act(async () =>
-      (
-        document.querySelector(
-          '[aria-label="Close source evidence"]',
-        ) as HTMLButtonElement
-      ).click(),
+      (document.querySelector('[aria-label="Close source evidence"]') as HTMLButtonElement).click(),
     );
-    await act(async () =>
-      (container.querySelector("#vf-fact-1") as HTMLButtonElement).click(),
-    );
+    await act(async () => (container.querySelector('#vf-fact-1') as HTMLButtonElement).click());
     await flush();
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-      "Machine-read text is not available for this page",
+      'Machine-read text is not available for this page',
     );
     // With Check TV station files on, the panel's actions open it at this check.
     for (const link of document.querySelectorAll('[role="dialog"] a')) {
-      expect(link.getAttribute("href")).toMatch(/^\/media-buys\/check\?/);
+      expect(link.getAttribute('href')).toMatch(/^\/media-buys\/check\?/);
     }
   });
 
-  it("never opens another version for a link naming one that is not held", async () => {
-    serve((url) =>
-      url.searchParams.get("version") ? json(null, 404) : json(DETAIL),
-    );
-    const missing = "c".repeat(64);
+  it('never opens another version for a link naming one that is not held', async () => {
+    serve((url) => (url.searchParams.get('version') ? json(null, 404) : json(DETAIL)));
+    const missing = 'c'.repeat(64);
     await render(`/media-buys/files/${KEY}?version=${missing}`, () => (
       <StationFile match={matchRoute(`/media-buys/files/${KEY}`)!} />
     ));
-    const text = container.textContent ?? "";
-    expect(text).toContain("This version is not held");
-    expect(text).not.toContain("Checked facts");
-    expect(text).not.toContain("Check this file");
+    const text = container.textContent ?? '';
+    expect(text).toContain('This version is not held');
+    expect(text).not.toContain('Checked facts');
+    expect(text).not.toContain('Check this file');
     expect(
-      [...container.querySelectorAll("a")]
-        .find((a) =>
-          a.textContent
-            ?.replace(/\u00a0/g, " ")
-            .includes("Open the current version"),
-        )
-        ?.getAttribute("href"),
+      [...container.querySelectorAll('a')]
+        .find((a) => a.textContent?.replace(/\u00a0/g, ' ').includes('Open the current version'))
+        ?.getAttribute('href'),
     ).toBe(`/media-buys/files/${KEY}?version=${VERSION}`);
   });
 
-  it("says a missing file is no longer available", async () => {
+  it('says a missing file is no longer available', async () => {
     serve(() => json(null, 404));
     await render(`/media-buys/files/${KEY}`, () => (
       <StationFile match={matchRoute(`/media-buys/files/${KEY}`)!} />
     ));
-    expect(container.textContent).toContain("This file is no longer available");
+    expect(container.textContent).toContain('This file is no longer available');
   });
 
-  it("marks a quote only where it appears exactly", () => {
-    expect(markQuote("A GROSS 1", "GROSS")).toEqual({
-      before: "A ",
-      mark: "GROSS",
-      after: " 1",
+  it('marks a quote only where it appears exactly', () => {
+    expect(markQuote('A GROSS 1', 'GROSS')).toEqual({
+      before: 'A ',
+      mark: 'GROSS',
+      after: ' 1',
     });
-    expect(markQuote("A GR0SS 1", "GROSS")).toBeNull();
+    expect(markQuote('A GR0SS 1', 'GROSS')).toBeNull();
   });
 });
 
-describe("Media buys card", () => {
+describe('Media buys card', () => {
   /** The connections answer as the server builds it (`connected` in
    * alethical/api/services/tv_ads.py): every row once in `files` without a role,
    * and again in its group with the role line. */
-  function connected(
-    groups: { label: string; files: Record<string, unknown>[] }[],
-  ) {
-    const files = groups.flatMap((group) =>
-      group.files.map(({ role: _role, ...row }) => row),
-    );
+  function connected(groups: { label: string; files: Record<string, unknown>[] }[]) {
+    const files = groups.flatMap((group) => group.files.map(({ role: _role, ...row }) => row));
     return {
       agency_key: null,
       exact_name_count: 0,
@@ -1768,14 +1592,14 @@ describe("Media buys card", () => {
   }
   const INVOICE = {
     ...FILE,
-    kind: "Invoice",
-    uploaded_at: "2026-03-04",
-    role: "Advertiser, as printed",
+    kind: 'Invoice',
+    uploaded_at: '2026-03-04',
+    role: 'Advertiser, as printed',
   };
 
-  it("uses the served connection kind and cited page without guessing from its label", async () => {
-    const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+  it('uses the served connection kind and cited page without guessing from its label', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     serve(() =>
       json({
         agency_key: null,
@@ -1784,264 +1608,230 @@ describe("Media buys card", () => {
         total: 1,
         groups: [
           {
-            label: "Unrelated title",
-            kind: "named",
+            label: 'Unrelated title',
+            kind: 'named',
             files: [{ ...INVOICE, page: 4 }],
           },
         ],
       }),
     );
-    await render("/candidates/example", () => (
+    await render('/candidates/example', () => (
       <MediaBuysCard kind="candidate" target="example" name="Example" />
     ));
-    expect(container.querySelector(".mb-buys-card h3")?.textContent).toBe(
-      "TV station files that name this candidate",
+    expect(container.querySelector('.mb-buys-card h3')?.textContent).toBe(
+      'TV station files that name this candidate',
     );
-    expect(
-      container.querySelector(".mb-buys-card a")?.getAttribute("href"),
-    ).toContain(`version=${VERSION}&page=4`);
+    expect(container.querySelector('.mb-buys-card a')?.getAttribute('href')).toContain(
+      `version=${VERSION}&page=4`,
+    );
   });
 
-  it.each(["person", "legislator", "organization"] as const)(
-    "keeps %s profile file versions, page links and failure states",
+  it.each(['person', 'legislator', 'organization'] as const)(
+    'keeps %s profile file versions, page links and failure states',
     async (kind) => {
-      const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-      vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+      const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+      vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
       let response = json({
         files: [INVOICE],
         total: 1,
         groups: [
           {
-            kind: "committee",
-            label: "Files with a checked connection to Example Committee",
+            kind: 'committee',
+            label: 'Files with a checked connection to Example Committee',
             files: [{ ...INVOICE, page: 2 }],
           },
           {
-            kind: "named",
-            label: "Untrusted candidate description",
+            kind: 'named',
+            label: 'Untrusted candidate description',
             files: [{ ...INVOICE, page: 4 }],
           },
         ],
       });
       serve(() => response.clone());
-      await render("/people/example", () => (
-        <MediaBuysCard
-          kind={kind}
-          target="example"
-          name="Example"
-          personIsCandidate={true}
-        />
+      await render('/people/example', () => (
+        <MediaBuysCard kind={kind} target="example" name="Example" personIsCandidate={true} />
       ));
-      const links = [...container.querySelectorAll(".mb-buys-card a")];
+      const links = [...container.querySelectorAll('.mb-buys-card a')];
       expect(links).toHaveLength(2);
-      expect(links[0].getAttribute("href")).toContain(
+      expect(links[0].getAttribute('href')).toContain(
         `version=${VERSION}&page=2&from=%2Fpeople%2Fexample`,
       );
-      expect(links[1].getAttribute("href")).toContain(
+      expect(links[1].getAttribute('href')).toContain(
         `version=${VERSION}&page=4&from=%2Fpeople%2Fexample`,
       );
-      expect(
-        [...container.querySelectorAll(".mb-buys-card h3")].map(
-          (x) => x.textContent,
-        ),
-      ).toEqual(
-        kind === "organization"
+      expect([...container.querySelectorAll('.mb-buys-card h3')].map((x) => x.textContent)).toEqual(
+        kind === 'organization'
           ? []
           : [
-              "Files with a checked connection to Example Committee",
-              kind === "legislator"
-                ? "TV station files that name this legislator"
-                : "TV station files that name this candidate",
+              'Files with a checked connection to Example Committee',
+              kind === 'legislator'
+                ? 'TV station files that name this legislator'
+                : 'TV station files that name this candidate',
             ],
       );
       // A new profile with an unavailable read never gets the previous profile's files or an empty claim.
       response = new Response(null, { status: 503 });
-      await render("/people/other", () => (
+      await render('/people/other', () => (
         <MediaBuysCard kind={kind} target="other" name="Other" />
       ));
-      expect(container.querySelectorAll(".mb-buys-card a")).toHaveLength(0);
-      expect(text()).toContain("Couldn’t load TV station files");
-      expect(text()).not.toContain(
-        "No TV station files have a checked connection",
-      );
+      expect(container.querySelectorAll('.mb-buys-card a')).toHaveLength(0);
+      expect(text()).toContain('Couldn’t load TV station files');
+      expect(text()).not.toContain('No TV station files have a checked connection');
       response = json({ files: [], groups: [], total: 0 });
-      await click("Try again");
-      expect(text()).toContain(
-        "No TV station files have a checked connection to Other",
-      );
+      await click('Try again');
+      expect(text()).toContain('No TV station files have a checked connection to Other');
     },
   );
 
-  it("does not call an identity-only person a candidate from a server group label", async () => {
-    const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+  it('does not call an identity-only person a candidate from a server group label', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     serve(() =>
       json({
         files: [INVOICE],
         groups: [
           {
-            kind: "named",
-            label: "Files naming this candidate",
+            kind: 'named',
+            label: 'Files naming this candidate',
             files: [INVOICE],
           },
         ],
         total: 1,
       }),
     );
-    await render("/people/example", () => (
+    await render('/people/example', () => (
       <MediaBuysCard kind="person" target="example" name="Example" />
     ));
-    expect(container.querySelector(".mb-buys-card h3")).toBeNull();
-    expect(container.querySelectorAll(".mb-buys-card a")).toHaveLength(1);
-    expect(text()).not.toContain("candidate");
+    expect(container.querySelector('.mb-buys-card h3')).toBeNull();
+    expect(container.querySelectorAll('.mb-buys-card a')).toHaveLength(1);
+    expect(text()).not.toContain('candidate');
   });
 
-  it("lists each connected file once, at its exact version, with a way back", async () => {
-    const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
-    const fetcher = serve(() =>
-      json(connected([{ label: "", files: [INVOICE] }])),
-    );
-    await render("/money/committees/90001?year=2026", () => (
+  it('lists each connected file once, at its exact version, with a way back', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    const fetcher = serve(() => json(connected([{ label: '', files: [INVOICE] }])));
+    await render('/money/committees/90001?year=2026', () => (
       <MediaBuysCard kind="committee" target="90001" name="Example Committee" />
     ));
-    expect(text()).toContain(
-      "KSTP-TV, KARE and KMSP-TV station files, not in money totals",
-    );
-    expect(text()).toContain("KARE invoice ·Mar 4, 2026");
-    expect(text()).toContain("Advertiser, as printed");
-    const links = container.querySelectorAll(".mb-buys-card a");
+    expect(text()).toContain('KSTP-TV, KARE and KMSP-TV station files, not in money totals');
+    expect(text()).toContain('KARE invoice ·Mar 4, 2026');
+    expect(text()).toContain('Advertiser, as printed');
+    const links = container.querySelectorAll('.mb-buys-card a');
     expect(links).toHaveLength(1);
-    expect(links[0].getAttribute("href")).toBe(
+    expect(links[0].getAttribute('href')).toBe(
       `/media-buys/files/${KEY}?version=${VERSION}&from=%2Fmoney%2Fcommittees%2F90001%3Fyear%3D2026`,
     );
-    expect(container.querySelector(".mb-buys-card h3")).toBeNull();
+    expect(container.querySelector('.mb-buys-card h3')).toBeNull();
     const asked = fetcher.mock.calls.map(([url]) => new URL(String(url)));
-    const read = asked.find((url) =>
-      url.pathname.endsWith("/finance/media-buys/connections"),
-    );
-    expect(read?.searchParams.get("kind")).toBe("committee");
-    expect(read?.searchParams.get("target")).toBe("90001");
+    const read = asked.find((url) => url.pathname.endsWith('/finance/media-buys/connections'));
+    expect(read?.searchParams.get('kind')).toBe('committee');
+    expect(read?.searchParams.get('target')).toBe('90001');
   });
 
-  it("says no file is connected, by the record’s name", async () => {
-    const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+  it('says no file is connected, by the record’s name', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     serve(() => json(connected([])));
-    await render("/money/committees/1", () => (
+    await render('/money/committees/1', () => (
       <MediaBuysCard kind="committee" target="1" name="Example Committee" />
     ));
-    expect(text()).toContain(
-      "No TV station files have a checked connection to Example Committee",
-    );
-    expect(container.querySelector(".mb-buys-card ul")).toBeNull();
+    expect(text()).toContain('No TV station files have a checked connection to Example Committee');
+    expect(container.querySelector('.mb-buys-card ul')).toBeNull();
   });
 
-  it("says the files could not be loaded, with Try again, never an empty card", async () => {
-    const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+  it('says the files could not be loaded, with Try again, never an empty card', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     let fail = true;
     const fetcher = serve(() =>
-      fail
-        ? json(null, 500)
-        : json(connected([{ label: "", files: [INVOICE] }])),
+      fail ? json(null, 500) : json(connected([{ label: '', files: [INVOICE] }])),
     );
-    await render("/money/committees/90001", () => (
+    await render('/money/committees/90001', () => (
       <MediaBuysCard kind="committee" target="90001" name="X" />
     ));
-    expect(text()).toContain("Couldn’t load TV station files");
-    expect(text()).not.toContain("problem on our side");
-    expect(text()).not.toContain(
-      "No TV station files have a checked connection",
-    );
+    expect(text()).toContain('Couldn’t load TV station files');
+    expect(text()).not.toContain('problem on our side');
+    expect(text()).not.toContain('No TV station files have a checked connection');
     fail = false;
     const before = fetcher.mock.calls.length;
-    await click("Try again");
+    await click('Try again');
     expect(fetcher.mock.calls.length).toBeGreaterThan(before);
-    expect(text()).toContain("KARE invoice");
-    expect(text()).not.toContain("Couldn’t load TV station files");
+    expect(text()).toContain('KARE invoice');
+    expect(text()).not.toContain('Couldn’t load TV station files');
   });
 
-  it("treats an answer without its lists as a failed read", async () => {
-    const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+  it('treats an answer without its lists as a failed read', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     serve(() => json({}));
-    await render("/money/committees/90001", () => (
+    await render('/money/committees/90001', () => (
       <MediaBuysCard kind="committee" target="90001" name="X" />
     ));
-    expect(text()).toContain("Couldn’t load TV station files");
-    expect(text()).not.toContain(
-      "No TV station files have a checked connection",
-    );
+    expect(text()).toContain('Couldn’t load TV station files');
+    expect(text()).not.toContain('No TV station files have a checked connection');
   });
 
-  it("lists a candidacy’s committee files first, then the files that name the candidate", async () => {
-    const { MediaBuysCard, NAMED_TITLE } =
-      await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+  it('lists a candidacy’s committee files first, then the files that name the candidate', async () => {
+    const { MediaBuysCard, NAMED_TITLE } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     const ORDER = {
       ...FILE,
-      key: "kstp-9",
-      kind: "Order",
-      uploaded_at: "2026-04-09",
+      key: 'kstp-9',
+      kind: 'Order',
+      uploaded_at: '2026-04-09',
     };
     // Served in the other order, to show the card keeps the committee group first.
     serve(() =>
       json(
         connected([
           {
-            label: "Station files that name this candidate",
-            files: [{ ...ORDER, role: "Named on page 1" }],
+            label: 'Station files that name this candidate',
+            files: [{ ...ORDER, role: 'Named on page 1' }],
           },
           {
-            label:
-              "Files with a checked connection to Example Candidate Committee",
+            label: 'Files with a checked connection to Example Candidate Committee',
             files: [INVOICE],
           },
         ]),
       ),
     );
-    await render("/candidates/abc", () => (
+    await render('/candidates/abc', () => (
       <MediaBuysCard kind="candidate" target="abc" name="Morgan Example" />
     ));
-    const titles = [...container.querySelectorAll(".mb-buys-card h3")].map(
-      (h) => h.textContent,
-    );
+    const titles = [...container.querySelectorAll('.mb-buys-card h3')].map((h) => h.textContent);
     expect(titles).toEqual([
-      "Files with a checked connection to Example Candidate Committee",
+      'Files with a checked connection to Example Candidate Committee',
       NAMED_TITLE,
     ]);
-    expect(NAMED_TITLE).toBe("TV station files that name this candidate");
-    const groups = [...container.querySelectorAll(".mb-buys-group")].map(
-      (g) => g.textContent,
-    );
-    expect(groups[0]).toContain("KARE invoice");
-    expect(groups[0]).not.toContain("Named on page 1");
-    expect(groups[1]).toContain("Named on page 1");
-    expect(groups[1]).not.toContain("KARE invoice");
+    expect(NAMED_TITLE).toBe('TV station files that name this candidate');
+    const groups = [...container.querySelectorAll('.mb-buys-group')].map((g) => g.textContent);
+    expect(groups[0]).toContain('KARE invoice');
+    expect(groups[0]).not.toContain('Named on page 1');
+    expect(groups[1]).toContain('Named on page 1');
+    expect(groups[1]).not.toContain('KARE invoice');
   });
 
-  it("asks for a race by its exact campaign-money contest and prints no stage titles", async () => {
-    const { MediaBuysCard, raceTarget } =
-      await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockReturnValue(true);
+  it('asks for a race by its exact campaign-money contest and prints no stage titles', async () => {
+    const { MediaBuysCard, raceTarget } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
     const fetcher = serve(() =>
       json(
         connected([
           {
-            label: "General election",
-            files: [{ ...INVOICE, role: "General election" }],
+            label: 'General election',
+            files: [{ ...INVOICE, role: 'General election' }],
           },
         ]),
       ),
     );
-    const target = raceTarget("House", "99A", 2026);
+    const target = raceTarget('House', '99A', 2026);
     expect(JSON.parse(target)).toEqual({
-      office: "House",
-      district: "99A",
+      office: 'House',
+      district: '99A',
       year: 2026,
     });
-    await render("/money/races/house-99a?year=2026", () => (
+    await render('/money/races/house-99a?year=2026', () => (
       <MediaBuysCard
         kind="race"
         target={target}
@@ -2050,37 +1840,33 @@ describe("Media buys card", () => {
     ));
     const read = fetcher.mock.calls
       .map(([url]) => new URL(String(url)))
-      .find((url) => url.pathname.endsWith("/connections"));
-    expect(read?.searchParams.get("kind")).toBe("race");
-    expect(read?.searchParams.get("target")).toBe(
+      .find((url) => url.pathname.endsWith('/connections'));
+    expect(read?.searchParams.get('kind')).toBe('race');
+    expect(read?.searchParams.get('target')).toBe(
       '{"office":"House","district":"99A","year":2026}',
     );
-    expect(container.querySelector(".mb-buys-card h3")).toBeNull();
-    expect(text()).toContain("General election");
+    expect(container.querySelector('.mb-buys-card h3')).toBeNull();
+    expect(text()).toContain('General election');
   });
 
-  it("is left off, with nothing read, while the TV station file page is off", async () => {
-    const { MediaBuysCard } = await import("../pages/media/MediaBuysCard");
-    vi.spyOn(routes, "isBuilt").mockImplementation(
-      (name) => name !== "station-file",
-    );
+  it('is left off, with nothing read, while the TV station file page is off', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockImplementation((name) => name !== 'station-file');
     const fetcher = serve(() => json(connected([])));
-    await render("/money/committees/90001", () => (
+    await render('/money/committees/90001', () => (
       <MediaBuysCard kind="committee" target="90001" name="X" />
     ));
-    expect(container.querySelector(".mb-buys-card")).toBeNull();
-    expect(
-      fetcher.mock.calls.some(([url]) => String(url).includes("/connections")),
-    ).toBe(false);
+    expect(container.querySelector('.mb-buys-card')).toBeNull();
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes('/connections'))).toBe(false);
   });
 });
 
-describe("Upload dates", () => {
-  it("reads the FCC form production sends, and an ISO date", () => {
+describe('Upload dates', () => {
+  it('reads the FCC form production sends, and an ISO date', () => {
     // Production: `uploaded_at: "09/02/2026 11:46 AM"`.
-    expect(day("09/02/2026 11:46 AM")).toBe("Sep 2, 2026");
-    expect(day("2026-09-02")).toBe("Sep 2, 2026");
-    expect(day(null)).toBe("Unavailable");
-    expect(day("not a date")).toBe("Unavailable");
+    expect(day('09/02/2026 11:46 AM')).toBe('Sep 2, 2026');
+    expect(day('2026-09-02')).toBe('Sep 2, 2026');
+    expect(day(null)).toBe('Unavailable');
+    expect(day('not a date')).toBe('Unavailable');
   });
 });

@@ -1,35 +1,27 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
-import { useLiveSearch } from "../search/useLiveSearch";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useLiveSearch } from '../search/useLiveSearch';
 
-import { campaignMoneyHistoryYears } from "@alethical/shared/campaignMoneyYears";
+import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
 import {
   registrationNumberFromSlug,
   UNNAMED_PAYMENT_PARTY,
-} from "@alethical/shared/committeeMoneyShared";
-import { formatDay } from "@alethical/shared/moneyFormat";
-import { formatMoney } from "../ui/money";
-import { centralDateLabel, formatCount } from "@alethical/shared/moneyLanding";
-import { paymentFileCopyLine } from "@alethical/shared/paymentCopyDates";
+} from '@alethical/shared/committeeMoneyShared';
+import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
+import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
+import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import {
   CAP_NEXT_LABEL,
   paymentsShowingLine,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
-} from "@alethical/shared/paymentsUnderName";
+} from '@alethical/shared/paymentsUnderName';
 
-import { cameByHistory, Link, navigate, useLocation } from "../router";
-import { returnTarget, withFrom } from "../returnContext";
-import { hrefFor, isBuilt, type RouteMatch } from "../routes";
-import { useAddressState } from "../ui/addressState";
-import { useBand } from "../ui/band";
+import { cameByHistory, Link, navigate, useLocation } from '../router';
+import { returnTarget, withFrom } from '../returnContext';
+import { hrefFor, isBuilt, type RouteMatch } from '../routes';
+import { useAddressState } from '../ui/addressState';
+import { useBand } from '../ui/band';
 import {
   ClearAll,
   Dropdown,
@@ -37,10 +29,10 @@ import {
   Refused,
   Updating,
   type Evidence,
-} from "../ui/controls";
-import { BackLink, SourcesAndUpdates, WithArrow } from "../ui/parts";
-import { useRevealFocus } from "../ui/revealFocus";
-import { tabOfKind } from "./committee/data";
+} from '../ui/controls';
+import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
+import { useRevealFocus } from '../ui/revealFocus';
+import { tabOfKind } from './committee/data';
 import {
   namePaymentsQuery,
   useNamePayments,
@@ -53,43 +45,40 @@ import {
   type RowFacts,
   type ServerRole,
   type SpentRow,
-} from "./payments/data";
-import { quotedSpelling } from "./payments/printedName";
-import "./payments.css";
-import { SimilarNames, similarBack } from "./payments/SimilarNames";
+} from './payments/data';
+import { quotedSpelling } from './payments/printedName';
+import './payments.css';
+import { SimilarNames, similarBack } from './payments/SimilarNames';
 
-const BOARD = "Minnesota Campaign Finance and Public Disclosure Board";
+const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 export const BOARD_FILES_URL =
-  "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/";
-const DATE_MISSING = "Date not given in the public file";
-const AMOUNT_MISSING = "Amount not given";
+  'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
+const DATE_MISSING = 'Date not given in the public file';
+const AMOUNT_MISSING = 'Amount not given';
 /** A later page was asked for against a Board file that has since changed (409). */
-export const RELEASE_CHANGED = "The Board’s file changed. Reload the records.";
+export const RELEASE_CHANGED = 'The Board’s file changed. Reload the records.';
 
 /** The page's record types, as the address and the menu name them. */
-export type Role = "payee" | "donor" | "employer";
+export type Role = 'payee' | 'donor' | 'employer';
 
 const ROLES: ReadonlyArray<{ value: Role; label: string }> = [
-  { value: "payee", label: "Payee" },
-  { value: "donor", label: "Donor" },
-  { value: "employer", label: "Employer" },
+  { value: 'payee', label: 'Payee' },
+  { value: 'donor', label: 'Donor' },
+  { value: 'employer', label: 'Employer' },
 ];
 
 /** The address's role, or Payee: an unknown value lands on the default view. */
 export function roleFromParam(raw: string | null | undefined): Role {
-  return ROLES.find((item) => item.value === raw)?.value ?? "payee";
+  return ROLES.find((item) => item.value === raw)?.value ?? 'payee';
 }
 
 /** The year asked for, or null for every year we hold. */
-export function yearFromParam(
-  raw: string,
-  years: readonly number[],
-): number | null {
+export function yearFromParam(raw: string, years: readonly number[]): number | null {
   const year = Number(raw);
   return Number.isInteger(year) && years.includes(year) ? year : null;
 }
 
-type SectionId = "campaign-payments" | "outside-payments";
+type SectionId = 'campaign-payments' | 'outside-payments';
 
 export interface SectionSpec {
   id: SectionId;
@@ -98,7 +87,7 @@ export interface SectionSpec {
   /** The evidence drawer's Dataset line. */
   dataset: string;
   /** The Sources line's file label (shared payment-file wording). */
-  file: "contributions" | "expenditures" | "independentExpenditures";
+  file: 'contributions' | 'expenditures' | 'independentExpenditures';
   note: string;
 }
 
@@ -106,34 +95,34 @@ export interface SectionSpec {
  * has it (copy proposal C11, replaced: donor and employer views omit it). The 2
  * payee files are 2 answers and never 1 list. */
 export function sectionsFor(role: Role): SectionSpec[] {
-  if (role === "payee") {
+  if (role === 'payee') {
     return [
       {
-        id: "campaign-payments",
-        title: "Campaign payments",
-        serverRole: "vendor",
-        dataset: "Itemized expenditures file",
-        file: "expenditures",
-        note: "Each record comes from the paying committee’s filing. A payee is not necessarily a commercial vendor.",
+        id: 'campaign-payments',
+        title: 'Campaign payments',
+        serverRole: 'vendor',
+        dataset: 'Itemized expenditures file',
+        file: 'expenditures',
+        note: 'Each record comes from the paying committee’s filing. A payee is not necessarily a commercial vendor.',
       },
       {
-        id: "outside-payments",
-        title: "Outside spending payments",
-        serverRole: "independent_vendor",
-        dataset: "Independent expenditures file",
-        file: "independentExpenditures",
-        note: "Independent expenditures are reported by the spender, never by the candidate. A position as filed is the spender’s statement, not Alethical’s.",
+        id: 'outside-payments',
+        title: 'Outside spending payments',
+        serverRole: 'independent_vendor',
+        dataset: 'Independent expenditures file',
+        file: 'independentExpenditures',
+        note: 'Independent expenditures are reported by the spender, never by the candidate. A position as filed is the spender’s statement, not Alethical’s.',
       },
     ];
   }
   return [
     {
-      id: "campaign-payments",
-      title: "Campaign payments",
-      serverRole: role === "donor" ? "contributor" : "employer",
-      dataset: "Itemized contributions file",
-      file: "contributions",
-      note: "Record counts may include more than one entry for the same donation. Our records may not include all giving.",
+      id: 'campaign-payments',
+      title: 'Campaign payments',
+      serverRole: role === 'donor' ? 'contributor' : 'employer',
+      dataset: 'Itemized contributions file',
+      file: 'contributions',
+      note: 'Record counts may include more than one entry for the same donation. Our records may not include all giving.',
     },
   ];
 }
@@ -176,11 +165,10 @@ export function committeeHref(
   name: string,
   here: string,
 ): string | null {
-  if (!registration || !linkable.has(registration) || !isBuilt("committee"))
-    return null;
+  if (!registration || !linkable.has(registration) || !isBuilt('committee')) return null;
   return withFrom(
     hrefFor(
-      "committee",
+      'committee',
       { id: registration },
       { year: year === null ? null : String(year), tab, name },
     ),
@@ -189,10 +177,10 @@ export function committeeHref(
 }
 
 /** The saved source each section's rows come from, as the evidence drawer names it. */
-const SAVED_SOURCE: Record<SectionSpec["file"], string> = {
-  contributions: "Contribution file",
-  expenditures: "Expenditure file",
-  independentExpenditures: "Independent expenditure file",
+const SAVED_SOURCE: Record<SectionSpec['file'], string> = {
+  contributions: 'Contribution file',
+  expenditures: 'Expenditure file',
+  independentExpenditures: 'Independent expenditure file',
 };
 
 /** The server's dataset values, as the evidence drawer names their files. */
@@ -202,7 +190,7 @@ const DATASET_SOURCE: Record<string, string> = {
   independent_expenditures: SAVED_SOURCE.independentExpenditures,
 };
 
-const NOT_GIVEN = "Not given";
+const NOT_GIVEN = 'Not given';
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const STORED_DECIMAL = /^(-?\d+)\.(\d+)$/;
 
@@ -212,39 +200,33 @@ const STORED_DECIMAL = /^(-?\d+)\.(\d+)$/;
 export function excerptAmount(value: string): string {
   const parts = STORED_DECIMAL.exec(value);
   if (!parts) return value;
-  const decimals = parts[2].replace(/0+$/, "");
-  return `${parts[1]}.${decimals.length >= 2 ? decimals : decimals.padEnd(2, "0")}`;
+  const decimals = parts[2].replace(/0+$/, '');
+  return `${parts[1]}.${decimals.length >= 2 ? decimals : decimals.padEnd(2, '0')}`;
 }
 
 /** The served excerpt as SOURCE TEXT: 1 "label: value" line per column, in the
  * order the server serves them (the file's own), a date as the page prints dates,
  * a stored decimal with 2 decimals and a blank cell as "Not given"; null when no
  * excerpt is held. */
-export function excerptText(excerpt: RowFacts["excerpt"]): string | null {
+export function excerptText(excerpt: RowFacts['excerpt']): string | null {
   if (!Array.isArray(excerpt) || excerpt.length === 0) return null;
   return excerpt
     .map(([label, value]) => {
       const shown =
-        value === null || value === ""
+        value === null || value === ''
           ? NOT_GIVEN
           : ISO_DAY.test(value)
             ? (formatDay(value) ?? value)
             : excerptAmount(value);
       return `${label}: ${shown}`;
     })
-    .join("\n");
+    .join('\n');
 }
 
 /** A held value of the excerpt by its column label. */
-function excerptValue(
-  excerpt: RowFacts["excerpt"],
-  label: string,
-): string | null {
+function excerptValue(excerpt: RowFacts['excerpt'], label: string): string | null {
   if (!Array.isArray(excerpt)) return null;
-  return (
-    excerpt.find(([name]) => name.toLowerCase() === label.toLowerCase())?.[1] ??
-    null
-  );
+  return excerpt.find(([name]) => name.toLowerCase() === label.toLowerCase())?.[1] ?? null;
 }
 
 /** "Confirmed as {identity}" from the row's own fingerprint (Design Round 39). */
@@ -275,9 +257,9 @@ function row(
   const date = formatDay(fields.date);
   const amount = formatMoney(fields.amount);
   const committee = fields.committee ?? UNNAMED_PAYMENT_PARTY;
-  const kind = fields.kind ?? "";
+  const kind = fields.kind ?? '';
   return {
-    key: `${fields.facts.evidence?.dataset ?? context.spec.file}:${fields.facts.evidence?.snapshot_id ?? "current"}:${fields.recordNumber}`,
+    key: `${fields.facts.evidence?.dataset ?? context.spec.file}:${fields.facts.evidence?.snapshot_id ?? 'current'}:${fields.recordNumber}`,
     date,
     committee,
     href: committeeHref(
@@ -319,56 +301,51 @@ function rowEvidence(
     fields.zip ??
     excerptValue(
       fields.facts.excerpt,
-      context.spec.file === "contributions" ? "Contrib zip" : "Vendor zip",
+      context.spec.file === 'contributions' ? 'Contrib zip' : 'Vendor zip',
     );
   return {
     title: `${quotedSpelling(context.name)} · ${shown.amount ?? AMOUNT_MISSING}`,
     authority: BOARD,
     rows: [
       {
-        label: "Saved source",
-        value:
-          (held?.dataset && DATASET_SOURCE[held.dataset]) ||
-          SAVED_SOURCE[context.spec.file],
+        label: 'Saved source',
+        value: (held?.dataset && DATASET_SOURCE[held.dataset]) || SAVED_SOURCE[context.spec.file],
       },
       ...(copied
         ? [
             {
-              label: "Source version",
+              label: 'Source version',
               value: `Copy of ${centralDateLabel(copied)}`,
             },
           ]
         : []),
-      { label: "Filer", value: shown.committee },
-      { label: "Date", value: shown.date ?? DATE_MISSING },
-      { label: "Amount", value: shown.amount ?? AMOUNT_MISSING },
-      ...(shown.kind ? [{ label: "Type", value: shown.kind }] : []),
+      { label: 'Filer', value: shown.committee },
+      { label: 'Date', value: shown.date ?? DATE_MISSING },
+      { label: 'Amount', value: shown.amount ?? AMOUNT_MISSING },
+      ...(shown.kind ? [{ label: 'Type', value: shown.kind }] : []),
       ...(fields.employer
         ? [
             {
-              label: "Employer as filed",
+              label: 'Employer as filed',
               value: quotedSpelling(fields.employer),
-              ...(isBuilt("employer")
+              ...(isBuilt('employer')
                 ? {
-                    href: withFrom(
-                      hrefFor("employer", { name: fields.employer }),
-                      context.here,
-                    ),
+                    href: withFrom(hrefFor('employer', { name: fields.employer }), context.here),
                   }
                 : {}),
             },
           ]
         : []),
-      ...(zip ? [{ label: "ZIP as filed", value: zip }] : []),
+      ...(zip ? [{ label: 'ZIP as filed', value: zip }] : []),
     ],
-    quote: quote ?? "No saved source excerpt held",
-    quoteLabel: "SOURCE TEXT",
-    checked: "Not checked",
+    quote: quote ?? 'No saved source excerpt held',
+    quoteLabel: 'SOURCE TEXT',
+    checked: 'Not checked',
     ...(quote
       ? {}
       : {
           sourceHref: held?.source_url ?? context.sourceUrl ?? BOARD_FILES_URL,
-          sourceLabel: "View the Board’s payment file",
+          sourceLabel: 'View the Board’s payment file',
         }),
   };
 }
@@ -384,7 +361,7 @@ export function spentRow(payment: SpentRow, context: RowContext): PaymentRow {
     amount: payment.amount,
     kind: payment.purpose || payment.expenditure_type,
     note: null,
-    tab: "expenditures",
+    tab: 'expenditures',
     filterName: context.name,
     facts: payment,
   });
@@ -400,10 +377,7 @@ export function positionNote(payment: OutsideRow): string | null {
 }
 
 /** A spender's independent-expenditure payment to a payee. */
-export function outsideRow(
-  payment: OutsideRow,
-  context: RowContext,
-): PaymentRow {
+export function outsideRow(payment: OutsideRow, context: RowContext): PaymentRow {
   return row(context, {
     recordNumber: payment.record_number,
     date: payment.paid_on,
@@ -413,7 +387,7 @@ export function outsideRow(
     amount: payment.amount,
     kind: payment.purpose || payment.expenditure_type,
     note: positionNote(payment),
-    tab: "independent",
+    tab: 'independent',
     filterName: context.name,
     facts: payment,
   });
@@ -421,13 +395,9 @@ export function outsideRow(
 
 /** A received payment: under the donor's printed name, or under the employer the
  * donor printed, where the donor stays named on the row and the money stays theirs. */
-export function receivedRow(
-  payment: ReceivedRow,
-  context: RowContext,
-): PaymentRow {
+export function receivedRow(payment: ReceivedRow, context: RowContext): PaymentRow {
   // On an employer row the Committee link filters to the donor who printed it.
-  const donor =
-    context.role === "employer" ? payment.contributor : context.name;
+  const donor = context.role === 'employer' ? payment.contributor : context.name;
   return row(context, {
     recordNumber: payment.record_number,
     date: payment.received_on,
@@ -437,13 +407,13 @@ export function receivedRow(
     amount: payment.amount,
     kind: payment.receipt_type,
     note:
-      context.role === "employer" && payment.contributor
+      context.role === 'employer' && payment.contributor
         ? `Donor: ${quotedSpelling(payment.contributor)}`
-        : context.role === "donor" && payment.employer
+        : context.role === 'donor' && payment.employer
           ? `Employer as filed: ${payment.employer}`
           : null,
     tab: tabOfKind(payment.contributor_type),
-    filterName: donor ?? "",
+    filterName: donor ?? '',
     employer: payment.employer,
     zip: payment.contributor_zip ?? null,
     facts: payment,
@@ -452,29 +422,21 @@ export function receivedRow(
 
 /** The section's count: the server's own count of every row the scope matches,
  * else exact while every row is loaded, else only what is shown (rule 11). */
-export function countLine(
-  shown: number,
-  hasMore: boolean,
-  total: number | null = null,
-): string {
+export function countLine(shown: number, hasMore: boolean, total: number | null = null): string {
   const count = total ?? (hasMore ? null : shown);
   if (count === null) return paymentsShowingLine(shown, null, true);
-  return `${formatCount(count)} ${count === 1 ? "record" : "records"}`;
+  return `${formatCount(count)} ${count === 1 ? 'record' : 'records'}`;
 }
 
 /** " under “{name}”[ in {year}]", naming the view kept results belong to. */
 export function keptLabel(name: string, year: number | null): string {
-  return ` under “${name}”${year === null ? "" : ` in ${year}`}`;
+  return ` under “${name}”${year === null ? '' : ` in ${year}`}`;
 }
 
 /** The drawing's copy line when every loaded file was copied the same day, and 1
  * line per file otherwise; a file with no copy date borrows no other file's. */
-export function copyLines(
-  files: Array<{ file: SectionSpec["file"]; fetchedAt: string | null }>,
-) {
-  const days = files.map((item) =>
-    item.fetchedAt ? centralDateLabel(item.fetchedAt) : null,
-  );
+export function copyLines(files: Array<{ file: SectionSpec['file']; fetchedAt: string | null }>) {
+  const days = files.map((item) => (item.fetchedAt ? centralDateLabel(item.fetchedAt) : null));
   if (days.length === 0) return [];
   if (days[0] && days.every((day) => day === days[0])) {
     return [
@@ -508,12 +470,11 @@ export interface IdentityCoverage {
 export function identityCoverage(
   reads: Array<NamePayments<unknown> | null>,
 ): IdentityCoverage | null {
-  if (reads.some((read) => read === null || read.state === "unavailable"))
-    return null;
+  if (reads.some((read) => read === null || read.state === 'unavailable')) return null;
   const found = new Map<string, ConfirmedIdentity>();
   let records = 0;
   for (const read of reads as NamePayments<unknown>[]) {
-    if (read.state === "reported") {
+    if (read.state === 'reported') {
       if (read.total === null) return null;
       records += read.total;
     }
@@ -534,34 +495,25 @@ export function identityCoverage(
 }
 
 /** "Confirmed for {k} of {n} records[ in {year}]" (Design Rounds 30 and 39). */
-export function coverageLine(
-  confirmed: number,
-  records: number,
-  year: number | null,
-): string {
-  const of = `Confirmed for ${formatCount(confirmed)} of ${formatCount(records)} ${records === 1 ? "record" : "records"}`;
+export function coverageLine(confirmed: number, records: number, year: number | null): string {
+  const of = `Confirmed for ${formatCount(confirmed)} of ${formatCount(records)} ${records === 1 ? 'record' : 'records'}`;
   return year === null ? of : `${of} in ${year}`;
 }
 
 /** The page role a server role answers for. */
 export function roleOf(serverRole: ServerRole): Role {
-  if (serverRole === "contributor") return "donor";
-  if (serverRole === "employer") return "employer";
-  return "payee";
+  if (serverRole === 'contributor') return 'donor';
+  if (serverRole === 'employer') return 'employer';
+  return 'payee';
 }
 
 function sectionOf(serverRole: ServerRole): SectionSpec {
-  return sectionsFor(roleOf(serverRole)).find(
-    (spec) => spec.serverRole === serverRole,
-  )!;
+  return sectionsFor(roleOf(serverRole)).find((spec) => spec.serverRole === serverRole)!;
 }
 
 /** The rows of 1 loaded answer, read by the role, name and year that answer was for,
  * so earlier results shown while a new view loads never take the new view's labels. */
-export function rowsFor(
-  data: NamePayments<unknown>,
-  here: string,
-): PaymentRow[] {
+export function rowsFor(data: NamePayments<unknown>, here: string): PaymentRow[] {
   const context: RowContext = {
     name: data.name,
     role: roleOf(data.role),
@@ -571,30 +523,26 @@ export function rowsFor(
     sourceUrl: data.sourceUrl,
     here,
   };
-  if (data.role === "vendor") {
+  if (data.role === 'vendor') {
     return (data.payments as SpentRow[]).map((item) => spentRow(item, context));
   }
-  if (data.role === "independent_vendor") {
-    return (data.payments as OutsideRow[]).map((item) =>
-      outsideRow(item, context),
-    );
+  if (data.role === 'independent_vendor') {
+    return (data.payments as OutsideRow[]).map((item) => outsideRow(item, context));
   }
-  return (data.payments as ReceivedRow[]).map((item) =>
-    receivedRow(item, context),
-  );
+  return (data.payments as ReceivedRow[]).map((item) => receivedRow(item, context));
 }
 
 /** The source file an address's `dataset` names (Design Round 40). */
-const DATASET_FILE: Record<string, SectionSpec["file"]> = {
-  expenditures: "expenditures",
-  independent: "independentExpenditures",
-  contributions: "contributions",
+const DATASET_FILE: Record<string, SectionSpec['file']> = {
+  expenditures: 'expenditures',
+  independent: 'independentExpenditures',
+  contributions: 'contributions',
 };
 
-const SCOPE_FILE: Record<SectionSpec["file"], string> = {
-  expenditures: "campaign payments file",
-  independentExpenditures: "outside spending file",
-  contributions: "contributions file",
+const SCOPE_FILE: Record<SectionSpec['file'], string> = {
+  expenditures: 'campaign payments file',
+  independentExpenditures: 'outside spending file',
+  contributions: 'contributions file',
 };
 
 /** The sections an address's `dataset` keeps for this role. A dataset the role does
@@ -609,17 +557,14 @@ export function scopedSections(role: Role, dataset: string): SectionSpec[] {
  * scope. The committee is named as its rows print it, else by its registration. */
 export function scopeLine(
   filerName: string | null,
-  file: SectionSpec["file"] | null,
+  file: SectionSpec['file'] | null,
 ): string | null {
-  const bits = [
-    filerName ? `filed by ${filerName}` : null,
-    file ? SCOPE_FILE[file] : null,
-  ].filter(Boolean);
+  const bits = [filerName ? `filed by ${filerName}` : null, file ? SCOPE_FILE[file] : null].filter(
+    Boolean,
+  );
   if (!bits.length) return null;
   // "filed by {committee}, {file}" with a filer; "from the {file}" with a file alone.
-  return filerName
-    ? `Showing records ${bits.join(", ")}`
-    : `Showing records from the ${bits[0]}`;
+  return filerName ? `Showing records ${bits.join(', ')}` : `Showing records from the ${bits[0]}`;
 }
 
 /** The filer an address names, as a registration number (a committee slug ends in one). */
@@ -630,16 +575,12 @@ export function filerFromParam(raw: string): string | null {
 }
 
 /** Nothing carries this spelling: a fact about the spelling and our records. */
-export function emptyLine(
-  data: NamePayments<unknown>,
-  filerName: string | null = null,
-): string {
+export function emptyLine(data: NamePayments<unknown>, filerName: string | null = null): string {
   const title = sectionOf(data.role).title.toLowerCase();
-  const year = data.year === null ? "" : ` in ${data.year}`;
+  const year = data.year === null ? '' : ` in ${data.year}`;
   // Under a filer scope the read cannot say no payments exist at all, only none
   // for that committee.
-  if (filerName)
-    return `No ${title} under “${data.name}” are recorded for ${filerName}${year}`;
+  if (filerName) return `No ${title} under “${data.name}” are recorded for ${filerName}${year}`;
   return `No ${title} are recorded under “${data.name}”${year}. This does not mean none were made.`;
 }
 
@@ -653,20 +594,20 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const here = location.pathname + location.search;
   const back = similarBack(location.search) ??
     returnTarget(location.search) ?? {
-      to: hrefFor("campaign-money"),
-      name: "Campaign money",
+      to: hrefFor('campaign-money'),
+      name: 'Campaign money',
     };
   const band = useBand();
   // The printed spelling exactly as the address carries it: " Schmidt, Steven" and
   // "Schmidt, Steven" are 2 spellings (settled wording row 63).
-  const raw = match.params.query ?? location.searchParams.get("q") ?? "";
-  const name = raw.trim() ? raw : "";
+  const raw = match.params.query ?? location.searchParams.get('q') ?? '';
+  const name = raw.trim() ? raw : '';
   const years = useMemo(() => campaignMoneyHistoryYears(), []);
   const [address, setAddress] = useAddressState({
-    role: "payee",
-    year: "all",
-    filer: "",
-    dataset: "",
+    role: 'payee',
+    year: 'all',
+    filer: '',
+    dataset: '',
   });
   const role = roleFromParam(address.role);
   const year = yearFromParam(address.year, years);
@@ -680,16 +621,15 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const [draft, setDraft, applySearch] = useLiveSearch(name, here, (next) => {
     const params = new URLSearchParams(window.location.search);
     // These identify a selected result or spelling comparison, not a search filter.
-    for (const key of ["section", "similarStart", "exclude", "page", "q"])
-      params.delete(key);
+    for (const key of ['section', 'similarStart', 'exclude', 'page', 'q']) params.delete(key);
     // Browsers resolve dot-only path segments as directory navigation.
-    const dotOnly = next === "." || next === "..";
-    if (dotOnly) params.set("q", next);
+    const dotOnly = next === '.' || next === '..';
+    if (dotOnly) params.set('q', next);
     const path =
       next && !dotOnly
-        ? hrefFor("payments-under-name", { query: next })
-        : hrefFor("payments-name-search");
-    navigate(path + (params.size ? `?${params}` : ""), {
+        ? hrefFor('payments-under-name', { query: next })
+        : hrefFor('payments-name-search');
+    navigate(path + (params.size ? `?${params}` : ''), {
       replace: true,
       preserveFocus: true,
     });
@@ -699,14 +639,10 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
 
   // The server narrows rows and every count to the filer.
   const campaign = useNamePayments<ReceivedRow | SpentRow>(
-    name && keeps(all[0])
-      ? namePaymentsQuery(name, all[0].serverRole, year, filer)
-      : null,
+    name && keeps(all[0]) ? namePaymentsQuery(name, all[0].serverRole, year, filer) : null,
   );
   const outside = useNamePayments<OutsideRow>(
-    name && keeps(all[1])
-      ? namePaymentsQuery(name, all[1].serverRole, year, filer)
-      : null,
+    name && keeps(all[1]) ? namePaymentsQuery(name, all[1].serverRole, year, filer) : null,
   );
   const reads: NamePaymentsRead<unknown>[] = sections.map((spec) =>
     spec.id === all[0].id ? campaign : outside,
@@ -748,9 +684,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
     address.dataset,
     basis?.releaseId,
   ]);
-  const [displayedGroups, setDisplayedGroups] = useState<
-    Record<string, boolean>
-  >({});
+  const [displayedGroups, setDisplayedGroups] = useState<Record<string, boolean>>({});
   const onGroupDisplay = useCallback((key: string, shown: boolean) => {
     setDisplayedGroups((current) => {
       if (Boolean(current[key]) === shown) return current;
@@ -761,24 +695,17 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
     });
   }, []);
   const displayedVariants = variantNames.filter((spelling) =>
-    sections.every(
-      (spec) =>
-        displayedGroups[JSON.stringify([displayScope, spec.id, spelling])],
-    ),
+    sections.every((spec) => displayedGroups[JSON.stringify([displayScope, spec.id, spelling])]),
   );
-  const currentBasis =
-    basis?.name === name && basis.year === year && basis.filer === filer;
+  const currentBasis = basis?.name === name && basis.year === year && basis.filer === filer;
   const refreshSource = () => {
     reads.forEach((read) => read.retry());
     spellings.retry();
   };
   const filerName = filer
     ? (reads
-        .flatMap((read) =>
-          read.data?.state === "reported" ? rowsFor(read.data, here) : [],
-        )
-        .find((item) => item.registration === filer)?.committee ??
-      `Registration number ${filer}`)
+        .flatMap((read) => (read.data?.state === 'reported' ? rowsFor(read.data, here) : []))
+        .find((item) => item.registration === filer)?.committee ?? `Registration number ${filer}`)
     : null;
   const scope = scopeLine(filerName, datasetFile);
 
@@ -788,26 +715,19 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   }
 
   const allLoading = reads.length > 0 && reads.every((read) => read.loading);
-  const allFailed =
-    reads.length > 0 && reads.every((read) => read.failed && !read.data);
+  const allFailed = reads.length > 0 && reads.every((read) => read.failed && !read.data);
   const updating = reads.some((read) => read.updating);
-  const requestedSection = location.searchParams.get("section");
+  const requestedSection = location.searchParams.get('section');
   const focusedSection = useRef<string | null>(null);
   useEffect(() => {
     const target = `${name}|${role}|${requestedSection}`;
-    if (
-      allLoading ||
-      allFailed ||
-      focusedSection.current === target ||
-      cameByHistory()
-    )
-      return;
+    if (allLoading || allFailed || focusedSection.current === target || cameByHistory()) return;
     if (!sectionsFor(role).some((spec) => spec.id === requestedSection)) return;
     const heading = document.getElementById(`pn-${requestedSection}`);
     if (!heading) return;
     focusedSection.current = target;
     heading.focus({ preventScroll: true });
-    heading.scrollIntoView?.({ block: "start" });
+    heading.scrollIntoView?.({ block: 'start' });
   }, [name, role, requestedSection, allLoading, allFailed]);
 
   const loaded = sections.map((spec, index) => ({
@@ -816,7 +736,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   }));
   const copies = copyLines(
     loaded
-      .filter((item) => item.data !== null && item.data.state !== "unavailable")
+      .filter((item) => item.data !== null && item.data.state !== 'unavailable')
       .map((item) => ({
         file: item.spec.file,
         fetchedAt: item.data!.fetchedAt,
@@ -837,9 +757,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
               <div className="pn-fields">
                 <label className="pn-label">
                   <span className="pn-label-text">
-                    {role === "employer"
-                      ? "Employer name as reported"
-                      : "Name as reported"}
+                    {role === 'employer' ? 'Employer name as reported' : 'Name as reported'}
                   </span>
                   <input
                     type="text"
@@ -857,9 +775,9 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                 />
                 <Dropdown
                   name="Year"
-                  value={year === null ? "all" : String(year)}
+                  value={year === null ? 'all' : String(year)}
                   options={[
-                    { value: "all", label: "All years" },
+                    { value: 'all', label: 'All years' },
                     ...years.map((value) => ({
                       value: String(value),
                       label: String(value),
@@ -872,24 +790,20 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                 </button>
               </div>
               <p className="pn-notice">
-                {role === "employer"
-                  ? "Employer name as written in contribution records, not the organization’s giving"
-                  : "Records are grouped by the name printed in the source"}
+                {role === 'employer'
+                  ? 'Employer name as written in contribution records, not the organization’s giving'
+                  : 'Records are grouped by the name printed in the source'}
               </p>
               {scope && (
                 <p className="pn-scope">
                   {scope}
-                  <ClearAll
-                    onClick={() => setAddress({ filer: "", dataset: "" })}
-                  />
+                  <ClearAll onClick={() => setAddress({ filer: '', dataset: '' })} />
                 </p>
               )}
             </form>
           </div>
           <div className="pn-payment-results">
-            {!name && (
-              <p className="f-empty-box pn-gap">Enter a name as reported</p>
-            )}
+            {!name && <p className="f-empty-box pn-gap">Enter a name as reported</p>}
             {sections.length === 0 && (
               <p className="f-empty-box pn-gap">
                 This file does not contain records for the selected record type
@@ -912,8 +826,8 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                   onRetry={() => reads.forEach((read) => read.retry())}
                   retrying={reads.some((read) => read.pending)}
                 >
-                  Couldn’t load results. This is a problem on our side and says
-                  nothing about what was filed under this name.
+                  Couldn’t load results. This is a problem on our side and says nothing about what
+                  was filed under this name.
                 </Refused>
               </div>
             )}
@@ -921,20 +835,12 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
               !allLoading &&
               !allFailed &&
               sections.map((spec, index) => (
-                <section
-                  key={spec.id}
-                  aria-labelledby={`pn-${spec.id}`}
-                  className="pn-section"
-                >
-                  <h2
-                    id={`pn-${spec.id}`}
-                    tabIndex={-1}
-                    className="f-section-title"
-                  >
+                <section key={spec.id} aria-labelledby={`pn-${spec.id}`} className="pn-section">
+                  <h2 id={`pn-${spec.id}`} tabIndex={-1} className="f-section-title">
                     {spec.title}
                   </h2>
                   <div className="pn-spelling-groups">
-                    {band !== "phone" && (
+                    {band !== 'phone' && (
                       <div aria-hidden="true" className="pn-row pn-head">
                         <span>DATE</span>
                         <span>COMMITTEE</span>
@@ -946,16 +852,14 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                     <Section
                       spec={spec}
                       read={reads[index]}
-                      phone={band === "phone"}
+                      phone={band === 'phone'}
                       here={here}
                       filerName={filerName}
                       view={{ name, year, filer }}
                       onView={setEvidence}
                       spelling={reads[index].data?.name ?? name}
                       showEmpty={
-                        variantNames.length === 0 &&
-                        !spellings.loading &&
-                        !spellings.updating
+                        variantNames.length === 0 && !spellings.loading && !spellings.updating
                       }
                     />
                     {variantData &&
@@ -966,34 +870,25 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                           spelling={spelling}
                           variants={variantData}
                           spec={spec}
-                          phone={band === "phone"}
+                          phone={band === 'phone'}
                           here={here}
                           filerName={filerName}
                           requested={{ name, year, filer }}
                           onView={setEvidence}
-                          displayKey={JSON.stringify([
-                            displayScope,
-                            spec.id,
-                            spelling,
-                          ])}
+                          displayKey={JSON.stringify([displayScope, spec.id, spelling])}
                           onDisplay={onGroupDisplay}
                           onRefreshSource={refreshSource}
                         />
                       ))}
                     {(spellings.loading || spellings.updating) && (
-                      <div
-                        role="status"
-                        aria-busy="true"
-                        className="pn-variant-status"
-                      >
+                      <div role="status" aria-busy="true" className="pn-variant-status">
                         Loading payments for similar spellings…
                       </div>
                     )}
                     {variantData &&
                       variantNames.length > 0 &&
                       reads[index].data &&
-                      reads[index].data!.releaseId !==
-                        variantData.release_id && (
+                      reads[index].data!.releaseId !== variantData.release_id && (
                         <div className="pn-variant-status">
                           <Refused
                             onRetry={() => {
@@ -1008,19 +903,14 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                       )}
                     {(spellings.failed || spellings.notFound) && (
                       <div className="pn-variant-status">
-                        <Refused
-                          onRetry={refreshSource}
-                          retrying={spellings.pending}
-                        >
+                        <Refused onRetry={refreshSource} retrying={spellings.pending}>
                           Couldn’t load payments for similar spellings
                         </Refused>
                       </div>
                     )}
                   </div>
-                  {reads[index].data?.state !== "unavailable" && (
-                    <p className="f-section-note pn-section-note">
-                      {spec.note}
-                    </p>
+                  {reads[index].data?.state !== 'unavailable' && (
+                    <p className="f-section-note pn-section-note">{spec.note}</p>
                   )}
                 </section>
               ))}
@@ -1036,15 +926,11 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                 year={year}
                 here={here}
                 filer={filer}
-                dataset={
-                  datasetFile === "independentExpenditures"
-                    ? "independent"
-                    : datasetFile
-                }
+                dataset={datasetFile === 'independentExpenditures' ? 'independent' : datasetFile}
                 copyDates={Object.fromEntries(
                   loaded.map(({ spec, data }) => [
-                    spec.file === "independentExpenditures"
-                      ? "independent_expenditures"
+                    spec.file === 'independentExpenditures'
+                      ? 'independent_expenditures'
                       : spec.file,
                     data?.fetchedAt ?? null,
                   ]),
@@ -1103,17 +989,12 @@ function VariantPayments({
   onRefreshSource: () => void;
 }) {
   const read = useNamePayments<unknown>({
-    ...namePaymentsQuery(
-      spelling,
-      spec.serverRole,
-      variants.year,
-      variants.filer,
-    ),
+    ...namePaymentsQuery(spelling, spec.serverRole, variants.year, variants.filer),
     release_id: variants.release_id,
   });
   const displayed = Boolean(
     read.data &&
-    read.data.state !== "unavailable" &&
+    read.data.state !== 'unavailable' &&
     read.data.name === spelling &&
     read.data.releaseId === variants.release_id &&
     read.data.role === spec.serverRole &&
@@ -1175,7 +1056,7 @@ function Section({
 }) {
   const data = read.data;
   // The server has already narrowed the rows to the scope, the filer included.
-  const rows = data && data.state === "reported" ? rowsFor(data, here) : [];
+  const rows = data && data.state === 'reported' ? rowsFor(data, here) : [];
   // Results kept from an earlier view (while the new one loads, or after it fails)
   // say whose they are (settled wording row 60).
   const earlier =
@@ -1186,18 +1067,14 @@ function Section({
       data.filer !== view.filer ||
       data.role !== spec.serverRole);
   const count =
-    data && data.state !== "unavailable"
+    data && data.state !== 'unavailable'
       ? countLine(rows.length, data.hasMore, data.total) +
-        (earlier ? keptLabel(data.name, data.year) : "")
+        (earlier ? keptLabel(data.name, data.year) : '')
       : null;
   const headingId = useId();
   const reveal = useRevealFocus<HTMLElement>();
   return (
-    <section
-      aria-labelledby={headingId}
-      className="pn-spelling-group"
-      ref={reveal.list}
-    >
+    <section aria-labelledby={headingId} className="pn-spelling-group" ref={reveal.list}>
       <div className="pn-section-head">
         <h3 id={headingId} tabIndex={-1} className="pn-spelling-title">
           {spelling}
@@ -1205,52 +1082,34 @@ function Section({
         {count && <span className="pn-count f-num">{count}</span>}
       </div>
       {read.loading && (
-        <div
-          role="status"
-          aria-busy="true"
-          className="pn-loading pn-loading-section"
-        >
+        <div role="status" aria-busy="true" className="pn-loading pn-loading-section">
           <span className="f-spinner" aria-hidden="true" />
-          {variant ? "Loading payments for similar spellings…" : "Loading…"}
+          {variant ? 'Loading payments for similar spellings…' : 'Loading…'}
         </div>
       )}
       {read.failed && (
         <div className="pn-gap pn-narrow">
           <Refused onRetry={read.retry} retrying={read.pending}>
             {variant
-              ? "Couldn’t load payments for similar spellings"
-              : "Couldn’t load results. This is a problem on our side and says nothing about what was filed under this name."}
+              ? 'Couldn’t load payments for similar spellings'
+              : 'Couldn’t load results. This is a problem on our side and says nothing about what was filed under this name.'}
           </Refused>
         </div>
       )}
-      {data && data.state === "unavailable" && (
-        <div
-          className="f-empty-box pn-empty"
-          style={{ whiteSpace: "pre-wrap" }}
-        >
+      {data && data.state === 'unavailable' && (
+        <div className="f-empty-box pn-empty" style={{ whiteSpace: 'pre-wrap' }}>
           {RECORDS_UNAVAILABLE_TITLE}
           <div className="f-empty-next">{RECORDS_UNAVAILABLE_WHY}</div>
         </div>
       )}
-      {data &&
-        data.state !== "unavailable" &&
-        rows.length === 0 &&
-        !variant &&
-        showEmpty && (
-          // Pre-wrap keeps a spelling's stray spaces visible inside its quotes.
-          <div
-            className="f-empty-box pn-empty"
-            style={{ whiteSpace: "pre-wrap" }}
-          >
-            {emptyLine(data, filerName)}
-          </div>
-        )}
+      {data && data.state !== 'unavailable' && rows.length === 0 && !variant && showEmpty && (
+        // Pre-wrap keeps a spelling's stray spaces visible inside its quotes.
+        <div className="f-empty-box pn-empty" style={{ whiteSpace: 'pre-wrap' }}>
+          {emptyLine(data, filerName)}
+        </div>
+      )}
       {rows.length > 0 && (
-        <div
-          role="table"
-          aria-label={`${spec.title}: ${spelling}`}
-          className="pn-table"
-        >
+        <div role="table" aria-label={`${spec.title}: ${spelling}`} className="pn-table">
           {!phone && (
             <div role="row" className="f-visually-hidden">
               <span role="columnheader">DATE</span>
@@ -1278,15 +1137,9 @@ function Section({
                   </span>
                 </div>
                 <div className="pn-phone-meta f-num">
-                  {[item.date ?? DATE_MISSING, item.kind, item.note]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[item.date ?? DATE_MISSING, item.kind, item.note].filter(Boolean).join(' · ')}
                 </div>
-                <button
-                  type="button"
-                  className="pn-view"
-                  onClick={() => onView(item.evidence)}
-                >
+                <button type="button" className="pn-view" onClick={() => onView(item.evidence)}>
                   View source
                 </button>
               </div>
@@ -1314,11 +1167,7 @@ function Section({
                   {item.kind}
                 </span>
                 <span role="cell" className="pn-view-cell">
-                  <button
-                    type="button"
-                    className="pn-view"
-                    onClick={() => onView(item.evidence)}
-                  >
+                  <button type="button" className="pn-view" onClick={() => onView(item.evidence)}>
                     View source
                   </button>
                 </span>
@@ -1329,13 +1178,7 @@ function Section({
       )}
       {data?.hasMore && read.changed && (
         <div role="alert" className="f-alert pn-gap">
-          <svg
-            width="19"
-            height="19"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="9" stroke="#c0392b" strokeWidth="2" />
             <path
               d="M12 7.5 V13 M12 16 V16.5"
@@ -1353,9 +1196,7 @@ function Section({
                 aria-disabled={read.pending || undefined}
                 onClick={() => !read.pending && read.retry()}
               >
-                {read.pending && (
-                  <span className="f-spinner" aria-hidden="true" />
-                )}
+                {read.pending && <span className="f-spinner" aria-hidden="true" />}
                 Reload the records
               </button>
             </div>
@@ -1379,9 +1220,7 @@ function Section({
                 read.more();
               }}
             >
-              {read.loadingMore && (
-                <span className="f-spinner" aria-hidden="true" />
-              )}
+              {read.loadingMore && <span className="f-spinner" aria-hidden="true" />}
               {CAP_NEXT_LABEL}
             </button>
           )}
