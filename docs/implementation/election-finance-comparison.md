@@ -110,6 +110,8 @@ the value; its literal value and source remain available. Local candidate roster
 without a party column cannot supply that field: retain the official result-row
 source when it supplies the local nonpartisan value. A differing campaign-account
 party stays separately sourced.
+The report evidence view opens the exact retained party source. Show a row locator
+only when held; an unavailable locator never becomes an invented row number.
 Financial totals count each selected account/report once. Classify a shared account
 using all source-valid memberships before applying race, candidate or party display
 filters. Conflicting memberships do not justify assigning its money to either party
@@ -124,6 +126,8 @@ source-valid memberships used to classify that account.
 A checked report total can remain available when its itemized expenses do not
 reconcile. Unreconciled rows stay out of checked itemized, location and adjusted
 totals; show the affected gap and known subtotal with coverage for each measure.
+Beside the party comparison, identify reports omitted from adjusted totals and link
+to each original, so an unavailable detail set cannot look like a payee exclusion.
 Each report's exact original, period, amendment and copy date belong in its evidence
 view. The page footer groups publishers and datasets without repeating hundreds of
 report links or implying that reports with different copy dates were copied together.

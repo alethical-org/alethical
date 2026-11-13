@@ -34,7 +34,7 @@ export interface SourceLocation {
 export interface PartySource {
   kind: string;
   source_sha256: string;
-  row_number: number;
+  row_number: number | null;
   candidate_id: string;
   party_value: string;
   availability: string;
