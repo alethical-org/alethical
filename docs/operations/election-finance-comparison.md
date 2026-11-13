@@ -213,9 +213,11 @@ candidate, report-period or amendment hold.
 
 A checked money field may show exactly two raised cents digits after explicit
 whole dollars, with or without a decimal point. Normalize those digits while
-preserving the literal source text. A terminal dash, mixed or incomplete digits,
-or an uncertain field never supplies inferred cents. Normalization support does
-not approve a reading; each changed value needs a new checked receipt.
+preserving the literal source text. A single explicit zero between ASCII dashes,
+with optional ordinary spaces inside (`- 0 -`), states zero. A bare or terminal
+dash, mixed or incomplete digits, or an uncertain field never supplies inferred
+cents. Normalization support does not approve a reading; each changed value needs
+a new checked receipt.
 
 Native PDF text is not proof that words are visibly readable. Every admitted field
 must match an individually checked visible field, including its page, literal and
@@ -237,7 +239,10 @@ must be withdrawn or corrected explicitly.
 Checked dates retain their printed text. Calendar normalization supports ISO dates,
 US numeric dates with consistent slashes, hyphens or dots, compact `MMDDYYYY`, and
 complete English month names or three-letter abbreviations followed by an explicit
-day and year. Compact dates require all eight digits. Two-digit years
+day and year. A slash date may wrap its four-digit year after the third digit
+with exactly one line feed; all digits must be visibly checked and the original
+line break remains in the source literal. Other whitespace or missing digits are
+not repaired. Compact dates require all eight digits. Two-digit years
 use the existing 2000–2099 rule. Missing years, invalid dates and uncertain readings
 stay unresolved; a filename, copy date or election year never supplies a date.
 

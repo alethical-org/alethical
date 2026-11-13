@@ -155,6 +155,9 @@ def normalize_field(literal, value_type, state):
         if raised:
             cents = raised[2].translate(str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789"))
             money_literal = raised[1] + "." + cents
+        elif re.fullmatch(r"- *0 *-", literal):
+            # A visible zero between ASCII dashes states zero, not missing data.
+            money_literal = "0"
         require(
             re.fullmatch(
                 r"\$?-?(?:0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:,[0-9]{3})+)?(?:\.[0-9]{1,2})?",
@@ -169,7 +172,11 @@ def normalize_field(literal, value_type, state):
         whole, _, fraction = format(value, "f").partition(".")
         return whole + "." + fraction.ljust(2, "0")
     require(value_type == "date", "Unsupported reading value type")
-    match = re.fullmatch(r"([0-9]{1,2})/([0-9]{1,2})/([0-9]{2}|[0-9]{4})", literal)
+    # Some checked forms wrap only the last of four printed year digits.
+    # Keep the literal; never strip whitespace or supply a missing year digit.
+    wrapped = re.fullmatch(r"([0-9]{1,2}/[0-9]{1,2}/[0-9]{3})\n([0-9])", literal)
+    date_literal = wrapped[1] + wrapped[2] if wrapped else literal
+    match = re.fullmatch(r"([0-9]{1,2})/([0-9]{1,2})/([0-9]{2}|[0-9]{4})", date_literal)
     if match is None:
         # Local forms also print US month-day-year with hyphens. Retain the
         # exact literal; only a checked value gets calendar normalization.

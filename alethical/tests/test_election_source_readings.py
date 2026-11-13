@@ -587,3 +587,75 @@ def test_checked_money_rejects_incomplete_raised_cents_and_dashes(literal):
 )
 def test_raised_money_never_promotes_uncertain_source(literal, state):
     assert r.normalize_field(literal, "money", state) is None
+
+
+@pytest.mark.parametrize(
+    ("literal", "kind", "expected"),
+    [
+        ("10/02/202\n5", "date", "2025-10-02"),
+        ("10/03/202\n5", "date", "2025-10-03"),
+        ("2/29/202\n4", "date", "2024-02-29"),
+        ("- 0 -", "money", "0.00"),
+        ("-0-", "money", "0.00"),
+        ("-0 -", "money", "0.00"),
+        ("- 0-", "money", "0.00"),
+    ],
+)
+def test_checked_wrapped_year_and_explicit_zero_keep_source_literal(
+    literal, kind, expected
+):
+    field = r.field_proposal(
+        "cover.source_value",
+        page=1,
+        bounds=[10, 10, 20, 40],
+        label="Source value",
+        literal=literal,
+        value_type=kind,
+        currency="USD" if kind == "money" else None,
+    )
+    assert field["literal"] == literal
+    assert field["state"] == "value"
+    assert field["normalized"] == expected
+
+
+@pytest.mark.parametrize(
+    ("literal", "kind"),
+    [
+        ("2/29/202\n5", "date"),
+        ("13/2/202\n5", "date"),
+        ("10/02/20\n25", "date"),
+        ("10/02/202\r\n5", "date"),
+        ("10/02/202\n\n5", "date"),
+        ("10/02/202\n 5", "date"),
+        ("10/02/202\n", "date"),
+        ("10/02/202\n55", "date"),
+        ("10/02/202\n５", "date"),
+        ("10-02-202\n5", "date"),
+        ("10/02/202\n5 ", "date"),
+        ("-", "money"),
+        ("- 1 -", "money"),
+        ("- 00 -", "money"),
+        ("- 0.00 -", "money"),
+        ("$- 0 -", "money"),
+        ("− 0 −", "money"),
+        ("- ０ -", "money"),
+        ("-\t0 -", "money"),
+        ("- 0\n-", "money"),
+        ("-\u00a00 -", "money"),
+        (" - 0 -", "money"),
+        ("- 0 - ", "money"),
+    ],
+)
+def test_checked_wrapped_year_and_zero_reject_nearby_unsupported_forms(literal, kind):
+    with pytest.raises(ComparisonImportError):
+        r.normalize_field(literal, kind, "value")
+
+
+@pytest.mark.parametrize(
+    ("literal", "kind"), [("10/02/202\n5", "date"), ("- 0 -", "money")]
+)
+@pytest.mark.parametrize(
+    "state", ["blank", "ambiguous", "unreadable", "redacted", "not_checked"]
+)
+def test_wrapped_year_and_zero_do_not_fill_uncertain_fields(literal, kind, state):
+    assert r.normalize_field(literal, kind, state) is None
