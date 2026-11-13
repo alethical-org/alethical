@@ -274,18 +274,15 @@ export function Funders({
     !first.pending &&
     !first.failed &&
     !first.notFound;
-  // Keep the previous page visible while the first page obtains fresh pins.
-  // Refresh its request only once those pins belong to this reload.
-  const [pageRevision, setPageRevision] = useState(generation);
-  if (firstCurrent && pageRevision !== generation) setPageRevision(generation);
   const offset = (pageNumber(address.fpage) - 1) * d.PAGE_SIZE;
   const pagePath =
-    offset && first.data && first.dataPath === firstPath
+    offset && first.data
       ? d.analyticsPath(election.election_key, 'funders', scope, pins(first.data), offset)
       : null;
   const next = useRead<d.FundersAnswer>(pagePath, {
     keepPrevious: true,
-    revision: pageRevision,
+    revision: generation,
+    enabled: firstCurrent,
   });
   const shown = offset ? next : first;
   const data = shown.data;
