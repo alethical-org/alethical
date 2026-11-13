@@ -224,6 +224,21 @@ These are warm-cache workflow-creation-to-gate times, including queue, setup and
 final gate overhead, not summed test durations. Reconsider extra backend runners
 when a matched trial establishes the full-run gain without dropping checks.
 
+### Backend runner provider
+
+Backend tests run on GitHub's free runners. A matched trial on 2026-10-23 ran the
+same commit on GitHub and on Blacksmith's 4-CPU runners, 5 warm pairs: the backend
+job's median fell from 266 to 167 seconds and the whole run from 281 to 231
+seconds, with every test identity kept. Blacksmith is not used because no
+provider-enforced limit keeps it inside its free 3,000 monthly minutes: extra
+minutes are billed, not stopped, and a guard inside this workflow cannot be a
+spending or security boundary, because a pull request can edit the workflow that
+holds it. A queued vendor job can also hold the required `backend` check for up to
+24 hours. Reconsider when Blacksmith offers a free-only ceiling that also covers
+running jobs, with outside contributions kept on GitHub by a setting outside this
+repository. CircleCI is not used: its results cannot satisfy the GitHub Actions
+checks that gate merges without a separate protection design.
+
 ## GitHub description-check activation
 
 The independent `description-checks` result runs through
