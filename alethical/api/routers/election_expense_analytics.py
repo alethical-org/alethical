@@ -124,6 +124,7 @@ def payments(
 def export(
     filters: dict = Depends(_filters),
     format: Literal["json", "csv"] = "json",
+    search_query: str = Query("", max_length=200, pattern=r"^[^\x00]*$"),
     db: Session = Depends(get_db),
 ):
     """Export the complete filtered report, including source and coverage context.
@@ -133,7 +134,9 @@ def export(
     and subsidy stay separate from itemized detail.
     """
     _require_pinned(filters)
-    body, filename = reads.export(db, **filters, format=format)
+    body, filename = reads.export(
+        db, **filters, format=format, search_query=search_query
+    )
     return Response(
         content=body,
         media_type="application/json" if format == "json" else "text/csv",

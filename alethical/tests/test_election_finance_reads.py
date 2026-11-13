@@ -735,7 +735,7 @@ def test_pdf_checks_membership_and_raw_fingerprint(
     response = finance_api.get(url, params={"collection_id": COLLECTION})
     assert response.status_code == 200
     assert response.content == body
-    assert response.headers["content-type"] == "application/octet-stream"
+    assert response.headers["content-type"] == "application/pdf"
     assert "attachment" in response.headers["content-disposition"]
     assert response.headers["x-content-type-options"] == "nosniff"
     foreign = _document(finance_db, "X")[0]

@@ -1595,6 +1595,61 @@ def test_csv_unknown_payee_and_address_are_explicit_without_an_exclusion_alias(
     assert payment["Filed geography"] == "Unknown" and payment["Excluded payee"] == "No"
 
 
+@pytest.mark.parametrize(
+    "search,candidate_matches,payee_matches",
+    [("", 2, 1), ("EXAMPLE candidate", 1, 0), ("PRINT", 0, 1), ("No match", 0, 0)],
+)
+def test_csv_name_search_marks_each_list_without_changing_baseline(
+    held, monkeypatch, search, candidate_matches, payee_matches
+):
+    monkeypatch.setattr(
+        s, "_build", lambda *a, **kw: s._assemble(*held, _csv=kw.get("_csv", False))
+    )
+    baseline = list(csv.DictReader(io.StringIO(s.export(None, format="csv")[0])))
+    body, _ = s.export(None, format="csv", search_query=search)
+    rows = list(csv.DictReader(io.StringIO(body)))
+    metadata = {
+        r["Metadata field"]: r["Metadata value"]
+        for r in rows
+        if r["Row type"] == "Metadata"
+    }
+    assert metadata["Filter: search query"] == search
+    candidates = [r for r in rows if r["Row type"] == "Candidate"]
+    payees = [r for r in rows if r["Row type"] == "Payee summary"]
+    assert len(candidates) == 2 and len(payees) == 1
+    assert (
+        sum(r["Matches name search"] == "Yes" for r in candidates) == candidate_matches
+    )
+    assert sum(r["Matches name search"] == "Yes" for r in payees) == payee_matches
+    for row in candidates:
+        assert row["Included in filtered view"] == row["Matches name search"]
+    for row in [r for r in rows if r["Row type"] in {"Payee summary", "Payment"}]:
+        assert (
+            row["Included in filtered view"]
+            == row["Matches detail filters"]
+            == row["Matches name search"]
+        )
+
+    def amounts(rs):
+        return [
+            {k: v for k, v in row.items() if k.endswith(" USD") or k == "Report key"}
+            for row in rs
+            if row["Row type"] != "Metadata"
+        ]
+
+    assert amounts(rows) == amounts(baseline)
+
+
+@pytest.mark.parametrize("search", [None, "x" * 201, "bad\x00search"])
+def test_export_rejects_invalid_name_search_before_reading(monkeypatch, search):
+    monkeypatch.setattr(
+        s, "_build", lambda *a, **kw: pytest.fail("Invalid search reached storage")
+    )
+    with pytest.raises(HTTPException) as failure:
+        s.export(None, format="csv", search_query=search)
+    assert failure.value.status_code == 422
+
+
 def test_csv_actual_selected_report_uses_one_build_and_no_extra_original_reads(
     finance_db, comparison, monkeypatch
 ):

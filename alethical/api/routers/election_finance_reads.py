@@ -85,7 +85,7 @@ def source_pdf(
     )
     return Response(
         content=body,
-        media_type="application/octet-stream",
+        media_type="application/pdf",
         headers={
             "Content-Disposition": f'attachment; filename="report-{document_hash}.pdf"',
             "X-Content-Type-Options": "nosniff",

@@ -521,7 +521,9 @@ export function ExpenseReport({
     setOpenReport(null);
   }, [location.href]);
   const download = useCsvDownload(
-    current && baseline ? d.expensePath(electionKey, 'export', query, pins(baseline)) : null,
+    current && baseline
+      ? d.expensePath(electionKey, 'export', { ...query, search_query: queryText }, pins(baseline))
+      : null,
   );
   async function copyLink() {
     setCopy('copying');

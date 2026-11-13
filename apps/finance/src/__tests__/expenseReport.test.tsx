@@ -749,13 +749,16 @@ it('uses current exact pins for CSV, keeps decimals in bytes and has no JSON con
           },
         })
       : undefined;
-  await render(`&expenseReports=${old}&expenseExcluded=${payeeId}`);
+  await render(`&expenseReports=${old}&expenseExcluded=${payeeId}&expenseQuery=Robin`);
   await click(buttons('Download CSV')[0]);
   const request = requests.find((url) => url.pathname.endsWith('/export'))!;
   expect(request.searchParams.get('snapshot_id')).toBe(snapshot);
   expect(request.searchParams.get('version')).toBe('1'.repeat(16));
   expect(request.searchParams.getAll('report_keys')).toEqual([old]);
   expect(request.searchParams.getAll('excluded_payee_ids')).toEqual([payeeId]);
+  expect(request.searchParams.get('search_query')).toBe('Robin');
+  expect(request.searchParams.has('candidate_query')).toBe(false);
+  expect(request.searchParams.has('payee_query')).toBe(false);
   expect(clicked[0].download).toBe('campaign-expenses-2026.csv');
   expect(container.textContent).toContain('Download started');
   expect(container.textContent).not.toContain('JSON');

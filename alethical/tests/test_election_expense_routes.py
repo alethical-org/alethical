@@ -139,6 +139,56 @@ def test_exact_filters_reach_reads_unchanged(
     private(response)
 
 
+@pytest.mark.parametrize("search", ["x" * 201, "bad\x00search"])
+def test_export_rejects_invalid_name_search_before_storage(
+    finance_api, monkeypatch, search
+):
+    monkeypatch.setattr(
+        reads, "export", lambda *a, **kw: pytest.fail("Invalid search reached storage")
+    )
+    response = finance_api.get(BASE + "/export", params=PINS | {"search_query": search})
+    assert response.status_code == 422
+    private(response)
+
+
+def test_actual_export_name_search_keeps_selected_scope_and_missing_candidates(
+    finance_api, finance_db, comparison, monkeypatch
+):
+    from alethical.tests.test_election_expense_analytics import _period_store
+
+    store, _, _ = _period_store(finance_db, comparison)
+    monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
+    scope = {"report_keys": ["2" * 64], "selected_only": True}
+    first = finance_api.get(BASE, params=scope).json()["data"]
+    missing = next(c for c in first["candidates"] if not c["accounts"])
+    pins = {key: first[key] for key in PINS}
+    response = finance_api.get(
+        BASE + "/export",
+        params=scope | pins | {"format": "csv", "search_query": missing["name"]},
+    )
+    assert response.status_code == 200, response.text
+    private(response)
+    rows = list(csv.DictReader(io.StringIO(response.text)))
+    metadata = {
+        r["Metadata field"]: r["Metadata value"]
+        for r in rows
+        if r["Row type"] == "Metadata"
+    }
+    assert metadata["Filter: search query"] == missing["name"]
+    assert metadata["Version"] == first["version"]
+    candidates = [r for r in rows if r["Row type"] == "Candidate"]
+    assert len(candidates) == len(first["candidates"])
+    assert [
+        r["Candidate"] for r in candidates if r["Included in filtered view"] == "Yes"
+    ] == [missing["name"]]
+    reports = [r for r in rows if r["Row type"] == "Account report"]
+    assert [r["Report key"].lstrip("'") for r in reports] == ["2" * 64]
+    assert (
+        reports[0]["Report total USD"]
+        == first["summary"]["source_report_totals"]["amounts"]["total"]
+    )
+
+
 def test_actual_report_export_and_source_loss_keep_same_evidence(
     finance_api, finance_db, comparison, monkeypatch
 ):
