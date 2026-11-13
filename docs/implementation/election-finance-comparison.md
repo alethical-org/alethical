@@ -16,6 +16,24 @@ counts distinct candidacies, preserves pending outcomes and defines its scope.
 
 ## Release milestones: V1, demo-ready v0.1.1, V2 video, V1.2, V3
 
+Current delivery order: the next build delivers core coverage for the wider election
+comparison, ahead of Jeremy's remaining report exceptions. Reuse the approved screens
+and checked source paths for results, precincts, campaign spending and separately
+labelled outside support/opposition. Include local records where the same checked path
+is ready; keep missing coverage visible rather than claiming all jurisdictions are
+covered. Retain preliminary/final status and source periods. Source-backed candidate
+outcomes and funder outcome counts require actual outcome evidence; vote leads alone
+do not become declared winners.
+
+After that core release is live and checked, stop for consultation before investigating
+or building the harder cases. Preserve the unfinished Jeremy and wider-election work
+and group each exception by identity mismatch, unsupported filing format, conflicting
+or unclear source figures, or release dependencies. For each, record who is affected,
+known impact, missing evidence, estimated work and a recommendation. Judicial candidates
+come last. This is a sequencing hold, not removal from full scope. Routine correctness
+repairs and required release checks for the selected core remain part of its build;
+never bypass them or call unresolved source facts complete to reach the stop point.
+
 Release the approved working screens and Jeremy's campaign expense/public subsidy
 report as V1. Screens may release with the checked data already available, but that
 early release does not by itself finish Jeremy's data request. V1 follows an 80/20
@@ -48,16 +66,18 @@ coverage. These exclusions apply only to the core-demo measurement. Judicial can
 remain in the approved build. Report unknown coverage honestly and keep source periods
 and overlapping gaps clear. Completion of this version does not pause approved work.
 
-The next priority is the authorized V2 video of that verified demo-ready journey.
-Independent V1.2 preparation can continue when it does not delay the video or compete
-for its shared resources. More complete report coverage is not a dependency of this
-demo or its walkthrough; material errors in what the walkthrough shows still are.
+More complete report coverage is not a dependency of the demo-ready milestone or its
+walkthrough; material errors in what the walkthrough shows still are. Video revisions
+keep their separate review and recording holds and do not block core election coverage.
 
-V1.2 owns the remaining report completion work previously assigned to full V1.1 and
-the report refinements: candidate/account matches, available newer filings/amendments,
-judicial coverage, unresolved subsidy and expense detail, available street addresses
-and authorized usability repairs. Prioritize effects on the main comparisons, then
-lower-impact gaps. Account for every missing candidate with checked records or an
+V1.2 owns the remaining nonjudicial report completion work previously assigned to
+full V1.1 and the report refinements: candidate/account matches, available newer
+filings/amendments, unresolved subsidy and expense detail, available street addresses
+and authorized usability repairs. Its harder exceptions wait for consultation after
+the wider election's core release. Preserve judicial preparation and keep those
+candidates in the full build's coverage denominator, with judicial work last.
+Prioritize effects on the main comparisons, then lower-impact gaps. Account for
+every missing nonjudicial candidate with checked records or an
 evidenced availability status; unavailable or unchecked records are not zero. Do not
 promise records the source has not published. Give this work its own estimate and
 correction allowance, without extending the completed demo-ready version's clock.
@@ -66,9 +86,9 @@ Keep original forecasts for comparison when reassigning work to this version.
 Investigate unknown impact before calling work marginal. Bring a defect forward if
 it materially changes a demonstrated answer. Publish independently ready groups
 without weakening source or live checks, and do not delay a ready correction merely
-to preserve version labels. Notify when V1.2 is live and independently accepted,
-then continue to V3 planning and build. No new approval is required between the
-approved versions; public posting and other reserved actions keep their own gates.
+to preserve version labels. Notify after each release is live and independently
+accepted. The current stop before harder cases overrides automatic continuation
+between versions; public posting and other reserved actions keep their own gates.
 
 The legacy Board race comparison has a separate source-read follow-up in V1.2:
 `election_finance_reads` obtains account quote proofs through
@@ -83,17 +103,18 @@ V2 is the approved live-product walkthrough video for Jeremy's report only, usin
 the completed demo-ready journey, female ElevenLabs narration and selective explanatory
 captions/annotations. Show the main questions, filters, comparisons, payee exclusions,
 source inspection and CSV, with accurate limits. Deliver the checked video and notify
-the user, then continue to V1.2; public posting or sending it to other people remains
-separate authorization.
+the user; public posting or sending it to other people remains separate authorization.
 Do not make full election coverage or a wider election-results video a V2 dependency.
 
-V3 is full election coverage. After V2 and V1.2 are complete, propose V3's own 80/20 priority
-breakdown, smaller releases, dependencies, acceptance checks and remaining source
-gaps. Present and record that plan, then start its build under the user's explicit
-advance approval of the lead's 80/20 plan. No further go is required within the
-approved full-election scope; new product choices, spending and source/safety holds
-remain separate. Preserve all wider local/federal/outcome scope and prepared work
-until V3 reaches its turn. Notify after each release is live and checked, and give
+V3 is full election coverage, delivered through a core release first and harder cases
+after consultation. Its core release no longer waits for V1.2. Present and record its
+80/20 breakdown, smaller releases, dependencies, acceptance checks and remaining source
+gaps, then build the core under the user's advance approval. New product choices,
+spending and source/safety holds remain separate. Preserve all wider local/federal/
+outcome scope and prepared work. Complete judicial coverage after the other election
+work and the required consultation; full coverage remains unfinished until judicial
+candidates are accounted for too.
+Notify after each release is live and checked, and give
 periodic ballpark progress for the active release with remaining work and uncertainty.
 The V3 planning boundary does not hold the approved V1-series or V2 work. Follow the shared
 [early working release rule](https://github.com/euglopi/tool-settings/blob/main/shared/guides/build-completion.md).
