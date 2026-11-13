@@ -1007,7 +1007,8 @@ def validate_attachment_payment(g, payment, reading_context, *, indexes=None):
                 source is not None, "Attachment original is outside this generation"
             )
             local.validate_attachment_source_metadata(reading_context, rid, source)
-        local.verify_attachment_relationship(reading_context, locator)
+        parent, _ = local.verify_attachment_relationship(reading_context, locator)
+        local.validate_attachment_catalogue_metadata(reading_context, parent, sources)
 
 
 def attachment_payment_available(g, payment, cache):

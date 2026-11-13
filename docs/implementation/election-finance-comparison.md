@@ -260,7 +260,9 @@ exact publisher-listed report family and a complete checked Disbursements item
 area on the primary report. The supplement retains its own absent identity fields;
 its payment rows are associated with the containing report only through that proof.
 Source evidence includes the parent section, supplement rows and exact catalogue
-links. Unknown report versions remain explicit and nonadditive. Source withdrawal,
+links. The cited catalogue's URL, publisher, copy date and media type must match
+its checked acquisition, just as the two report originals must. Unknown report
+versions remain explicit and nonadditive. Source withdrawal,
 changed capture metadata or a competing parent item removes the affected detail
 without turning an unrelated healthy parent figure into missing data. The normal
 synthetic integration checks do not admit an actual retained filing or establish

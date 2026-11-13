@@ -519,7 +519,37 @@ def validate_attachment_source_metadata(context, receipt_id, source):
         and source.get("authority") == value["authority"]["key"],
         "Attachment source metadata differs from its checked original",
     )
-    capture = value["source_chain"][-1]
+    _validate_attachment_capture_metadata(source, value["source_chain"][-1])
+
+
+def validate_attachment_catalogue_metadata(context, value, sources):
+    """The cited publisher list retains its common checked acquisition metadata."""
+    catalogue = value["attachment_catalogue"]
+    h = catalogue["catalogue_sha256"]
+    source = sources.get(h)
+    captures = [
+        step
+        for step in value["source_chain"]
+        if step.get("kind") == "acquisition" and step.get("source_sha256") == h
+    ]
+    require(
+        context.generation_bound
+        and h in context.original_hashes
+        and source is not None
+        and len(captures) == 1,
+        "Attachment catalogue needs its exact checked acquisition and source row",
+    )
+    capture = captures[0]
+    require(
+        source.get("sha256") == h
+        and source.get("url") == catalogue["catalogue_url"] == capture["final_url"]
+        and source.get("authority") == value["authority"]["key"],
+        "Attachment catalogue metadata differs from its checked acquisition",
+    )
+    _validate_attachment_capture_metadata(source, capture)
+
+
+def _validate_attachment_capture_metadata(source, capture):
     try:
         copied = datetime.fromisoformat(source.get("copied_at"))
         actual = datetime.fromisoformat(capture["copied_at"])

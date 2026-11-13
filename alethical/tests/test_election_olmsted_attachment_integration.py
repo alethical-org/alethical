@@ -967,20 +967,31 @@ def test_original_loss_after_initial_availability_never_leaks_attribution(
         "child_url",
         "child_copy",
         "child_mime",
+        "catalogue_url",
+        "catalogue_copy",
+        "catalogue_mime",
+        "catalogue_authority",
     ],
 )
-def test_both_generation_source_metadata_records_are_exact(
+def test_all_generation_source_metadata_records_are_exact(
     attachment_generation, db, attack
 ):
     held = attachment_generation
     payload = {k: deepcopy(v) for k, v in held.g.items() if k != "id"}
-    index = 0 if attack.startswith("parent") else 1
-    h = held.documents[index].receipt["original_sha256"]
-    source = next(s for s in payload["sources"] if s["sha256"] == h)
+    if attack.startswith("catalogue"):
+        source = next(
+            s for s in payload["sources"] if s["url"] == attachments.CATALOGUE_URL
+        )
+    else:
+        index = 0 if attack.startswith("parent") else 1
+        h = held.documents[index].receipt["original_sha256"]
+        source = next(s for s in payload["sources"] if s["sha256"] == h)
     if attack.endswith("url"):
         source["url"] = "https://www.olmstedcounty.gov/another.pdf"
     elif attack.endswith("copy"):
         source["copied_at"] = "2026-11-13T00:00:00+00:00"
+    elif attack.endswith("authority"):
+        source["authority"] = None
     else:
         source["media_type"] = "text/plain"
     generation = storage.prepare_generation(payload)
