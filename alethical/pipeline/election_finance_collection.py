@@ -927,14 +927,26 @@ def prepare_collection(
     return collection, originals, documents
 
 
-EXPENSE_EXTRACTION_VERSION = "b1-ce-2026-v1"
+EXPENSE_EXTRACTION_VERSION = "b1-ce-2026-v2"
+_EXPENSE_ADDRESS_FORMATS = {"b1-ce-2026-v1": 1, "b1-ce-2026-v2": 2}
 
 
-def _campaign_expense_payload(body, payload):
+def _expense_address_format(version):
+    require(
+        isinstance(version, str) and version in _EXPENSE_ADDRESS_FORMATS,
+        "Unknown expense evidence version",
+    )
+    return _EXPENSE_ADDRESS_FORMATS[version]
+
+
+def _campaign_expense_payload(
+    body, payload, *, extraction_version=EXPENSE_EXTRACTION_VERSION
+):
+    address_format = _expense_address_format(extraction_version)
     if payload["figure_status"] != "source_verified":
         return {
             "schema_version": 1,
-            "extraction_version": EXPENSE_EXTRACTION_VERSION,
+            "extraction_version": extraction_version,
             "source_sha256": file_hash(body),
             "status": "unavailable",
             "rows": [],
@@ -947,17 +959,31 @@ def _campaign_expense_payload(body, payload):
         period_start=payload["period_start"],
         period_end=payload["period_end"],
         expected_totals=payload["figures"]["campaign_expenditures"],
+        address_format_version=address_format,
     )
-    return {**result, "extraction_version": EXPENSE_EXTRACTION_VERSION}
+    return {**result, "extraction_version": extraction_version}
 
 
-def reproduce_campaign_expenses(row, body, financial_body):
+def reproduce_campaign_expenses(row, body, financial_body, *, upgrade=False):
     """Reproduce parent checks and detail from original bytes, never typed JSON.
 
     Used at preparation, retention, staging and publication. Public reads use the
     immutable generation after current source integrity checks; they do not parse.
     """
     payload = row["payload"]
+    stored = payload.get("campaign_expenses")
+    require(
+        "campaign_expenses" not in payload or isinstance(stored, dict),
+        "Unknown expense evidence version",
+    )
+    version = (
+        stored.get("extraction_version")
+        if isinstance(stored, dict)
+        else EXPENSE_EXTRACTION_VERSION
+    )
+    _expense_address_format(version)
+    if upgrade:
+        version = EXPENSE_EXTRACTION_VERSION
     require(file_hash(body) == row["document_hash"], "Expense PDF fingerprint changed")
     filing = dict(payload["filing"])
     for key in ("cut_off_date", "termination_date"):
@@ -1008,7 +1034,7 @@ def reproduce_campaign_expenses(row, body, financial_body):
         payload.get("figures") == (reproduced["figures"] if valid else None),
         "Expense parent figures changed",
     )
-    return _campaign_expense_payload(body, payload)
+    return _campaign_expense_payload(body, payload, extraction_version=version)
 
 
 def _reproduce_expense_job(job):
@@ -1054,7 +1080,10 @@ def add_campaign_expenses(collection, originals, documents):
         body = documents.get(row["document_hash"])
         require(body is not None, "Expense PDF original missing")
         payload["campaign_expenses"] = reproduce_campaign_expenses(
-            row, body, originals.get(source["sha256"]) if source else None
+            row,
+            body,
+            originals.get(source["sha256"]) if source else None,
+            upgrade=True,
         )
     value["id"] = collection_digest(value)
     validate_collection(value)
@@ -1068,7 +1097,8 @@ def _validate_expense_payload(row):
     require(
         isinstance(value, dict)
         and value.get("schema_version") == 1
-        and value.get("extraction_version") == EXPENSE_EXTRACTION_VERSION,
+        and isinstance(value.get("extraction_version"), str)
+        and value["extraction_version"] in _EXPENSE_ADDRESS_FORMATS,
         "Unknown expense evidence version",
     )
     require(
