@@ -1070,6 +1070,128 @@ def test_optional_expenses_preserve_legacy_input_and_fingerprint(prepared):
     s.validate_collection(before)
 
 
+@pytest.mark.parametrize("version", ["b1-ce-2026-v1", "b1-ce-2026-v2"])
+def test_expense_address_versions_replay_original_rules(monkeypatch, version):
+    from alethical.pipeline import election_campaign_expenses as parser
+    from alethical.tests.test_election_campaign_expenses import (
+        HEADER,
+        totals,
+        transaction,
+    )
+
+    pages = [
+        "Period Covered: 01/01/2026 through 10/19/2026",
+        "  B  Disbursements    Cash    Unpaid Bills    In-kind    Total\n"
+        " 11 Campaign expenditures  Sch. B1 - CE    10.00    0.00    0.00    10.00",
+        "   Schedule B1 - CE   Campaign Expenditures\n"
+        "                    Example Candidate Committee\nExample Print\n      Sample City, MN 55101 1234\n"
+        + HEADER
+        + "\n"
+        + transaction()
+        + "\n"
+        + totals(),
+    ]
+    monkeypatch.setattr(parser, "_pdf_pages", lambda body: iter(pages))
+    payload = {
+        "figure_status": "source_verified",
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-19",
+        "figures": {
+            "campaign_expenditures": {
+                "paid": "10.00",
+                "unpaid": "0.00",
+                "in_kind": "0.00",
+                "total": "10.00",
+            }
+        },
+    }
+    value = s._campaign_expense_payload(
+        b"%PDF-version-fixture", payload, extraction_version=version
+    )
+    assert value["status"] == "checked"
+    assert value["extraction_version"] == version
+    row = value["rows"][0]
+    assert row["payee"]["address"]["lines"] == ["Sample City, MN 55101 1234"]
+    assert row["payee"]["address"]["state"] == (
+        None if version.endswith("v1") else "MN"
+    )
+    assert row["amounts"]["total"] == "10.00"
+
+
+def test_expense_upgrade_keeps_saved_legacy_generation_reproducible(prepared):
+    legacy = s.add_campaign_expenses(*prepared)
+    row = legacy["reports"][0]
+    body = prepared[2][row["document_hash"]]
+    row["payload"]["campaign_expenses"] = s._campaign_expense_payload(
+        body, row["payload"], extraction_version="b1-ce-2026-v1"
+    )
+    legacy["id"] = s.collection_digest(legacy)
+    before = deepcopy(legacy)
+    s.validate_collection(legacy)
+    assert (
+        s.reproduce_campaign_expenses(row, body, None)
+        == row["payload"]["campaign_expenses"]
+    )
+    upgraded = s.add_campaign_expenses(legacy, prepared[1], prepared[2])
+    assert upgraded["id"] != legacy["id"]
+    assert (
+        upgraded["reports"][0]["payload"]["campaign_expenses"]["extraction_version"]
+        == "b1-ce-2026-v2"
+    )
+    assert legacy == before
+    s._require_expense_reproduction(
+        legacy["reports"], prepared[1], prepared[2], "Legacy replay changed"
+    )
+
+
+@pytest.mark.parametrize("version", [None, "b1-ce-2026-v3", 2])
+def test_unknown_expense_version_cannot_select_latest_parser(prepared, version):
+    value = s.add_campaign_expenses(*prepared)
+    row = value["reports"][0]
+    row["payload"]["campaign_expenses"]["extraction_version"] = version
+    value["id"] = s.collection_digest(value)
+    with pytest.raises(
+        s.FinanceCollectionError, match="Unknown expense evidence version"
+    ):
+        s.validate_collection(value)
+    with pytest.raises(
+        s.FinanceCollectionError, match="Unknown expense evidence version"
+    ):
+        s.reproduce_campaign_expenses(row, prepared[2][row["document_hash"]], None)
+
+
+def test_expense_version_upgrade_and_restore_keep_both_generations(db, prepared):
+    legacy = s.add_campaign_expenses(*prepared)
+    row = legacy["reports"][0]
+    row["payload"]["campaign_expenses"] = s._campaign_expense_payload(
+        prepared[2][row["document_hash"]],
+        row["payload"],
+        extraction_version="b1-ce-2026-v1",
+    )
+    legacy["id"] = s.collection_digest(legacy)
+    current = s.add_campaign_expenses(legacy, prepared[1], prepared[2])
+    store = MemoryStore()
+    previous = None
+    for collection in (legacy, current):
+        s.retain_collection_sources(db, store, collection, prepared[1], prepared[2])
+        s.stage_collection(db, collection, store=store)
+        s.publish_collection(
+            db, collection["id"], expected_previous=previous, store=store
+        )
+        previous = collection["id"]
+    s.publish_collection(
+        db, legacy["id"], expected_previous=current["id"], restore=True, store=store
+    )
+    assert (
+        db.get(m.ElectionFinanceCurrent, legacy["election_key"]).collection_id
+        == legacy["id"]
+    )
+    for collection in (legacy, current):
+        saved = db.get(m.ElectionFinanceCollection, collection["id"])
+        assert saved is not None and saved.sealed_at is not None
+        s.verify_retained_campaign_expenses(db, collection, store=store)
+
+
 def test_typed_expense_json_cannot_borrow_an_original_pdf_hash(db, prepared):
     value = s.add_campaign_expenses(*prepared)
     expense = value["reports"][0]["payload"]["campaign_expenses"]
