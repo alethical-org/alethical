@@ -46,6 +46,10 @@ COLUMNS = (
     "External version",
     "Candidate ID",
     "Candidate",
+    "Account candidate ID",
+    "Account candidate",
+    "Target candidate ID",
+    "Target candidate",
     "Party",
     "District",
     "Result status",
@@ -98,9 +102,11 @@ COLUMNS = (
     "Funder account",
     "Funder type",
     "Payee",
+    "Payee street",
     "Payee city",
     "Payee state",
     "Payee ZIP",
+    "Payee address as filed",
     "Purpose",
     "Payment amount",
     "Included unpaid amount",
@@ -294,6 +300,53 @@ def _include_external_payment(payment, selected_reports):
         and payment.get("amendment_status") == "not_established"
         and payment.get("report_key") in selected_reports
     )
+
+
+def _external_payments(entries, selected_reports):
+    """Keep each physical payment once, with its checked relationships separate."""
+    rows = {}
+    for entry in entries:
+        for collection, role in (
+            ("payments", "target_candidates"),
+            ("own_payments", "own_candidates"),
+        ):
+            for payment in entry.get(collection, []):
+                if not _include_external_payment(payment, selected_reports):
+                    continue
+                if (
+                    role == "own_candidates"
+                    and payment["report_key"] not in selected_reports
+                ):
+                    continue
+                # Only the targeted projection carries this source-side ID. Its
+                # absence from own-account detail is not a conflicting payment.
+                facts = {
+                    k: v
+                    for k, v in payment.items()
+                    if k != "target_source_candidate_id"
+                }
+                item = rows.setdefault(
+                    payment["payment_key"],
+                    {
+                        "payment": facts,
+                        "candidates": set(),
+                        "own_candidates": set(),
+                        "target_candidates": set(),
+                    },
+                )
+                if item["payment"] != facts:
+                    _problem(409, "A payment has conflicting source records")
+                if role == "target_candidates":
+                    target = payment.get("target_source_candidate_id")
+                    if (
+                        "target_source_candidate_id" in item
+                        and item["target_source_candidate_id"] != target
+                    ):
+                        _problem(409, "A payment has conflicting source records")
+                    item["target_source_candidate_id"] = target
+                item[role].add(entry["candidate_id"])
+                item["candidates"].add(entry["candidate_id"])
+    return rows
 
 
 def export_csv(
@@ -1169,22 +1222,18 @@ def export_csv(
                 "Gap": _words(board["outside_spending_availability"]),
             },
         )
-    external_payments = {}
-    for entry in external_data:
-        for payment in entry["payments"]:
-            if not _include_external_payment(payment, selected):
-                continue
-            item = external_payments.setdefault(
-                payment["payment_key"], {"payment": payment, "candidates": set()}
-            )
-            if item["payment"] != payment:
-                _problem(409, "A payment has conflicting source records")
-            item["candidates"].add(entry["candidate_id"])
+    external_payments = _external_payments(external_data, selected)
     for key, item in sorted(external_payments.items()):
         p = item["payment"]
         payee = p.get("payee") or {}
+        address = p.get("payee_address") or {}
+        owners, targets = who(item["own_candidates"]), who(item["target_candidates"])
         fields = {
             **who(item["candidates"]),
+            "Account candidate ID": owners["Candidate ID"],
+            "Account candidate": owners["Candidate"],
+            "Target candidate ID": targets["Candidate ID"],
+            "Target candidate": targets["Candidate"],
             "Authority": p["authority"],
             **inventory.get(p["report_key"], {}).get(
                 "account_fields", _account_columns(p["account_id"])
@@ -1200,6 +1249,13 @@ def export_csv(
             "Direction": p.get("direction"),
             "Transaction type": p.get("transaction_type"),
             "Payee": payee.get("name") if isinstance(payee, dict) else payee,
+            "Payee street": "\n".join(
+                address[k] for k in ("street_1", "street_2") if address.get(k)
+            ),
+            "Payee city": address.get("city"),
+            "Payee state": address.get("state"),
+            "Payee ZIP": address.get("postal_code"),
+            "Payee address as filed": address.get("as_filed"),
             "Purpose": p.get("purpose"),
             "Payment amount": _money(p.get("amount")),
             "Currency": p.get("currency"),

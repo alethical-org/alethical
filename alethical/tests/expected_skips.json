@@ -303,5 +303,15 @@
     "classname": "alethical.tests.test_election_source_provenance",
     "name": "test_retained_examples_record_and_replay_through_postgres",
     "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_static_inventory",
+    "name": "test_exact_retained_catalogues_replay_all_member_anchors[itasca-c7effe76e36633763f94744abbf604274e311ca7f479d51b11f2b7d4f881a7df-https://www.itascacountymn.gov/710/Campaign-Finance-Information-31-18]",
+    "reason": "Replays private retained Itasca and Otter Tail publisher originals via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic inventory, source and version guards run in CI. Local acceptance requires both exact-source catalogue cases to pass."
+  },
+  {
+    "classname": "alethical.tests.test_election_static_inventory",
+    "name": "test_exact_retained_catalogues_replay_all_member_anchors[otter-b13be13c9ad44f63d71e537fdcbeabf603fb1dc2a8a6aa285b89e56a9e262eae-https://ottertailcounty.gov/elections-and-voting/campaign-financial-reports/-56-17]",
+    "reason": "Replays private retained Itasca and Otter Tail publisher originals via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic inventory, source and version guards run in CI. Local acceptance requires both exact-source catalogue cases to pass."
   }
 ]

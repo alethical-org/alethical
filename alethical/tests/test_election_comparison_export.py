@@ -5,6 +5,7 @@ import csv
 import gzip
 import hashlib
 import io
+import json
 from copy import deepcopy
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -340,6 +341,114 @@ def test_external_records_without_board_collection_or_version(
     assert any(
         r["Row type"] == "Version" and len(r["External version"]) == 64 for r in rows
     )
+    assert all(
+        p["Account candidate ID"]
+        == p["Target candidate ID"]
+        == ctx.candidate["candidate_id"]
+        for p in payments
+    )
+
+
+@pytest.fixture()
+def own_external_originals(finance_db, monkeypatch):
+    from alethical.tests.test_election_external_finance import (
+        external as fixture,
+        rewrite_original,
+    )
+    from alethical.tests.test_election_external_finance_reads import checked
+    from alethical.pipeline import election_external_finance as storage
+    from alethical.api.services import election_external_finance_reads
+
+    ctx = fixture.__wrapped__(finance_db, monkeypatch)
+    records = json.loads(ctx.originals[ctx.source_hash])["records"]
+    for payment in ctx.g["payments"]:
+        payment.update(
+            target_source_candidate_id=None,
+            direction="unknown",
+            transaction_type="F3:SB17",
+            memo={},
+            payee_address={
+                "street_1": None,
+                "street_2": None,
+                "city": None,
+                "state": "MN",
+                "postal_code": "55901",
+                "as_filed": "1 Main St\nRochester, MN 55901",
+            },
+        )
+        records[payment["binding"]["locator"]["row"]] = storage.payment_facts(payment)
+    rewrite_original(ctx, records)
+    checked(finance_db, ctx)
+    ctx.snapshot.first_published_at = ctx.snapshot.fetched_at
+    finance_db.add(
+        m.ElectionComparisonCurrent(election_key=KEY, snapshot_id=ctx.snapshot.id)
+    )
+    finance_db.commit()
+    for module in (results, election_external_finance_reads):
+        monkeypatch.setattr(module, "raw_file_store_from_env", lambda: ctx.store)
+    return ctx
+
+
+def test_own_expenses_have_exact_addresses_and_no_invented_target(
+    finance_api, own_external_originals
+):
+    ctx = own_external_originals
+    url = f"/api/v1/finance/elections/{KEY}/races/{ctx.race.id}/export.csv"
+    response = finance_api.get(url, params={"snapshot_id": ctx.snapshot.id})
+    rows = parsed(response)
+    payments = [r for r in rows if r["Row type"] == "External payment"]
+    assert len(payments) == 2
+    assert {p["Payment amount"] for p in payments} == {"0.00", "123.45"}
+    assert all(p["Amount role"] == "reported_payment" for p in payments)
+    assert all(p["Direction"] == "unknown" for p in payments)
+    assert all(
+        p["Target candidate ID"] == p["Target candidate"] == "" for p in payments
+    )
+    assert all(
+        p["Candidate ID"] == p["Account candidate ID"] == ctx.candidate["candidate_id"]
+        for p in payments
+    )
+    assert all(
+        p["Payee address as filed"] == "1 Main St\nRochester, MN 55901"
+        for p in payments
+    )
+    assert all(p["Payee street"] == p["Payee city"] == "" for p in payments)
+    assert all(p["Payee state"] == "MN" and p["Payee ZIP"] == "55901" for p in payments)
+    payment_keys = {p["Payment key"] for p in payments}
+    assert {
+        r["Payment key"]
+        for r in rows
+        if r["Row type"] == "Evidence" and r["Source hash"] == ctx.source_hash
+    } >= payment_keys
+    assert "PRIVATE_" not in response.text and "/private/" not in response.text
+
+
+def test_own_expense_original_loss_refuses_the_candidate_pin(
+    finance_api, finance_db, own_external_originals
+):
+    from alethical.api.services import election_external_finance_reads
+
+    ctx = own_external_originals
+    entry = election_external_finance_reads.candidate_finance(
+        finance_db,
+        election_key=KEY,
+        race_id=ctx.race.id,
+        candidate_id=ctx.candidate["candidate_id"],
+        store=ctx.store,
+    )
+    assert entry["payments"] == [] and len(entry["own_payments"]) == 2
+    original = finance_db.get(m.ElectionResultSource, ctx.source_hash)
+    ctx.store.objects.pop(original.object_key)
+    response = finance_api.get(
+        f"/api/v1/finance/elections/{KEY}/races/{ctx.race.id}/export.csv",
+        params={
+            "snapshot_id": ctx.snapshot.id,
+            "external_generation_id": ctx.g["id"],
+            "external_version": ctx.candidate["candidate_id"] + ":" + entry["version"],
+        },
+    )
+    assert response.status_code == 409
+    assert not response.content.startswith(b"\xef\xbb\xbfRow type")
 
 
 def test_external_both_versions_separate_no_amendment_double_count(

@@ -214,6 +214,13 @@ the unavailable aggregate. CSV exports retain the complete checked baseline, mar
 which detail rows match the selected filters and exclusions, and open the exact source
 through the authenticated Finance route without embedding credentials.
 
+The race CSV includes own-account payment detail from selected reports. Account-holder
+and target candidacies have separate columns; one physical payment appears once even
+when both relationships are checked. A missing target stays blank, and filed addresses
+retain their literal text without inferring a street or city. A report with unknown
+amendment status is available only through explicit exact-document selection; its
+payments remain nonadditive and do not enter checked expense or funder totals.
+
 The background helpers report to this chat. One writer owns each file or shared
 resource; up to three independent helpers work alongside the lead. New visual
 choices retain Design review. The separate People/navigation work, incoming
