@@ -219,20 +219,18 @@ def lazy_request_store(factory):
 
 
 def outcome_map(db, *, snapshot_id, race_ids=None, store=None):
-    """Share this outcome read's bytes and expose capacity as a retryable error."""
+    """Share bytes while preserving operational failures through partial checks."""
     from alethical.api.problems import problem_exception
     from alethical.pipeline import election_outcomes
     from alethical.pipeline.election_source_files import SourceFileLimitError
 
-    scope = (
-        request_store(store)
-        if store is not None
-        else lazy_request_store(reader_store_from_env)
-    )
+    scope = source_read_scope(store, factory=reader_store_from_env)
     try:
-        return election_outcomes.applicable_outcomes(
+        result = election_outcomes.applicable_outcomes(
             db, snapshot_id=snapshot_id, race_ids=race_ids, store=scope
         )
+        scope.raise_if_failed()
+        return result
     except SourceFileLimitError:
         raise problem_exception(
             503,

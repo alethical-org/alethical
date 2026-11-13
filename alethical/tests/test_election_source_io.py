@@ -87,7 +87,8 @@ def test_outcome_request_reuses_bytes_but_next_request_rechecks(monkeypatch, tmp
     assert first != second
     scope = io.request_store(original)
     io.outcome_map(None, **args, store=scope)
-    assert seen[-1] is scope
+    assert isinstance(seen[-1], io.SourceReadScope)
+    assert seen[-1].store is scope
 
 
 def test_outcome_request_does_not_relabel_other_validation_errors(monkeypatch):

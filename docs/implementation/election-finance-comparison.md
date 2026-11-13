@@ -50,6 +50,15 @@ Jeremy before these smaller refinements finish. Notify when the V1.2 report resu
 is live and independently accepted, then continue to V3 planning and build. No new
 approval is required between these approved versions.
 
+The legacy Board race comparison has a separate source-read follow-up in V1.2:
+`election_finance_reads` obtains account quote proofs through
+`election_account_reviews.applicable_accounts`, whose quote reader can treat an
+operational storage failure as unavailable evidence. Propagate a request-scoped
+failure marker through that path and test retryable failure, genuine missing proof
+and exact-version recovery. This is separate from Jeremy's expense report reader;
+the expense recovery checks do not establish coverage of that legacy path. No live
+occurrence or amount affected has been established.
+
 V2 is the approved live-product walkthrough video for Jeremy's report only, using
 the completed V1.1 journey, female ElevenLabs narration and selective explanatory
 captions/annotations. Show the main questions, filters, comparisons, payee exclusions,
