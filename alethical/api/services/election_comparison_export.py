@@ -493,10 +493,18 @@ def export_csv(
             "Source hash": h,
             "Source URL": _link(election_key, h, kind, **source_pins),
             "Source row": locator.get(
-                "row", locator.get("record", locator.get("sub_id"))
+                "row", locator.get("record", locator.get("sub_id", locator.get("line")))
             ),
             "Source page": locator.get("page"),
-            "Source field": locator.get("field", locator.get("column")),
+            "Source field": locator.get(
+                "field",
+                locator.get(
+                    "column",
+                    f"Link {locator['anchor_index']}"
+                    if locator.get("anchor_index") is not None
+                    else None,
+                ),
+            ),
         }
         key = (kind, h, source_pins.get("collection_id", ""))
         references.setdefault(

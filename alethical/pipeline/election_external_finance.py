@@ -867,6 +867,19 @@ def local_reading_ids(value):
                     "Local binding needs an exact checked reading receipt",
                 )
                 result.add(receipt)
+                if locator.get("kind") in {
+                    "attachment_payment",
+                    "attachment_payment_address",
+                }:
+                    from alethical.pipeline.election_olmsted_attachments import (
+                        validate_locator,
+                    )
+
+                    require(
+                        item["adapter"] == "local_checked_reading:v1",
+                        "Attachment dependency needs the checked field adapter",
+                    )
+                    result.update(validate_locator(locator))
                 if locator.get("kind") == "offered_inventory_version":
                     result.update(inventory_reading_ids(locator))
             for key, child in item.items():
@@ -956,7 +969,86 @@ def _current_readings(g, ids, cache=None):
     return True
 
 
+def validate_attachment_payment(g, payment, reading_context, *, indexes=None):
+    """Only this containing report can lend its checked identity/period."""
+    from alethical.pipeline import election_local_sources as local
+    from alethical.pipeline import election_olmsted_attachments as attachments
+
+    related = [
+        b
+        for b in bindings(payment.get("binding"))
+        if isinstance(b, dict)
+        and b.get("adapter") == "local_checked_reading:v1"
+        and b.get("locator", {}).get("kind") in attachments.KINDS
+    ]
+    if not related:
+        return
+    if indexes is None:
+        indexes = {}
+    if "reports" not in indexes:
+        indexes["reports"] = {r["report_key"]: r for r in g["reports"]}
+    if "sources" not in indexes:
+        indexes["sources"] = {r["sha256"]: r for r in g["sources"]}
+    for binding in related:
+        locator = binding["locator"]
+        attachments.validate_locator(locator)
+        parent_id = locator["parent_receipt_sha256"]
+        parent_receipt = reading_context.receipt(parent_id)
+        report = indexes["reports"].get(payment.get("report_key"))
+        require(report is not None, "Attachment payment has no containing report")
+        attachments.report_binding_matches(
+            locator, report, parent_original=parent_receipt["original_sha256"]
+        )
+        sources = indexes["sources"]
+        for rid in (locator["receipt_sha256"], parent_id):
+            receipt = reading_context.receipt(rid)
+            source = sources.get(receipt["original_sha256"])
+            require(
+                source is not None, "Attachment original is outside this generation"
+            )
+            local.validate_attachment_source_metadata(reading_context, rid, source)
+        local.verify_attachment_relationship(reading_context, locator)
+
+
+def attachment_payment_available(g, payment, cache):
+    from alethical.pipeline.election_olmsted_attachments import KINDS
+
+    related = [
+        b
+        for b in bindings(payment.get("binding"))
+        if isinstance(b, dict)
+        and b.get("adapter") == "local_checked_reading:v1"
+        and b.get("locator", {}).get("kind") in KINDS
+    ]
+    if not related:
+        return True
+    outcomes = (
+        cache.get("attachment_payment_outcomes", {}).get(g["id"], {})
+        if cache is not None
+        else {}
+    )
+    if payment.get("payment_key") in outcomes:
+        return outcomes[payment["payment_key"]]
+    proof = (
+        cache.get(("verified_local_readings", g["id"])) if cache is not None else None
+    )
+    if proof is None:
+        return False
+    try:
+        validate_attachment_payment(
+            g, payment, proof, indexes=_review_indexes(g, cache)
+        )
+    except ComparisonImportError:
+        return False
+    return True
+
+
 def claim_sources_available(g, available, **selection):
+    if not all(
+        attachment_payment_available(g, payment, selection.get("cache"))
+        for payment in selection.get("payments", ())
+    ):
+        return False
     ids = set()
     hashes = source_dependencies(g, _reading_ids=ids, **selection)
     return all(available.get(h, False) for h in hashes) and _current_readings(
@@ -1357,8 +1449,12 @@ def verify_evidence(db, store, g):
                 )
     for report in g["reports"]:
         validate_report_version(g, bodies, report)
+    attachment_indexes = {}
     for payment in sorted(g["payments"], key=lambda r: r["source_sha256"]):
         if payment["check_status"] == "checked":
+            validate_attachment_payment(
+                g, payment, bodies.reading_context, indexes=attachment_indexes
+            )
             require(
                 bound_to(payment["binding"], payment["source_sha256"]),
                 "Payment binding belongs to another original",
@@ -2462,10 +2558,15 @@ def validate_local_candidate_relationship(
         "Campaign relationship office differs from the exact ballot office",
     )
     if expected["relationship"] == "publisher_lists_report_for_person":
+        from alethical.pipeline.election_olmsted_attachments import (
+            county_office_matches,
+        )
+
         require(
             _local_relationship_office(
                 publisher, race, expected["cover_office_literal"]
-            ),
+            )
+            or county_office_matches(publisher, race, expected["cover_office_literal"]),
             "Checked cover office differs from the exact ballot office",
         )
 

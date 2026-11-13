@@ -504,6 +504,56 @@ def _input(body, source, locator, context):
     return receipt
 
 
+def validate_attachment_source_metadata(context, receipt_id, source):
+    """Generation metadata must retain the exact freshly verified capture facts."""
+    value = verified_local_context(context, receipt_id).values()
+    receipt = context.receipt(receipt_id)
+    require(
+        context.generation_bound
+        and receipt["source_context"]["kind"] == "local_filing_context:v1",
+        "Attachment requires normal typed source closure",
+    )
+    require(
+        source.get("sha256") == receipt["original_sha256"] in context.original_hashes
+        and source.get("url") == value["document_url"]
+        and source.get("authority") == value["authority"]["key"],
+        "Attachment source metadata differs from its checked original",
+    )
+    capture = value["source_chain"][-1]
+    try:
+        copied = datetime.fromisoformat(source.get("copied_at"))
+        actual = datetime.fromisoformat(capture["copied_at"])
+    except (TypeError, ValueError) as exc:
+        raise ComparisonImportError("Attachment source copy date differs") from exc
+    require(
+        copied.tzinfo is not None and copied == actual,
+        "Attachment source copy date differs",
+    )
+    require(
+        isinstance(source.get("media_type"), str)
+        and isinstance(capture.get("media_type"), str)
+        and source["media_type"].split(";", 1)[0].strip().lower()
+        == capture["media_type"].split(";", 1)[0].strip().lower(),
+        "Attachment source media type differs",
+    )
+
+
+def verify_attachment_relationship(context, locator):
+    from alethical.pipeline import election_olmsted_attachments as attachments
+
+    attachments.validate_locator(locator)
+    parent = _entity(context, {"receipt_sha256": locator["parent_receipt_sha256"]})
+    child = verified_local_context(context, locator["receipt_sha256"]).values()
+    proof = attachments.relationship(
+        parent,
+        child,
+        context.receipt(locator["parent_receipt_sha256"]),
+        context.receipt(locator["receipt_sha256"]),
+        locator["reference_section"],
+    )
+    return parent, proof
+
+
 def _entity(context, locator, *, report=True):
     value = verified_local_context(context, locator["receipt_sha256"]).values()
     require(value["account"]["name"] is not None, "Local account name is not checked")
@@ -1099,6 +1149,15 @@ def extract_local_reading(body, source, locator, *, context=None):
             facts,
             _quote({"label": f["label"], "literal": f["literal"], "state": f["state"]}),
         )
+    if kind in {"attachment_payment", "attachment_payment_address"}:
+        parent, _ = verify_attachment_relationship(context, locator)
+        return _payment(
+            receipt,
+            fields,
+            {**locator, "kind": kind.removeprefix("attachment_")},
+            parent["report"],
+            attachment=True,
+        )
     value = _entity(context, locator)
     report = value["report"]
     if kind == "figure":
@@ -1147,9 +1206,14 @@ def extract_local_reading(body, source, locator, *, context=None):
         return CheckedExtraction(
             facts, _quote({"label": f["label"], "literal": f["literal"]})
         )
+    return _payment(receipt, fields, locator, report)
+
+
+def _payment(receipt, fields, locator, report, *, attachment=False):
+    kind = locator.get("kind")
     require(
         kind in {"payment", "payment_address"}
-        and set(locator) == {"kind", "receipt_sha256", "page", "row"}
+        and (attachment or set(locator) == {"kind", "receipt_sha256", "page", "row"})
         and type(locator["page"]) is int
         and type(locator["row"]) is int,
         "Unsupported local payment locator",

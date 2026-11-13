@@ -112,6 +112,60 @@ def _public_account_identity(account):
     return {"issued_id": False, "account_id_kind": "publisher_catalogue_group"}
 
 
+def _attachment_evidence(binding, reading_context):
+    from alethical.pipeline import election_olmsted_attachments as attachments
+
+    original = binding.get("locator", {})
+    if (
+        binding.get("adapter") != "local_checked_reading:v1"
+        or original.get("kind") not in attachments.KINDS
+        or reading_context is None
+    ):
+        return []
+    attachments.validate_locator(original)
+    parent = reading_context.receipt(original["parent_receipt_sha256"])
+    values = reading_context.local_values(original["parent_receipt_sha256"])
+    section = original["reference_section"]
+    fields = {f["field_id"]: f for f in parent["fields"]}
+    keys = [
+        section["heading_field_id"],
+        section["reference_field_id"],
+        *[
+            parent["source_context"]["fields"][k]
+            for k in ("period_start", "period_end")
+        ],
+    ]
+    result = [
+        dict(
+            source_sha256=parent["original_sha256"],
+            locator=dict(
+                page=section["page"],
+                field=section["item_area_field_id"],
+                bounds=section["item_bounds"],
+            ),
+            quote="\n".join(
+                f"{fields[k]['label']}: {fields[k]['literal']}" for k in keys
+            ),
+        )
+    ]
+    catalogue = values["attachment_catalogue"]
+    child = reading_context.local_values(original["receipt_sha256"])
+    for url in (
+        attachments.document_request(values),
+        attachments.document_request(child),
+    ):
+        member = next(m for m in catalogue["members"] if m["url"] == url)
+        edge = member["edge"]
+        result.append(
+            dict(
+                source_sha256=catalogue["catalogue_sha256"],
+                locator={k: edge[k] for k in ("anchor_index", "line", "label")},
+                quote=edge["label"],
+            )
+        )
+    return result
+
+
 def _binding(value, *, reading_context=None, source_section=None):
     result = []
     for binding in storage.bindings(value):
@@ -163,6 +217,9 @@ def _binding(value, *, reading_context=None, source_section=None):
                 "quote": binding["quote"],
             }
         )
+        for evidence in _attachment_evidence(binding, reading_context):
+            if evidence not in result:
+                result.append(evidence)
     return result
 
 
@@ -613,6 +670,27 @@ def _context(
                     cache=cache,
                 ):
                     validation_failures.append(review.request_key)
+    attachment_versions = {}
+    cache["attachment_payment_outcomes"] = attachment_versions
+    from alethical.pipeline.election_olmsted_attachments import (
+        KINDS as attachment_kinds,
+    )
+
+    for plan in reading_plans.values():
+        selected = plan["generation"]
+        verdicts = {}
+        for payment in selected["payments"]:
+            if any(
+                isinstance(b, dict)
+                and b.get("adapter") == "local_checked_reading:v1"
+                and b.get("locator", {}).get("kind") in attachment_kinds
+                for b in storage.bindings(payment.get("binding"))
+            ):
+                verdicts[payment["payment_key"]] = storage.attachment_payment_available(
+                    selected, payment, cache
+                )
+        if verdicts:
+            attachment_versions[selected["id"]] = verdicts
     inventory_versions = _inventory_versions(db, store, g, available, cache)
     for selected in [
         g,
@@ -665,6 +743,11 @@ def _context(
             "availability": available,
             **(
                 {"inventory_versions": inventory_versions} if inventory_versions else {}
+            ),
+            **(
+                {"attachment_proofs": attachment_versions}
+                if attachment_versions
+                else {}
             ),
             "outcomes": [r.request_key for r in outcomes],
             "outcome_captures": sorted(captures),

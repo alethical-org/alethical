@@ -255,6 +255,17 @@ publisher office and checked cover office must match the reviewed ballot office.
 Missing optional companion evidence removes the derived selection, while healthy
 own-report figures and independently checked candidate links remain available.
 
+The Olmsted expense-attachment profile requires two distinct checked readings, an
+exact publisher-listed report family and a complete checked Disbursements item
+area on the primary report. The supplement retains its own absent identity fields;
+its payment rows are associated with the containing report only through that proof.
+Source evidence includes the parent section, supplement rows and exact catalogue
+links. Unknown report versions remain explicit and nonadditive. Source withdrawal,
+changed capture metadata or a competing parent item removes the affected detail
+without turning an unrelated healthy parent figure into missing data. The normal
+synthetic integration checks do not admit an actual retained filing or establish
+complete local coverage.
+
 The bounded JPEG reading path preserves the exact original image and native-pixel
 field coordinates. Image downloads retain their media type; they are not converted
 into replacement PDF originals. These source capabilities do not by themselves

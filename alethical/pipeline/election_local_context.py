@@ -2629,6 +2629,7 @@ def replay_local_context(context, reading, *, originals, provenance):
     position, body, final = root["entry_url"], None, None
     steps, link_label, account_row = [], None, None
     offered_inventory = None
+    attachment_catalogue: dict | None = None
     publisher_relationship: dict | None = None
     binding = context["recipient_binding"]
     shared = root["directory"]["shared_target_entries"]
@@ -2713,6 +2714,20 @@ def replay_local_context(context, reading, *, originals, provenance):
                     # optional version or explicit publisher relation is inferred.
                     offered_inventory = {"status": "unsupported_inventory_profile"}
                     publisher_relationship = None
+            from alethical.pipeline import election_olmsted_attachments as attachments
+
+            if (
+                account["kind"] == PHYSICAL_SECTION
+                and position == attachments.CATALOGUE_URL
+            ):
+                try:
+                    attachment_catalogue = attachments.catalogue_group(
+                        html, position, edge, root
+                    )
+                except ComparisonImportError:
+                    # Own checked fields/navigation survive; an unsupported
+                    # relationship is never turned into inherited report facts.
+                    attachment_catalogue = None
             if binding is not None and binding["edge_position"] == index:
                 _bind_heading(html, edge, binding, root)
         elif edge["kind"] == "offered_get_form":
@@ -2838,7 +2853,7 @@ def replay_local_context(context, reading, *, originals, provenance):
         reading["original_sha256"],
         *(d["sha256"] for d in reading["dependencies"]),
     }
-    return {
+    result = {
         "authority": {
             "key": authority_key,
             "name": authority_name,
@@ -2900,6 +2915,18 @@ def replay_local_context(context, reading, *, originals, provenance):
             "provenance_receipt_ids"
         ],
     }
+    if attachment_catalogue is not None:
+        result["attachment_catalogue"] = attachment_catalogue
+        if result["document_role"] == "primary":
+            from alethical.pipeline import election_olmsted_attachments as attachments
+
+            try:
+                result["publisher_relationship"] = attachments.publisher_relationship(
+                    result, reading
+                )
+            except ComparisonImportError:
+                result.pop("publisher_relationship", None)
+    return result
 
 
 def _heading_forms(category, label):
