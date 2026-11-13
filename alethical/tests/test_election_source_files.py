@@ -362,9 +362,11 @@ def test_short_raw_spool_write_cannot_create_proof(monkeypatch):
         return ShortWriter(handle) if mode == "xb" else handle
 
     monkeypatch.setattr(Path, "open", open_path)
-    with pytest.raises(files.SourceFileError, match="write was incomplete"):
+    with pytest.raises(files.SourceFileError) as caught:
         with files.verified_source_files(store, [metadata]):
             pytest.fail("Short spool write accepted")
+    assert isinstance(caught.value.__cause__, files.StorageReadError)
+    assert "write was incomplete" in str(caught.value.__cause__)
 
 
 def test_source_loss_corruption_and_recovery_never_use_successful_cache():

@@ -922,10 +922,13 @@ def test_checked_reading_capacity_is_retryable_not_missing(
 
 
 @pytest.mark.parametrize("which", [0, 1])
+@pytest.mark.parametrize("failure", ["missing", "operation"])
 def test_original_loss_after_initial_availability_never_leaks_attribution(
-    attachment_generation, db, monkeypatch, which
+    attachment_generation, db, monkeypatch, which, failure
 ):
+    from fastapi import HTTPException
     from alethical.api.services.election_source_io import FreshReadStore
+    from alethical.pipeline.raw_file_store import StorageObjectMissingError
 
     held = attachment_generation
     query = publish_and_review(db, held, monkeypatch)
@@ -942,9 +945,26 @@ def test_original_loss_after_initial_availability_never_leaks_attribution(
             if key == original_key:
                 calls.append(key)
                 if len(calls) > 1:
+                    if failure == "missing":
+                        raise StorageObjectMissingError("Synthetic missing object")
                     raise KeyError("Invented loss after initial source availability")
             return held.store.get(key, destination, max_bytes=max_bytes)
 
+    if failure == "operation":
+        for version in (None, good["version"]):
+            calls.clear()
+            with pytest.raises(HTTPException) as error:
+                reads.candidate_finance(
+                    db,
+                    **{**query, "store": FreshReadStore(Flaky(), limit=0)},
+                    version=version,
+                )
+            assert len(calls) > 1
+            assert error.value.status_code == 503
+            assert error.value.headers == {"Retry-After": "1"}
+            assert "Invented" not in str(error.value.detail)
+        assert reads.candidate_finance(db, **query) == good
+        return
     query["store"] = FreshReadStore(Flaky(), limit=0)
     missing = reads.candidate_finance(db, **query)
     assert (

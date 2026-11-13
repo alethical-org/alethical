@@ -20,6 +20,8 @@ from types import MappingProxyType
 from typing import BinaryIO
 import zlib
 
+from alethical.pipeline.raw_file_store import StorageReadError
+
 CHUNK_BYTES = 1024 * 1024
 MAX_ORIGINAL_BYTES = 64 * 1024 * 1024
 MAX_CLOSURE_BYTES = 64 * 1024 * 1024
@@ -262,9 +264,8 @@ def _restore(stored, raw, metadata, required_type):
             raw_hash.update(chunk)
             if len(prefix) < 4096:
                 prefix.extend(chunk[: 4096 - len(prefix)])
-            _require(
-                target.write(chunk) == len(chunk), "Original spool write was incomplete"
-            )
+            if target.write(chunk) != len(chunk):
+                raise StorageReadError("Original spool write was incomplete")
 
         while chunk := source.read(CHUNK_BYTES):
             stored_total += len(chunk)
@@ -402,6 +403,9 @@ def verified_source_files(
     except SourceFileError:
         raise
     except Exception as error:
+        record_failure = getattr(store, "record_failure", None)
+        if callable(record_failure):
+            record_failure(error)
         if yielded:
             raise
         raise SourceFileError(

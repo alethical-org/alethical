@@ -469,6 +469,89 @@ def test_external_both_versions_separate_no_amendment_double_count(
     assert len([r for r in rows if r["Row type"] == "External payment"]) == 2
 
 
+@pytest.mark.parametrize("phase", ["initial", "final"])
+@pytest.mark.parametrize("failure", [TimeoutError, KeyError, FileNotFoundError])
+def test_external_export_read_failure_refuses_csv_and_recovers(
+    finance_api, finance_db, external_originals, monkeypatch, phase, failure
+):
+    from alethical.api.services import election_external_finance_reads as external
+    from alethical.api.services.election_source_io import FreshReadStore
+
+    ctx = external_originals
+    url = f"/api/v1/finance/elections/{KEY}/races/{ctx.race.id}/export.csv"
+    prior = external.candidate_finance(
+        finance_db,
+        election_key=KEY,
+        race_id=ctx.race.id,
+        candidate_id=ctx.candidate["candidate_id"],
+        store=ctx.store,
+    )
+    params = {
+        "snapshot_id": ctx.snapshot.id,
+        "external_version": ctx.candidate["candidate_id"] + ":" + prior["version"],
+    }
+    key = finance_db.get(m.ElectionResultSource, ctx.source_hash).object_key
+    calls = []
+    fail_at = None
+
+    class Transport:
+        def get(self, target, destination, *, max_bytes=None):
+            if target == key:
+                calls.append(target)
+                if fail_at is not None and len(calls) == fail_at:
+                    raise failure("PRIVATE synthetic source failure")
+            return ctx.store.get(target, destination, max_bytes=max_bytes)
+
+    # Disable only the optional byte cache, exercising the real source validators
+    # again at final export evidence verification, as an evicted source would be.
+    real_scope = export.election_source_io.source_read_scope
+
+    def without_cache(*args, **kwargs):
+        scope = real_scope(*args, **kwargs)
+        assert isinstance(scope.store, FreshReadStore)
+        scope.store.limit = 0
+        return scope
+
+    monkeypatch.setattr(export.election_source_io, "source_read_scope", without_cache)
+    monkeypatch.setattr(external, "raw_file_store_from_env", Transport)
+    good = parsed(finance_api.get(url, params=params))
+    assert len(calls) >= 2
+    fail_at = 1 if phase == "initial" else len(calls)
+    for pinned in (True, False):
+        calls.clear()
+        selected = params if pinned else {"snapshot_id": ctx.snapshot.id}
+        response = finance_api.get(url, params=selected)
+        assert response.status_code == 503
+        assert response.headers["retry-after"] == "1"
+        assert response.json()["detail"] == "Records are busy"
+        assert "PRIVATE" not in response.text
+        assert "content-disposition" not in response.headers
+    fail_at = None
+    recovered = parsed(finance_api.get(url, params=params))
+    for rows in (good, recovered):
+        rows[0].pop("Generated")
+    assert recovered == good
+
+
+def test_external_export_storage_setup_failure_is_retryable(
+    finance_api, external_originals, monkeypatch
+):
+    from alethical.api.services import election_external_finance_reads as external
+
+    ctx = external_originals
+    url = f"/api/v1/finance/elections/{KEY}/races/{ctx.race.id}/export.csv"
+
+    def unavailable():
+        raise RuntimeError("PRIVATE storage setup")
+
+    monkeypatch.setattr(external, "raw_file_store_from_env", unavailable)
+    response = finance_api.get(url, params={"snapshot_id": ctx.snapshot.id})
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "1"
+    assert response.json()["detail"] == "Records are busy"
+    assert "PRIVATE" not in response.text
+
+
 def test_external_source_loss_refuses_old_candidate_pin(
     finance_api, finance_db, external_originals
 ):

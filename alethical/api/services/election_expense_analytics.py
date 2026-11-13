@@ -27,6 +27,7 @@ from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
 from alethical.api.services.election_source_io import (
     SOURCE_WORKERS,
+    lazy_request_store,
     request_store,
     source_map,
 )
@@ -36,6 +37,7 @@ from alethical.api.services import election_external_finance_reads as external
 from alethical.api.services.election_analytics import (
     _SourceProof,
     _bulk_accounts,
+    _source_read_unavailable,
     _verify_original,
 )
 from alethical.db import models as m
@@ -299,23 +301,32 @@ def _report_options(context, options, selected, availability):
 
 
 def _restore_one(store, kind, row):
-    try:
-        return _verify_original(
-            store,
-            _SourceProof(
-                row.object_key,
-                row.compression,
-                row.compressed_hash,
-                row.compressed_byte_size,
-                row.document_hash if kind == "document" else row.content_hash,
-                row.byte_size,
-                b"%PDF" if kind == "document" else None,
-            ),
-        )
-    except Exception:
-        # Store SDK errors can include private object paths. Availability is the
-        # public fact; no exception, reviewer or internal identifier is exported.
-        return False
+    return _verify_original(
+        store,
+        _SourceProof(
+            row.object_key,
+            row.compression,
+            row.compressed_hash,
+            row.compressed_byte_size,
+            row.document_hash if kind == "document" else row.content_hash,
+            row.byte_size,
+            b"%PDF" if kind == "document" else None,
+        ),
+    )
+
+
+def _expense_source_store(store=None):
+    if store is not None:
+        return request_store(store)
+
+    def create_store():
+        try:
+            return raw_file_store_from_env()
+        except Exception:
+            raise _source_read_unavailable() from None
+
+    # Empty scopes need no storage client. Required setup failures are not gaps.
+    return lazy_request_store(create_store)
 
 
 def _source_states(
@@ -353,10 +364,7 @@ def _source_states(
         else {}
     )
     states = {h: False for h in document_hashes | source_hashes}
-    try:
-        store = request_store(store or raw_file_store_from_env())
-    except Exception:
-        return states
+    store = _expense_source_store(store)
     jobs = [
         (
             h,
@@ -502,6 +510,7 @@ def _load(
     party=None,
     candidate_query="",
     report_keys=(),
+    selected_only=False,
     trace=None,
     pinned=False,
     store=None,
@@ -632,6 +641,8 @@ def _load(
                         else "unavailable",
                     )
                     if reg in explicit
+                    else (None, "report_figures_not_held")
+                    if selected_only
                     else _latest(
                         [
                             r
@@ -797,7 +808,14 @@ def _load(
         [
             "expense-report-v1",
             membership_revision,
-            [race_id, candidate_id, party, candidate_query, sorted(set(report_keys))],
+            [
+                race_id,
+                candidate_id,
+                party,
+                candidate_query,
+                sorted(set(report_keys)),
+                selected_only,
+            ],
             election.id,
             collection.id,
             stamp,
@@ -814,7 +832,9 @@ def _load(
             "version": version,
             "copied_at": collection.copied_at.isoformat(),
             "currency": "USD",
-            "reporting_scope": "selected_effective_reports_with_latest_for_unspecified_accounts"
+            "reporting_scope": "selected_effective_reports_only"
+            if selected_only
+            else "selected_effective_reports_with_latest_for_unspecified_accounts"
             if report_keys
             else "latest_effective_report_per_confirmed_account_with_actual_periods",
             "party_basis": "official_election_record_with_account_filed_party_separately_sourced",
@@ -853,6 +873,7 @@ def source_trace(
     party=None,
     candidate_query="",
     report_keys=(),
+    selected_only=False,
 ):
     """Internal read-only performance trace; parent owns real-store measurement.
 
@@ -872,6 +893,7 @@ def source_trace(
         party=party,
         candidate_query=candidate_query,
         report_keys=report_keys,
+        selected_only=selected_only,
         geography=None,
         payee_query="",
         excluded_payee_ids=(),
@@ -887,6 +909,7 @@ def source_trace(
         party=party,
         candidate_query=candidate_query,
         report_keys=report_keys,
+        selected_only=selected_only,
         trace=trace,
     )
     trace["context"] = {
@@ -899,6 +922,7 @@ def source_trace(
         "party": party,
         "candidate_query": candidate_query,
         "report_keys": sorted(set(report_keys)),
+        "selected_only": selected_only,
     }
     trace["seconds"] = time.perf_counter() - started
     return trace
@@ -916,7 +940,10 @@ def _validate_query(
     offset,
     candidate_query="",
     report_keys=(),
+    selected_only=False,
 ):
+    if type(selected_only) is not bool:
+        _bad("Selected-only mode must be a boolean")
     for value in (race_id, candidate_id):
         if value is not None and (
             not isinstance(value, str) or not value or len(value) > 256
@@ -981,6 +1008,7 @@ def _assemble(
     party=None,
     candidate_query="",
     report_keys=(),
+    selected_only=False,
     geography=None,
     payee_query="",
     excluded_payee_ids=(),
@@ -1584,6 +1612,7 @@ def _assemble(
         "party": party,
         "candidate_query": candidate_query,
         "report_keys": sorted(set(report_keys)),
+        "selected_only": selected_only,
         "geography": geography,
         "payee_query": payee_query,
         "excluded_payee_ids": sorted(set(excluded_payee_ids)),
@@ -1598,6 +1627,11 @@ def _assemble(
             else {}
         ),
         **{k: v for k, v in context.items() if not k.startswith("_")},
+        **(
+            {"reporting_scope": "selected_effective_reports_only"}
+            if selected_only
+            else {}
+        ),
         "filters": filters,
         "report_options": _report_options(
             context, context.get("_report_options", []), selected, availability
@@ -1772,7 +1806,16 @@ def _adjusted_measures(baseline, rows):
 
 
 def _join_external(
-    db, data, bulk, races, *, report_keys, excluded_payee_ids, _csv=False, store=None
+    db,
+    data,
+    bulk,
+    races,
+    *,
+    report_keys,
+    excluded_payee_ids,
+    selected_only=False,
+    _csv=False,
+    store=None,
 ):
     data["summary"]["authority"] = "mn_cfb"
     data["summary"]["authority_name"] = (
@@ -1785,6 +1828,7 @@ def _join_external(
     data["external_status"] = "published" if bulk else "not_published"
     data["filters"].update(
         report_keys=sorted(set(report_keys)),
+        selected_only=selected_only,
         excluded_payee_ids=sorted(set(excluded_payee_ids)),
     )
     if not bulk:
@@ -1940,7 +1984,9 @@ def _join_external(
             if row is not None:
                 row["gaps"].append(
                     {
-                        "state": "no_effective_periodic_report",
+                        "state": "report_figures_not_held"
+                        if selected_only
+                        else "no_effective_periodic_report",
                         "authority": account_key[0],
                         "account_id": account_key[1],
                     }
@@ -1969,6 +2015,8 @@ def _join_external(
         group_choices[group_key] = (
             reports[explicit[group_key]]
             if group_key in explicit
+            else None
+            if selected_only
             else latest[0]
             if len(latest) == 1
             else None
@@ -2036,7 +2084,9 @@ def _join_external(
                 ):
                     row["gaps"].append(
                         {
-                            "state": "ambiguous_latest_report",
+                            "state": "report_figures_not_held"
+                            if selected_only and group_key not in explicit
+                            else "ambiguous_latest_report",
                             "authority": key[0],
                             "account_id": key[1],
                         }
@@ -2349,6 +2399,7 @@ def _join_external(
             bulk["version"],
             sorted(party_availability.items()),
             sorted(report_keys),
+            selected_only,
         ]
     )[:16]
     if _csv:
@@ -2381,6 +2432,7 @@ def _build(
     party=None,
     candidate_query="",
     report_keys=(),
+    selected_only=False,
     geography=None,
     payee_query="",
     excluded_payee_ids=(),
@@ -2394,6 +2446,7 @@ def _build(
         party=party,
         candidate_query=candidate_query,
         report_keys=report_keys,
+        selected_only=selected_only,
         geography=geography,
         payee_query=payee_query,
         excluded_payee_ids=excluded_payee_ids,
@@ -2408,10 +2461,7 @@ def _build(
     # The review stamp is already a database read. Pin before it so a fresh
     # request never opens READ COMMITTED before the nested finance readers.
     finance_versions.pin(db)
-    try:
-        store = request_store(raw_file_store_from_env())
-    except Exception:
-        store = None  # Existing source-unavailable handling remains in each reader.
+    store = _expense_source_store()
     external_stamp = _external_review_stamp(db, election_key)
     external_pointer = db.get(m.ElectionExternalFinanceCurrent, election_key)
     external_data = (
@@ -2434,6 +2484,7 @@ def _build(
         party=party,
         candidate_query=candidate_query,
         report_keys=board_report_keys,
+        selected_only=selected_only,
         pinned=version is not None,
         store=store,
     )
@@ -2451,6 +2502,7 @@ def _build(
             party=party,
             candidate_query=candidate_query,
             report_keys=board_report_keys,
+            selected_only=selected_only,
             geography=geography,
             payee_query=payee_query,
             excluded_payee_ids=board_exclusions,
@@ -2463,6 +2515,7 @@ def _build(
             external_data,
             loaded[1],
             report_keys=report_keys,
+            selected_only=selected_only,
             excluded_payee_ids=excluded_payee_ids,
             _csv=_csv,
             store=store,

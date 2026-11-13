@@ -1000,11 +1000,13 @@ def test_bulk_read_plans_reading_proof_once_without_render_or_ocr(
 
 
 @pytest.mark.parametrize("fail_at", [2, 3])
+@pytest.mark.parametrize("failure", ["missing", "operation"])
 def test_evicted_source_failure_is_in_pin_before_any_figures_are_returned(
-    db, local_generation, monkeypatch, fail_at
+    db, local_generation, monkeypatch, fail_at, failure
 ):
     from threading import Lock
     from alethical.api.services.election_source_io import FreshReadStore
+    from alethical.pipeline.raw_file_store import StorageObjectMissingError
 
     ctx = local_generation
     publish(db, ctx)
@@ -1026,9 +1028,22 @@ def test_evicted_source_failure_is_in_pin_before_any_figures_are_returned(
                 with self.lock:
                     self.count += 1
                     if self.count >= fail_at:
+                        if failure == "missing":
+                            raise StorageObjectMissingError("Synthetic missing object")
                         raise FileNotFoundError("synthetic eviction/fetch failure")
             return ctx.store.get(target, path, max_bytes=max_bytes)
 
+    if failure == "operation":
+        for version in (None, good["version"]):
+            with pytest.raises(HTTPException) as error:
+                reads.candidate_finance(
+                    db, **query, store=FreshReadStore(Flaky(), limit=0), version=version
+                )
+            assert error.value.status_code == 503
+            assert error.value.headers == {"Retry-After": "1"}
+            assert "synthetic" not in str(error.value.detail)
+        assert reads.candidate_finance(db, **query, store=ctx.store) == good
+        return
     lost = reads.candidate_finance(db, **query, store=FreshReadStore(Flaky(), limit=0))
     assert lost["accounts"] == [] and lost["reports"] == []
     assert lost["version"] != good["version"]

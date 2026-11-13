@@ -340,6 +340,7 @@ export interface ExpenseQuery {
   candidate_id?: string | null;
   candidate_query?: string;
   report_keys?: string[];
+  selected_only?: boolean;
   excluded_payee_ids?: string[];
   payee_query?: string;
   party?: Party | null;
@@ -480,13 +481,13 @@ export function optionGroups(data: ExpenseAnswer) {
       const key = [
         account.authority ?? 'mn_cfb',
         report.filing.filing_year,
-        report.filing.report_type,
+        report.filing.report_name || report.filing.report_type,
         report.filing.cut_off_date,
         report.period_start,
         report.period_end,
       ].join('|');
       const group = groups.get(key) ?? {
-        label: `${account.authority_name ? `${account.authority_name} · ` : ''}${reportLabel(report)}`,
+        label: `${account.authority_name ? `${account.authority_name} · ` : ''}${reportTypeLabel(report.filing.report_name || report.filing.report_type)} · ${periodLabel(report.period_start, report.period_end)}`,
         keys: [],
       };
       group.keys.push(report.report_key);

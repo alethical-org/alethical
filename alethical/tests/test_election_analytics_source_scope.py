@@ -163,10 +163,14 @@ def test_composed_outcomes_share_bytes_but_new_request_rechecks(
     monkeypatch.setattr(analytics, "_board_context", board)
     before = analytics._context(_DB(), "election")[4]
     assert backing.calls == 1
-    assert len(scopes) == 2 and scopes[0] is scopes[1]
+    assert len(scopes) == 2
+    assert all(isinstance(scope, source_io.SourceReadScope) for scope in scopes)
+    assert scopes[0].store is scopes[1].store
     backing.body = b"changed"
     after = analytics._context(_DB(), "election")[4]
     assert backing.calls == 2
-    assert scopes[2] is scopes[3] and scopes[0] is not scopes[2]
+    assert all(isinstance(scope, source_io.SourceReadScope) for scope in scopes)
+    assert scopes[2].store is scopes[3].store
+    assert scopes[0].store is not scopes[2].store
     assert before["race"]["outcome_review"]["version"] == "first"
     assert after["race"]["outcome_review"]["version"] == "changed"

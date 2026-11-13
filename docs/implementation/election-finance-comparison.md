@@ -50,6 +50,15 @@ Jeremy before these smaller refinements finish. Notify when the V1.2 report resu
 is live and independently accepted, then continue to V3 planning and build. No new
 approval is required between these approved versions.
 
+The legacy Board race comparison has a separate source-read follow-up in V1.2:
+`election_finance_reads` obtains account quote proofs through
+`election_account_reviews.applicable_accounts`, whose quote reader can treat an
+operational storage failure as unavailable evidence. Propagate a request-scoped
+failure marker through that path and test retryable failure, genuine missing proof
+and exact-version recovery. This is separate from Jeremy's expense report reader;
+the expense recovery checks do not establish coverage of that legacy path. No live
+occurrence or amount affected has been established.
+
 V2 is the approved live-product walkthrough video for Jeremy's report only, using
 the completed V1.1 journey, female ElevenLabs narration and selective explanatory
 captions/annotations. Show the main questions, filters, comparisons, payee exclusions,
@@ -104,6 +113,20 @@ recover available original evidence without inventing payees or street addresses
 Address geography describes the filed address, not where work or economic benefit
 occurred. Subsidy receipts and expenses do not trace particular subsidy dollars to
 particular vendors. A policy assessment needs the actual bill and its question.
+
+Choosing a reporting period uses only its explicitly selected effective reports,
+including after candidate search, payee drilldown, pagination and CSV export.
+Candidates without a matching selected report remain visible with the report gap;
+their later reports never silently enter the comparison. Latest available reports
+is a separate choice. Identical named periods can share a menu choice across
+account-specific filing codes, while each account keeps its own source and amendment.
+The selection mode participates in the response version, including an empty selection.
+
+A temporary failure to read retained evidence fails the request with a safe retry
+action; it never yields a successful report with fewer accounts or lower totals.
+Previous figures remain visibly previous during recovery, with current exports
+disabled. Confirmed missing or invalid evidence still produces the existing scoped
+gap. Every recovery checks the source bytes afresh.
 
 Candidate party comes from the exact retained official election record that holds
 the value; its literal value and source remain available. Local candidate rosters

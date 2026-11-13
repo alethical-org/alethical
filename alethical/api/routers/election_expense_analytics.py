@@ -27,6 +27,7 @@ def _filters(
     payee_query: str = Query("", max_length=200, pattern=r"^[^\x00]*$"),
     candidate_query: str = Query("", max_length=200, pattern=r"^[^\x00]*$"),
     report_keys: list[PayeeId] = Query(default=[], max_length=500),
+    selected_only: bool = False,
     excluded_payee_ids: list[PayeeId] = Query(default=[], max_length=200),
 ):
     if candidate_id is not None and race_id is None:
@@ -44,6 +45,7 @@ def _filters(
         payee_query=payee_query,
         candidate_query=candidate_query,
         report_keys=report_keys,
+        selected_only=selected_only,
         excluded_payee_ids=excluded_payee_ids,
     )
 

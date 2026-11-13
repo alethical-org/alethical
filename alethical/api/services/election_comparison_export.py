@@ -391,6 +391,9 @@ def export_csv(
     pins = _external_pins(external_versions, named)
     external_data = []
     external_sources = {}
+    store = election_source_io.source_read_scope(
+        factory=external.raw_file_store_from_env
+    )
     current_external = db.get(m.ElectionExternalFinanceCurrent, election_key)
     if external_generation_id or current_external:
         try:
@@ -404,7 +407,6 @@ def export_csv(
                 "External finance belongs to another election snapshot. Reload this comparison.",
             )
         external_generation_id = published.id
-        store = external.request_store(external.raw_file_store_from_env())
         for candidate_id in sorted(named):
             cache = {}
             state = external._context(
@@ -1325,7 +1327,9 @@ def export_csv(
                 _problem(503, "This retained external source is unavailable")
             try:
                 external.read_source(store, original)
-            except Exception:
+            except Exception as error:
+                election_source_io.raise_source_read_error(error)
+                store.raise_if_failed()
                 _problem(503, "This retained external source is unavailable")
             meta = external.public_source(external_sources[h])
         add(
@@ -1336,6 +1340,7 @@ def export_csv(
                 "Copied at": meta.get("copied_at", meta.get("fetched_at")),
             },
         )
+    store.raise_if_failed()
     finance._check_end_version(db, context)
     final = results.race_detail(
         db, election_key=election_key, race_id=race_id, snapshot_id=snapshot_id
