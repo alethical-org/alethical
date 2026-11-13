@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Prepare or explicitly review private local source provenance.
 
-Dry by default. ``prepare`` turns an exact retained collector record into a
-proposed acquisition receipt and never approves anything. ``review`` validates a
+Dry by default. ``prepare --kind acquisition`` (the default) or
+``prepare --kind board-capture`` turns an exact retained collector record into a
+proposed receipt and never approves anything. ``review`` validates a
 request; only ``--execute`` appends one provenance decision (checked or
-withdrawn) through the existing target connection. It never records a source,
-identity, account, source reading, version or publication. No collector or
+withdrawn) through the existing target connection. An explicit Board relationship
+claim records a candidate-record same-person decision, never a PCC account review.
+Other claims record source provenance only. No source, source reading, version or
+publication is changed. No collector or
 network code exists here. The private evidence file is read separately as exact
 bytes; its path is never stored or treated as proof.
 """
@@ -28,6 +31,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target  # noqa: E402
 from alethical.pipeline import election_source_provenance as provenance  # noqa: E402
+from alethical.pipeline import election_board_candidate_records as board  # noqa: E402
 from alethical.pipeline.election_comparison import ComparisonImportError  # noqa: E402
 from alethical.pipeline.election_source_files import (  # noqa: E402
     SourceFileError,
@@ -89,9 +93,9 @@ def read_request(path):
 def check_evidence(request, evidence):
     """Exact private bytes for a checked acquisition; never a path as proof."""
     receipt = request["receipt"]
-    if receipt["schema"] != provenance.ACQUISITION:
+    if receipt["schema"] not in {provenance.ACQUISITION, provenance.BOARD_CAPTURE}:
         provenance.require(
-            evidence is None, "Recipient roots carry no capture evidence"
+            evidence is None, "Root and relationship claims carry no capture evidence"
         )
         return None
     if evidence is None:
@@ -101,6 +105,15 @@ def check_evidence(request, evidence):
         )
         return None
     body = read_bounded(evidence, provenance.MAX_EVIDENCE)
+    if receipt["schema"] == provenance.BOARD_CAPTURE:
+        provenance.require(
+            board.prepare_post_acquisition(
+                body, pointer=receipt["evidence_locator"]["pointer"]
+            )
+            == receipt,
+            "Evidence file differs from the Board capture receipt",
+        )
+        return body
     record = provenance.select_record(
         provenance.parse_json(body), receipt["evidence_locator"]["pointer"]
     )
@@ -142,7 +155,10 @@ def execute_request(request, evidence, target):
                 if row.decision == "checked"
                 else "prior_provenance_withdrawn",
                 "sources": "not_changed",
-                "identity_review": "not_recorded",
+                "identity_review": "candidate_record_relationship_" + row.decision
+                if request["receipt"]["schema"] == provenance.BOARD_RELATIONSHIP
+                else "not_recorded",
+                "account_review": "not_recorded",
                 "publication": "not_changed",
             }
     finally:
@@ -153,6 +169,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     prepare = commands.add_parser("prepare")
+    prepare.add_argument(
+        "--kind", choices=("acquisition", "board-capture"), default="acquisition"
+    )
     prepare.add_argument("--evidence", type=Path, required=True)
     prepare.add_argument("--pointer", default="")
     prepare.add_argument("--body-capture", type=Path)
@@ -165,20 +184,36 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
-            body_capture = read_json(args.body_capture) if args.body_capture else None
-            receipt = provenance.prepare_acquisition(
-                read_bounded(args.evidence, provenance.MAX_EVIDENCE),
-                args.pointer,
-                body_capture=body_capture,
-            )
+            if args.kind == "board-capture":
+                provenance.require(
+                    args.body_capture is None,
+                    "Board capture preparation does not accept --body-capture",
+                )
+                receipt = board.prepare_post_acquisition(
+                    read_bounded(args.evidence, provenance.MAX_EVIDENCE),
+                    pointer=args.pointer,
+                )
+            else:
+                body_capture = (
+                    read_json(args.body_capture) if args.body_capture else None
+                )
+                receipt = provenance.prepare_acquisition(
+                    read_bounded(args.evidence, provenance.MAX_EVIDENCE),
+                    args.pointer,
+                    body_capture=body_capture,
+                )
             with args.output.open("x", encoding="utf-8") as handle:
                 json.dump(receipt, handle, ensure_ascii=False, indent=2)
                 handle.write("\n")
             result = {
                 "executed": False,
-                "operation": "prepared_acquisition_proposal",
+                "operation": "prepared_board_capture_proposal"
+                if args.kind == "board-capture"
+                else "prepared_acquisition_proposal",
                 "receipt_sha256": provenance.receipt_id(receipt),
-                "capture_kind": receipt["capture_kind"],
+                "capture_kind": "board-capture"
+                if args.kind == "board-capture"
+                else receipt["capture_kind"],
                 "source_validation": "not_approved",
                 "publication": "not_changed",
             }
@@ -191,6 +226,7 @@ def main(argv=None):
                 "receipt_sha256": provenance.receipt_id(request["receipt"]),
                 "subject_key": provenance.subject_key(request["receipt"]),
                 "identity_review": "not_recorded",
+                "account_review": "not_recorded",
                 "publication": "not_changed",
             }
             if args.execute:

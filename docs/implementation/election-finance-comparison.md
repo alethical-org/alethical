@@ -7,8 +7,9 @@ verification. Owner: Election finance comparison, Codex chat
 
 ## Board candidate records without a principal campaign committee
 
-Built locally within the approved full report coverage; integration and independent
-acceptance are in progress. No records admitted or released by this change yet.
+Built locally within the approved full report coverage. Core, integration and
+administrative command reviews have passed. No records admitted or released by this
+change yet.
 Keep these Board records separate from principal campaign committee accounts. A record
 with no report returned has a dated source-availability status, never a zero amount,
 confirmed financial account or complete filing claim.
@@ -26,6 +27,11 @@ source hashes and receipt version are evidence inside the claim, not parts that 
 a second current head. Keep existing campaign-account decisions and counts unchanged.
 The same-person judgment is explicit and private; successful source capture alone
 never supplies it. A relationship must match the exact ballot row and selected snapshot.
+The existing provenance review command prepares Board capture receipts with
+`prepare --kind board-capture` and records explicit source or relationship decisions
+through its normal `review` path. It keeps exact private evidence, current-head checks
+and campaign-account decisions distinct; see the
+[source review procedure](../operations/election-finance-comparison.md#publisher-acquisition-and-board-candidate-checks).
 
 Add a fixed acquisition profile for the actual retained POST captures, preserving the
 method, endpoint, form, prepared serialization, response status/media, complete body,
