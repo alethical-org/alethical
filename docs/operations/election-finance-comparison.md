@@ -424,6 +424,12 @@ original within that request share its bytes, then perform their own hash, lengt
 and source-role checks. Interrupted readers cancel queued work and drain started
 work before removing their temporary files.
 
+Hash-keyed source checks refill their bounded queue as any check finishes, so an
+earlier slow file cannot leave available workers idle. Each request holds at most
+16 submitted checks; the shared worker limit stays 16. The general source mapper
+preserves input order unless a caller explicitly opts into completion order.
+Interrupts during cleanup wait for started checks to finish before propagating.
+
 These readers use a 16-connection storage client with a 10-second connection
 timeout, 30-second read timeout and 1 attempt per request. Ingestion clients keep
 their existing settings. Source loss changes the report version and withholds the

@@ -289,7 +289,7 @@ def _availability(db, store, hashes):
     small = [
         job for job in jobs if job[1] is None or job[1].byte_size <= 16 * 1024 * 1024
     ]
-    available.update(source_map(checked, small))
+    available.update(source_map(checked, small, ordered=False))
     available.update(checked(job) for job in large)
     store.raise_if_failed()
     return bodies, available

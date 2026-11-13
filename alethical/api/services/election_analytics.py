@@ -230,7 +230,7 @@ def _source_availability(proofs, requested_output=None, *, cache=None, store=Non
             else None,
         )
 
-    cache.update(source_map(checked, needed))
+    cache.update(source_map(checked, needed, ordered=False))
     return {key: cache[proof] for key, proof in proofs.items()}
 
 

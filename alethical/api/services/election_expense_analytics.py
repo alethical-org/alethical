@@ -399,7 +399,7 @@ def _source_states(
         )
 
     restored = {}
-    for fingerprint, kind, okay, elapsed in source_map(checked, jobs):
+    for fingerprint, kind, okay, elapsed in source_map(checked, jobs, ordered=False):
         restored[(kind, fingerprint)] = bool(okay)
         if trace is not None:
             trace.setdefault("original_gets", []).append(

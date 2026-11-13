@@ -1,7 +1,7 @@
 """Bound election reader I/O without carrying source availability across requests."""
 
 from collections import OrderedDict, deque
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 import gzip
 from pathlib import Path
 from threading import Event, Lock, RLock, BoundedSemaphore
@@ -28,8 +28,11 @@ _POOL = ThreadPoolExecutor(
 )
 
 
-def source_map(check, jobs):
-    """Keep at most one window queued per request, preserving input order.
+def source_map(check, jobs, *, ordered=True):
+    """Keep at most one window queued per request, ordered by default.
+
+    Hash-keyed collectors can opt into completion order to refill free slots
+    while an earlier source is slow. Refill only when the consumer resumes.
 
     Other requests can join the shared FIFO queue between windows. A failed or
     abandoned iteration cancels pending work and drains started work before its
@@ -45,17 +48,32 @@ def source_map(check, jobs):
             except StopIteration:
                 break
         while pending:
-            result = pending[0].result()
-            pending.popleft()
+            if ordered:
+                future = pending[0]
+            else:
+                completed, _ = wait(pending, return_when=FIRST_COMPLETED)
+                future = next(iter(completed))
+            result = future.result()
+            pending.remove(future)
             yield result
             try:
                 pending.append(_POOL.submit(check, next(jobs)))
             except StopIteration:
                 pass
     finally:
-        for future in pending:
-            future.cancel()
-        wait(pending)
+        # An interrupt during cleanup must not release the caller's temp files
+        # while a started worker still uses them. Re-raise after every job ends.
+        interrupted = None
+        while True:
+            try:
+                for future in pending:
+                    future.cancel()
+                wait(pending)
+                break
+            except (KeyboardInterrupt, SystemExit) as error:
+                interrupted = error
+        if interrupted is not None:
+            raise interrupted
 
 
 class FreshReadStore:
