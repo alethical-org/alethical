@@ -2737,6 +2737,7 @@ _CSV_COLUMNS = (
     "Date",
     "Purpose",
     "Excluded payee",
+    "Matches name search",
     "Matches detail filters",
     "Included in filtered view",
     "Figure status",
@@ -2901,8 +2902,13 @@ def _csv_source_url(url):
 
 def _csv_detail_flags(payment, filters):
     excluded = payment["payee_id"] in filters["excluded_payee_ids"]
+    name_matches = (
+        filters.get("search_query", "").casefold()
+        in ((payment["payee"] or {}).get("name") or "").casefold()
+    )
     matches = (
-        not filters["geography"] or payment["geography"] == filters["geography"]
+        name_matches
+        and (not filters["geography"] or payment["geography"] == filters["geography"])
     ) and (
         not filters["payee_query"]
         or filters["payee_query"].casefold()
@@ -2910,6 +2916,7 @@ def _csv_detail_flags(payment, filters):
     )
     return {
         "Excluded payee": "Yes" if excluded else "No",
+        "Matches name search": "Yes" if name_matches else "No",
         "Matches detail filters": "Yes" if matches else "No",
         "Included in filtered view": "Yes" if matches and not excluded else "No",
     }
@@ -3272,8 +3279,12 @@ def _csv_body(data):
         "Candidate rows count candidacies; Account report rows count unique accounts and hold source totals, subsidy and non-itemized amounts; Payee summary and Payment rows describe the same itemized detail using separate amount columns.",
     )
     meta(
+        "Name search",
+        "Search filters lists, not summaries. Candidate rows match candidate names; Payee summary and Payment rows match payee names independently. Matches name search marks each result. The complete selected report scope and its totals are retained.",
+    )
+    meta(
         "Detail filters",
-        "Complete checked baseline is retained. Filter Included in filtered view to Yes for the current payee/geography/exclusion view; filter Matches detail filters to Yes for the same view before exclusions.",
+        "Complete checked baseline is retained. On payee and payment rows, filter Included in filtered view to Yes for the current name/payee/geography/exclusion view; filter Matches detail filters to Yes for the same view before exclusions. On Candidate rows, Included in filtered view marks name matches, including candidates with missing reports.",
     )
     meta(
         "Excluded payments",
@@ -3336,6 +3347,10 @@ def _csv_body(data):
         (c["race_id"], c["candidate_id"]): c for c in data["candidates"]
     }
     for candidate in data["candidates"]:
+        name_matches = (
+            data["filters"].get("search_query", "").casefold()
+            in candidate["name"].casefold()
+        )
         for account in candidate["accounts"]:
             account_details[account["registration_number"]].append(account)
         source_hash = candidate.get("candidate_source_sha256")
@@ -3358,6 +3373,8 @@ def _csv_body(data):
                 "Official party": candidate.get("filed_party"),
                 "Official party group": _CSV_PARTIES[candidate["party_group"]],
                 "Candidate count": 1,
+                "Matches name search": "Yes" if name_matches else "No",
+                "Included in filtered view": "Yes" if name_matches else "No",
                 "Account": _csv_join(
                     a["registration_number"] for a in candidate["accounts"]
                 ),
@@ -3581,10 +3598,19 @@ def _csv_body(data):
     return output.getvalue()
 
 
-def export(db, *, format="json", **kwargs):
+def export(db, *, format="json", search_query="", **kwargs):
     if format not in {"json", "csv"}:
         _bad("Unknown export format")
+    if (
+        not isinstance(search_query, str)
+        or len(search_query) > 200
+        or "\x00" in search_query
+    ):
+        _bad("Invalid name search")
     data = _build(db, _csv=True, **kwargs) if format == "csv" else _build(db, **kwargs)
+    # The shared name search marks two independent lists. It must never narrow
+    # account ownership, report selection, source totals or the pinned version.
+    data["filters"]["search_query"] = search_query
     data["generated_at"] = datetime.now(UTC).isoformat()
     if format == "json":
         body = (

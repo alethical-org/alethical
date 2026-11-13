@@ -339,6 +339,7 @@ export interface ExpenseQuery {
   race_id?: string | null;
   candidate_id?: string | null;
   candidate_query?: string;
+  search_query?: string;
   report_keys?: string[];
   selected_only?: boolean;
   excluded_payee_ids?: string[];

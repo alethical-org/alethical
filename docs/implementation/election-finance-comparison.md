@@ -122,6 +122,17 @@ is a separate choice. Identical named periods can share a menu choice across
 account-specific filing codes, while each account keeps its own source and amendment.
 The selection mode participates in the response version, including an empty selection.
 
+The shared name search filters the candidate and payee lists independently; report
+totals keep the complete selected scope. CSV retains that scope and the exact search
+text, marking matching candidate and payee/payment rows separately. Candidates with
+missing reports can still match. Excluded payees remain in the baseline, marked as
+excluded from the adjusted view. Name search never changes account ownership or
+allocates shared money.
+
+Retained Board report responses identify their verified PDF bytes as PDF, so the
+evidence view can open the cited page. Direct downloads keep a descriptive filename;
+other retained source types remain downloads, with the same access and source checks.
+
 A temporary failure to read retained evidence fails the request with a safe retry
 action; it never yields a successful report with fewer accounts or lower totals.
 Previous figures remain visibly previous during recovery, with current exports
