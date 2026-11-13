@@ -223,16 +223,19 @@ function Money({
   total,
   unit = 'accounts',
   accountCoverage,
+  note,
 }: {
   value: string | null | undefined;
   covered?: number;
   total?: number;
   unit?: 'accounts' | 'candidates';
   accountCoverage?: { covered: number; total: number };
+  note?: ReactNode;
 }) {
   return (
     <span className="ex-figure">
       <strong>{moneyLabel(value)}</strong>
+      {note && <small>{note}</small>}
       {value != null &&
         ((covered != null && total != null && covered < total) ||
           (accountCoverage && accountCoverage.covered < accountCoverage.total)) && (
@@ -512,6 +515,10 @@ export function ExpenseReport({
   const sourceAccount = baseline?.account_reports.find(
     (account) => sourceKey === `report:${account.report_key}`,
   );
+  const subsidyOverview = baseline?.account_reports.find(
+    (account) =>
+      sourceKey === `subsidy-overview:${account.report_key}` && account.public_subsidy_comparison,
+  );
   const externalSource = baseline?.authority_reports?.find((account) =>
     sourceKey.startsWith(`external-report:${account.report_key}:`),
   );
@@ -529,22 +536,28 @@ export function ExpenseReport({
   const selection =
     current && baseline
       ? sourceAccount
-        ? reportEvidence(baseline, sourceAccount, (claim, source) =>
-            setAddress({
-              expenseSource: partySourceKey(sourceAccount, claim, source),
-            }),
+        ? reportEvidence(
+            baseline,
+            sourceAccount,
+            (claim, source) =>
+              setAddress({
+                expenseSource: partySourceKey(sourceAccount, claim, source),
+              }),
+            () => setAddress({ expenseSource: `subsidy-overview:${sourceAccount.report_key}` }),
           )
-        : partySource
-          ? partyEvidence(baseline, partySource.claim, partySource.source)
-          : externalSource
-            ? authorityEvidence(baseline, externalSource, sourceKey)
-            : sourceKey.startsWith('board-')
-              ? personalEvidence(baseline, sourceKey)
-              : paymentSource?.key === sourceKey
-                ? paymentEvidence(paymentSource.data, paymentSource.payment)
-                : payeeSource?.key === sourceKey
-                  ? payeeSource.evidence
-                  : null
+        : subsidyOverview
+          ? subsidyOverviewEvidence(baseline, subsidyOverview)
+          : partySource
+            ? partyEvidence(baseline, partySource.claim, partySource.source)
+            : externalSource
+              ? authorityEvidence(baseline, externalSource, sourceKey)
+              : sourceKey.startsWith('board-')
+                ? personalEvidence(baseline, sourceKey)
+                : paymentSource?.key === sourceKey
+                  ? paymentEvidence(paymentSource.data, paymentSource.payment)
+                  : payeeSource?.key === sourceKey
+                    ? payeeSource.evidence
+                    : null
       : null;
   const reload = useCallback(() => {
     setRevision((value) => value + 1);
@@ -796,7 +809,7 @@ export function ExpenseReport({
                     <div className="ex-candidate-columns" aria-hidden="true">
                       <span>Candidate</span>
                       <span>Reporting period</span>
-                      <span>Public subsidy received</span>
+                      <span>Reported public subsidy</span>
                       <span>Cash</span>
                       <span>In-kind</span>
                       <span>Unpaid</span>
@@ -893,7 +906,7 @@ export function ExpenseReport({
             <h2 id="ex-about">About these records</h2>
             <p>Payee locations use addresses in the filings, not where work took place.</p>
             <p>
-              Public subsidy received and campaign spending are separate figures. These records do
+              Reported public subsidy and campaign spending are separate figures. These records do
               not trace subsidy dollars to individual payees.
             </p>
             <p>Non-itemized spending has no named payee and is shown separately.</p>
@@ -1050,6 +1063,7 @@ function PartyComparison({
       <Money
         value={d.sumMoney(subsidy)}
         {...coverage((account) => account.public_subsidy !== null)}
+        note={subsidyDifferenceLabel(row.accounts)}
       />,
       <Money
         value={d.sumMoney(before)}
@@ -1078,7 +1092,7 @@ function PartyComparison({
               <Metrics
                 values={[
                   'Candidates',
-                  'Public subsidy received',
+                  'Reported public subsidy',
                   'Before exclusions',
                   'After exclusions',
                 ].map((name, index) => [name, values(row)[index]])}
@@ -1093,7 +1107,7 @@ function PartyComparison({
               <tr>
                 <th rowSpan={2}>Party</th>
                 <th rowSpan={2}>Candidates</th>
-                <th rowSpan={2}>Public subsidy received</th>
+                <th rowSpan={2}>Reported public subsidy</th>
                 <th colSpan={2}>Campaign spending</th>
               </tr>
               <tr>
@@ -1113,6 +1127,23 @@ function PartyComparison({
             </tbody>
           </table>
         </div>
+      )}
+      {data.account_reports.some((account) => account.public_subsidy_comparison) && (
+        <ul className="ex-source-reports">
+          {data.account_reports
+            .filter((account) => account.public_subsidy_comparison)
+            .map((account) => (
+              <li key={account.report_key}>
+                <button
+                  className="ec-link"
+                  disabled={!enabled}
+                  onClick={() => showReport(account.report_key)}
+                >
+                  View report · {account.display_claims.map((claim) => claim.name).join(' / ')}
+                </button>
+              </li>
+            ))}
+        </ul>
       )}
       {omitted.length > 0 && (
         <div className="ec-muted">
@@ -1480,7 +1511,17 @@ function AccountFigures({
       </div>
       <Metrics
         values={[
-          ['Public subsidy received', <Money value={account.public_subsidy?.total} />],
+          [
+            'Reported public subsidy',
+            <Money
+              value={account.public_subsidy?.total}
+              note={
+                account.public_subsidy_comparison
+                  ? 'Filed report and online overview differ'
+                  : undefined
+              }
+            />,
+          ],
           ['Cash', <Money value={account.campaign_expenses?.paid} />],
           ['In-kind', <Money value={account.campaign_expenses?.in_kind} />],
           ['Unpaid', <Money value={account.campaign_expenses?.unpaid} />],
@@ -2198,11 +2239,12 @@ function reportEvidence(
   data: d.ExpenseAnswer,
   account: d.AccountReport,
   showPartySource: (claim: d.Claim, source: d.PartySource) => void,
+  showSubsidyOverview: () => void,
 ): ElectionEvidence {
   const document = account.source.document;
   const location = (page: number | undefined, lines: number[] | undefined) =>
     page
-      ? `Page ${page}${lines?.length ? `, ${lineLabel(lines).toLowerCase()}` : ''}`
+      ? `Page ${page}${lines?.length ? `, summary ${lines.length === 1 ? 'row' : 'rows'} ${lines.join(', ')}` : ''}`
       : 'Source location not held';
   return {
     evidence: {
@@ -2233,7 +2275,7 @@ function reportEvidence(
         },
         { label: 'Received', value: dateLabel(account.received_date) },
         {
-          label: 'Public subsidy received',
+          label: 'Reported public subsidy',
           value: moneyLabel(account.public_subsidy?.total),
         },
         {
@@ -2242,6 +2284,21 @@ function reportEvidence(
             ? location(account.public_subsidy.source_page, account.public_subsidy.source_lines)
             : 'Unavailable',
         },
+        ...(account.public_subsidy_comparison
+          ? [
+              { label: 'Source difference', value: 'Filed report and online overview differ' },
+              {
+                label: 'Online overview',
+                value: moneyLabel(account.public_subsidy_comparison.overview.amount),
+              },
+              {
+                label: 'Included in total',
+                value: account.public_subsidy_comparison.included_in_total
+                  ? 'Filed amount'
+                  : 'No · Receipt detail unavailable',
+              },
+            ]
+          : []),
         {
           label: 'Campaign spending · Report total',
           value: moneyLabel(account.campaign_expenses?.total),
@@ -2269,6 +2326,11 @@ function reportEvidence(
     pdfPage: account.campaign_expenses ? account.expense_source.page : undefined,
     children: (
       <div className="ex-source-reports">
+        {account.public_subsidy_comparison && (
+          <button className="ec-link" onClick={showSubsidyOverview}>
+            View online overview
+          </button>
+        )}
         {account.claims.flatMap((claim) =>
           (claim.party_sources ?? []).map((source) => (
             <button
@@ -2283,6 +2345,50 @@ function reportEvidence(
         )}
       </div>
     ),
+  };
+}
+
+function subsidyDifferenceLabel(accounts: d.AccountReport[]) {
+  const conflicts = accounts.filter((account) => account.public_subsidy_comparison);
+  if (!conflicts.length) return undefined;
+  const included = conflicts.flatMap((account) =>
+    account.public_subsidy ? [account.public_subsidy.total] : [],
+  );
+  const reports = `${count(conflicts.length)} ${conflicts.length === 1 ? 'report' : 'reports'}`;
+  if (included.length && included.length < conflicts.length) {
+    const includedReports = `${count(included.length)} ${included.length === 1 ? 'report' : 'reports'}`;
+    return `Sources differ: ${moneyLabel(d.sumMoney(included))} from ${includedReports}; ${count(conflicts.length - included.length)} unavailable`;
+  }
+  return included.length
+    ? `Sources differ: ${moneyLabel(d.sumMoney(included))} in ${reports}`
+    : `Sources differ in ${reports}`;
+}
+
+function subsidyOverviewEvidence(
+  data: d.ExpenseAnswer,
+  account: d.AccountReport,
+): ElectionEvidence {
+  const comparison = account.public_subsidy_comparison!;
+  const source = comparison.overview.source;
+  return {
+    evidence: {
+      title: 'Subsidy · Online overview',
+      authority: BOARD,
+      checked: 'Checked',
+      rows: [
+        { label: 'Candidate', value: account.claims.map((claim) => claim.name).join(' / ') },
+        { label: 'Campaign account', value: account.registration_number },
+        {
+          label: 'Reporting period',
+          value: periodLabel(comparison.overview.period_start, comparison.overview.period_end),
+        },
+        { label: 'Copied', value: dateLabel(source.copied_at || source.held_at) },
+        { label: 'Online overview', value: moneyLabel(comparison.overview.amount) },
+        { label: 'Filed report', value: moneyLabel(comparison.filed.total) },
+        { label: 'Source difference', value: 'Filed report and online overview differ' },
+      ],
+    },
+    attachment: retainedReportPath(data, source.sha256, true),
   };
 }
 
@@ -2415,7 +2521,7 @@ function expenseSourcePath(data: d.ExpenseAnswer, hash: string, authority?: stri
       : null
     : retainedReportPath(data, hash);
 }
-function retainedReportPath(data: d.ExpenseAnswer, hash: string) {
+function retainedReportPath(data: d.ExpenseAnswer, hash: string, raw = false) {
   return (
     [
       'finance',
@@ -2424,7 +2530,7 @@ function retainedReportPath(data: d.ExpenseAnswer, hash: string) {
       'finance',
       'sources',
       encodeURIComponent(hash),
-    ].join('/') + `?collection_id=${encodeURIComponent(data.collection_id)}`
+    ].join('/') + `${raw ? '/raw' : ''}?collection_id=${encodeURIComponent(data.collection_id)}`
   );
 }
 

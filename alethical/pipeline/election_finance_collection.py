@@ -40,6 +40,7 @@ from alethical.pipeline.candidate_catalogue import (
 from alethical.pipeline.election_comparison import archive_source, digest, read_source
 from alethical.pipeline.raw_file_store import raw_file_store_from_env
 from alethical.pipeline.election_campaign_expenses import extract_campaign_expenses
+from alethical.pipeline.election_subsidy_receipts import extract_subsidy_receipts
 
 
 class FinanceCollectionError(ValueError):
@@ -89,9 +90,34 @@ def collection_digest(collection):
     return digest(value)
 
 
+PUBLIC_SUBSIDY_SOURCE_METHOD_VERSION = 2
+
+
+def _subsidy_source_method_version(value):
+    require(
+        type(value) is int and value in (1, 2),
+        "Unknown public subsidy source method version",
+    )
+    return value
+
+
+def _stored_subsidy_source_method(payload):
+    return _subsidy_source_method_version(
+        payload.get("public_subsidy_source_method_version", 1)
+    )
+
+
 def extract_report_evidence(
-    body, reg, latest, parsed, financial, *, include_public_subsidy=False
+    body,
+    reg,
+    latest,
+    parsed,
+    financial,
+    *,
+    include_public_subsidy=False,
+    public_subsidy_source_method_version=1,
 ):
+    method = _subsidy_source_method_version(public_subsidy_source_method_version)
     from pypdf import PdfReader
     from pypdf.errors import PyPdfError
 
@@ -234,6 +260,7 @@ def extract_report_evidence(
                 if not same:
                     errors.append(f"Official financial tab cash differs for {key}")
     subsidy_gap = None
+    subsidy_comparison = None
     if include_public_subsidy:
         # The subsidy receipt has cash and total cells, with blank unpaid/in-kind
         # columns. It must never enter contributions or campaign expenditure.
@@ -262,6 +289,71 @@ def extract_report_evidence(
                             subsidy_gap = (
                                 "Public subsidy sources disagree for this period"
                             )
+                            if (
+                                method == 2
+                                and not errors
+                                and not parsed.errors
+                                and not financial.errors
+                            ):
+                                # Qualification is specific to this same-period source
+                                # disagreement, never a general PDF-over-API preference.
+                                receipts = extract_subsidy_receipts(
+                                    body,
+                                    candidate_name=fields.get("candidate_name"),
+                                    office=fields.get("office"),
+                                    period_start=fields.get("period_start"),
+                                    period_end=fields.get("period_end"),
+                                    expected_total=amounts[0],
+                                )
+                                subsidy_comparison = {
+                                    "status": "sources_disagree",
+                                    "filed": {
+                                        "cash": str(amounts[0]),
+                                        "total": str(amounts[1]),
+                                        "source_page": 2,
+                                        "source_lines": [7],
+                                        "source_sha256": file_hash(body),
+                                        "source_text": rows[0],
+                                        "source_layout_lines": [
+                                            {"line": number, "text": line}
+                                            for number, line in enumerate(
+                                                summary_text.splitlines(), 1
+                                            )
+                                            if re.match(r"^\s*7\s+", line)
+                                        ],
+                                        "period_start": fields["period_start"],
+                                        "period_end": fields["period_end"],
+                                    },
+                                    "overview": {
+                                        "amount": str(
+                                            year.amounts["public_subsidy_payments"]
+                                        ),
+                                        "period_start": f"{year.year}-01-01",
+                                        "period_end": str(year.reported_through),
+                                    },
+                                    "receipts": receipts,
+                                }
+                                if (
+                                    receipts["status"] == "checked"
+                                    and receipts["rows"]
+                                    and latest.registration_number == reg
+                                    and latest.filing_year
+                                    == date.fromisoformat(fields["period_start"]).year
+                                    and type(latest.effective_amendment_index) is int
+                                    and latest.effective_amendment_index >= 0
+                                ):
+                                    figures["public_subsidy_payments"] = {
+                                        "cash": str(amounts[0]),
+                                        "total": str(amounts[1]),
+                                        "source_page": 2,
+                                        "source_lines": [7],
+                                    }
+                                    subsidy_gap = None
+                                elif (
+                                    receipts["status"] == "checked"
+                                    and not receipts["rows"]
+                                ):
+                                    subsidy_gap = "Public subsidy receipt schedule has no dated payment rows"
                         else:
                             figures["public_subsidy_payments"] = {
                                 "cash": str(amounts[0]),
@@ -285,6 +377,11 @@ def extract_report_evidence(
         "complete_election_spending": False,
         "identity_confirmation": False,
         **({"public_subsidy_gap": subsidy_gap} if include_public_subsidy else {}),
+        **(
+            {"public_subsidy_comparison": subsidy_comparison}
+            if subsidy_comparison is not None
+            else {}
+        ),
     }
 
 
@@ -525,6 +622,7 @@ def prepare_collection(
     directory_metadata: Path,
     identity_manifest: Path | None = None,
     include_campaign_expenses: bool = False,
+    public_subsidy_source_method_version: int = PUBLIC_SUBSIDY_SOURCE_METHOD_VERSION,
 ):
     """Read a bounded recovery bundle and independently reconstruct its figures.
 
@@ -534,6 +632,7 @@ def prepare_collection(
     The legacy singular ``document`` still means the unique latest regular report.
     Cumulative reporting periods are retained separately, never added together.
     """
+    method = _subsidy_source_method_version(public_subsidy_source_method_version)
     manifest = json.loads((directory / "recovery-manifest.json").read_text())
     recovery = json.loads((directory / "recovered-evidence.json").read_text())
     election_key = manifest["election_key"]
@@ -811,9 +910,21 @@ def prepare_collection(
                 parsed = d.parse_report_document(pdf)
                 extraction = json_value(
                     extract_report_evidence(
-                        pdf, reg, report, parsed, financial, include_public_subsidy=True
+                        pdf,
+                        reg,
+                        report,
+                        parsed,
+                        financial,
+                        include_public_subsidy=True,
+                        public_subsidy_source_method_version=method,
                     )
                 )
+                if method == 2:
+                    data["public_subsidy_source_method_version"] = method
+                if "public_subsidy_comparison" in extraction:
+                    data["public_subsidy_comparison"] = extraction[
+                        "public_subsidy_comparison"
+                    ]
                 data["official_summary"]["matches_report_period"] = (
                     extraction["summary_cash_check"]["status"] == "same_period"
                 )
@@ -964,26 +1075,9 @@ def _campaign_expense_payload(
     return {**result, "extraction_version": extraction_version}
 
 
-def reproduce_campaign_expenses(row, body, financial_body, *, upgrade=False):
-    """Reproduce parent checks and detail from original bytes, never typed JSON.
-
-    Used at preparation, retention, staging and publication. Public reads use the
-    immutable generation after current source integrity checks; they do not parse.
-    """
+def _reproduce_report_parent(row, body, financial_body):
+    """Reproduce the stored source method before changing any immutable payload."""
     payload = row["payload"]
-    stored = payload.get("campaign_expenses")
-    require(
-        "campaign_expenses" not in payload or isinstance(stored, dict),
-        "Unknown expense evidence version",
-    )
-    version = (
-        stored.get("extraction_version")
-        if isinstance(stored, dict)
-        else EXPENSE_EXTRACTION_VERSION
-    )
-    _expense_address_format(version)
-    if upgrade:
-        version = EXPENSE_EXTRACTION_VERSION
     require(file_hash(body) == row["document_hash"], "Expense PDF fingerprint changed")
     filing = dict(payload["filing"])
     for key in ("cut_off_date", "termination_date"):
@@ -1011,6 +1105,7 @@ def reproduce_campaign_expenses(row, body, financial_body, *, upgrade=False):
             financial,
             include_public_subsidy="public_subsidy_gap"
             in payload.get("extraction", {}),
+            public_subsidy_source_method_version=_stored_subsidy_source_method(payload),
         )
     )
     require(
@@ -1034,15 +1129,66 @@ def reproduce_campaign_expenses(row, body, financial_body, *, upgrade=False):
         payload.get("figures") == (reproduced["figures"] if valid else None),
         "Expense parent figures changed",
     )
+    return reproduced, report, financial
+
+
+def reproduce_campaign_expenses(row, body, financial_body, *, upgrade=False):
+    """Reproduce parent checks and detail from original bytes, never typed JSON.
+
+    Used at preparation, retention, staging and publication. Public reads use the
+    immutable generation after current source integrity checks; they do not parse.
+    """
+    payload = row["payload"]
+    stored = payload.get("campaign_expenses")
+    require(
+        "campaign_expenses" not in payload or isinstance(stored, dict),
+        "Unknown expense evidence version",
+    )
+    version = (
+        stored.get("extraction_version")
+        if isinstance(stored, dict)
+        else EXPENSE_EXTRACTION_VERSION
+    )
+    _expense_address_format(version)
+    if upgrade:
+        version = EXPENSE_EXTRACTION_VERSION
+    _reproduce_report_parent(row, body, financial_body)
     return _campaign_expense_payload(body, payload, extraction_version=version)
 
 
 def _reproduce_expense_job(job):
     row, body, financial = job
+    if "campaign_expenses" not in row["payload"]:
+        _reproduce_report_parent(row, body, financial)
+        return None
     return reproduce_campaign_expenses(row, body, financial)
 
 
+def _require_subsidy_catalogue(row, originals):
+    """A qualified amount cannot silently switch its selected catalogue amendment."""
+    payload = row["payload"]
+    if not payload.get("public_subsidy_comparison"):
+        return
+    source = payload["catalogue_source"]
+    body = originals.get(source["sha256"])
+    require(
+        body is not None and file_hash(body) == source["sha256"],
+        "Subsidy catalogue original missing or changed",
+    )
+    reports, errors = f.parse_catalogue_payload(
+        json.loads(body), row["registration_number"]
+    )
+    require(
+        not errors
+        and any(json_value(asdict(report)) == payload["filing"] for report in reports),
+        "Subsidy selected catalogue report or amendment changed",
+    )
+
+
 def _require_expense_reproduction(rows, originals, documents, message):
+    for row in rows:
+        if _stored_subsidy_source_method(row["payload"]) == 2:
+            _require_subsidy_catalogue(row, originals)
     jobs = [
         (
             row,
@@ -1053,13 +1199,15 @@ def _require_expense_reproduction(rows, originals, documents, message):
         )
         for row in rows
         if "campaign_expenses" in row["payload"]
+        or "public_subsidy_source_method_version" in row["payload"]
     ]
     if not jobs:
         return
 
     def compare(results):
         for job, result in zip(jobs, results):
-            require(result == job[0]["payload"]["campaign_expenses"], message)
+            if "campaign_expenses" in job[0]["payload"]:
+                require(result == job[0]["payload"]["campaign_expenses"], message)
 
     if len(jobs) >= 16:
         with ProcessPoolExecutor(max_workers=4) as pool:
@@ -1085,6 +1233,70 @@ def add_campaign_expenses(collection, originals, documents):
             originals.get(source["sha256"]) if source else None,
             upgrade=True,
         )
+    value["id"] = collection_digest(value)
+    validate_collection(value)
+    return value
+
+
+def add_filed_public_subsidy(collection, originals, documents):
+    """Create a version2 generation after reproducing its exact original evidence.
+
+    No expense/parser version upgrade, source rewrite, copy-date refresh, identity
+    decision or publication is implied. Account attribution remains a separate gate.
+    """
+    validate_collection(collection)
+    require(
+        all(
+            row["document_hash"] in documents
+            for row in collection["reports"]
+            if row["document_hash"]
+        ),
+        "Subsidy PDF original missing",
+    )
+    _require_expense_reproduction(
+        collection["reports"],
+        originals,
+        documents,
+        "Original expense evidence does not reproduce before subsidy upgrade",
+    )
+    value = json_value(collection)
+    for row in value["reports"]:
+        payload = row["payload"]
+        _stored_subsidy_source_method(payload)
+        if not row["document_hash"]:
+            continue
+        body = documents.get(row["document_hash"])
+        require(body is not None, "Subsidy PDF original missing")
+        source = payload.get("financial_source")
+        original, report, financial = _reproduce_report_parent(
+            row,
+            body,
+            originals.get(source["sha256"]) if source else None,
+        )
+        upgraded = json_value(
+            extract_report_evidence(
+                body,
+                row["registration_number"],
+                report,
+                d.parse_report_document(body),
+                financial,
+                include_public_subsidy="public_subsidy_gap" in original,
+                public_subsidy_source_method_version=PUBLIC_SUBSIDY_SOURCE_METHOD_VERSION,
+            )
+        )
+        payload["public_subsidy_source_method_version"] = (
+            PUBLIC_SUBSIDY_SOURCE_METHOD_VERSION
+        )
+        payload["extraction"] = upgraded
+        if payload["figures"] is not None:
+            payload["figures"] = upgraded["figures"]
+        if "public_subsidy_gap" in upgraded:
+            payload["public_subsidy_gap"] = upgraded["public_subsidy_gap"]
+        if "public_subsidy_comparison" in upgraded:
+            payload["public_subsidy_comparison"] = upgraded["public_subsidy_comparison"]
+        else:
+            payload.pop("public_subsidy_comparison", None)
+        _require_subsidy_catalogue(row, originals)
     value["id"] = collection_digest(value)
     validate_collection(value)
     return value
@@ -1243,6 +1455,16 @@ def validate_collection(collection):
         )
         for row in reports:
             _validate_expense_payload(row)
+            method = _stored_subsidy_source_method(row["payload"])
+            extraction_comparison = (
+                row["payload"].get("extraction", {}).get("public_subsidy_comparison")
+            )
+            require(
+                (method == 2 or extraction_comparison is None)
+                and row["payload"].get("public_subsidy_comparison")
+                == extraction_comparison,
+                "Public subsidy comparison differs from source extraction",
+            )
             p, filing = row["payload"], row["payload"]["filing"]
             require(
                 p["registration_number"]

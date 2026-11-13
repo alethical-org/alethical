@@ -310,6 +310,81 @@ async function render(search = '') {
   );
   await settle();
 }
+
+it('keeps subsidy source differences beside amounts and opens the exact overview', async () => {
+  data.account_reports[0].public_subsidy_comparison = {
+    status: 'sources_disagree',
+    included_in_total: true,
+    filed: {
+      total: '20.25',
+      source_page: 2,
+      source_lines: [7],
+      source_sha256: '1'.repeat(64),
+      period_start: '2026-01-01',
+      period_end: '2026-10-19',
+    },
+    overview: {
+      amount: '0.00',
+      period_start: '2026-01-01',
+      period_end: '2026-10-19',
+      source: {
+        sha256: '9'.repeat(64),
+        copied_at: '2026-11-13T21:00:00Z',
+        retained_source_url: `/api/v1/finance/elections/${election}/finance/sources/${'9'.repeat(64)}?collection_id=${collection}`,
+      },
+    },
+    receipt_status: 'checked',
+    receipt_pages: [8],
+  };
+  await render();
+  expect(container.textContent).toContain('Reported public subsidy');
+  expect(container.textContent).toContain('Sources differ: $20 in 1 report');
+  await click(buttons('View report')[0]);
+  expect(container.textContent).toContain('Filed report and online overview differ');
+  expect(container.textContent).toContain('Online overview');
+  await click(buttons('View online overview')[0]);
+  expect(window.location.search).toContain(`expenseSource=subsidy-overview`);
+  expect(container.textContent).toContain('Subsidy · Online overview');
+  expect(
+    requests.some(
+      (url) =>
+        url.pathname.endsWith('/' + '9'.repeat(64) + '/raw') &&
+        url.searchParams.get('collection_id') === collection,
+    ),
+  ).toBe(true);
+});
+it('distinguishes included and unavailable reports when subsidy sources differ', async () => {
+  data.account_reports.forEach((report, index) => {
+    report.public_subsidy_comparison = {
+      status: 'sources_disagree',
+      included_in_total: index === 0,
+      filed: {
+        total: '20.25',
+        source_page: 2,
+        source_lines: [7],
+        source_sha256: '1'.repeat(64),
+        period_start: '2026-01-01',
+        period_end: '2026-10-19',
+      },
+      overview: {
+        amount: '0.00',
+        period_start: '2026-01-01',
+        period_end: '2026-10-19',
+        source: {
+          sha256: '9'.repeat(64),
+          retained_source_url: `/api/v1/finance/elections/${election}/finance/sources/${'9'.repeat(64)}?collection_id=${collection}`,
+        },
+      },
+      receipt_status: index === 0 ? 'checked' : 'unavailable',
+      receipt_pages: [],
+    };
+    if (index !== 0) report.public_subsidy = null;
+  });
+  await render();
+  expect(container.textContent).toContain('Sources differ: $20 from 1 report; 1 unavailable');
+  expect(container.textContent).not.toContain('Sources differ: $20 in 2 reports');
+});
+
 async function input(element: HTMLInputElement, value: string) {
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(element, value);
@@ -936,8 +1011,8 @@ it('opens exact retained report bytes with separate figure locators and no inven
   await render();
   await click(buttons('View report')[0]);
   expect(container.textContent).toContain('Exact retained report.pdf');
-  expect(container.textContent).toContain('Page 2, line 7');
-  expect(container.textContent).toContain('Page 2, line 11');
+  expect(container.textContent).toContain('Page 2, summary row 7');
+  expect(container.textContent).toContain('Page 2, summary row 11');
   expect(container.textContent).toContain('Nov 11, 2026');
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain('ReceivedUnavailable');
   expect(

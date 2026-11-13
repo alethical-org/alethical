@@ -132,11 +132,10 @@ def project(proof, collection):
     }
 
 
-def load(db, *, election_key, snapshot_id, store):
-    pointer = db.get(m.ElectionFinanceCurrent, election_key)
-    if pointer is None:
+def load(db, *, collection, snapshot_id, store):
+    """Use the caller's already loaded, published collection in the pinned read."""
+    if collection is None:
         return None
-    collection = finance._collection(db, election_key)
     section = collection.candidate_records
     if section is None:
         return None

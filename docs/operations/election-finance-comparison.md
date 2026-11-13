@@ -134,6 +134,39 @@ fingerprint and never edits the published generation. Check the exact money,
 source and identity equality, address changes and remaining gaps before publishing
 the new generation through the usual guarded path.
 
+### Reported public subsidy and differing sources
+
+Public subsidy describes the amount reported in the selected effective filing,
+with its actual period. It does not independently prove payment or trace subsidy
+dollars to a payee. Keep campaign spending and subsidy totals separate.
+
+The saved `public_subsidy_source_method_version` is an integer. An absent version
+retains method 1; method 2 may include a differing filed amount only when the
+same effective PDF's summary and dated public-subsidy receipt detail agree. The
+account, report type, amendment, reporting period, original bytes and existing
+arithmetic checks must also pass. A same-period online overview remains retained
+with its differing amount. Do not fill a gap with a remainder, inferred payment,
+an award schedule alone, or a preferred source chosen without these checks.
+
+Show the difference beside the candidate amount and party/overall totals, with
+the affected report count, included amount and source links. When some affected
+reports remain unavailable, distinguish their count from the included reports.
+The report and CSV retain both source amounts and dates; CSV account rows carry
+the exact cents without repeating the subsidy on individual payment rows.
+Summary row numbers are labelled as summary rows, not PDF text-line numbers.
+
+Reproduction uses the saved method, including legacy collections. Unknown,
+null and boolean versions fail. New `prepare` and `stage` runs use method 2;
+`--public-subsidy-source-method-version 1` explicitly rebuilds historical method-1
+inputs. This option never changes the method used to replay a saved collection.
+`add_filed_public_subsidy` reproduces the old
+parent and its expense evidence before producing a new collection; it does not
+edit a published generation. Retention, staging, publication and restoration
+recheck the saved method and sources. Missing receipt evidence withholds the
+subsidy figure and keeps the source difference visible where both originals are
+available. Ordinary missing sources and identity holds still apply. A code
+release alone neither upgrades data nor makes a prepared collection current.
+
 Account review requests are separate private JSON files, passed to
 `scripts/review_election_account.py --request PATH`. The default validates request
 shape offline; it does **not** validate retained evidence. `--target production
@@ -467,6 +500,39 @@ full election-wide array on each expense-report page. Collection work notes are
 private; public gaps describe missing records or figures. A currently confirmed
 campaign account replaces a stale unmatched collection status without implying
 that its reports or figures are complete.
+
+### Bounded report work
+
+Account evidence reads select only each collection's identity, election key,
+publication state and retained-source inventory. They do not transfer its report
+index or coverage payload. Source-role membership and fresh original checks still
+run; omitted fields cannot silently trigger a later full-row fetch.
+
+Funder and candidate summaries read only the core identity, amount and
+classification fields for every annual event, retaining the global
+reconciliation. They do not load unused source columns. Race-filtered record and
+export reads then load full source fields in batches only for selected Board
+rows; a missing detail row refuses the read. Whole-election record and export
+reads retain their full-row path. Core queries use a buffered result to avoid
+repeated remote cursor fetches. Funder identities, shared-account claims, exact
+amounts, source checks and global version dependencies remain unchanged. External
+account groups stay complete before report selection and display filtering.
+
+An exact-race expense read loads the requested race plus every Board decision race
+and external account candidate race. It counts all named candidacies in SQL, so
+the whole-election coverage count stays unchanged. Shared memberships and party
+evidence remain in the read. Closing snapshot and collection checks select their
+published IDs with the same publication predicates, without reloading JSON.
+
+An unnamed write-in aggregate can have a null candidate ID. Version hashing uses
+a tagged list of ID/value pairs for that candidate map, preserving the distinction
+between null and a literal string ID. Outcome claims remain unchanged; existing
+all-string-ID maps keep their prior version bytes.
+
+Reloading a later funder page retains its rows while the first page obtains fresh
+pins. Only then does the continuation reload, including when those pins are
+unchanged. A failed refresh keeps previous results and retry, with current exports
+disabled; it never starts a new continuation with stale pins.
 
 ## Publisher inventory and filing versions
 

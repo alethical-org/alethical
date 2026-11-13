@@ -21,7 +21,8 @@ import time
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import cast, func, or_, select, true
+from sqlalchemy.dialects.postgresql import JSONB
 
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
@@ -83,6 +84,70 @@ def _safe_text(value):
 
 def _source(row):
     return finance._source(row or {})
+
+
+def _subsidy_comparison(payload, context, *, originals_available, included):
+    """Expose dated source disagreement without private receipt/review internals."""
+    comparison = payload.get("public_subsidy_comparison")
+    version = payload.get("public_subsidy_source_method_version")
+    if (
+        not originals_available
+        or type(version) is not int
+        or version != 2
+        or not isinstance(comparison, dict)
+        or comparison.get("status") != "sources_disagree"
+    ):
+        return None
+    overview_source = _source(payload.get("financial_source"))
+    overview_hash = overview_source.get("sha256")
+    if not overview_hash:
+        return None
+    overview_source["retained_source_url"] = (
+        f"/api/v1/finance/elections/{quote(context['election_key'], safe='')}/finance/sources/{overview_hash}/raw?"
+        + urlencode({"collection_id": context["collection_id"]})
+    )
+    return {
+        "status": "sources_disagree",
+        "included_in_total": included,
+        "filed": {
+            k: v
+            for k, v in comparison["filed"].items()
+            if k
+            in {
+                "cash",
+                "total",
+                "source_page",
+                "source_lines",
+                "source_sha256",
+                "period_start",
+                "period_end",
+            }
+        },
+        "overview": {
+            **{
+                k: v
+                for k, v in comparison["overview"].items()
+                if k in {"amount", "period_start", "period_end"}
+            },
+            "source": overview_source,
+        },
+        "receipt_status": comparison["receipts"]["status"],
+        "receipt_pages": comparison["receipts"].get("schedule_pages", []),
+    }
+
+
+def _subsidy_disagreement_totals(accounts):
+    conflicts = [a for a in accounts if a.get("public_subsidy_comparison")]
+    included = [a for a in conflicts if a["public_subsidy"] is not None]
+    return {
+        "source_disagreement_accounts": len(conflicts),
+        "source_disagreement_included_accounts": len(included),
+        "source_disagreement_amount": _exact_amount_sum(
+            a["public_subsidy"]["total"] for a in included
+        )
+        if included
+        else None,
+    }
 
 
 def _location(item):
@@ -516,28 +581,63 @@ def _load(
     trace=None,
     pinned=False,
     store=None,
+    external_race_ids=(),
+    published=None,
 ):
-    election = results.snapshot(db, election_key)
+    election = (
+        published[0] if published is not None else results.snapshot(db, election_key)
+    )
     if election.stage != "general" or election.election_date.year != 2026:
         _bad("Expense reports currently cover the 2026 general election")
     if snapshot_id is not None and snapshot_id != election.id:
         finance._changed()
     current = db.get(m.ElectionFinanceCurrent, election_key)
     collection = (
-        finance._collection(db, election_key)
+        published[1]
+        if published is not None
+        else finance._collection(db, election_key)
         if current
-        else SimpleNamespace(
+        else None
+    )
+    if collection is None:
+        collection = SimpleNamespace(
             id=None, copied_at=election.fetched_at, sealed_at=None, coverage={}
         )
-    )
     reports = finance.expense_report_index(db, collection) if current else []
-    races = list(
-        db.scalars(
-            select(m.ElectionComparisonRace)
-            .where(m.ElectionComparisonRace.snapshot_id == election.id)
-            .order_by(m.ElectionComparisonRace.id)
-        )
+    race_query = select(m.ElectionComparisonRace).where(
+        m.ElectionComparisonRace.snapshot_id == election.id
     )
+    named_candidacies = None
+    if race_id is not None:
+        # Keep every reviewed Board relationship and external membership, even
+        # outside the displayed race. Shared account and party checks need them.
+        race_query = race_query.where(
+            or_(
+                m.ElectionComparisonRace.id == race_id,
+                m.ElectionComparisonRace.id.in_(
+                    select(m.ElectionCampaignAccountDecision.race_id).where(
+                        m.ElectionCampaignAccountDecision.election_key == election_key,
+                        m.ElectionCampaignAccountDecision.authority == "mn_cfb",
+                    )
+                ),
+                m.ElectionComparisonRace.id.in_(set(external_race_ids)),
+            )
+        )
+        candidate_rows = func.jsonb_array_elements(
+            m.ElectionComparisonRace.payload["candidates"]
+        ).table_valued("value")
+        named_candidacies = db.scalar(
+            select(func.count())
+            .select_from(m.ElectionComparisonRace)
+            .join(candidate_rows, true())
+            .where(
+                m.ElectionComparisonRace.snapshot_id == election.id,
+                cast(candidate_rows.c.value, JSONB)["is_write_in_aggregate"]
+                .as_boolean()
+                .is_not(True),
+            )
+        )
+    races = list(db.scalars(race_query.order_by(m.ElectionComparisonRace.id)))
     accounts, stamp = _bulk_accounts(db, election_key, races, verify_originals=False)
     scope_keys = {
         (race.id, candidate["candidate_id"])
@@ -842,6 +942,9 @@ def _load(
             "party_basis": "official_election_record_with_account_filed_party_separately_sourced",
             "common_reporting_period": False,
             "_scope_keys": scope_keys,
+            **(
+                {"_named_candidacies": named_candidacies} if race_id is not None else {}
+            ),
             "_classification_regs": selected_regs,
             "_read_stamp": [
                 election.id,
@@ -1306,6 +1409,12 @@ def _assemble(
             "public_subsidy_gap": None
             if figures and figures.get("public_subsidy_payments")
             else "public_subsidy_unavailable",
+            "public_subsidy_comparison": _subsidy_comparison(
+                p,
+                context,
+                originals_available=original_ok,
+                included=bool(figures and figures.get("public_subsidy_payments")),
+            ),
             "detail_status": "checked" if detail_ok else "unavailable",
             "detail_gap": None
             if detail_ok
@@ -1556,6 +1665,7 @@ def _assemble(
         },
         "public_subsidy_receipts": {
             "available_accounts": len(subsidy),
+            **_subsidy_disagreement_totals(account_reports),
             "amount": format(
                 sum(
                     (Decimal(a["public_subsidy"]["total"]) for a in subsidy), Decimal(0)
@@ -1567,6 +1677,9 @@ def _assemble(
             "by_party": {
                 key: {
                     "available_accounts": sum(a["party_group"] == key for a in subsidy),
+                    **_subsidy_disagreement_totals(
+                        [a for a in account_reports if a["party_group"] == key]
+                    ),
                     "amount": format(
                         sum(
                             (
@@ -1639,7 +1752,7 @@ def _assemble(
             context, context.get("_report_options", []), selected, availability
         ),
         "coverage": {
-            "named_candidacies": len(all_candidates),
+            "named_candidacies": context.get("_named_candidacies", len(all_candidates)),
             "scoped_candidacies": len(candidates),
             "scoped_candidacies_with_confirmed_accounts": sum(
                 bool(c["confirmed_account_count"]) for c in candidates
@@ -2476,10 +2589,18 @@ def _build(
         for c in (external_data or {}).get("candidates", [])
         for r in c["reports"]
     }
+    # Reuse the same published rows for both report families. Their source
+    # inventories are large, and the closing identity checks remain separate.
+    election = results.snapshot(db, election_key)
+    collection = (
+        finance._collection(db, election_key)
+        if db.get(m.ElectionFinanceCurrent, election_key)
+        else None
+    )
     candidate_data = candidate_records.load(
         db,
-        election_key=election_key,
-        snapshot_id=results.snapshot(db, election_key).id,
+        collection=collection,
+        snapshot_id=election.id,
         store=store,
     )
     candidate_keys = set((candidate_data or {}).get("report_keys", []))
@@ -2501,6 +2622,11 @@ def _build(
         selected_only=selected_only,
         pinned=version is not None,
         store=store,
+        external_race_ids={
+            candidate["race_id"]
+            for candidate in (external_data or {}).get("candidates", [])
+        },
+        published=(election, collection),
     )
     # Only the Board portion enters Board arithmetic. External IDs are namespaced.
     board_exclusions = [
@@ -2550,9 +2676,40 @@ def _build(
         raise
     if version is not None and version != data["version"]:
         finance._changed()
-    election = results.snapshot(db, election_key)
+    # The closing checks need the published identities, not the large JSON
+    # inventories already read for this report. Keep the same publication joins.
+    election_id = db.scalar(
+        select(m.ElectionComparisonSnapshot.id)
+        .join(
+            m.ElectionComparisonCurrent,
+            m.ElectionComparisonCurrent.snapshot_id == m.ElectionComparisonSnapshot.id,
+        )
+        .where(
+            m.ElectionComparisonSnapshot.election_key == election_key,
+            m.ElectionComparisonSnapshot.first_published_at.is_not(None),
+            m.ElectionComparisonCurrent.election_key == election_key,
+        )
+    )
+    if election_id is None:
+        results._not_found()
     current_pointer = db.get(m.ElectionFinanceCurrent, election_key)
-    current_id = finance._collection(db, election_key).id if current_pointer else None
+    current_id = None
+    if current_pointer:
+        current_id = db.scalar(
+            select(m.ElectionFinanceCollection.id)
+            .join(
+                m.ElectionFinanceCurrent,
+                m.ElectionFinanceCurrent.collection_id
+                == m.ElectionFinanceCollection.id,
+            )
+            .where(
+                m.ElectionFinanceCollection.election_key == election_key,
+                m.ElectionFinanceCollection.first_published_at.is_not(None),
+                m.ElectionFinanceCurrent.election_key == election_key,
+            )
+        )
+        if current_id is None:
+            finance._missing()
     review_ids = sorted(
         row.id
         for row in db.execute(
@@ -2569,7 +2726,7 @@ def _build(
         if (row.race_id, row.candidate_id) in loaded[0]["_scope_keys"]
         or row.registration_number in loaded[0]["_classification_regs"]
     )
-    if [election.id, current_id, review_ids] != loaded[0]["_read_stamp"]:
+    if [election_id, current_id, review_ids] != loaded[0]["_read_stamp"]:
         finance._changed()
     if _external_review_stamp(db, election_key) != external_stamp:
         finance._changed()
@@ -2771,6 +2928,10 @@ _CSV_COLUMNS = (
     "Figure status",
     "Detail status",
     "Subsidy status",
+    "Subsidy overview USD",
+    "Subsidy overview source URL",
+    "Subsidy overview source SHA256",
+    "Subsidy overview copied at",
     "Gaps",
     "Candidate count",
     "Account count",
@@ -3187,6 +3348,7 @@ def _csv_body(data):
         "Amendment",
         "Report year",
         "Public subsidy USD",
+        "Subsidy overview USD",
         "Reported measure value",
         "Reported payment amount",
         "Memo detail amount",
@@ -3370,6 +3532,25 @@ def _csv_body(data):
     ):
         meta(label, value)
 
+    conflict_summary = data["summary"]["public_subsidy_receipts"]
+    if conflict_summary.get("source_disagreement_accounts"):
+        meta(
+            "Subsidy accounts with differing source totals",
+            conflict_summary["source_disagreement_accounts"],
+        )
+        meta(
+            "Reported subsidy included despite source difference USD",
+            conflict_summary["source_disagreement_amount"],
+        )
+        meta(
+            "Subsidy accounts included with differing source totals",
+            conflict_summary["source_disagreement_included_accounts"],
+        )
+        meta(
+            "Subsidy source differences",
+            "Public subsidy USD uses the selected filing where its summary and dated receipt detail agree. The same-period online overview differs. Both retained sources remain linked; this is a reported receipt, not independent proof of payment.",
+        )
+
     account_details = defaultdict(list)
     candidates_by_key = {
         (c["race_id"], c["candidate_id"]): c for c in data["candidates"]
@@ -3485,7 +3666,12 @@ def _csv_body(data):
             "Source SHA256": source.get("sha256"),
             "Figure status": _csv_words(account["figure_status"]),
             "Detail status": _csv_words(account["detail_status"]),
-            "Subsidy status": "checked"
+            "Subsidy status": "Reported amount; sources disagree"
+            if account["public_subsidy"] is not None
+            and account.get("public_subsidy_comparison")
+            else "Unavailable; sources disagree"
+            if account.get("public_subsidy_comparison")
+            else "checked"
             if account["public_subsidy"] is not None
             else "unavailable",
             "Gaps": _csv_join(
@@ -3500,6 +3686,8 @@ def _csv_body(data):
         context_by_report[account["report_key"]] = common
         expense = account.get("expense_source") or {}
         subsidy = account["public_subsidy"] or {}
+        overview = (account.get("public_subsidy_comparison") or {}).get("overview", {})
+        overview_source = overview.get("source", {})
         account_rows.append(
             common
             | {
@@ -3508,6 +3696,13 @@ def _csv_body(data):
                 **_csv_amounts("Report", account["campaign_expenses"]),
                 **_csv_amounts("Non-itemized", account["non_itemized_totals"]),
                 "Public subsidy USD": subsidy.get("total"),
+                "Subsidy overview USD": overview.get("amount"),
+                "Subsidy overview source URL": _csv_source_url(
+                    overview_source.get("retained_source_url")
+                ),
+                "Subsidy overview source SHA256": overview_source.get("sha256"),
+                "Subsidy overview copied at": overview_source.get("copied_at")
+                or overview_source.get("held_at"),
                 "Source references": evidence_references(
                     [
                         e
@@ -3525,9 +3720,9 @@ def _csv_body(data):
                 ),
                 "Source lines": _csv_join(
                     [
-                        "Campaign expenses: "
+                        "Campaign expenses summary rows: "
                         + ", ".join(map(str, expense.get("summary_lines", []))),
-                        "Public subsidy: "
+                        "Public subsidy summary rows: "
                         + ", ".join(map(str, subsidy.get("source_lines", []))),
                     ]
                 ),
