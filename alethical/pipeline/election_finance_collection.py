@@ -1134,9 +1134,12 @@ def verify_retained_campaign_expenses(db, collection, *, store=None):
 def validate_collection(collection):
     """Validate prepared/stored records before a pointer can expose their figures."""
     try:
+        version = collection["format"]
         require(
-            collection["format"] == 1
-            and collection["id"] == collection_digest(collection),
+            type(version) is int and version in {1, 2}, "Unsupported collection format"
+        )
+        require(
+            collection["id"] == collection_digest(collection),
             "Collection fingerprint changed",
         )
         require(
@@ -1144,6 +1147,23 @@ def validate_collection(collection):
             is not None,
             "Invalid election key",
         )
+        if version == 1:
+            require(
+                "candidate_records" not in collection,
+                "Legacy collection cannot contain candidate records",
+            )
+        else:
+            from alethical.pipeline import election_board_candidate_records as board
+
+            try:
+                board.validate_section(
+                    collection["candidate_records"],
+                    election_key=collection["election_key"],
+                )
+            except ValueError as error:
+                raise FinanceCollectionError(
+                    "Invalid Board candidate records"
+                ) from error
         require(
             datetime.fromisoformat(collection["copied_at"]).tzinfo is not None,
             "Copy date needs a timezone",
@@ -1486,6 +1506,29 @@ def _require_retained(db, collection, *, store=None, reproduce=True):
             documents,
             "Expense extraction does not reproduce from original PDF",
         )
+        if collection.get("candidate_records") is not None:
+            from alethical.pipeline import election_board_candidate_records as board
+
+            try:
+                requirements = board.section_requirements(
+                    db, collection["candidate_records"], partial=False
+                )
+                require(
+                    set(requirements["source_hashes"]) <= hashes,
+                    "Board candidate evidence is outside the collection",
+                )
+                board.load_verified_section(
+                    db,
+                    store,
+                    collection["candidate_records"],
+                    allowed_source_hashes=hashes,
+                    lock=True,
+                    partial=False,
+                )
+            except ValueError as error:
+                raise FinanceCollectionError(
+                    "Board candidate evidence is unavailable or changed"
+                ) from error
 
 
 def _stored_collection(db, identifier):
@@ -1504,7 +1547,7 @@ def _stored_collection(db, identifier):
             .execution_options(populate_existing=True)
         )
     ]
-    return {
+    collection = {
         "format": 1,
         "id": row.id,
         "election_key": row.election_key,
@@ -1513,6 +1556,10 @@ def _stored_collection(db, identifier):
         "coverage": row.coverage,
         "reports": reports,
     }
+    # A null column is legacy absence, never an added field in the old digest.
+    if row.candidate_records is not None:
+        collection.update(format=2, candidate_records=row.candidate_records)
+    return collection
 
 
 def seal_collection(db, identifier, *, store=None):
@@ -1575,6 +1622,7 @@ def stage_collection(db: Session, collection, *, store=None):
                 copied_at=datetime.fromisoformat(collection["copied_at"]),
                 sources=collection["sources"],
                 coverage=collection["coverage"],
+                candidate_records=collection.get("candidate_records"),
             )
         )
         db.flush()
@@ -1590,7 +1638,8 @@ def publish_collection(
 ):
     """Explicit CAS publication/restore; never replaces global filing/payment state."""
     header = db.get(m.ElectionFinanceCollection, identifier)
-    require(header is not None, "Collection is not staged")
+    if header is None:
+        raise FinanceCollectionError("Collection is not staged")
     db.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
         {"key": f"election-finance:{header.election_key}"},

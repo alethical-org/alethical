@@ -19,6 +19,12 @@ from alethical.pipeline import campaign_finance_filings as f
 from alethical.pipeline import campaign_finance_report_documents as d
 from alethical.tests.test_campaign_finance_stated_split import pdf_of
 from alethical.tests.test_election_comparison_storage import MemoryStore
+from alethical.tests.test_election_comparison_storage import (  # noqa: F401
+    prepared as comparison_prepared,
+    source_set,
+)
+
+prepared_results = comparison_prepared
 
 COVER = [
     "Period Covered: 01/01/2026 through 10/19/2026",
@@ -326,6 +332,115 @@ def retain(db, prepared):
     store = db.info["board_test_store"]
     s.retain_collection_sources(db, store, *prepared)
     return store
+
+
+def with_candidate_records(collection):
+    value = deepcopy(collection)
+    value["format"] = 2
+    value["candidate_records"] = {
+        "schema": "mn-cfb-candidate-records:v1",
+        "election_key": value["election_key"],
+        "snapshot_id": "a" * 64,
+        "records": [],
+    }
+    value["id"] = s.collection_digest(value)
+    return value
+
+
+def test_candidate_record_section_changes_digest_without_changing_pcc_reports(prepared):
+    legacy = prepared[0]
+    value = with_candidate_records(legacy)
+    s.validate_collection(value)
+    assert value["id"] != legacy["id"]
+    assert value["reports"] == legacy["reports"]
+    assert value["coverage"] == legacy["coverage"]
+    changed = deepcopy(value)
+    changed["candidate_records"]["snapshot_id"] = "b" * 64
+    assert s.collection_digest(changed) != value["id"]
+    with pytest.raises(s.FinanceCollectionError, match="fingerprint"):
+        s.validate_collection(changed)
+
+
+@pytest.mark.parametrize("version", [True, 1.0, "1", False, 0, 3])
+def test_collection_format_requires_supported_exact_integer(prepared, version):
+    value = deepcopy(prepared[0])
+    value["format"] = version
+    value["id"] = s.collection_digest(value)
+    with pytest.raises(s.FinanceCollectionError):
+        s.validate_collection(value)
+
+
+@pytest.mark.parametrize("section", [None, {}, {"records": []}])
+def test_legacy_format_cannot_hide_candidate_record_section(prepared, section):
+    value = deepcopy(prepared[0])
+    value["candidate_records"] = section
+    value["id"] = s.collection_digest(value)
+    with pytest.raises(s.FinanceCollectionError):
+        s.validate_collection(value)
+
+
+@pytest.mark.parametrize("change", ["absent", "null", "wrong_election", "unknown_key"])
+def test_candidate_record_section_must_be_complete_and_election_bound(prepared, change):
+    value = with_candidate_records(prepared[0])
+    if change == "absent":
+        del value["candidate_records"]
+    elif change == "null":
+        value["candidate_records"] = None
+    elif change == "wrong_election":
+        value["candidate_records"]["election_key"] = "mn-2024-11-05-general"
+    else:
+        value["candidate_records"]["caller_amount"] = "999.00"
+    value["id"] = s.collection_digest(value)
+    with pytest.raises(s.FinanceCollectionError):
+        s.validate_collection(value)
+
+
+def test_candidate_record_collection_round_trip_publish_and_legacy_restore(
+    db, prepared, prepared_results
+):
+    from alethical.pipeline import election_comparison as results
+
+    store = retain(db, prepared)
+    generation, originals = prepared_results
+    for body in originals.values():
+        results.archive_source(db, store, body)
+    results.stage_generation(db, generation)
+    legacy = s.stage_collection(db, prepared[0], store=store)
+    s.publish_collection(db, legacy, expected_previous=None, store=store)
+    value = with_candidate_records(prepared[0])
+    value["candidate_records"]["snapshot_id"] = generation["id"]
+    value["id"] = s.collection_digest(value)
+    current = s.stage_collection(db, value, store=store)
+    assert s._stored_collection(db, current) == value
+    assert s._stored_collection(db, legacy) == prepared[0]
+    assert (
+        db.scalar(
+            select(m.ElectionFinanceCollection.id).where(
+                m.ElectionFinanceCollection.id == legacy,
+                m.ElectionFinanceCollection.candidate_records.is_(None),
+            )
+        )
+        == legacy
+    )
+    s.publish_collection(db, current, expected_previous=legacy, store=store)
+    s.publish_collection(
+        db, legacy, expected_previous=current, restore=True, store=store
+    )
+    s.publish_collection(
+        db, current, expected_previous=legacy, restore=True, store=store
+    )
+    assert (
+        db.get(m.ElectionFinanceCurrent, value["election_key"]).collection_id == current
+    )
+    assert s._stored_collection(db, current)["reports"] == prepared[0]["reports"]
+
+
+def test_candidate_record_collection_requires_retained_snapshot(db, prepared):
+    store = retain(db, prepared)
+    value = with_candidate_records(prepared[0])
+    with pytest.raises(s.FinanceCollectionError, match="unavailable or changed"):
+        s.stage_collection(db, value, store=store)
+    assert db.get(m.ElectionFinanceCollection, value["id"]) is None
 
 
 def test_no_source_or_pdf_means_no_staged_figures(db, prepared):

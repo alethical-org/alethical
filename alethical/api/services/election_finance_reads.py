@@ -240,6 +240,8 @@ def expense_report_rows(db, collection, *, report_keys=None):
             for row in reports
         ],
     }
+    if collection.candidate_records is not None:
+        restored.update(format=2, candidate_records=collection.candidate_records)
     if collection_digest(restored) != collection.id:
         _unavailable()
     return (
@@ -947,7 +949,21 @@ def source_pdf(db: Session, *, election_key, collection_id, document_hash):
         .limit(1)
     )
     if report is None:
-        _missing()
+        from alethical.api.services import (
+            election_board_candidate_reads as candidate_reads,
+        )
+
+        if not candidate_reads.pdf_member(db, collection, document_hash):
+            _missing()
+        body, _ = source_body(
+            db,
+            election_key=election_key,
+            collection_id=collection.id,
+            source_hash=document_hash,
+        )
+        if not body.startswith(b"%PDF-"):
+            _unavailable()
+        return body
     document = db.get(m.CampaignFinanceReportDocument, document_hash)
     if document is None:
         _unavailable()

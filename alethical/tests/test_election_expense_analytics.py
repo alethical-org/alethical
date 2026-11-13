@@ -1378,6 +1378,48 @@ def test_csv_has_plain_cells_and_disjoint_money_columns(held, monkeypatch):
     assert report["Payment total USD"] == report["Payee baseline total USD"] == ""
 
 
+def test_csv_personal_report_keeps_native_measures_and_pinned_source(held):
+    from alethical.tests.test_election_board_candidate_csv import data as personal_data
+
+    data = s._assemble(*held, _csv=True)
+    native = personal_data()
+    report = native["personal_reports"][0]
+    report["source_url"] = (
+        f"/api/v1/finance/elections/{KEY}/finance/sources/"
+        + "d" * 64
+        + "?collection_id="
+        + "c" * 64
+    )
+    data["personal_reports"] = native["personal_reports"]
+    data["board_candidate_records"] = native["board_candidate_records"]
+    body = s._csv_body(data)
+    rows = list(csv.DictReader(io.StringIO(body)))
+    total = next(
+        r
+        for r in rows
+        if r["Row type"] == "Board report measure" and r["Measure ID"] == "total"
+    )
+    assert total["Reported measure value"] == "1512.52"
+    assert (
+        total["Account"]
+        == total["Report total USD"]
+        == total["Public subsidy USD"]
+        == ""
+    )
+    assert total["Source URL"] == s._csv_source_url(report["source_url"])
+    assert total["Original URL"] == "https://cfb.mn.gov/original"
+    unpaid = next(
+        r
+        for r in rows
+        if r["Row type"] == "Board report measure" and r["Measure ID"] == "unpaid"
+    )
+    assert unpaid["Reported measure value"] == ""
+    assert unpaid["Figure status"] == "Blank in source"
+    pcc = next(r for r in rows if r["Row type"] == "Account report")
+    assert pcc["Report total USD"] == "16.00"
+    assert "private-reviewer-sentinel" not in body
+
+
 def _csv_test_rows(held, monkeypatch, **filters):
     monkeypatch.setattr(
         s,

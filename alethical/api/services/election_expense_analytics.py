@@ -34,6 +34,8 @@ from alethical.api.services.election_source_io import (
 from alethical.api.services import election_comparison_reads as results
 from alethical.api.services import election_finance_reads as finance
 from alethical.api.services import election_external_finance_reads as external
+from alethical.api.services import election_board_candidate_reads as candidate_records
+from alethical.api.services import election_board_candidate_csv as candidate_csv
 from alethical.api.services.election_analytics import (
     _SourceProof,
     _bulk_accounts,
@@ -2474,7 +2476,19 @@ def _build(
         for c in (external_data or {}).get("candidates", [])
         for r in c["reports"]
     }
-    board_report_keys = [key for key in report_keys if key not in external_keys]
+    candidate_data = candidate_records.load(
+        db,
+        election_key=election_key,
+        snapshot_id=results.snapshot(db, election_key).id,
+        store=store,
+    )
+    candidate_keys = set((candidate_data or {}).get("report_keys", []))
+    candidate_payee_ids = candidate_records.payee_ids(candidate_data)
+    board_report_keys = [
+        key
+        for key in report_keys
+        if key not in external_keys and key not in candidate_keys
+    ]
     loaded = _load(
         db,
         election_key,
@@ -2493,6 +2507,7 @@ def _build(
         pid
         for pid in excluded_payee_ids
         if pid not in _external_payee_ids(external_data)
+        and pid not in candidate_payee_ids
     ]
     try:
         data = _assemble(
@@ -2516,9 +2531,18 @@ def _build(
             loaded[1],
             report_keys=report_keys,
             selected_only=selected_only,
-            excluded_payee_ids=excluded_payee_ids,
+            excluded_payee_ids=[
+                pid for pid in excluded_payee_ids if pid not in candidate_payee_ids
+            ],
             _csv=_csv,
             store=store,
+        )
+        data = candidate_records.join(
+            data,
+            candidate_data,
+            report_keys=report_keys,
+            selected_only=selected_only,
+            excluded_payee_ids=excluded_payee_ids,
         )
     except HTTPException as exc:
         if version is not None and exc.status_code == 422:
@@ -2623,7 +2647,11 @@ def payments(
     if report_key is not None:
         if report_key not in {
             r["report_key"]
-            for r in [*data["account_reports"], *data["authority_reports"]]
+            for r in [
+                *data["account_reports"],
+                *data["authority_reports"],
+                *data.get("personal_reports", []),
+            ]
         }:
             _bad("Report is not in the selected detail scope")
         rows = [p for p in rows if p["report_key"] == report_key]
@@ -3506,7 +3534,11 @@ def _csv_body(data):
             }
         )
 
-    baseline = data.get("_csv_baseline_payments", data["payments"])
+    baseline = [
+        payment
+        for payment in data.get("_csv_baseline_payments", data["payments"])
+        if payment.get("subject_kind") != "board_candidate_record"
+    ]
     exclusions = set(data["filters"]["excluded_payee_ids"])
     grouped = defaultdict(list)
     for payment in baseline:
@@ -3594,6 +3626,9 @@ def _csv_body(data):
     for row in metadata_rows:
         write(row)
     for row in _external_csv_rows(data):
+        write(row)
+    for row in candidate_csv.csv_rows(data):
+        row["Source URL"] = _csv_source_url(row.get("Source URL"))
         write(row)
     return output.getvalue()
 

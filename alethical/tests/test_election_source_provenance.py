@@ -941,3 +941,34 @@ def test_manifest_record_keeps_unrecorded_facts_unknown(engine):
     claimed["requested"]["method"] = "GET"
     with pytest.raises(ComparisonImportError):
         p.validate_receipt(claimed)
+
+
+def test_manifest_filename_is_bound_without_inventing_transport_facts():
+    record = {
+        "url": "https://electionresultsfiles.sos.mn.gov/20261103/cand.txt",
+        "file": "cand.txt",
+        "bytes": 3,
+        "sha256": hashlib.sha256(b"row").hexdigest(),
+        "fetched_at": "2026-11-13T13:04:44.503289+00:00",
+        "content_type": "text/plain",
+    }
+    evidence = json.dumps([record]).encode()
+    receipt = p.prepare_acquisition(evidence, "/0")
+    assert receipt["evidence_sha256"] == hashlib.sha256(evidence).hexdigest()
+    assert receipt["evidence_locator"]["pointer"] == "/0"
+    assert receipt["requested"]["method"] is None
+    assert receipt["final"]["url"] is None
+    assert receipt["observed_hops"] == []
+
+
+@pytest.mark.parametrize("filename", ["other.txt", "../cand.txt", "", None, 12])
+def test_manifest_refuses_mismatched_or_unsafe_filename(filename):
+    record = {
+        "url": "https://electionresultsfiles.sos.mn.gov/20261103/cand.txt",
+        "file": filename,
+        "bytes": 3,
+        "sha256": hashlib.sha256(b"row").hexdigest(),
+        "fetched_at": "2026-11-13T13:04:44.503289+00:00",
+    }
+    with pytest.raises(ComparisonImportError):
+        p.prepare_acquisition(json.dumps(record).encode())

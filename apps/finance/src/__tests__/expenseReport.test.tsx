@@ -1261,6 +1261,107 @@ it('preserves a checked multiline address in payees and their source panel', asy
   expect(getComputedStyle(label.nextElementSibling!).whiteSpace).toBe('pre-wrap');
 });
 
+it('opens a native personal payment source at its checked page without showing internal coordinates', async () => {
+  const source: d.SourceLocation = {
+    source_sha256: '1'.repeat(64),
+    locator: { page: 2, bounds: [10, 20, 30, 40], field: 'item.1.total' },
+    quote: '197.18',
+  };
+  handler = (url) =>
+    isPayeeRead(url)
+      ? json({
+          ...data,
+          payees: [{ ...payee(), source: [source], authority: 'mn_cfb' }],
+          page: { limit: 50, offset: 0, total: 1 },
+        })
+      : undefined;
+  await render(`&expenseCandidate=${encodeURIComponent(d.claimKey(dana))}`);
+  await click(container.querySelector<HTMLButtonElement>('.ex-payee-actions button:last-child')!);
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Page 2');
+  expect(panel.textContent).not.toContain('bounds');
+  expect(panel.textContent).not.toContain('item.1.total');
+  expect(panel.textContent?.replaceAll('\u00a0', ' ')).toContain('Open retained report · Page 2');
+});
+
+it('keeps unclear payees, redacted addresses and missing payment states distinct', async () => {
+  const nativeIdentity: d.PayeeIdentity = {
+    ...identity,
+    name: null,
+    field_states: {
+      payee: 'ambiguous',
+      street: 'redacted',
+      city: 'value',
+      state: 'value',
+      postal_code: 'value',
+    },
+  };
+  handler = (url) => {
+    if (isPayeeRead(url))
+      return json({
+        ...data,
+        payees: [{ ...payee(), payee_id: null, payee: nativeIdentity, excludable: false }],
+        page: { limit: 50, offset: 0, total: 1 },
+      });
+    if (url.pathname.endsWith('/payments'))
+      return json({
+        ...data,
+        payments: [
+          {
+            ...payment(),
+            payee_id: null,
+            payee: nativeIdentity,
+            underlying_vendor: null,
+            purpose: null,
+            date: null,
+            amounts: null,
+            reported_amount: null,
+            field_states: { date: 'unreadable', purpose: 'blank', total: 'not_checked' },
+          },
+        ],
+        page: { limit: 50, offset: 0, total: 1 },
+      });
+    return undefined;
+  };
+  await render(`&expenseCandidate=${encodeURIComponent(d.claimKey(dana))}`);
+  expect(container.textContent).toContain('Payee · Unclear in source');
+  expect(container.textContent).toContain('Street address · Redacted');
+  expect(container.textContent).not.toContain('Payee not shown');
+  await click(buttons('View payments')[0]);
+  const payments = container.querySelector('.ex-payments')!;
+  expect(payments.textContent).toContain('DateUnreadable');
+  expect(payments.textContent).toContain('PurposeBlank in source');
+  expect(payments.textContent).toContain('N/A · Not checked');
+  await click(payments.querySelector<HTMLButtonElement>('button')!);
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Payee · Unclear in source');
+  expect(panel.textContent).toContain('Street address · Redacted');
+  expect(panel.textContent).toContain('PurposeBlank in source');
+  expect(panel.textContent).toContain('N/A · Not checked');
+});
+
+it.each([{ purposes: [] }, { purposes: ['Printing'] }])(
+  'retains unclear vendor purpose alongside known purposes %j',
+  async ({ purposes }) => {
+    handler = (url) =>
+      isPayeeRead(url)
+        ? json({
+            ...data,
+            payees: [{ ...payee(), purposes, purpose_unavailable_states: ['ambiguous'] }],
+            page: { limit: 50, offset: 0, total: 1 },
+          })
+        : undefined;
+    await render(`&expenseCandidate=${encodeURIComponent(d.claimKey(dana))}`);
+    expect(container.querySelector('.ex-payee-main')?.textContent).toContain(
+      [...purposes, 'Unclear in source'].join(' · '),
+    );
+    await click(container.querySelector<HTMLButtonElement>('.ex-payee-actions button:last-child')!);
+    const panel = document.querySelector('[role="dialog"]')!;
+    expect(panel.textContent).toContain('Purpose' + [...purposes, 'Unclear in source'].join(' · '));
+    expect(panel.textContent).not.toContain('PurposeNot reported');
+  },
+);
+
 it('keeps exclusion ticks and the open panel when applying them fails', async () => {
   await render();
   await click(buttons('Exclude selected payees')[0]);

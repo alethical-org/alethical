@@ -1,4 +1,7 @@
-"""Private reviewed acquisition facts, separate from public originals and identity.
+"""Private reviewed acquisition facts and distinct typed source relationships.
+
+Board same-person claims are explicit privileged decisions, never inferred from
+a capture or a reading. Typed accessors keep these claims non-interchangeable.
 
 A hash proves bytes, not their origin. The supported trust act is an explicit,
 privileged review of a retained collector record ("reviewed collector
@@ -9,7 +12,9 @@ JSON, a hostname or a caller-built object can never mint the sealed proof.
 Three acquisition variants stay separate and are never normalized into each
 other: a direct capture, actual GET response hops, and a legacy collector
 from/to association without status or Location. Absent HTTP status, Location,
-Content-Type, method or times stay absent.
+Content-Type, method or times stay absent. The separate Board capture profile
+replays retained complete normal-client GET/POST records with their exact form
+and wire body; it does not reinterpret a legacy acquisition.
 
 Lock order (shared with root's reading review): gather immutable dependency
 receipts first, then take sorted ``source-provenance:`` advisory keys before any
@@ -44,7 +49,10 @@ from alethical.pipeline.election_source_files import (
 
 ACQUISITION = "retained-acquisition:v1"
 RECIPIENT = "local-recipient-root:v1"
-SCHEMAS = (ACQUISITION, RECIPIENT)
+BOARD_CAPTURE = "retained-board-capture:v1"
+BOARD_RELATIONSHIP = "board_candidate_relationship:v1"
+SCHEMAS = (ACQUISITION, RECIPIENT, BOARD_CAPTURE, BOARD_RELATIONSHIP)
+ACQUISITION_SCHEMAS = (ACQUISITION, BOARD_CAPTURE)
 CAPTURE_KINDS = (
     "direct_capture",
     "response_hops",
@@ -457,7 +465,7 @@ def _route_record(record):
 
 
 MANIFEST_KEYS = frozenset(
-    {"url", "bytes", "sha256", "fetched_at", "last_modified", "content_type"}
+    {"url", "bytes", "sha256", "fetched_at", "last_modified", "content_type", "file"}
 )
 
 
@@ -472,6 +480,14 @@ def _manifest_record(record):
         "Unsupported manifest record fields",
     )
     requested = url(record["url"])
+    if "file" in record:
+        filename = record["file"]
+        require(
+            isinstance(filename, str)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", filename) is not None
+            and filename == urlsplit(requested).path.rsplit("/", 1)[-1],
+            "Manifest filename does not match its requested source",
+        )
     media = record.get("content_type")
     require(
         fingerprint(record["sha256"])
@@ -697,6 +713,13 @@ def validate_receipt(receipt):
     require(size <= MAX_RECEIPT, "Provenance receipt exceeds bound")
     if receipt.get("schema") == ACQUISITION:
         _validate_acquisition(receipt)
+    elif receipt.get("schema") in {BOARD_CAPTURE, BOARD_RELATIONSHIP}:
+        from alethical.pipeline import election_board_candidate_records as board
+
+        if receipt["schema"] == BOARD_CAPTURE:
+            board.validate_capture(receipt)
+        else:
+            board.validate_relationship(receipt)
     elif receipt.get("schema") == RECIPIENT:
         from alethical.pipeline.election_local_context import validate_root_receipt
 
@@ -711,13 +734,23 @@ def receipt_id(receipt):
 
 
 def primary_source(receipt):
-    if receipt["schema"] == ACQUISITION:
+    if receipt["schema"] == BOARD_RELATIONSHIP:
+        return receipt["information"]["source_sha256"]
+    if receipt["schema"] in ACQUISITION_SCHEMAS:
         return receipt["final"]["source_sha256"]
     return receipt["directory"]["source_sha256"]
 
 
 def dependencies(receipt):
     """Direct immutable provenance receipts this receipt cites."""
+    if receipt["schema"] == BOARD_CAPTURE:
+        return frozenset()
+    if receipt["schema"] == BOARD_RELATIONSHIP:
+        from alethical.pipeline.election_board_candidate_records import (
+            relationship_dependencies,
+        )
+
+        return relationship_dependencies(receipt)
     if receipt["schema"] == ACQUISITION:
         ref = receipt["body_capture_receipt_id"]
         return frozenset({ref} if ref else set())
@@ -731,7 +764,13 @@ def dependencies(receipt):
 
 def source_hashes(receipt):
     """Public retained originals a receipt's replay reads."""
-    if receipt["schema"] == ACQUISITION:
+    if receipt["schema"] == BOARD_RELATIONSHIP:
+        from alethical.pipeline.election_board_candidate_records import (
+            relationship_sources,
+        )
+
+        return relationship_sources(receipt)
+    if receipt["schema"] in ACQUISITION_SCHEMAS:
         return frozenset({primary_source(receipt)})
     return frozenset(
         {primary_source(receipt), *(r["source_sha256"] for r in receipt["sos_rows"])}
@@ -739,9 +778,15 @@ def source_hashes(receipt):
 
 
 def subject_key(receipt):
-    if receipt["schema"] == ACQUISITION:
+    if receipt["schema"] == BOARD_RELATIONSHIP:
+        from alethical.pipeline.election_board_candidate_records import (
+            relationship_subject,
+        )
+
+        return relationship_subject(receipt)
+    if receipt["schema"] in ACQUISITION_SCHEMAS:
         return digest(
-            [ACQUISITION, receipt["evidence_sha256"], receipt["evidence_locator"]]
+            [receipt["schema"], receipt["evidence_sha256"], receipt["evidence_locator"]]
         )
     return digest(
         [
@@ -850,7 +895,17 @@ class VerifiedProvenanceContext:
         "__weakref__",
     )
 
-    def __init__(self, receipts, heads, outcomes, reasons, originals, *, _seal=None):
+    def __init__(
+        self,
+        receipts,
+        heads,
+        outcomes,
+        reasons,
+        originals,
+        *,
+        reading_version=None,
+        _seal=None,
+    ):
         require(_seal is _SEAL, "Provenance proof requires internal verification")
         self._receipts = MappingProxyType(
             {k: MappingProxyType({"value": deepcopy(v)}) for k, v in receipts.items()}
@@ -872,6 +927,11 @@ class VerifiedProvenanceContext:
                     for k, v in sorted(heads.items())
                 },
                 "proof_outcomes": dict(sorted(outcomes.items())),
+                **(
+                    {"board_readings": reading_version}
+                    if reading_version is not None
+                    else {}
+                ),
             }
         )
         _ISSUED.add(self)
@@ -909,7 +969,21 @@ class VerifiedProvenanceContext:
 
     def acquisition(self, receipt_id_):
         value = self.receipt(receipt_id_)
-        require(value["schema"] == ACQUISITION, "Acquisition proof required")
+        require(value["schema"] == ACQUISITION, "Legacy acquisition proof required")
+        return value
+
+    def board_acquisition(self, receipt_id_):
+        value = self.receipt(receipt_id_)
+        require(
+            value["schema"] in ACQUISITION_SCHEMAS, "Board acquisition proof required"
+        )
+        return value
+
+    def relationship(self, receipt_id_):
+        value = self.receipt(receipt_id_)
+        require(
+            value["schema"] == BOARD_RELATIONSHIP, "Board relationship proof required"
+        )
         return value
 
     def recipient(self, receipt_id_):
@@ -918,9 +992,15 @@ class VerifiedProvenanceContext:
         return value
 
 
-def _context(receipts, heads, outcomes, reasons, originals):
+def _context(receipts, heads, outcomes, reasons, originals, reading_version=None):
     return VerifiedProvenanceContext(
-        receipts, heads, outcomes, reasons, originals, _seal=_SEAL
+        receipts,
+        heads,
+        outcomes,
+        reasons,
+        originals,
+        reading_version=reading_version,
+        _seal=_SEAL,
     )
 
 
@@ -1065,7 +1145,7 @@ def _closure(db, receipt_ids, *, partial, evidence):
                     and len(dependencies(receipt)) <= MAX_DIRECT_DEPENDENCIES,
                     "Stored provenance integrity differs",
                 )
-                if receipt["schema"] == ACQUISITION:
+                if receipt["schema"] in ACQUISITION_SCHEMAS:
                     require(
                         row.evidence_sha256 == receipt["evidence_sha256"],
                         "Stored private provenance evidence differs",
@@ -1112,11 +1192,29 @@ def provenance_requirements(db, receipt_ids, *, partial=False):
     """
     rows, invalid, reasons = _closure(db, receipt_ids, partial=partial, evidence=False)
     closure = set(rows) | invalid
+    board_plan = None
+    if any(r["receipt"]["schema"] == BOARD_RELATIONSHIP for r in rows.values()):
+        from alethical.pipeline import election_board_candidate_records as board
+
+        board_plan = board.relationship_reading_plan(
+            db, [r["receipt"] for r in rows.values()], partial=partial
+        )
+        extra, missing, extra_reasons = _closure(
+            db, board_plan["provenance_receipt_ids"], partial=partial, evidence=False
+        )
+        rows.update(extra)
+        invalid.update(missing)
+        reasons.update(extra_reasons)
+        closure = set(rows) | invalid
     return {
         "receipt_ids": sorted(closure),
-        "subject_keys": sorted({r["subject_key"] for r in rows.values()}),
+        "subject_keys": sorted(
+            {r["subject_key"] for r in rows.values()}
+            | (set(board_plan["subject_keys"]) if board_plan else set())
+        ),
         "public_original_hashes": sorted(
             {h for r in rows.values() for h in source_hashes(r["receipt"])}
+            | (set(board_plan["source_hashes"]) if board_plan else set())
         ),
         "heads": provenance_heads(db, closure),
         "gaps": dict(sorted(reasons.items())),
@@ -1182,7 +1280,18 @@ def source_resolver_for(db, store):
     return resolve
 
 
-def _prove(receipt_id_, row, heads, outcomes, rows, allowed, resolver, proof):
+def _prove(
+    receipt_id_,
+    row,
+    heads,
+    outcomes,
+    rows,
+    allowed,
+    resolver,
+    proof,
+    db=None,
+    readings=None,
+):
     receipt = row["receipt"]
     head = heads.get(receipt_id_)
     require(
@@ -1203,6 +1312,15 @@ def _prove(receipt_id_, row, heads, outcomes, rows, allowed, resolver, proof):
             _source(files, h)
         if receipt["schema"] == ACQUISITION:
             replay_acquisition(receipt, row["evidence"], files, proof)
+        elif receipt["schema"] in {BOARD_CAPTURE, BOARD_RELATIONSHIP}:
+            from alethical.pipeline import election_board_candidate_records as board
+
+            if receipt["schema"] == BOARD_CAPTURE:
+                board.replay_capture(receipt, row["evidence"], files)
+            else:
+                board.replay_relationship(db, receipt, files, proof, readings)
+                if readings is not None:
+                    needed = needed | readings.original_hashes
         else:
             from alethical.pipeline.election_local_context import replay_root
 
@@ -1210,10 +1328,20 @@ def _prove(receipt_id_, row, heads, outcomes, rows, allowed, resolver, proof):
     return needed
 
 
-def _verify(db, resolver, wanted, *, allowed, partial, locked):
+def _verify(db, resolver, wanted, *, allowed, partial, locked, store=None):
     rows, invalid, reasons = _closure(db, wanted, partial=partial, evidence=True)
+    from alethical.pipeline import election_board_candidate_records as board
+
+    plan = board.relationship_reading_plan(
+        db, [r["receipt"] for r in rows.values()], partial=partial
+    )
     if locked:
-        lock_provenance(db, {r["subject_key"] for r in rows.values()})
+        lock_provenance(
+            db, {r["subject_key"] for r in rows.values()} | set(plan["subject_keys"])
+        )
+    readings = board.load_relationship_readings(
+        db, store, plan, allowed=allowed, lock=locked, partial=partial
+    )
     # Heads are read after any lock so a committed correction is visible.
     heads = provenance_heads(db, set(rows) | invalid)
     outcomes = {h: False for h in invalid}
@@ -1240,7 +1368,16 @@ def _verify(db, resolver, wanted, *, allowed, partial, locked):
             proof = _context(receipts, heads, outcomes, {}, originals)
             try:
                 needed = _prove(
-                    h, rows[h], heads, outcomes, rows, allowed, resolver, proof
+                    h,
+                    rows[h],
+                    heads,
+                    outcomes,
+                    rows,
+                    allowed,
+                    resolver,
+                    proof,
+                    db,
+                    readings,
                 )
             except SourceFileLimitError:
                 # Temporary process capacity, never source loss or a proof result.
@@ -1265,7 +1402,14 @@ def _verify(db, resolver, wanted, *, allowed, partial, locked):
             outcomes[h] = True
             originals.update(needed)
     require(partial or all(outcomes.values()), "Provenance proof failed")
-    return _context(receipts, heads, outcomes, reasons, originals)
+    return _context(
+        receipts,
+        heads,
+        outcomes,
+        reasons,
+        originals,
+        readings.version if readings is not None else None,
+    )
 
 
 def load_verified_provenance(
@@ -1276,6 +1420,7 @@ def load_verified_provenance(
     allowed_source_hashes,
     lock=False,
     partial=False,
+    store=None,
 ):
     """Fresh proof of exact receipts and their closure.
 
@@ -1303,6 +1448,7 @@ def load_verified_provenance(
         allowed=frozenset(allowed_source_hashes),
         partial=partial,
         locked=lock,
+        store=store,
     )
 
 
@@ -1363,7 +1509,7 @@ def record_provenance(
     model = m.ElectionSourceProvenanceDecision
     key, content = subject_key(receipt), digest(receipt)
     require(content not in dependencies(receipt), "Provenance cannot cite itself")
-    if receipt["schema"] == ACQUISITION:
+    if receipt["schema"] in ACQUISITION_SCHEMAS:
         require(
             evidence_body is None
             or (
@@ -1396,7 +1542,17 @@ def record_provenance(
         if deps and decision == "checked"
         else {}
     )
-    lock_provenance(db, {r["subject_key"] for r in dep_rows.values()}, exclusive=key)
+    from alethical.pipeline import election_board_candidate_records as board
+
+    reading_plan = board.relationship_reading_plan(
+        db, [receipt] if decision == "checked" else []
+    )
+    lock_provenance(
+        db,
+        {r["subject_key"] for r in dep_rows.values()}
+        | set(reading_plan["subject_keys"]),
+        exclusive=key,
+    )
     columns = (
         model.id,
         model.subject_key,
@@ -1408,6 +1564,10 @@ def record_provenance(
         needed = set(source_hashes(receipt)) | {
             h for r in dep_rows.values() for h in source_hashes(r["receipt"])
         }
+        needed.update(reading_plan["source_hashes"])
+        readings = board.load_relationship_readings(
+            db, store, reading_plan, allowed=needed, lock=True
+        )
         resolver = source_resolver_for(db, store)
         proof = (
             _verify(
@@ -1417,6 +1577,7 @@ def record_provenance(
                 allowed=frozenset(needed),
                 partial=False,
                 locked=False,
+                store=store,
             )
             if deps
             else _context({}, {}, {}, {}, set())
@@ -1424,6 +1585,10 @@ def record_provenance(
         with resolver(source_hashes(receipt)) as files:
             if receipt["schema"] == ACQUISITION:
                 replay_acquisition(receipt, evidence_body, files, proof)
+            elif receipt["schema"] == BOARD_CAPTURE:
+                board.replay_capture(receipt, evidence_body, files)
+            elif receipt["schema"] == BOARD_RELATIONSHIP:
+                board.replay_relationship(db, receipt, files, proof, readings)
             else:
                 from alethical.pipeline.election_local_context import replay_root
 

@@ -5,6 +5,64 @@ source collection, reviewed Design drawings, implementation, safe release and li
 verification. Owner: Election finance comparison, Codex chat
 `01a1b12c-cb88-7112-a09f-36ca15693289`.
 
+## Board candidate records without a principal campaign committee
+
+Built locally within the approved full report coverage; integration and independent
+acceptance are in progress. No records admitted or released by this change yet.
+Keep these Board records separate from principal campaign committee accounts. A record
+with no report returned has a dated source-availability status, never a zero amount,
+confirmed financial account or complete filing claim.
+
+Store a typed `candidate_records` section on the existing Board collection. Collection
+format 2 includes the nullable section in its immutable digest and source closure;
+legacy absence reconstructs format 1 exactly. Preserve all existing PCC report rows,
+indexes, amounts, identities and generation history. Do not use the local/federal
+external generation or turn coverage metadata into another report store.
+
+Reuse the append-only provenance ledger with an explicit
+`board_candidate_relationship:v1` claim. Its stable subject contains the relationship
+family, election, Board namespace, AOC role, record ID and year. Candidate, snapshot,
+source hashes and receipt version are evidence inside the claim, not parts that allow
+a second current head. Keep existing campaign-account decisions and counts unchanged.
+The same-person judgment is explicit and private; successful source capture alone
+never supplies it. A relationship must match the exact ballot row and selected snapshot.
+
+Add a fixed acquisition profile for the actual retained POST captures, preserving the
+method, endpoint, form, prepared serialization, response status/media, complete body,
+hash/length and capture times. Do not reconstruct missing facts or present POST as GET.
+Add an explicit Board visual-reading context through existing physical-page, render,
+bounds, field-state and checked/withdrawn machinery. Missing, blank, ambiguous,
+unreadable and redacted cells remain distinct from numeric zero.
+
+Dependencies run from acquisition/context to visual reading to relationship to public
+attribution. Plan the complete closure before locks, take all sorted provenance locks
+before reading locks, and re-read the selected heads. A changed or withdrawn reading,
+relationship or source invalidates its dependent facts and version. Stage, publication
+and restore require strict fresh proof; reader responses may withhold affected records
+while preserving unrelated records. Unknown schemas fail closed. Database constraints
+and a new migration must preserve existing immutable history and predecessor rules.
+
+Personal-expenditure reports retain their own measures and source labels. Choose one
+cumulative reporting period per record; never add overlapping primary and general
+reports. Preserve receipt and certification dates separately. A redacted street does
+not erase a readable city, state or postal code. A ditto payee or unclear digit remains
+unresolved unless evidence independently establishes it; arithmetic is a check, not
+permission to invent a cell. Information-profile subsidy flags are not period-specific
+subsidy measures.
+
+Reuse the approved expense report, evidence panels and CSV. Typed Board PDF membership
+uses the existing original store and authenticated source routes, without fake PCC
+rows. Export each supported measure once, preserve exact cents and field states, and
+keep private review details out. Source-only records change no financial or account
+coverage counts. Report coverage must distinguish readable figures from confirmed
+campaign accounts.
+
+Acceptance includes real concurrent disposable-database withdrawal/publication checks,
+wrong-record/role/year/source refusals, original 842-report payload equality, immutable
+format-1 and format-2 replay/restore, authenticated original access, safe public
+projection and source-supported report selection. Individual record association and
+real-data publication remain root-owned steps after code and evidence acceptance.
+
 ## Required outcome
 
 Readers select an exact election and race, see every candidate and reported votes

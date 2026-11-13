@@ -42,6 +42,7 @@ from alethical.pipeline.election_source_files import (
 
 SCHEMA = "mn-local-source-reading:v1"
 SECTION_SCHEMA = "mn-local-source-reading:v2"
+BOARD_SCHEMA = "mn-cfb-personal-expenditures:v1"
 RENDER_PROFILE = "pdftoppm:png:200dpi:max2600:v1"
 JPEG_RENDER_PROFILE = "pillow:jpeg:rgb8:native-pixels:orientation1:noicc:png:v1"
 MAX_ORIGINAL_BYTES = 16 * 1024 * 1024
@@ -141,7 +142,7 @@ def _string(value, *, limit=4000, blank=False):
     )
 
 
-def normalize_field(literal, value_type, state):
+def normalize_field(literal, value_type, state, *, schema=None):
     if state != "value":
         return None
     if value_type == "text":
@@ -179,6 +180,19 @@ def normalize_field(literal, value_type, state):
         whole, _, fraction = format(value, "f").partition(".")
         return whole + "." + fraction.ljust(2, "0")
     require(value_type == "date", "Unsupported reading value type")
+    if schema == BOARD_SCHEMA:
+        # This Board form prints month/day and its complete year on two lines.
+        # Keep the source newline; no separator or missing year is invented.
+        board_date = re.fullmatch(r"([0-9]{1,2})/([0-9]{1,2})\n([0-9]{4})", literal)
+        if board_date:
+            try:
+                return date(
+                    int(board_date[3]), int(board_date[1]), int(board_date[2])
+                ).isoformat()
+            except ValueError as exc:
+                raise ComparisonImportError(
+                    "Reading has an invalid calendar date"
+                ) from exc
     # Some checked forms wrap only the last of four printed year digits.
     # Keep the literal; never strip whitespace or supply a missing year digit.
     wrapped = re.fullmatch(r"([0-9]{1,2}/[0-9]{1,2}/[0-9]{3})\n([0-9])", literal)
@@ -236,6 +250,7 @@ def field_proposal(
     currency=None,
     record_type="cover",
     row=None,
+    schema=None,
 ):
     """Prepare one observation; the returned dictionary is never approval."""
     return dict(
@@ -246,7 +261,7 @@ def field_proposal(
         literal=literal,
         state=state,
         value_type=value_type,
-        normalized=normalize_field(literal, value_type, state),
+        normalized=normalize_field(literal, value_type, state, schema=schema),
         currency=currency,
         record_type=record_type,
         row=row,
@@ -485,7 +500,14 @@ def prepare_receipt(
         )
         pages.append(metadata)
     receipt = dict(
-        schema=SCHEMA if reading_scope is None else SECTION_SCHEMA,
+        schema=(
+            BOARD_SCHEMA
+            if isinstance(source_context, dict)
+            and source_context.get("kind") == "mn-cfb-candidate-context:v1"
+            else SCHEMA
+            if reading_scope is None
+            else SECTION_SCHEMA
+        ),
         verification_basis="visual_source_check",
         original_sha256=_source_identity(body),
         document_kind=document_kind,
@@ -503,7 +525,7 @@ def validate_receipt(value):
     try:
         require(
             isinstance(value, dict)
-            and value.get("schema") in {SCHEMA, SECTION_SCHEMA}
+            and value.get("schema") in {SCHEMA, SECTION_SCHEMA, BOARD_SCHEMA}
             and set(value)
             == RECEIPT_FIELDS
             | ({"reading_scope"} if value["schema"] == SECTION_SCHEMA else set())
@@ -594,7 +616,9 @@ def validate_receipt(value):
             )
             require(
                 f["normalized"]
-                == normalize_field(f["literal"], f["value_type"], f["state"]),
+                == normalize_field(
+                    f["literal"], f["value_type"], f["state"], schema=value["schema"]
+                ),
                 "Reading normalized value differs from literal/state",
             )
             require(
@@ -663,9 +687,20 @@ def validate_receipt(value):
                 value["schema"] == SECTION_SCHEMA and value["source_context"] is None,
                 "Outcome certification needs section scope and no financial context",
             )
+        if value["schema"] == BOARD_SCHEMA:
+            require(
+                isinstance(value["source_context"], dict)
+                and value["source_context"].get("kind") == "mn-cfb-candidate-context:v1"
+                and original_type(value) == "pdf",
+                "Board reading needs its typed PDF context",
+            )
         if value["source_context"] is not None:
             require(isinstance(value["source_context"], dict), "Invalid source context")
-            if value["source_context"].get("kind") == "local_filing_context:v1":
+            if value["source_context"].get("kind") == "mn-cfb-candidate-context:v1":
+                from alethical.pipeline.election_board_candidate_records import (
+                    validate_context_shape,
+                )
+            elif value["source_context"].get("kind") == "local_filing_context:v1":
                 from alethical.pipeline.election_local_context import (
                     validate_context_shape,
                 )
@@ -822,7 +857,13 @@ def source_dependencies(receipt):
     }
     context = receipt["source_context"]
     if context is not None:
-        if context["kind"] == "local_filing_context:v1":
+        if context["kind"] == "mn-cfb-candidate-context:v1":
+            from alethical.pipeline.election_board_candidate_records import (
+                context_dependencies,
+            )
+
+            result.update(context_dependencies(context)["public_original_hashes"])
+        elif context["kind"] == "local_filing_context:v1":
             from alethical.pipeline.election_local_context import context_dependencies
 
             result.update(context_dependencies(context)["public_original_hashes"])
@@ -840,6 +881,12 @@ def source_dependencies(receipt):
 
 def provenance_ids(receipt):
     context = receipt["source_context"]
+    if context is not None and context["kind"] == "mn-cfb-candidate-context:v1":
+        from alethical.pipeline.election_board_candidate_records import (
+            context_dependencies,
+        )
+
+        return context_dependencies(context)["provenance_receipt_ids"]
     if context is None or context["kind"] != "local_filing_context:v1":
         return []
     from alethical.pipeline.election_local_context import context_dependencies
@@ -859,6 +906,17 @@ def _provenance_requirements(db, receipt, *, partial=False):
         }
     from alethical.pipeline.election_source_provenance import provenance_requirements
 
+    if receipt["schema"] == BOARD_SCHEMA:
+        from alethical.pipeline import election_source_provenance as p
+
+        rows, _, _ = p._closure(db, ids, partial=partial, evidence=False)
+        require(
+            all(
+                row["receipt"]["schema"] in p.ACQUISITION_SCHEMAS
+                for row in rows.values()
+            ),
+            "Board reading may depend only on acquisition provenance",
+        )
     return provenance_requirements(db, ids, partial=partial)
 
 
@@ -1013,6 +1071,10 @@ def _source_rows(db, hashes):
 
 
 def _replay_local_context(receipt, originals, provenance=None):
+    if receipt["schema"] == BOARD_SCHEMA:
+        from alethical.pipeline.election_board_candidate_records import replay_context
+
+        return replay_context(receipt["source_context"], receipt, originals, provenance)
     if receipt["source_context"]["kind"] == "local_filing_context:v1":
         from alethical.pipeline.election_local_context import replay_local_context
 
@@ -1264,6 +1326,11 @@ def _verify_section_groups(db, store, receipts, closures, rows, *, allowed, part
 
 
 def _reading_election_matches(receipt, values, election_date):
+    if receipt["schema"] == BOARD_SCHEMA:
+        return (
+            election_date is None
+            or receipt["source_context"]["year"] == election_date.year
+        )
     context = receipt["source_context"]
     return (
         election_date is None
@@ -1426,7 +1493,7 @@ def load_verified_reading_context(
                 cache[h] = body
                 size += len(body)
                 bodies[h] = body
-            local = verify_receipt_sources(receipt, bodies)
+            local = verify_receipt_sources(receipt, bodies, provenance=proof)
             if local is not None:
                 local_values[receipt_id] = local
             verified[receipt_id] = receipt
@@ -1602,6 +1669,7 @@ def record_reading(
                 receipt,
                 _fresh_bodies(db, store, source_dependencies(receipt)),
                 render=True,
+                provenance=_provenance_proof(db, store, receipt, required),
             )
     retry = db.scalar(
         select(m.ElectionSourceReadingDecision).where(

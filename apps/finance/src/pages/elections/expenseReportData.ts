@@ -26,7 +26,7 @@ export interface SourceLocation {
   page?: number;
   line?: number;
   text?: string;
-  locator?: Binding['locator'];
+  locator?: Binding['locator'] | { page: number; bounds: number[]; field: string };
   quote?: string;
   source_copied_at?: string;
   source_url?: string;
@@ -48,6 +48,7 @@ export interface Claim {
   party_sources?: PartySource[];
 }
 export interface Candidate extends Claim {
+  board_record_ids?: string[];
   external_accounts?: Array<ExternalAccount & { authority_name: string }>;
   external_coverage?: { status: string };
   external_account_gaps?: Array<{
@@ -140,6 +141,7 @@ export interface ReportOption {
 }
 export interface PayeeIdentity {
   name: string | null;
+  field_states?: Record<string, string>;
   address: {
     as_filed?: string | null;
     lines?: string[];
@@ -162,11 +164,13 @@ export interface Payee {
   excludable: boolean;
   report_keys: string[];
   purposes: string[];
+  purpose_unavailable_states?: string[];
   source: SourceLocation[];
   payment_count: number;
   amounts: Amounts | null;
 }
 export interface Payment {
+  field_states?: Record<string, string>;
   authority?: string;
   authority_name?: string;
   account_id?: string;
@@ -206,6 +210,8 @@ export interface DetailTotals {
   by_filed_address: Record<Geography, Amounts | null>;
 }
 export interface ExpenseAnswer {
+  board_candidate_records?: BoardCandidateRecord[];
+  personal_reports?: PersonalReport[];
   external_generation_id?: string | null;
   external_version?: string | null;
   external_status?: string;
@@ -266,6 +272,8 @@ export interface ExpenseAnswer {
     payment_count: number;
     amounts: Amounts | null;
     account_reports: Array<{
+      subject_kind?: 'board_candidate_record';
+      board_record_id?: string;
       authority?: string;
       authority_name?: string;
       account_id?: string;
@@ -289,7 +297,59 @@ export interface ExpenseAnswer {
   }>;
   page: Omit<Page, 'has_more'>;
 }
+export interface PersonalField {
+  field_id: string;
+  page: number;
+  bounds: number[];
+  label: string;
+  literal: string;
+  state: string;
+  normalized: string | null;
+  value_type: string;
+  currency?: string;
+}
+export const personalReportTypeLabel = (value: string) =>
+  value === 'C' ? 'Pre-primary' : value === 'E' ? 'Pre-general' : 'Report';
+
+export interface PersonalReport {
+  report_key: string;
+  record_id?: string;
+  year?: number;
+  source_sha256: string;
+  source_url: string;
+  source: { url: string; copied_at: string };
+  report_type: string;
+  amendment: number;
+  latest_amendment: number;
+  name: string;
+  office: string;
+  period: { start: string; end: string };
+  received_date: PersonalField;
+  certification_date: PersonalField;
+  measures: Record<'cash' | 'unpaid' | 'in_kind' | 'total', PersonalField>;
+  nonitemized: Record<'cash' | 'unpaid' | 'in_kind' | 'total', PersonalField>;
+  items: Array<{ row: number; fields: Record<string, PersonalField | null> }>;
+  claim?: Claim;
+  itemized_before_exclusions?: string | null;
+  itemized_after_exclusions?: string | null;
+  itemized_payment_count?: number;
+  itemized_unknown_amounts?: number;
+  by_filed_address?: Record<Geography, { before: string | null; after: string | null }> | null;
+}
+export interface BoardCandidateRecord {
+  claim?: Claim;
+  record_id: string;
+  year: number;
+  role: 'AOC';
+  state: string;
+  relationship: { race_id: string; candidate_id: string } | null;
+  availability?: { state: string; offered_reports: number };
+  selected_report_key?: string | null;
+  reports: PersonalReport[];
+  sources?: Record<string, { url: string; copied_at: string; retained_source_url: string }>;
+}
 export interface ReportedAmount {
+  unavailable_states?: string[];
   authority: string;
   report_key: string;
   measure: string;
@@ -433,12 +493,64 @@ export function adjustedReportTotal(account: AccountReport): string | null {
     account.non_itemized_totals?.total,
   ]);
 }
+export function fieldStateLabel(state?: string, fallback = 'Unavailable'): string {
+  return (
+    (
+      {
+        blank: 'Blank in source',
+        ambiguous: 'Unclear in source',
+        redacted: 'Redacted',
+        unreadable: 'Unreadable',
+        not_checked: 'Not checked',
+        absent: 'Not shown',
+        mixed: 'Varies across payments',
+        value: 'Checked',
+      } as Record<string, string>
+    )[state ?? ''] ?? fallback
+  );
+}
+
+export function payeeName(payee: PayeeIdentity | null): string {
+  if (payee?.name) return payee.name;
+  const state = payee?.field_states?.payee;
+  return state ? `Payee · ${fieldStateLabel(state)}` : 'Payee not shown';
+}
+
+export function payeePurposes(payee: Payee): string {
+  return (
+    [
+      ...payee.purposes.filter(Boolean),
+      ...(payee.purpose_unavailable_states ?? []).map((state) => fieldStateLabel(state)),
+    ].join(' · ') || 'Not reported'
+  );
+}
+
+export function paymentField(payment: Payment, field: string, fallback: string): string {
+  return fieldStateLabel(payment.field_states?.[field], fallback);
+}
+
 export function addressLines(payee: PayeeIdentity | null): string[] {
   const address = payee?.address;
   if (!address) return ['Address not shown'];
   if (address.as_filed) return address.as_filed.split(/\r\n|\r|\n/);
   const city = [address.city, address.state, address.postal_code].filter(Boolean).join(' ');
   const street = address.street;
+  if (payee?.field_states) {
+    const states = payee.field_states;
+    return [
+      street || `Street address · ${fieldStateLabel(states.street, 'Not shown')}`,
+      ...(city ? [city] : []),
+      ...(
+        [
+          ['city', 'City'],
+          ['state', 'State'],
+          ['postal_code', 'ZIP code'],
+        ] as const
+      )
+        .filter(([key]) => !address[key] && states[key] && states[key] !== 'value')
+        .map(([key, label]) => `${label} · ${fieldStateLabel(states[key])}`),
+    ];
+  }
   if (!city && !street && address.lines?.length) return address.lines;
   if (!city && !street) return ['Address not shown'];
   return [street || 'Street address not shown', ...(city ? [city] : [])];
@@ -462,17 +574,27 @@ export function scopedReportKeys(
       .filter((account) => account.display_claims.some(matches))
       .map((account) => `${account.authority}:${account.account_id}`),
   ]);
-  return data.report_options
-    .filter((group) =>
-      accounts.has(
-        `${group.authority ?? 'mn_cfb'}:${group.account_id ?? group.registration_number}`,
-      ),
-    )
-    .flatMap((group) =>
-      group.reports
+  const boardKeys = (data.board_candidate_records ?? [])
+    .filter((record) => record.claim && matches(record.claim))
+    .flatMap((record) =>
+      record.reports
         .filter((report) => selected.includes(report.report_key))
         .map((report) => report.report_key),
     );
+  return [
+    ...boardKeys,
+    ...data.report_options
+      .filter((group) =>
+        accounts.has(
+          `${group.authority ?? 'mn_cfb'}:${group.account_id ?? group.registration_number}`,
+        ),
+      )
+      .flatMap((group) =>
+        group.reports
+          .filter((report) => selected.includes(report.report_key))
+          .map((report) => report.report_key),
+      ),
+  ];
 }
 export const reportLabel = (report: Pick<ReportOption, 'filing' | 'period_start' | 'period_end'>) =>
   `${reportTypeLabel(report.filing.report_name || report.filing.report_type)} · ${periodLabel(report.period_start, report.period_end)}${(report.filing.effective_amendment_index ?? 0) > 0 ? ` · Amended report ${report.filing.effective_amendment_index}` : ''}`;
@@ -495,11 +617,29 @@ export function optionGroups(data: ExpenseAnswer) {
       group.keys.push(report.report_key);
       groups.set(key, group);
     }
+  for (const record of data.board_candidate_records ?? [])
+    for (const report of record.reports.filter((r) => r.amendment === r.latest_amendment)) {
+      const key = [
+        'board-personal',
+        report.report_type,
+        report.period.start,
+        report.period.end,
+      ].join('|');
+      const group = groups.get(key) ?? {
+        label: `Personal expenditures · ${personalReportTypeLabel(report.report_type)} · ${periodLabel(report.period.start, report.period.end)}`,
+        keys: [],
+      };
+      group.keys.push(report.report_key);
+      groups.set(key, group);
+    }
   // A choice can never send two reports for one account; the API repeats this check.
   return [...groups.values()]
     .filter(
       (group) =>
         group.keys.length <= 500 &&
+        (data.board_candidate_records ?? []).every(
+          (record) => record.reports.filter((r) => group.keys.includes(r.report_key)).length <= 1,
+        ) &&
         data.report_options.every(
           (account) =>
             account.reports.filter((report) => group.keys.includes(report.report_key)).length <= 1,

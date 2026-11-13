@@ -6044,10 +6044,17 @@ class ElectionFinanceCollection(Base):
         DateTime(timezone=True)
     )
     sealed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    candidate_records: Mapped[Optional[dict]] = mapped_column(JSONB(none_as_null=True))
     report_index: Mapped[Optional[dict]] = mapped_column(JSONB)
     sources: Mapped[list] = mapped_column(JSONB, nullable=False)
     coverage: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    __table_args__ = (UniqueConstraint("id", "election_key"),)
+    __table_args__ = (
+        UniqueConstraint("id", "election_key"),
+        CheckConstraint(
+            "candidate_records IS NULL OR (jsonb_typeof(candidate_records) = 'object' AND candidate_records->>'schema' IS NOT NULL AND candidate_records->>'schema' = 'mn-cfb-candidate-records:v1')",
+            name="candidate_records_schema",
+        ),
+    )
 
 
 class ElectionFinanceReport(Base):
@@ -6172,7 +6179,7 @@ class ElectionSourceReadingDecision(Base):
 
 
 class ElectionSourceProvenanceDecision(Base):
-    """Private acquisition and recipient-root checks, never public originals."""
+    """Private typed source proofs and explicit Board record relationships."""
 
     __tablename__ = "election_source_provenance_decision"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -6204,7 +6211,7 @@ class ElectionSourceProvenanceDecision(Base):
         ),
         CheckConstraint("decision IN ('checked','withdrawn')", name="valid_decision"),
         CheckConstraint(
-            "schema_id IN ('retained-acquisition:v1','local-recipient-root:v1')",
+            "schema_id IN ('retained-acquisition:v1','local-recipient-root:v1','retained-board-capture:v1','board_candidate_relationship:v1')",
             name="valid_schema",
         ),
         CheckConstraint(
@@ -6220,9 +6227,9 @@ class ElectionSourceProvenanceDecision(Base):
             name="receipt_schema",
         ),
         CheckConstraint(
-            "(schema_id = 'retained-acquisition:v1' AND evidence_sha256 IS NOT NULL "
+            "(schema_id IN ('retained-acquisition:v1','retained-board-capture:v1') AND evidence_sha256 IS NOT NULL "
             "AND evidence_body IS NOT NULL AND octet_length(evidence_body) BETWEEN 1 AND 1048576) "
-            "OR (schema_id = 'local-recipient-root:v1' AND evidence_sha256 IS NULL AND evidence_body IS NULL)",
+            "OR (schema_id IN ('local-recipient-root:v1','board_candidate_relationship:v1') AND evidence_sha256 IS NULL AND evidence_body IS NULL)",
             name="private_evidence_scope",
         ),
         Index(

@@ -34,6 +34,12 @@ import {
 import * as d from './expenseReportData';
 import { accountIdentity, externalSourcePath, coverageLabel } from './externalData';
 import { AuthorityFigures, AuthorityComparisons, authorityEvidence } from './expenseExternal';
+import {
+  PersonalFigures,
+  PersonalComparisons,
+  BoardRecordNotice,
+  personalEvidence,
+} from './expensePersonal';
 import './comparison.css';
 import './expenseReport.css';
 
@@ -249,11 +255,12 @@ function Money({
     </span>
   );
 }
-function Metrics({ values }: { values: Array<[string, ReactNode]> }) {
+type MetricRow = [string, ReactNode, boolean?];
+function Metrics({ values }: { values: MetricRow[] }) {
   return (
     <dl className="ex-metrics">
-      {values.map(([label, value]) => (
-        <div key={label}>
+      {values.map(([label, value, numeric]) => (
+        <div key={label} className={numeric ? 'ex-metric-number' : undefined}>
           <dt>{label}</dt>
           <dd>{value}</dd>
         </div>
@@ -262,36 +269,62 @@ function Metrics({ values }: { values: Array<[string, ReactNode]> }) {
   );
 }
 
+function sourcePage(source?: d.SourceLocation) {
+  const page = source?.page ?? source?.locator?.page;
+  return typeof page === 'number' && Number.isInteger(page) && page > 0 ? page : undefined;
+}
 function sourceLocation(source: d.SourceLocation) {
+  // Native field bounds and IDs locate the checked cell internally; the reader
+  // needs its page, which also drives the existing PDF jump action.
+  if (source.locator?.field && sourcePage(source)) return `Page ${sourcePage(source)}`;
   return source.locator
     ? Object.entries(source.locator)
         .map(([key, value]) => `${key.replaceAll('_', ' ')} ${value}`)
         .join(' · ')
     : `${source.page ? `Page ${source.page}` : 'Page not held'}${source.line ? `, line ${source.line}` : ''}`;
 }
-function amountEntries(
-  amounts: d.Amounts | null,
-  reported?: d.ReportedAmount[],
-): Array<[string, ReactNode]> {
+function reportedAmountLabel(item: d.ReportedAmount) {
+  const value = reportedMoneyLabel(item.amount, item.currency);
+  return item.amount == null && item.unavailable_states?.length
+    ? `N/A · ${item.unavailable_states.map((state) => d.fieldStateLabel(state)).join(' · ')}`
+    : value;
+}
+function paymentAmountLabel(payment: d.Payment) {
+  const value = reportedMoneyLabel(payment.reported_amount, payment.currency);
+  return payment.reported_amount == null && payment.field_states?.total
+    ? `N/A · ${d.fieldStateLabel(payment.field_states.total)}`
+    : value;
+}
+function amountEntries(amounts: d.Amounts | null, reported?: d.ReportedAmount[]): MetricRow[] {
   return amounts
     ? [
-        ['Amount', <Money value={amounts.total} />],
-        ['Paid', <Money value={amounts.paid} />],
-        ['Unpaid', <Money value={amounts.unpaid} />],
-        ['In-kind', <Money value={amounts.in_kind} />],
+        ['Amount', <Money value={amounts.total} />, true],
+        ['Paid', <Money value={amounts.paid} />, true],
+        ['Unpaid', <Money value={amounts.unpaid} />, true],
+        ['In-kind', <Money value={amounts.in_kind} />, true],
       ]
     : (reported ?? []).map((item) => [
         `${item.label} · ${periodLabel(item.period_start, item.period_end)}`,
-        reportedMoneyLabel(item.amount, item.currency),
+        item.amount == null ? (
+          reportedAmountLabel(item)
+        ) : (
+          <span className="ex-number">{reportedAmountLabel(item)}</span>
+        ),
+        item.amount != null,
       ]);
 }
-function paymentEntries(payment: d.Payment): Array<[string, ReactNode]> {
+function paymentEntries(payment: d.Payment): MetricRow[] {
   return payment.amounts
     ? amountEntries(payment.amounts)
     : [
         [
           payment.measure_label ?? 'Reported amount',
-          reportedMoneyLabel(payment.reported_amount, payment.currency),
+          payment.reported_amount == null ? (
+            paymentAmountLabel(payment)
+          ) : (
+            <span className="ex-number">{paymentAmountLabel(payment)}</span>
+          ),
+          payment.reported_amount != null,
         ],
         ['Filing authority', payment.authority_name ?? 'Unavailable'],
         ['Reporting period', periodLabel(payment.period_start, payment.period_end)],
@@ -305,7 +338,7 @@ function ReportedValues({ values }: { values?: d.ReportedAmount[] }) {
     <span className="ex-reported-values">
       {values.map((item, index) => (
         <span key={`${item.report_key}:${item.measure}:${item.basis}:${index}`}>
-          <strong>{reportedMoneyLabel(item.amount, item.currency)}</strong>
+          <strong>{reportedAmountLabel(item)}</strong>
           <small>
             {item.label} · {periodLabel(item.period_start, item.period_end)}
           </small>
@@ -505,11 +538,13 @@ export function ExpenseReport({
           ? partyEvidence(baseline, partySource.claim, partySource.source)
           : externalSource
             ? authorityEvidence(baseline, externalSource, sourceKey)
-            : paymentSource?.key === sourceKey
-              ? paymentEvidence(paymentSource.data, paymentSource.payment)
-              : payeeSource?.key === sourceKey
-                ? payeeSource.evidence
-                : null
+            : sourceKey.startsWith('board-')
+              ? personalEvidence(baseline, sourceKey)
+              : paymentSource?.key === sourceKey
+                ? paymentEvidence(paymentSource.data, paymentSource.payment)
+                : payeeSource?.key === sourceKey
+                  ? payeeSource.evidence
+                  : null
       : null;
   const reload = useCallback(() => {
     setRevision((value) => value + 1);
@@ -742,6 +777,7 @@ export function ExpenseReport({
             </>
           )}
           {baseline && <AuthorityComparisons data={baseline} />}
+          {baseline && <PersonalComparisons data={baseline} />}
           <section className="ec-section ex-candidates">
             <h2 tabIndex={-1}>
               Candidates
@@ -755,7 +791,7 @@ export function ExpenseReport({
               <>
                 {candidates.data.candidates?.length ? (
                   <div
-                    className={`ex-candidate-list${candidates.data.authority_reports?.length ? ' ex-mixed-authorities' : ''}`}
+                    className={`ex-candidate-list${candidates.data.authority_reports?.length || candidates.data.board_candidate_records?.length ? ' ex-mixed-authorities' : ''}`}
                   >
                     <div className="ex-candidate-columns" aria-hidden="true">
                       <span>Candidate</span>
@@ -1234,6 +1270,12 @@ function CandidateRow({
   const externalAccounts = (baseline.authority_reports ?? []).filter((account) =>
     account.display_claims.some((claim) => d.claimKey(claim) === key),
   );
+  const personalReports = (baseline.personal_reports ?? []).filter(
+    (report) => report.claim && d.claimKey(report.claim) === key,
+  );
+  const boardRecords = (baseline.board_candidate_records ?? []).filter(
+    (record) => record.claim && d.claimKey(record.claim) === key,
+  );
   const ownMoney = (account: Pick<d.AccountReport, 'display_claims'>) =>
     [...account.display_claims]
       .filter(
@@ -1257,7 +1299,12 @@ function CandidateRow({
         </p>
         <button
           className="ec-link"
-          disabled={!enabled || (!accounts.length && !externalAccounts.length)}
+          disabled={
+            !enabled ||
+            (!accounts.length &&
+              !externalAccounts.length &&
+              !personalReports.some((r) => r.items.length))
+          }
           aria-expanded={open}
           onClick={() =>
             setAddress({
@@ -1325,7 +1372,27 @@ function CandidateRow({
             </div>
           ),
         )}
-        {!accounts.length && !externalAccounts.length && (
+        {personalReports.map((report) => (
+          <PersonalFigures
+            key={report.report_key}
+            report={report}
+            enabled={enabled}
+            showSource={showExternalSource}
+          />
+        ))}
+        {boardRecords
+          .filter(
+            (record) => !personalReports.some((report) => report.record_id === record.record_id),
+          )
+          .map((record) => (
+            <BoardRecordNotice
+              key={record.record_id}
+              record={record}
+              enabled={enabled}
+              showSource={showExternalSource}
+            />
+          ))}
+        {!accounts.length && !externalAccounts.length && !boardRecords.length && (
           <div className="ex-account">
             <p>Report figures not held</p>
             <p className="ec-muted">
@@ -1541,7 +1608,12 @@ function CandidatePayees({
   }
   const payees =
     read.data && !Array.isArray(read.data.payees)
-      ? { ...read, data: null, loading: read.loading || read.updating, updating: false }
+      ? {
+          ...read,
+          data: null,
+          loading: read.loading || read.updating,
+          updating: false,
+        }
       : read;
   const payeePrefix = `candidate:${d.claimKey(candidate)}:`;
   return (
@@ -1638,7 +1710,7 @@ function PayeeList({
           <li key={id}>
             <div className="ex-payee-main">
               <div>
-                <h5>{payee.payee?.name || 'Payee not shown'}</h5>
+                <h5>{d.payeeName(payee.payee)}</h5>
                 {d.addressLines(payee.payee).map((line, index) => (
                   <p className="ec-filed-address" key={index}>
                     {line}
@@ -1653,7 +1725,7 @@ function PayeeList({
               </div>
               <Metrics
                 values={[
-                  ['Purpose', payee.purposes.filter(Boolean).join(' · ') || 'Not reported'],
+                  ['Purpose', d.payeePurposes(payee)],
                   ...amountEntries(payee.amounts, payee.reported_amounts),
                 ]}
               />
@@ -1753,8 +1825,16 @@ function Payments({
                   <li key={`${payment.report_key}:${payment.record_id}`}>
                     <Metrics
                       values={[
-                        ['Date', payment.date ? dateLabel(payment.date) : 'Date not shown'],
-                        ['Purpose', payment.purpose || 'Not reported'],
+                        [
+                          'Date',
+                          payment.date
+                            ? dateLabel(payment.date)
+                            : d.paymentField(payment, 'date', 'Date not shown'),
+                        ],
+                        [
+                          'Purpose',
+                          payment.purpose || d.paymentField(payment, 'purpose', 'Not reported'),
+                        ],
                         ...paymentEntries(payment),
                       ]}
                     />
@@ -1958,7 +2038,7 @@ function Exclusions({
                         }}
                       />
                       <span>
-                        <strong>{payee.payee?.name || 'Payee not shown'}</strong>
+                        <strong>{d.payeeName(payee.payee)}</strong>
                         <small className="ec-filed-address">{d.addressText(payee.payee)}</small>
                       </span>
                       <strong className="ex-number">
@@ -2020,7 +2100,7 @@ function Exclusions({
                 <Metrics
                   values={[
                     [
-                      payee.payee.name || 'Payee not shown',
+                      d.payeeName(payee.payee),
                       payee.amounts ? (
                         <Money value={payee.amounts.total} />
                       ) : (
@@ -2036,10 +2116,15 @@ function Exclusions({
                   );
                   const identity = external
                     ? accountIdentity(external)
-                    : {
-                        label: 'Account',
-                        value: account.account_id ?? account.registration_number,
-                      };
+                    : account.subject_kind === 'board_candidate_record'
+                      ? {
+                          label: 'Board candidate record',
+                          value: account.board_record_id,
+                        }
+                      : {
+                          label: 'Account',
+                          value: account.account_id ?? account.registration_number,
+                        };
                   return (
                     <div className="ex-part" key={account.report_key}>
                       <span>
@@ -2071,11 +2156,11 @@ function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence 
   const first = payee.source[0];
   return {
     evidence: {
-      title: `${payee.payee?.name || 'Payee not shown'}${payee.amounts ? ` · ${moneyLabel(payee.amounts.total)}` : ''}`,
+      title: `${d.payeeName(payee.payee)}${payee.amounts ? ` · ${moneyLabel(payee.amounts.total)}` : ''}`,
       authority: payee.authority_name ?? BOARD,
       checked: 'Checked',
       rows: [
-        { label: 'Payee', value: payee.payee?.name || 'Payee not shown' },
+        { label: 'Payee', value: d.payeeName(payee.payee) },
         {
           label: 'Address as shown',
           value: d.addressText(payee.payee),
@@ -2083,13 +2168,13 @@ function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence 
         },
         {
           label: 'Purpose',
-          value: payee.purposes.filter(Boolean).join(' · ') || 'Not reported',
+          value: d.payeePurposes(payee),
         },
         { label: 'Payments', value: count(payee.payment_count) },
         ...(!payee.amounts
           ? (payee.reported_amounts ?? []).map((item) => ({
               label: `${item.label} · ${periodLabel(item.period_start, item.period_end)}`,
-              value: reportedMoneyLabel(item.amount, item.currency),
+              value: reportedAmountLabel(item),
             }))
           : []),
         ...payee.source.map((source) => ({
@@ -2105,7 +2190,7 @@ function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence 
       quoteLabel: 'SOURCE TEXT',
     },
     attachment: first ? expenseSourcePath(data, first.source_sha256, payee.authority) : null,
-    pdfPage: first?.page,
+    pdfPage: sourcePage(first),
   };
 }
 
@@ -2247,20 +2332,25 @@ function paymentEvidence(data: d.ExpenseAnswer, payment: d.Payment): ElectionEvi
   const first = payment.source[0];
   return {
     evidence: {
-      title: `${payment.payee?.name || 'Payee not shown'} · ${payment.amounts ? moneyLabel(payment.amounts.total) : reportedMoneyLabel(payment.reported_amount, payment.currency)}`,
+      title: `${d.payeeName(payment.payee)} · ${payment.amounts ? moneyLabel(payment.amounts.total) : paymentAmountLabel(payment)}`,
       authority: payment.authority_name ?? BOARD,
       checked: 'Checked',
       rows: [
-        { label: 'Payee', value: payment.payee?.name || 'Payee not shown' },
+        { label: 'Payee', value: d.payeeName(payment.payee) },
         {
           label: 'Address as shown',
           value: d.addressText(payment.payee),
           preserveWhitespace: true,
         },
-        { label: 'Purpose', value: payment.purpose || 'Not reported' },
+        {
+          label: 'Purpose',
+          value: payment.purpose || d.paymentField(payment, 'purpose', 'Not reported'),
+        },
         {
           label: 'Date',
-          value: payment.date ? dateLabel(payment.date) : 'Date not shown',
+          value: payment.date
+            ? dateLabel(payment.date)
+            : d.paymentField(payment, 'date', 'Date not shown'),
         },
         ...(payment.amounts
           ? [
@@ -2272,7 +2362,7 @@ function paymentEvidence(data: d.ExpenseAnswer, payment: d.Payment): ElectionEvi
           : [
               {
                 label: payment.measure_label ?? 'Reported amount',
-                value: reportedMoneyLabel(payment.reported_amount, payment.currency),
+                value: paymentAmountLabel(payment),
               },
               ...(payment.nonadditive
                 ? [
@@ -2309,7 +2399,7 @@ function paymentEvidence(data: d.ExpenseAnswer, payment: d.Payment): ElectionEvi
       quoteLabel: 'SOURCE TEXT',
     },
     attachment: first ? expenseSourcePath(data, first.source_sha256, payment.authority) : null,
-    pdfPage: first?.page,
+    pdfPage: sourcePage(first),
   };
 }
 function expenseSourcePath(data: d.ExpenseAnswer, hash: string, authority?: string) {
