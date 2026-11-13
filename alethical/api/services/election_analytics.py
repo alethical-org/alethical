@@ -25,8 +25,9 @@ from urllib.parse import quote, urlencode
 import zlib
 
 from botocore.exceptions import ClientError
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import any_, cast, func, select
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.orm import Session, load_only
 from fastapi import HTTPException
 
 from alethical.api.problems import problem_exception
@@ -61,6 +62,31 @@ DATASETS = {
     "independent_expenditures": (
         m.CampaignFinanceIndependentExpenditureRow,
         INDEPENDENT_COLUMNS,
+    ),
+}
+_ANNUAL_CORE_COLUMNS = {
+    "contributions": (
+        "row_number",
+        "recipient_reg_num",
+        "amount",
+        "receipt_date",
+        "year",
+        "contributor",
+        "contrib_reg_num",
+        "contrib_type",
+        "receipt_type",
+    ),
+    "independent_expenditures": (
+        "row_number",
+        "affected_committee_reg_num",
+        "spender_reg_num",
+        "transaction_date",
+        "for_against",
+        "spender",
+        "spender_type",
+        "spender_sub_type",
+        "year",
+        "amount",
     ),
 }
 METRICS = (
@@ -341,9 +367,17 @@ def _bulk_accounts(
         {
             row.id: row
             for row in db.scalars(
-                select(m.ElectionFinanceCollection).where(
-                    m.ElectionFinanceCollection.id.in_(collection_ids)
+                select(m.ElectionFinanceCollection)
+                .options(
+                    load_only(
+                        m.ElectionFinanceCollection.id,
+                        m.ElectionFinanceCollection.election_key,
+                        m.ElectionFinanceCollection.first_published_at,
+                        m.ElectionFinanceCollection.sources,
+                        raiseload=True,
+                    )
                 )
+                .where(m.ElectionFinanceCollection.id.in_(collection_ids))
             )
         }
         if collection_ids
@@ -500,6 +534,25 @@ def _outcomes(db, snapshot_id, races, *, store=None):
     )
 
 
+def _outcome_version_state(outcomes):
+    """Hash null aggregate IDs without changing outcomes or existing string-ID pins."""
+    return {
+        race_id: {
+            **outcome,
+            "candidates": [
+                "nullable-candidate-ids:v1",
+                sorted(
+                    outcome["candidates"].items(),
+                    key=lambda item: (item[0] is not None, item[0] or ""),
+                ),
+            ],
+        }
+        if None in outcome.get("candidates", {})
+        else outcome
+        for race_id, outcome in outcomes.items()
+    }
+
+
 def _board_context(
     db,
     election_key,
@@ -586,7 +639,7 @@ def _board_context(
                 money_version,
                 str(release.id),
                 reviews,
-                outcomes,
+                _outcome_version_state(outcomes),
                 sources,
             ],
             sort_keys=True,
@@ -767,7 +820,7 @@ def _context(
                     .order_by(m.ElectionCampaignAccountDecision.id)
                 ).tuples()
             ),
-            "outcomes": outcomes,
+            "outcomes": _outcome_version_state(outcomes),
         }
         release = None
     else:
@@ -1029,7 +1082,67 @@ def _external_events(data, races):
     return events, list(reports.values())
 
 
-def _event(row, dataset, source, accounts):
+def _event_fields(row, dataset):
+    fields = {}
+    for column in DATASETS[dataset][1]:
+        value = getattr(row, column.attribute)
+        fields[column.source] = (
+            _money(value)
+            if isinstance(value, Decimal)
+            else value.isoformat()
+            if isinstance(value, date)
+            else value
+        )
+    return fields
+
+
+def _annual_rows(db, dataset, source_id, reported_year, *, full_fields):
+    model = DATASETS[dataset][0]
+    query = (
+        select(model)
+        if full_fields
+        else select(*(getattr(model, name) for name in _ANNUAL_CORE_COLUMNS[dataset]))
+    )
+    query = query.where(
+        model.snapshot_id == source_id,
+        (model.year == reported_year) | model.year.is_(None),
+    ).order_by(model.row_number)
+    # Reconciliation still visits every annual record. Project unused/deferred
+    # fields without ORM objects; normal buffering avoids remote cursor fetches.
+    return db.scalars(query) if full_fields else db.execute(query)
+
+
+def _fill_event_fields(db, release, events):
+    for dataset, (model, _) in DATASETS.items():
+        pending = {
+            event["row_number"]: event
+            for event in events
+            if event["dataset"] == dataset and event.get("source_family") != "external"
+        }
+        if not pending:
+            continue
+        source_id = release.file_for(m.CampaignFinanceDataset(dataset)).snapshot_id
+        # One array parameter also supports complete exports beyond PostgreSQL's
+        # parameter limit; no per-row fetches or unbounded IN expansion.
+        rows = db.scalars(
+            select(model)
+            .where(
+                model.snapshot_id == source_id,
+                model.row_number
+                == any_(cast(sorted(pending), ARRAY(model.row_number.type))),
+            )
+            .order_by(model.row_number)
+        )
+        for row in rows:
+            event = pending.pop(row.row_number, None)
+            if event is None:
+                _unavailable()
+            event["fields"] = _event_fields(row, dataset)
+        if pending:
+            _unavailable()
+
+
+def _event(row, dataset, source, accounts, *, race_id=None, include_fields=True):
     direct = dataset == "contributions"
     target = row.recipient_reg_num if direct else row.affected_committee_reg_num
     registration = row.contrib_reg_num if direct else row.spender_reg_num
@@ -1063,15 +1176,12 @@ def _event(row, dataset, source, accounts):
         )
     )
     fields = {}
-    for column in DATASETS[dataset][1]:
-        value = getattr(row, column.attribute)
-        fields[column.source] = (
-            _money(value)
-            if isinstance(value, Decimal)
-            else value.isoformat()
-            if isinstance(value, date)
-            else value
-        )
+    # Global reconciliation needs every event, while a race-filtered response
+    # can never expose the CSV fields of a record unrelated to that race.
+    if include_fields and (
+        race_id is None or any(key[0] == race_id for key, _ in claims)
+    ):
+        fields = _event_fields(row, dataset)
     return {
         "dataset": dataset,
         "row_number": row.row_number,
@@ -1186,6 +1296,7 @@ def _build(
     race_id=None,
     funder_id=None,
     q="",
+    _include_fields=True,
 ):
     if len(q) > 200 or "\x00" in q:
         raise problem_exception(
@@ -1231,16 +1342,22 @@ def _build(
                 "known_amount_subtotal": _money(other[1]),
                 "missing_amount_count": other[2],
             }
-            rows = db.scalars(
-                select(model)
-                .where(
-                    model.snapshot_id == source_id,
-                    (model.year == context["reported_year"]) | model.year.is_(None),
-                )
-                .order_by(model.row_number)
+            rows = _annual_rows(
+                db,
+                dataset,
+                source_id,
+                context["reported_year"],
+                full_fields=_include_fields and race_id is None,
             )
             for row in rows:
-                event = _event(row, dataset, source, by_account)
+                event = _event(
+                    row,
+                    dataset,
+                    source,
+                    by_account,
+                    race_id=race_id,
+                    include_fields=_include_fields and race_id is None,
+                )
                 if row.year is None:
                     event["resolution"] = "missing_year"
                 elif event["metric"] == "other_receipts":
@@ -1310,6 +1427,8 @@ def _build(
         selected = [
             event for event in selected if event["funder_id"] in matching_funders
         ]
+    if _include_fields and race_id is not None and release is not None:
+        _fill_event_fields(db, release, selected)
     context["reconciliation"] = _buckets(events)
     context["filtered_reconciliation"] = _buckets(selected)
     related = {
@@ -1627,7 +1746,7 @@ def _evidence_url(context, **filters):
 
 
 def funders(db: Session, *, limit=50, offset=0, **kwargs):
-    context, events, _, _, outcomes = _build(db, **kwargs)
+    context, events, _, _, outcomes = _build(db, _include_fields=False, **kwargs)
     grouped = defaultdict(list)
     for event in events:
         grouped[event["funder_id"]].append(event)
@@ -1722,7 +1841,9 @@ def _candidate_details(race, candidate, outcomes, records):
 
 
 def candidates(db: Session, *, limit=50, offset=0, **kwargs):
-    context, events, races, links, outcomes = _build(db, **kwargs)
+    context, events, races, links, outcomes = _build(
+        db, _include_fields=False, **kwargs
+    )
     by_candidate = defaultdict(list)
     for event in events:
         if event["resolution"] == "attributed":

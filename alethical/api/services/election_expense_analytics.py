@@ -21,7 +21,8 @@ import time
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import cast, func, or_, select, true
+from sqlalchemy.dialects.postgresql import JSONB
 
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
@@ -578,6 +579,7 @@ def _load(
     trace=None,
     pinned=False,
     store=None,
+    external_race_ids=(),
 ):
     election = results.snapshot(db, election_key)
     if election.stage != "general" or election.election_date.year != 2026:
@@ -593,13 +595,40 @@ def _load(
         )
     )
     reports = finance.expense_report_index(db, collection) if current else []
-    races = list(
-        db.scalars(
-            select(m.ElectionComparisonRace)
-            .where(m.ElectionComparisonRace.snapshot_id == election.id)
-            .order_by(m.ElectionComparisonRace.id)
-        )
+    race_query = select(m.ElectionComparisonRace).where(
+        m.ElectionComparisonRace.snapshot_id == election.id
     )
+    named_candidacies = None
+    if race_id is not None:
+        # Keep every reviewed Board relationship and external membership, even
+        # outside the displayed race. Shared account and party checks need them.
+        race_query = race_query.where(
+            or_(
+                m.ElectionComparisonRace.id == race_id,
+                m.ElectionComparisonRace.id.in_(
+                    select(m.ElectionCampaignAccountDecision.race_id).where(
+                        m.ElectionCampaignAccountDecision.election_key == election_key,
+                        m.ElectionCampaignAccountDecision.authority == "mn_cfb",
+                    )
+                ),
+                m.ElectionComparisonRace.id.in_(set(external_race_ids)),
+            )
+        )
+        candidate_rows = func.jsonb_array_elements(
+            m.ElectionComparisonRace.payload["candidates"]
+        ).table_valued("value")
+        named_candidacies = db.scalar(
+            select(func.count())
+            .select_from(m.ElectionComparisonRace)
+            .join(candidate_rows, true())
+            .where(
+                m.ElectionComparisonRace.snapshot_id == election.id,
+                cast(candidate_rows.c.value, JSONB)["is_write_in_aggregate"]
+                .as_boolean()
+                .is_not(True),
+            )
+        )
+    races = list(db.scalars(race_query.order_by(m.ElectionComparisonRace.id)))
     accounts, stamp = _bulk_accounts(db, election_key, races, verify_originals=False)
     scope_keys = {
         (race.id, candidate["candidate_id"])
@@ -904,6 +933,9 @@ def _load(
             "party_basis": "official_election_record_with_account_filed_party_separately_sourced",
             "common_reporting_period": False,
             "_scope_keys": scope_keys,
+            **(
+                {"_named_candidacies": named_candidacies} if race_id is not None else {}
+            ),
             "_classification_regs": selected_regs,
             "_read_stamp": [
                 election.id,
@@ -1711,7 +1743,7 @@ def _assemble(
             context, context.get("_report_options", []), selected, availability
         ),
         "coverage": {
-            "named_candidacies": len(all_candidates),
+            "named_candidacies": context.get("_named_candidacies", len(all_candidates)),
             "scoped_candidacies": len(candidates),
             "scoped_candidacies_with_confirmed_accounts": sum(
                 bool(c["confirmed_account_count"]) for c in candidates
@@ -2561,6 +2593,10 @@ def _build(
         selected_only=selected_only,
         pinned=version is not None,
         store=store,
+        external_race_ids={
+            candidate["race_id"]
+            for candidate in (external_data or {}).get("candidates", [])
+        },
     )
     # Only the Board portion enters Board arithmetic. External IDs are namespaced.
     board_exclusions = [
@@ -2600,9 +2636,40 @@ def _build(
         raise
     if version is not None and version != data["version"]:
         finance._changed()
-    election = results.snapshot(db, election_key)
+    # The closing checks need the published identities, not the large JSON
+    # inventories already read for this report. Keep the same publication joins.
+    election_id = db.scalar(
+        select(m.ElectionComparisonSnapshot.id)
+        .join(
+            m.ElectionComparisonCurrent,
+            m.ElectionComparisonCurrent.snapshot_id == m.ElectionComparisonSnapshot.id,
+        )
+        .where(
+            m.ElectionComparisonSnapshot.election_key == election_key,
+            m.ElectionComparisonSnapshot.first_published_at.is_not(None),
+            m.ElectionComparisonCurrent.election_key == election_key,
+        )
+    )
+    if election_id is None:
+        results._not_found()
     current_pointer = db.get(m.ElectionFinanceCurrent, election_key)
-    current_id = finance._collection(db, election_key).id if current_pointer else None
+    current_id = None
+    if current_pointer:
+        current_id = db.scalar(
+            select(m.ElectionFinanceCollection.id)
+            .join(
+                m.ElectionFinanceCurrent,
+                m.ElectionFinanceCurrent.collection_id
+                == m.ElectionFinanceCollection.id,
+            )
+            .where(
+                m.ElectionFinanceCollection.election_key == election_key,
+                m.ElectionFinanceCollection.first_published_at.is_not(None),
+                m.ElectionFinanceCurrent.election_key == election_key,
+            )
+        )
+        if current_id is None:
+            finance._missing()
     review_ids = sorted(
         row.id
         for row in db.execute(
@@ -2619,7 +2686,7 @@ def _build(
         if (row.race_id, row.candidate_id) in loaded[0]["_scope_keys"]
         or row.registration_number in loaded[0]["_classification_regs"]
     )
-    if [election.id, current_id, review_ids] != loaded[0]["_read_stamp"]:
+    if [election_id, current_id, review_ids] != loaded[0]["_read_stamp"]:
         finance._changed()
     if _external_review_stamp(db, election_key) != external_stamp:
         finance._changed()

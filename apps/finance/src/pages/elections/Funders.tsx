@@ -267,15 +267,22 @@ export function Funders({
     keepPrevious: true,
     revision: generation,
   });
-  const firstCurrent = first.dataPath === firstPath && !first.changed;
+  const firstCurrent =
+    first.dataPath === firstPath &&
+    !first.changed &&
+    !first.updating &&
+    !first.pending &&
+    !first.failed &&
+    !first.notFound;
   const offset = (pageNumber(address.fpage) - 1) * d.PAGE_SIZE;
   const pagePath =
-    offset && first.data && firstCurrent
+    offset && first.data
       ? d.analyticsPath(election.election_key, 'funders', scope, pins(first.data), offset)
       : null;
   const next = useRead<d.FundersAnswer>(pagePath, {
     keepPrevious: true,
     revision: generation,
+    enabled: firstCurrent,
   });
   const shown = offset ? next : first;
   const data = shown.data;
@@ -285,8 +292,7 @@ export function Funders({
     !shown.changed &&
     !shown.pending &&
     !shown.failed &&
-    !first.pending &&
-    !first.failed;
+    firstCurrent;
   const race = useRead<RaceAnswer>(
     raceId ? results.electionRacePath(election.election_key, raceId, election.snapshot_id) : null,
     { revision: generation },
