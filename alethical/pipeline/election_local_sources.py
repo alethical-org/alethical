@@ -859,10 +859,19 @@ def extract_local_reading(body, source, locator, *, context=None):
                 "document_url": value["document_url"],
             }
         if kind != "authority":
+            certificate_fields = (
+                {
+                    receipt["source_context"]["fields"]["name"],
+                    receipt["source_context"]["fields"]["office"],
+                }
+                if receipt["document_kind"] == "certification"
+                else set()
+            )
             quote["observed_fields"] = {
                 k: f["literal"]
                 for k, f in fields.items()
-                if f["record_type"] == "cover" and f["state"] == "value"
+                if (f["record_type"] == "cover" or k in certificate_fields)
+                and f["state"] == "value"
             }
         return CheckedExtraction(deepcopy(facts), _quote(quote))
     if kind == "field":
@@ -965,6 +974,7 @@ def extract_local_reading(body, source, locator, *, context=None):
         name = f["field_id"].rsplit(".", 1)[-1]
         require(name not in by_name, "Ambiguous local payment cell")
         by_name[name] = f
+    by_name = _shared_payment_fields(receipt, fields, locator, by_name)
     require(
         all(
             k in by_name and by_name[k]["state"] == "value" for k in ("date", "amount")
@@ -1015,6 +1025,44 @@ def extract_local_reading(body, source, locator, *, context=None):
         ),
         _quote({k: f["literal"] for k, f in by_name.items()}),
     )
+
+
+def _shared_payment_fields(receipt, fields, locator, by_name):
+    """Resolve only the immutable reviewed map, never caller-supplied grouping."""
+    groups = (receipt.get("source_context") or {}).get("payment_groups", [])
+    group = next(
+        (
+            g
+            for g in groups
+            if g["page"] == locator["page"] and locator["row"] in g["rows"]
+        ),
+        None,
+    )
+    if group is None:
+        return by_name
+    result = dict(by_name)
+    for name, reference in (("date", "date_field"), ("payee", "payee_field")):
+        fid = group[reference]
+        if fid is None:
+            continue
+        shared = fields[fid]
+        if name == "date":
+            require(
+                shared["state"] == "value",
+                "Shared payment date is not checked as a value",
+            )
+        own = result.get(name)
+        if own is not None:
+            require(
+                own["state"] == "value"
+                and shared["state"] == "value"
+                and own["value_type"] == shared["value_type"]
+                and own["normalized"] == shared["normalized"],
+                "Payment row conflicts with its shared heading",
+            )
+        elif shared["state"] == "value":
+            result[name] = shared
+    return result
 
 
 def _local_payee_address(by_name):

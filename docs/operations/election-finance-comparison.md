@@ -199,6 +199,23 @@ fields stay distinct; none becomes zero. Candidate/account identity and the
 applicable dates need their own checked evidence. Public source views and CSV keep
 the gap and locator; a blank quotation stays blank, never replaced by a label.
 
+A certificate may retain its checked name and office from certification cells
+inside the stable cover region. It does not become a financial report. Its signed
+date is not a reporting period, and a threshold statement is not an exact amount
+or proof that all filings are present. Candidate identity and financial-report
+requirements remain separate.
+
+An optional `payment_groups` mapping in the immutable checked context may bind
+one physical date or payee heading to specified disbursement rows on the same
+page and checked region. Review must establish that the heading governs those
+rows; geometry alone does not. Each row keeps its own checked amount, and summary
+amounts remain separate from payments. Overlapping groups or rows, cross-page or
+cross-region references, and unsupported field types are rejected. A conflicting
+row value or uncertain required date holds the affected payment; an unknown
+optional payee remains unknown. Existing period, address, source and version
+checks still apply. Changing a group requires a new checked receipt, not extra
+locator data or a change to already-approved metadata.
+
 A local payment address uses a separate checked `payment_address` binding, leaving
 existing payment facts and quotes unchanged. Its optional `as_filed` value keeps
 the exact visible text and line breaks through reports, source panels and CSV.

@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from html.parser import HTMLParser
 import hashlib
+import math
 import re
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
@@ -2233,7 +2234,9 @@ def _edge_shape(edge):
 def validate_context_shape(context, receipt):
     """Closed local_filing_context:v1; only valid on a v2 physical-section reading."""
     p.exact(
-        context,
+        {k: v for k, v in context.items() if k != "payment_groups"}
+        if isinstance(context, dict)
+        else context,
         {
             "kind",
             "root_receipt_id",
@@ -2367,15 +2370,208 @@ def validate_context_shape(context, receipt):
         and fields[k] is not None
         and not (reused and k == "candidate_name")
     ] + fields["report_type"]
+    certificate = receipt.get("document_kind") == "certification"
+    if certificate:
+        require(
+            all(
+                fields[k] is None
+                for k in (
+                    "candidate_name",
+                    "candidate_mark",
+                    "period_start",
+                    "period_end",
+                )
+            )
+            and fields["report_type"] == [],
+            "Certificate name/office do not establish candidate role or report period",
+        )
     require(
         len(mapped) == len(set(mapped))
-        and all(known[v]["record_type"] == "cover" for v in mapped),
+        and all(
+            known[v]["record_type"] == ("certification" if certificate else "cover")
+            for v in mapped
+        ),
         "Context identity fields must be distinct checked cover fields",
     )
     require(
         not reused or known[fields["name"]]["value_type"] == "text",
         "A shared name cell must be a checked text field",
     )
+    if certificate:
+        for name, label in (
+            ("name", "Name of candidate or committee"),
+            ("office", "Office sought by candidate (if applicable)"),
+        ):
+            key = fields[name]
+            if key is None:
+                continue
+            field = known[key]
+            require(
+                field["page"] == receipt["reading_scope"]["cover"]["page"]
+                and _bounds_inside(
+                    receipt["reading_scope"]["cover"]["bounds"], field["bounds"]
+                )
+                and field["value_type"] == "text"
+                and field["state"] == "value"
+                and field["label"] == label,
+                "Certificate name/office need checked cells in this section cover",
+            )
+    _validate_payment_groups(context, receipt, known)
+
+
+def _bounds_inside(outer, inner):
+    return (
+        outer[0] <= inner[0] < inner[2] <= outer[2]
+        and outer[1] <= inner[1] < inner[3] <= outer[3]
+    )
+
+
+def _validate_payment_groups(context, receipt, fields):
+    """Bound geometry and references; normal reading review owns source meaning.
+
+    Uncertain cells remain valid observations. Extraction refuses an uncertain
+    required date, without invalidating independent groups in this receipt.
+    """
+    from alethical.pipeline.election_source_readings import MAX_FIELDS
+
+    groups = context.get("payment_groups", [])
+    require(
+        isinstance(groups, list) and len(groups) <= MAX_FIELDS, "Invalid payment groups"
+    )
+    if not groups:
+        return
+    require(
+        receipt["document_kind"] == "financial_report"
+        and context["document_role"] == "primary",
+        "Only a financial report can bind shared payment headings",
+    )
+    rows = {}
+    for field_ in fields.values():
+        if field_["record_type"] == "disbursement" and field_["row"] is not None:
+            rows.setdefault((field_["page"], field_["row"]), []).append(field_)
+    seen = set()
+    rectangles = []
+    total_members = 0
+    for group in groups:
+        p.exact(
+            group,
+            {
+                "kind",
+                "page",
+                "bounds",
+                "date_field",
+                "payee_field",
+                "rows",
+                "summary_fields",
+            },
+            "Unsupported shared payment group",
+        )
+        page, bounds = group["page"], group["bounds"]
+        require(
+            group["kind"] == "same_page_heading_rows"
+            and type(page) is int
+            and isinstance(bounds, list)
+            and len(bounds) == 4
+            and all(type(n) in {int, float} and math.isfinite(n) for n in bounds)
+            and any(
+                region["page"] == page and _bounds_inside(region["bounds"], bounds)
+                for region in receipt["reading_scope"]["regions"]
+            ),
+            "Shared payment group crosses its checked region",
+        )
+        require(
+            not any(
+                other_page == page
+                and max(bounds[0], other[0]) < min(bounds[2], other[2])
+                and max(bounds[1], other[1]) < min(bounds[3], other[3])
+                for other_page, other in rectangles
+            ),
+            "Shared payment groups overlap",
+        )
+        rectangles.append((page, bounds))
+        members = group["rows"]
+        require(
+            isinstance(members, list)
+            and 0 < len(members) <= MAX_FIELDS
+            and all(type(n) is int and 1 <= n <= MAX_FIELDS for n in members)
+            and len(set(members)) == len(members),
+            "Invalid shared payment rows",
+        )
+        total_members += len(members)
+        require(total_members <= MAX_FIELDS, "Too many shared payment rows")
+        cells = []
+        row_extents = []
+        for number in members:
+            key = (page, number)
+            require(
+                key not in seen and key in rows,
+                "Shared payment row is missing or repeated",
+            )
+            seen.add(key)
+            selected = rows[key]
+            require(
+                all(_bounds_inside(bounds, f["bounds"]) for f in selected),
+                "Shared payment row crosses its group",
+            )
+            amounts = [
+                f for f in selected if f["field_id"].rsplit(".", 1)[-1] == "amount"
+            ]
+            require(
+                len(amounts) == 1 and amounts[0]["value_type"] == "money",
+                "Shared payment row needs its own money cell",
+            )
+            extent = (
+                min(f["bounds"][1] for f in selected),
+                max(f["bounds"][3] for f in selected),
+            )
+            require(
+                not any(
+                    max(extent[0], other[0]) < min(extent[1], other[1])
+                    for other in row_extents
+                ),
+                "Shared payment rows overlap",
+            )
+            row_extents.append(extent)
+            cells.extend(selected)
+        top = min(f["bounds"][1] for f in cells)
+        for key, kind in (("date_field", "date"), ("payee_field", "text")):
+            fid = group[key]
+            if key == "payee_field" and fid is None:
+                continue
+            require(
+                isinstance(fid, str) and fid in fields,
+                "Shared payment heading is missing",
+            )
+            field_ = fields[fid]
+            require(
+                field_["page"] == page
+                and field_["record_type"] == "other"
+                and field_["row"] is None
+                and field_["value_type"] == kind
+                and _bounds_inside(bounds, field_["bounds"])
+                and field_["bounds"][3] <= top,
+                "Shared payment heading is outside its source group",
+            )
+        summary = group["summary_fields"]
+        require(
+            isinstance(summary, list)
+            and len(summary) <= MAX_FIELDS
+            and all(isinstance(k, str) and k in fields for k in summary)
+            and len(set(summary)) == len(summary),
+            "Invalid group summaries",
+        )
+        actual = {
+            f["field_id"]
+            for f in fields.values()
+            if f["page"] == page
+            and f["record_type"] == "other"
+            and f["value_type"] == "money"
+            and _bounds_inside(bounds, f["bounds"])
+        }
+        require(
+            set(summary) == actual,
+            "Group summaries must retain all separate money totals",
+        )
 
 
 def context_dependencies(context):
