@@ -298,11 +298,11 @@ Additional report measures remain open. The comparison can proceed independently
    overlapping filings, zeros, missing values and ambiguous links.
 5. Validate a real race end to end, independently review, release with a concrete
    restore path, and verify live access and the full reader journey.
-6. After the checked demo-ready report, capture Jeremy's requested report journey,
-   produce narration/captions and deliver the reviewed V2 video, then finish V1.2.
-   Propose the V3
-   full-election coverage priorities and smaller releases, then begin the build under
-   the user's advance approval, preserving all source/review/release gates.
+6. Deliver the wider election's core release with live and independent acceptance,
+   then stop for consultation before the harder cases. Keep Jeremy's remaining
+   report exceptions and judicial work held under the
+   [current release order](#release-milestones-v1-demo-ready-v011-v2-video-v12-v3),
+   preserving all source, review and release checks.
 
 ## Status
 
@@ -315,8 +315,9 @@ milestone, not completion of that finish. An explicitly labelled recoverable gap
 remains unfinished collection work. Unpublished sources remain pending with their
 actual authority, period and next expected filing event; they never become zero.
 
-The current chat retains these work packages. The release order above governs:
-V1, demo-ready v0.1.1, V2 report video, V1.2 report completion, then the V3 coverage plan and build.
+The current chat retains these work packages. The
+[current release order](#release-milestones-v1-demo-ready-v011-v2-video-v12-v3)
+governs: wider election core first, consultation before harder cases, judicial last.
 
 | Work | Prerequisite | Acceptance evidence |
 | --- | --- | --- |
