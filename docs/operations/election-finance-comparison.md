@@ -464,11 +464,19 @@ publication state and retained-source inventory. They do not transfer its report
 index or coverage payload. Source-role membership and fresh original checks still
 run; omitted fields cannot silently trigger a later full-row fetch.
 
-A race filter keeps every annual event in the global reconciliation. Only source
-fields for CSV rows that cannot belong to the selected race skip formatting.
-Funder identities, shared-account claims, exact amounts, source checks and global
-version dependencies remain unchanged. External account groups stay complete
-before report selection and display filtering.
+A race filter streams the core identity, amount and classification fields for
+every annual event, retaining the global reconciliation. Full source fields load
+in batches only for selected Board rows; a missing detail row refuses the read.
+Whole-election reads retain their full-row path. Funder identities, shared-account
+claims, exact amounts, source checks and global version dependencies remain
+unchanged. External account groups stay complete before report selection and
+display filtering.
+
+An exact-race expense read loads the requested race plus every Board decision race
+and external account candidate race. It counts all named candidacies in SQL, so
+the whole-election coverage count stays unchanged. Shared memberships and party
+evidence remain in the read. Closing snapshot and collection checks select their
+published IDs with the same publication predicates, without reloading JSON.
 
 An unnamed write-in aggregate can have a null candidate ID. Version hashing uses
 a tagged list of ID/value pairs for that candidate map, preserving the distinction

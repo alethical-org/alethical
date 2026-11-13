@@ -25,7 +25,8 @@ from urllib.parse import quote, urlencode
 import zlib
 
 from botocore.exceptions import ClientError
-from sqlalchemy import func, select
+from sqlalchemy import any_, cast, func, select
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Session, load_only
 from fastapi import HTTPException
 
@@ -61,6 +62,31 @@ DATASETS = {
     "independent_expenditures": (
         m.CampaignFinanceIndependentExpenditureRow,
         INDEPENDENT_COLUMNS,
+    ),
+}
+_ANNUAL_CORE_COLUMNS = {
+    "contributions": (
+        "row_number",
+        "recipient_reg_num",
+        "amount",
+        "receipt_date",
+        "year",
+        "contributor",
+        "contrib_reg_num",
+        "contrib_type",
+        "receipt_type",
+    ),
+    "independent_expenditures": (
+        "row_number",
+        "affected_committee_reg_num",
+        "spender_reg_num",
+        "transaction_date",
+        "for_against",
+        "spender",
+        "spender_type",
+        "spender_sub_type",
+        "year",
+        "amount",
     ),
 }
 METRICS = (
@@ -1056,7 +1082,71 @@ def _external_events(data, races):
     return events, list(reports.values())
 
 
-def _event(row, dataset, source, accounts, *, race_id=None):
+def _event_fields(row, dataset):
+    fields = {}
+    for column in DATASETS[dataset][1]:
+        value = getattr(row, column.attribute)
+        fields[column.source] = (
+            _money(value)
+            if isinstance(value, Decimal)
+            else value.isoformat()
+            if isinstance(value, date)
+            else value
+        )
+    return fields
+
+
+def _annual_rows(db, dataset, source_id, reported_year, *, full_fields):
+    model = DATASETS[dataset][0]
+    query = (
+        select(model)
+        if full_fields
+        else select(*(getattr(model, name) for name in _ANNUAL_CORE_COLUMNS[dataset]))
+    )
+    query = query.where(
+        model.snapshot_id == source_id,
+        (model.year == reported_year) | model.year.is_(None),
+    ).order_by(model.row_number)
+    # Race reconciliation still visits every annual record. Avoid full ORM
+    # objects and a buffered result set for fields that never leave this scope.
+    return (
+        db.scalars(query)
+        if full_fields
+        else db.execute(query.execution_options(yield_per=10000))
+    )
+
+
+def _fill_event_fields(db, release, events):
+    for dataset, (model, _) in DATASETS.items():
+        pending = {
+            event["row_number"]: event
+            for event in events
+            if event["dataset"] == dataset and event.get("source_family") != "external"
+        }
+        if not pending:
+            continue
+        source_id = release.file_for(m.CampaignFinanceDataset(dataset)).snapshot_id
+        # One array parameter also supports complete exports beyond PostgreSQL's
+        # parameter limit; no per-row fetches or unbounded IN expansion.
+        rows = db.scalars(
+            select(model)
+            .where(
+                model.snapshot_id == source_id,
+                model.row_number
+                == any_(cast(sorted(pending), ARRAY(model.row_number.type))),
+            )
+            .order_by(model.row_number)
+        )
+        for row in rows:
+            event = pending.pop(row.row_number, None)
+            if event is None:
+                _unavailable()
+            event["fields"] = _event_fields(row, dataset)
+        if pending:
+            _unavailable()
+
+
+def _event(row, dataset, source, accounts, *, race_id=None, include_fields=True):
     direct = dataset == "contributions"
     target = row.recipient_reg_num if direct else row.affected_committee_reg_num
     registration = row.contrib_reg_num if direct else row.spender_reg_num
@@ -1092,16 +1182,10 @@ def _event(row, dataset, source, accounts, *, race_id=None):
     fields = {}
     # Global reconciliation needs every event, while a race-filtered response
     # can never expose the CSV fields of a record unrelated to that race.
-    if race_id is None or any(key[0] == race_id for key, _ in claims):
-        for column in DATASETS[dataset][1]:
-            value = getattr(row, column.attribute)
-            fields[column.source] = (
-                _money(value)
-                if isinstance(value, Decimal)
-                else value.isoformat()
-                if isinstance(value, date)
-                else value
-            )
+    if include_fields and (
+        race_id is None or any(key[0] == race_id for key, _ in claims)
+    ):
+        fields = _event_fields(row, dataset)
     return {
         "dataset": dataset,
         "row_number": row.row_number,
@@ -1261,16 +1345,22 @@ def _build(
                 "known_amount_subtotal": _money(other[1]),
                 "missing_amount_count": other[2],
             }
-            rows = db.scalars(
-                select(model)
-                .where(
-                    model.snapshot_id == source_id,
-                    (model.year == context["reported_year"]) | model.year.is_(None),
-                )
-                .order_by(model.row_number)
+            rows = _annual_rows(
+                db,
+                dataset,
+                source_id,
+                context["reported_year"],
+                full_fields=race_id is None,
             )
             for row in rows:
-                event = _event(row, dataset, source, by_account, race_id=race_id)
+                event = _event(
+                    row,
+                    dataset,
+                    source,
+                    by_account,
+                    race_id=race_id,
+                    include_fields=race_id is None,
+                )
                 if row.year is None:
                     event["resolution"] = "missing_year"
                 elif event["metric"] == "other_receipts":
@@ -1340,6 +1430,8 @@ def _build(
         selected = [
             event for event in selected if event["funder_id"] in matching_funders
         ]
+    if race_id is not None and release is not None:
+        _fill_event_fields(db, release, selected)
     context["reconciliation"] = _buckets(events)
     context["filtered_reconciliation"] = _buckets(selected)
     related = {

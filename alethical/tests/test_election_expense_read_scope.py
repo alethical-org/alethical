@@ -135,19 +135,14 @@ def test_external_bulk_race_closure_is_forwarded_before_display_filter(
 
     def bulk(*args, **kwargs):
         result = deepcopy(original_bulk(*args, **kwargs))
-        # A second authority entry must retain its race even without a Board
-        # decision. The normal external tests cover full shared account money.
-        result["candidates"].append(
-            {
-                "race_id": extra.id,
-                "candidate_id": extra.payload["candidates"][0]["candidate_id"],
-                "accounts": [],
-                "account_gaps": [],
-                "reports": [],
-                "own_payments": [],
-                "coverage": {},
-            }
+        # Projection fixture: a second checked entry shares the same account
+        # and reports. Both memberships must survive a single-race display.
+        shared = deepcopy(result["candidates"][0])
+        shared.update(
+            race_id=extra.id,
+            candidate_id=extra.payload["candidates"][0]["candidate_id"],
         )
+        result["candidates"].append(shared)
         return result
 
     def capture(*args, **kwargs):
@@ -157,6 +152,16 @@ def test_external_bulk_race_closure_is_forwarded_before_display_filter(
 
     monkeypatch.setattr(reads.external, "bulk_finance", bulk)
     monkeypatch.setattr(reads, "_load", capture)
-    reads.report(db, election_key=KEY, race_id=ctx.race.id)
+    options = dict(election_key=KEY, race_id=ctx.race.id)
+    actual = _responses(db, options)
     assert {ctx.race.id, extra.id} <= loaded[-1]
     assert unrelated.id not in loaded[-1]
+    all_ids = list(db.scalars(select(m.ElectionComparisonRace.id)))
+
+    def complete_race_reference(*args, **kwargs):
+        kwargs["external_race_ids"] = all_ids
+        return original_load(*args, **kwargs)
+
+    with monkeypatch.context() as reference:
+        reference.setattr(reads, "_load", complete_race_reference)
+        assert actual == _responses(db, options)
