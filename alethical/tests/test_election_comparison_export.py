@@ -276,6 +276,8 @@ def test_external_records_without_board_collection_or_version(
     figures = [r for r in rows if r["Row type"] == "Figure"]
     assert {r["Measure value"] for r in figures} == {"0.00", "12.34"}
     assert all(r["Authority"] == "fec" for r in figures)
+    assert all(r["Account ID"] == ctx.account["account_id"] for r in figures)
+    assert all(not r["Internal account key"] and not r["Account kind"] for r in figures)
     payments = [r for r in rows if r["Row type"] == "External payment"]
     assert len(payments) == 2 and {p["Payment amount"] for p in payments} == {
         "0.00",

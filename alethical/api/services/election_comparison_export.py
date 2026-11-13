@@ -64,6 +64,8 @@ COLUMNS = (
     "Matching precincts",
     "Authority",
     "Account ID",
+    "Account kind",
+    "Internal account key",
     "Account",
     "Report key",
     "Report type",
@@ -128,6 +130,20 @@ def _problem(status, text):
 
 def _money(value):
     return None if value is None else Decimal(str(value))
+
+
+def _account_columns(account_id, account=None):
+    account = account or {}
+    if (
+        account.get("issued_id") is False
+        and account.get("account_id_kind") == "physical_section"
+    ):
+        return {
+            "Account ID": None,
+            "Account kind": "Report section",
+            "Internal account key": account_id,
+        }
+    return {"Account ID": account_id}
 
 
 def _cell(value):
@@ -442,8 +458,9 @@ def export_csv(
     inventory = {}
     defaults = set()
 
-    def register(report, authority, account_id, account_name, cid, kind):
+    def register(report, authority, account_id, account_name, cid, kind, account=None):
         key = report["report_key"]
+        account_fields = _account_columns(account_id, account)
         item = inventory.setdefault(
             key,
             {
@@ -451,6 +468,7 @@ def export_csv(
                 "authority": authority,
                 "account_id": account_id,
                 "account_name": account_name,
+                "account_fields": account_fields,
                 "candidates": set(),
                 "kind": kind,
                 "variants": {},
@@ -470,8 +488,13 @@ def export_csv(
             "amendment_status",
             "filing",
         )
-        if (item["authority"], item["account_id"]) != (authority, account_id) or any(
-            item["report"].get(field) != report.get(field) for field in identity_fields
+        if (
+            (item["authority"], item["account_id"]) != (authority, account_id)
+            or item["account_fields"] != account_fields
+            or any(
+                item["report"].get(field) != report.get(field)
+                for field in identity_fields
+            )
         ):
             _problem(409, "A report has conflicting checked source identities")
         item["candidates"].add(cid)
@@ -597,7 +620,7 @@ def export_csv(
                 **who({cid}),
                 **{
                     "Authority": a["authority"],
-                    "Account ID": a["account_id"],
+                    **_account_columns(a["account_id"], a),
                     "Account": a["name"],
                     "Period start": a["period_start"],
                     "Period end": a["period_end"],
@@ -619,7 +642,7 @@ def export_csv(
                     **who({cid}),
                     **{
                         "Authority": a["authority"],
-                        "Account ID": a["account_id"],
+                        **_account_columns(a["account_id"], a),
                         "State": "latest_report_unavailable_or_ambiguous",
                     },
                 )
@@ -629,7 +652,7 @@ def export_csv(
                         **who({cid}),
                         **{
                             "Authority": a["authority"],
-                            "Account ID": a["account_id"],
+                            **_account_columns(a["account_id"], a),
                             "Report key": unavailable["report_key"],
                             "State": unavailable.get("check_status"),
                             "Gap": unavailable.get("next_action"),
@@ -644,6 +667,7 @@ def export_csv(
                 a["name"],
                 cid,
                 "external",
+                account=a,
             )
     selected = set(report_keys) if report_keys else defaults
     if len(selected) != len(report_keys) and report_keys:
@@ -669,7 +693,7 @@ def export_csv(
         fields = {
             **who(item["candidates"]),
             "Authority": item["authority"],
-            "Account ID": item["account_id"],
+            **item["account_fields"],
             "Account": item["account_name"],
             "Report key": key,
             "Report type": r.get("report_type")
@@ -977,7 +1001,9 @@ def export_csv(
         fields = {
             **who(item["candidates"]),
             "Authority": p["authority"],
-            "Account ID": p["account_id"],
+            **inventory.get(p["report_key"], {}).get(
+                "account_fields", _account_columns(p["account_id"])
+            ),
             "Report key": p["report_key"],
             "Payment key": key,
             "Source report ID": p.get("source_report_id"),

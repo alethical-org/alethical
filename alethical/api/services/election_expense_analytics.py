@@ -1875,7 +1875,16 @@ def _join_external(
             rk = report["report_key"]
             previous = reports.get(rk)
             if previous is None or report["check_status"] == "checked":
-                reports[rk] = report | {"account_name": accounts[account_key]["name"]}
+                account = accounts[account_key]
+                reports[rk] = (
+                    report
+                    | {"account_name": account["name"]}
+                    | {
+                        k: deepcopy(account[k])
+                        for k in ("issued_id", "account_id_kind", "source_section")
+                        if k in account
+                    }
+                )
             if report["check_status"] == "checked":
                 report_memberships[rk].append(claim)
         for payment in entry.get("own_payments", []):
@@ -2048,6 +2057,13 @@ def _join_external(
                 "sources",
             )
         }
+        entry.update(
+            {
+                k: deepcopy(chosen[k])
+                for k in ("issued_id", "account_id_kind", "source_section")
+                if k in chosen
+            }
+        )
         entry.update(
             authority_name=authority_names.get(key[0]),
             account_name=chosen["account_name"],
@@ -2579,6 +2595,8 @@ _CSV_COLUMNS = (
     "Official party group",
     "Party assignment",
     "Account",
+    "Account kind",
+    "Internal account key",
     "Committee",
     "Report key",
     "Report label",
@@ -2786,10 +2804,22 @@ def _external_csv_rows(data):
     reports = {r["report_key"]: r for r in data["authority_reports"]}
 
     def context(report):
+        physical = (
+            report.get("issued_id") is False
+            and report.get("account_id_kind") == "physical_section"
+        )
         return {
             "Authority": report["authority_name"],
             "Authority ID": report["authority"],
-            "Account": report["account_id"],
+            "Account": None if physical else report["account_id"],
+            **(
+                {
+                    "Account kind": "Report section",
+                    "Internal account key": report["account_id"],
+                }
+                if physical
+                else {}
+            ),
             "Committee": report["account_name"],
             "Report key": report["report_key"],
             "Report type": report["report_type"],
@@ -2812,7 +2842,7 @@ def _external_csv_rows(data):
             ),
         }
 
-    def source(bindings):
+    def source(bindings, section=None):
         for b in bindings or []:
             used.add(b["source_sha256"])
         b = next(iter(bindings or []), {})
@@ -2828,7 +2858,13 @@ def _external_csv_rows(data):
             "Source copied at": original.get("copied_at"),
             "Source row ID": (b.get("locator") or {}).get("row"),
             "Source pages": _csv_join(
-                binding.get("locator", {}).get("page") for binding in bindings or []
+                binding.get("locator", {}).get(
+                    "page",
+                    section["page"]
+                    if section and binding["source_sha256"] == section["source_sha256"]
+                    else None,
+                )
+                for binding in bindings or []
             ),
             "Source references": _csv_join(
                 binding.get("locator", {}).get("field") for binding in bindings or []
@@ -2842,7 +2878,7 @@ def _external_csv_rows(data):
         base = context(report)
         yield (
             base
-            | source(report["sources"])
+            | source(report["sources"], report.get("source_section"))
             | {
                 "Row type": "External account report",
                 "Figure status": _csv_words(report["check_status"]),
@@ -2854,7 +2890,7 @@ def _external_csv_rows(data):
         for figure in report["reported_measures"] or []:
             yield (
                 base
-                | source(figure["sources"])
+                | source(figure["sources"], report.get("source_section"))
                 | {
                     "Row type": "External report measure",
                     "Measure": figure["label"],
@@ -2874,13 +2910,14 @@ def _external_csv_rows(data):
         ):
             yield (
                 base
-                | source(gap.get("sources"))
+                | source(gap.get("sources"), report.get("source_section"))
                 | {
                     "Row type": "External measure gap",
                     "Measure": gap.get("label"),
                     "Measure ID": gap["measure"],
                     "Figure status": {
                         "blank": "Blank in source",
+                        "redacted": "Redacted in source",
                         "ambiguous": "Unclear",
                         "unreadable": "Unreadable",
                         "not_checked": "Not checked",
@@ -2931,7 +2968,9 @@ def _external_csv_rows(data):
         address = payee.get("address") or {}
         yield (
             context(reports[payment["report_key"]])
-            | source(payment["source"])
+            | source(
+                payment["source"], reports[payment["report_key"]].get("source_section")
+            )
             | _csv_detail_flags(payment, data["filters"])
             | {
                 "Row type": "External memo detail"
@@ -2997,6 +3036,7 @@ def _csv_body(data):
     }
     identifiers = {
         "Account",
+        "Internal account key",
         "Candidate ID",
         "Report key",
         "Payee ID",

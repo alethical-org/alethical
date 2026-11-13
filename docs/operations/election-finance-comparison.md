@@ -238,6 +238,49 @@ compressed space per process. A busy file budget returns a retryable failure;
 it never marks a source missing or changes a report version. This file proof
 does not approve origin, candidate identity, visible fields or report versions.
 
+### Local publisher and acquisition checks
+
+`review_election_source_provenance.py` prepares or records explicit private source
+checks, dry by default. Executing a review changes only append-only source history;
+it never confirms a campaign account or publishes money. Acquisition evidence is
+bounded exact collector-record bytes stored privately, separate from public source
+documents. Direct captures, observed response redirects and older from/to-only
+observations remain distinct. Absent headers, methods and copy dates are not invented.
+
+A `local_filing_context:v1` section reading cites a checked typed recipient root
+and the exact ordered acquisition, link and offered-form steps to its document.
+Official directory categories and original election rows establish the recipient;
+an identical numeric district identifier never merges ISD and SSD. Portal account
+selection must keep the same issued account and supported recipient through the
+catalogue and PDF. Fixed parsers replay observed navigation without executing script.
+An unissued physical section has a document-and-section key, not an invented
+publisher account number. Existing Crow Wing context receipts remain supported.
+
+Public reads label these physical accounts as report sections and retain the
+original hash and section opening page. A figure's checked page takes precedence
+over that opening page; an opening-page fallback requires the same original.
+Missing publisher report numbers stay missing. Expense reports retain this
+identity. Expense and race CSVs leave the publisher Account or Account ID cell blank
+and put the derived key in the explicitly named Internal account key column. Issued account
+numbers and older publisher catalogue groups keep their existing meanings.
+
+At staging, publication, account review and public reads, the new recipient root's
+election date must equal the selected ballot snapshot's actual date. A matching
+year alone is insufficient. Previously admitted mismatches are withheld from both
+current and historical views and change the report version. Standalone source
+review can check other elections; a report's covered dates remain independent of
+the election date, so a historical report is not rejected solely for its period.
+
+Reading review and strict publication take sorted provenance locks before reading
+locks, then reread current decisions. Every transitive public original must belong
+to the selected generation and pass fresh file proof. Source corrections,
+withdrawals, loss and recovery participate in report versions and invalidate the
+affected current and historical relationships. Private capture bytes and reviewer
+records never enter public evidence or downloads. Temporary file capacity remains
+retryable, distinct from missing source evidence. These checks establish source
+origin and section scope only; candidate identity and effective amendments remain
+separate decisions.
+
 ## Fresh source reads
 
 Election analytics readers share a process-wide pool of 16 source workers. Each

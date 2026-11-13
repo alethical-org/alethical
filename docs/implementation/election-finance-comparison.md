@@ -228,17 +228,22 @@ readings have a separate append-only history; blanks, redactions, unreadable fie
 and unknown report versions remain explicit and nonadditive. The current local
 context adapter covers the checked Crow Wing form structure. Independent sections
 inside bundled PDFs and bounded large-file preparation/replay are implemented and
-tested locally. Reusable recipient and publisher proofs are in progress; their
-integration, actual section acceptance and evidenced local amendment decisions
-remain required work before full local coverage.
+tested locally. Reusable recipient and publisher proofs now replay exact retained
+chains, bind the selected election date, and preserve source withdrawal and
+historical-version checks. Independent retained-evidence checks cover the code;
+actual section acceptance, candidate identity and evidenced local amendment
+decisions remain required work before full local coverage. Public section evidence
+keeps the opening page separate from each figure's page and never presents a
+computed section key as a publisher-issued account number.
 
 The combined disposable-database check reproduces the published result fingerprint,
 5,023 races and 140,815 precinct/race records, then replays 389 existing Board
 account decisions and 14 federal fixture decisions. Expense reads, full JSON/CSV
-exports and sampled original downloads pass without production changes. This proves
-the integration path, not complete source coverage, new identity approvals or
-deployed access. The next acceptance run must also open the actual financial
-original behind each selected federal fixture report, rather than metadata alone.
+exports, sampled Board originals and all 14 selected federal financial originals
+pass without production changes. Every returned filing download matches its retained
+original hash. Both application phases stayed below the 1.5 GiB memory bound and
+the owned test database closed cleanly. This proves the integration path, not
+complete source coverage, new identity approvals or deployed access.
 
 Local discovery retains its original denominator of 1,941 routing groups and
 7,458 candidacies. Numeric school district identifiers alone are insufficient:

@@ -110,7 +110,7 @@ function Notice<T>({
       {read.updating && <Updating />}
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          {read.data ? 'Couldn’t update results' : children}
+          {read.busy ? 'Records are busy' : read.data ? 'Couldn’t update results' : children}
         </Refused>
       )}
       {read.notFound && <p>This record is not held</p>}

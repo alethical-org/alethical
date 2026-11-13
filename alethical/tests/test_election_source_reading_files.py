@@ -2,6 +2,7 @@
 
 # ruff: noqa: F811
 from io import BytesIO
+from datetime import UTC, date, datetime
 import hashlib
 import json
 from pathlib import Path
@@ -10,6 +11,7 @@ import sys
 from pypdf import PdfReader, PdfWriter
 import pytest
 
+from alethical.db import models as m
 from alethical.pipeline import election_source_files as files
 from alethical.pipeline import election_source_readings as r
 from alethical.pipeline import election_external_finance as storage
@@ -90,7 +92,22 @@ def test_large_section_survives_review_read_and_source_loss(db, monkeypatch):
         "media_type": "application/pdf",
         "url": "https://example.gov/bundle.pdf",
     }
-    generation = {"sources": [metadata]}
+    snapshot = m.ElectionComparisonSnapshot(
+        id=hashlib.sha256(b"large-section-test-snapshot").hexdigest(),
+        election_key="mn-2026-11-03-general",
+        election_date=date(2026, 11, 3),
+        stage="general",
+        fetched_at=datetime(2026, 11, 12, tzinfo=UTC),
+        sources=[],
+        coverage={},
+    )
+    db.add(snapshot)
+    db.flush()
+    generation = {
+        "sources": [metadata],
+        "snapshot_id": snapshot.id,
+        "election_key": snapshot.election_key,
+    }
     monkeypatch.setattr(
         storage, "read_source", lambda *a, **k: pytest.fail("whole read")
     )

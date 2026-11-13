@@ -7,7 +7,13 @@ import type {
 } from './expenseReportData';
 import { PARTY_LABELS, sumMoney } from './expenseReportData';
 import { useBand } from '../../ui/band';
-import { externalSourcePath, fieldGapLabel } from './externalData';
+import {
+  accountIdentity,
+  externalSourcePath,
+  fieldGapLabel,
+  sourceLocator,
+  sourceLocationLabel,
+} from './externalData';
 import { SourceFieldGaps } from './sourceFieldGaps';
 import { count, dateLabel, reportedFigureLabel, reportedMoneyLabel, periodLabel } from './format';
 
@@ -25,11 +31,12 @@ export function AuthorityFigures({
   const source = (kind: string, index: number) =>
     showSource(`external-report:${account.report_key}:${kind}:${index}`);
   const after = account.reported_itemized_after_exclusions ?? [];
+  const identity = accountIdentity(account);
   return (
     <section className="ex-account ex-authority-account">
-      <h4>{account.account_name || account.account_id}</h4>
+      <h4>{account.account_name || identity.summary}</h4>
       <p className="ec-muted">
-        {account.authority_name} · {account.account_id}
+        {account.authority_name} · {identity.summary}
       </p>
       <p>
         {account.report_type} · {periodLabel(account.period_start, account.period_end)}
@@ -149,6 +156,9 @@ export function authorityEvidence(
   if (kind !== 'report' && !figure && !gap) return null;
   const binding = (figure?.sources ?? gap?.sources ?? account.sources)[Number(rawIndex)];
   if (!binding) return null;
+  const locator = sourceLocator(binding, account);
+  const location = sourceLocationLabel(locator, account);
+  const identity = accountIdentity(account);
   return {
     attachment: data.external_generation_id
       ? externalSourcePath(
@@ -159,19 +169,19 @@ export function authorityEvidence(
           binding.source_sha256,
         )
       : null,
-    pdfPage: typeof binding.locator.page === 'number' ? binding.locator.page : undefined,
+    pdfPage: typeof locator.page === 'number' ? locator.page : undefined,
     evidence: {
       title:
         figure?.label ??
         gap?.label ??
-        `${account.account_name || account.account_id} · ${account.report_type}`,
+        `${account.account_name || identity.summary} · ${account.report_type}`,
       authority: account.authority_name,
       checked: 'Checked',
       quote: binding.quote || undefined,
       rows: [
-        { label: 'Filing account', value: account.account_id },
-        { label: 'Report', value: account.source_report_id },
-        ...(gap ? [{ label: 'Amount', value: fieldGapLabel(gap.state) }] : []),
+        { label: identity.label, value: identity.value },
+        ...(account.source_report_id ? [{ label: 'Report', value: account.source_report_id }] : []),
+        ...(gap ? [{ label: 'Status', value: fieldGapLabel(gap.state) }] : []),
         {
           label: 'Reporting period',
           value: periodLabel(
@@ -190,12 +200,7 @@ export function authorityEvidence(
               },
             ]
           : []),
-        {
-          label: 'Source location',
-          value: Object.entries(binding.locator)
-            .map(([k, v]) => `${k.replaceAll('_', ' ')} ${v}`)
-            .join(' · '),
-        },
+        ...(location ? [{ label: 'Source location', value: location }] : []),
         ...(binding.source_copied_at
           ? [{ label: 'Copied', value: dateLabel(binding.source_copied_at) }]
           : []),

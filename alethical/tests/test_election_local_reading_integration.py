@@ -6,10 +6,12 @@ from datetime import UTC, date, datetime
 import hashlib
 import json
 from types import SimpleNamespace
+from functools import wraps
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
+from sqlalchemy.orm import Session
 
 from alethical.db import models as m
 from alethical.pipeline import election_external_finance as s
@@ -24,13 +26,40 @@ from alethical.pipeline.election_comparison import (
 )
 from alethical.api.services import election_external_finance_reads as reads
 from alethical.tests.test_election_comparison_storage import MemoryStore
-from alethical.tests.finance_fixtures import finance_db
+from alethical.tests.test_election_source_review_concurrency import isolated_engine
 from alethical.tests.test_election_local_sources import packet
 
 
 @pytest.fixture
-def db(finance_db):
-    return finance_db
+def db(isolated_engine, monkeypatch):
+    # This module writes reviewed history and then calls public read services.
+    # Those are separate real transactions: READ COMMITTED writes and pinned
+    # REPEATABLE READ requests. Never weaken either production requirement.
+    engine = isolated_engine
+    with engine.begin() as connection:
+        names = [
+            n for n in inspect(connection).get_table_names() if n != "alembic_version"
+        ]
+        quoted = [connection.dialect.identifier_preparer.quote(n) for n in names]
+        connection.execute(text("TRUNCATE " + ", ".join(quoted) + " CASCADE"))
+    with Session(engine) as writer:
+
+        def request_wrapper(fn):
+            @wraps(fn)
+            def request(db, *args, **kwargs):
+                assert db is writer
+                writer.commit()
+                with engine.connect().execution_options(
+                    isolation_level="REPEATABLE READ"
+                ) as connection:
+                    with Session(connection) as reader:
+                        return fn(reader, *args, **kwargs)
+
+            return request
+
+        for name in ("candidate_finance", "bulk_finance"):
+            monkeypatch.setattr(reads, name, request_wrapper(getattr(reads, name)))
+        yield writer
 
 
 @pytest.fixture

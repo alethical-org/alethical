@@ -201,7 +201,7 @@ def report_facts(report):
 
 
 def account_facts(account):
-    return {
+    result = {
         k: account.get(k)
         for k in (
             "authority",
@@ -214,6 +214,11 @@ def account_facts(account):
             "jurisdiction",
         )
     }
+    if (account.get("reviewed_key_basis") or {}).get(
+        "kind"
+    ) == "local_filing_context:v1":
+        result["publisher_account"] = account.get("publisher_account")
+    return result
 
 
 def payment_facts(payment):
@@ -379,9 +384,20 @@ def validate_generation(g):
                 and report["check_status"] in REPORT_STATUSES,
                 "Invalid report account or status",
             )
+            account = accounts[(report["authority"], report["account_id"])]
+            unissued_section = (
+                report["authority"].startswith("local:")
+                and report.get("version_scope") == "exact_document"
+                and account["issued_id"] is False
+                and account.get("reviewed_key_basis", {}).get("kind")
+                == "local_filing_context:v1"
+            )
             require(
-                isinstance(report["source_report_id"], str)
-                and bool(report["source_report_id"])
+                (
+                    isinstance(report["source_report_id"], str)
+                    and bool(report["source_report_id"])
+                    or (report["source_report_id"] is None and unissued_section)
+                )
                 and isinstance(report["series_id"], str)
                 and bool(report["series_id"])
                 and (
@@ -641,6 +657,14 @@ def reading_state(g, cache=None):
         if value is None
         else {
             "head": value["head"],
+            **(
+                {
+                    "provenance_heads": value["provenance_heads"],
+                    "provenance_gaps": value["provenance_gaps"],
+                }
+                if "provenance_heads" in value
+                else {}
+            ),
             "missing_generation_sources": sorted(
                 set(value["original_hashes"]) - sources
             ),
@@ -668,6 +692,11 @@ def _current_readings(g, ids, cache=None):
             head["decision"] != "checked"
             or head["receipt_sha256"] != rid
             or not all(h in sources for h in value["original_hashes"])
+            or value.get("provenance_gaps")
+            or any(
+                p is None or p["decision"] != "checked" or p["receipt_sha256"] != pid
+                for pid, p in value.get("provenance_heads", {}).items()
+            )
         ):
             return False
     return True
@@ -921,7 +950,12 @@ def verify_evidence(db, store, g):
         from alethical.pipeline import election_source_readings as readings
 
         bodies.reading_context = readings.load_verified_reading_context(
-            db, store, receipt_ids, lock=True, allowed_source_hashes=set(bodies.sources)
+            db,
+            store,
+            receipt_ids,
+            lock=True,
+            allowed_source_hashes=set(bodies.sources),
+            election_date=snapshot.election_date,
         )
     races = db.scalars(
         select(m.ElectionComparisonRace).where(
@@ -1562,6 +1596,16 @@ def source_dependencies(
     return hashes
 
 
+def reading_election_date(db, generation):
+    """Use the actual ballot snapshot, never a collector-supplied year."""
+    snapshot = db.get(m.ElectionComparisonSnapshot, generation["snapshot_id"])
+    require(
+        snapshot is not None and snapshot.election_key == generation["election_key"],
+        "External generation belongs to a different election",
+    )
+    return snapshot.election_date
+
+
 def retained_bodies(
     db,
     store,
@@ -1581,6 +1625,7 @@ def retained_bodies(
         "Review source is outside its external generation",
     )
     result = _VerifiedBodies(source_index)
+    election_date = reading_election_date(db, generation) if reading_ids else None
     if reading_ids and reading_context_planned:
         from alethical.pipeline import election_source_readings as readings
 
@@ -1589,7 +1634,16 @@ def retained_bodies(
                 "Local reading proof is unavailable in this request"
             )
         for rid in reading_ids:
-            reading_context.receipt(rid)
+            receipt = reading_context.receipt(rid)
+            values = (
+                reading_context.local_values(rid)
+                if receipt["source_context"] is not None
+                else None
+            )
+            require(
+                readings._reading_election_matches(receipt, values, election_date),
+                "Local recipient root belongs to another election",
+            )
         result.reading_context = reading_context
     for h in hashes:
         row = db.get(m.ElectionResultSource, h)
@@ -1617,7 +1671,11 @@ def retained_bodies(
         from alethical.pipeline import election_source_readings as readings
 
         result.reading_context = readings.load_verified_reading_context(
-            db, store, reading_ids, allowed_source_hashes=set(source_index)
+            db,
+            store,
+            reading_ids,
+            allowed_source_hashes=set(source_index),
+            election_date=election_date,
         )
     return result
 

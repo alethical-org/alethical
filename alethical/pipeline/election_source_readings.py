@@ -8,6 +8,7 @@ review heads and originals again; there is no process-wide availability cache.
 from __future__ import annotations
 
 from collections import OrderedDict
+from contextlib import contextmanager, ExitStack
 from copy import deepcopy
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -114,7 +115,7 @@ def normalize_field(literal, value_type, state):
     if value_type == "mark":
         # A checked mark stays literal, never a certification/zero inference.
         require(
-            literal in {"X", "x", "✓", "✔", "☒"},
+            literal in {"X", "x", "✓", "✔", "☒", "●", "/", "■"},
             "Mark needs an explicitly checked source mark",
         )
         return "marked"
@@ -134,6 +135,10 @@ def normalize_field(literal, value_type, state):
         return whole + "." + fraction.ljust(2, "0")
     require(value_type == "date", "Unsupported reading value type")
     match = re.fullmatch(r"([0-9]{1,2})/([0-9]{1,2})/([0-9]{2}|[0-9]{4})", literal)
+    if match is None:
+        # Local forms also print US month-day-year with hyphens. Retain the
+        # exact literal; only a checked value gets calendar normalization.
+        match = re.fullmatch(r"([0-9]{1,2})-([0-9]{1,2})-([0-9]{4})", literal)
     try:
         if match:
             month, day, year = map(int, match.groups())
@@ -469,7 +474,15 @@ def validate_receipt(value):
                 "Invalid reading dependency",
             )
         if value["source_context"] is not None:
-            from alethical.pipeline.election_local_sources import validate_context_shape
+            require(isinstance(value["source_context"], dict), "Invalid source context")
+            if value["source_context"].get("kind") == "local_filing_context:v1":
+                from alethical.pipeline.election_local_context import (
+                    validate_context_shape,
+                )
+            else:
+                from alethical.pipeline.election_local_sources import (
+                    validate_context_shape,
+                )
 
             validate_context_shape(value["source_context"], value)
     except (TypeError, KeyError, ValueError, OverflowError) as exc:
@@ -618,15 +631,143 @@ def source_dependencies(receipt):
     }
     context = receipt["source_context"]
     if context is not None:
-        result.update(
-            context[k]
-            for k in (
-                "county_source_sha256",
-                "publisher_source_sha256",
-                "catalogue_source_sha256",
+        if context["kind"] == "local_filing_context:v1":
+            from alethical.pipeline.election_local_context import context_dependencies
+
+            result.update(context_dependencies(context)["public_original_hashes"])
+        else:
+            result.update(
+                context[k]
+                for k in (
+                    "county_source_sha256",
+                    "publisher_source_sha256",
+                    "catalogue_source_sha256",
+                )
             )
-        )
     return result
+
+
+def provenance_ids(receipt):
+    context = receipt["source_context"]
+    if context is None or context["kind"] != "local_filing_context:v1":
+        return []
+    from alethical.pipeline.election_local_context import context_dependencies
+
+    return context_dependencies(context)["provenance_receipt_ids"]
+
+
+def _provenance_requirements(db, receipt, *, partial=False):
+    ids = provenance_ids(receipt)
+    if not ids:
+        return {
+            "receipt_ids": [],
+            "subject_keys": [],
+            "public_original_hashes": [],
+            "heads": {},
+            "gaps": {},
+        }
+    from alethical.pipeline.election_source_provenance import provenance_requirements
+
+    return provenance_requirements(db, ids, partial=partial)
+
+
+def _provenance_proof(
+    db, store, receipt, allowed_source_hashes, *, partial=False, source_resolver=None
+):
+    ids = provenance_ids(receipt)
+    if not ids:
+        return None
+    from alethical.pipeline import election_source_provenance as provenance
+
+    return provenance.load_verified_provenance(
+        db,
+        source_resolver
+        if source_resolver is not None
+        else provenance.source_resolver_for(db, store),
+        ids,
+        allowed_source_hashes=allowed_source_hashes,
+        partial=partial,
+    )
+
+
+def _planned_provenance(db, receipt, cache, *, partial=False):
+    """Reuse exact inventory inside this call; never cache a proof or its heads
+    across calls. Whole-request lock planning still retains each reading's plan.
+    """
+    from alethical.pipeline.election_source_provenance import MAX_NODES
+
+    key = tuple(sorted(provenance_ids(receipt)))
+    if key in cache:
+        cache.move_to_end(key)
+        return cache[key]
+    plan = _provenance_requirements(db, receipt, partial=partial)
+    weight = len(plan["receipt_ids"])
+    while (
+        cache
+        and sum(len(value["receipt_ids"]) for value in cache.values()) + weight
+        > MAX_NODES
+    ):
+        cache.popitem(last=False)
+    cache[key] = plan
+    return plan
+
+
+@contextmanager
+def _borrow_sources(originals, hashes):
+    """Borrow sealed files only while their owning group context is live."""
+    require(
+        set(hashes) <= set(originals),
+        "Provenance source is outside the reading closure",
+    )
+    yield {h: originals[h] for h in hashes}
+
+
+class _ReadingFileStore:
+    """Track the member being restored, without retaining bytes or availability.
+
+    verified_source_files fetches and restores each member serially. Its entry
+    failure therefore identifies this member, not every source in the group.
+    """
+
+    def __init__(self, store, rows):
+        self.store = store
+        self.requests = iter(rows)
+        self.last_hash = None
+
+    def get(self, key, path, *, max_bytes=None):
+        self.last_hash = None
+        row = next(self.requests)
+        require(key == row.object_key, "Unexpected source file request order")
+        self.last_hash = row.content_hash
+        return self.store.get(key, path, max_bytes=max_bytes)
+
+
+@contextmanager
+def _section_files(store, rows, failed_sources):
+    tracked = _ReadingFileStore(store, rows)
+    with ExitStack() as stack:
+        try:
+            originals = stack.enter_context(verified_source_files(tracked, rows))
+        except SourceFileLimitError:
+            raise
+        except SourceFileError:
+            if tracked.last_hash is not None:
+                failed_sources.add(tracked.last_hash)
+            raise
+        # Format belongs to the reading, not the original: a valid HTML source
+        # misidentified as a report must not poison other uses of that source.
+        # verify_receipt_sources checks the PDF magic for every reading.
+        yield originals
+
+
+def _lock_provenance_plans(db, plans):
+    from alethical.pipeline import election_source_provenance as provenance
+
+    subjects = sorted({key for plan in plans for key in plan["subject_keys"]})
+    # Individual closures are bounded; a publication can contain many of them.
+    # Sorting the union before batching preserves one global lock order.
+    for batch in _batches(subjects, provenance.MAX_NODES):
+        provenance.lock_provenance(db, batch)
 
 
 def _fresh_bodies(db, store, hashes):
@@ -680,7 +821,16 @@ def _source_rows(db, hashes):
     return rows
 
 
-def _replay_local_context(receipt, originals):
+def _replay_local_context(receipt, originals, provenance=None):
+    if receipt["source_context"]["kind"] == "local_filing_context:v1":
+        from alethical.pipeline.election_local_context import replay_local_context
+
+        return replay_local_context(
+            receipt["source_context"],
+            receipt,
+            originals=originals,
+            provenance=provenance,
+        )
     from alethical.pipeline.election_local_sources import replay_source_context
 
     # The legacy HTML/CSV chain stays byte-based and bounded. Its original PDF
@@ -704,7 +854,7 @@ def _replay_local_context(receipt, originals):
     return replay_source_context(receipt, bodies)
 
 
-def verify_receipt_sources(receipt, bodies, *, render=False):
+def verify_receipt_sources(receipt, bodies, *, render=False, provenance=None):
     require(
         source_dependencies(receipt) <= set(bodies),
         "Reading original dependency is absent",
@@ -721,8 +871,11 @@ def verify_receipt_sources(receipt, bodies, *, render=False):
                 _source_contains(bodies[d["sha256"]], d["literal"].encode()),
                 "Reading dependency quotation differs from original",
             )
-    if receipt["source_context"] is not None:
-        _replay_local_context(receipt, bodies)
+    local_values = (
+        _replay_local_context(receipt, bodies, provenance)
+        if receipt["source_context"] is not None
+        else None
+    )
     if render:
         for p in receipt["pages"]:
             actual, _ = render_page(bodies[receipt["original_sha256"]], p["page"])
@@ -730,6 +883,7 @@ def verify_receipt_sources(receipt, bodies, *, render=False):
                 all(actual[k] == p[k] for k in actual),
                 "Reading render differs from exact original",
             )
+    return local_values
 
 
 def _batches(values, size=500):
@@ -811,6 +965,7 @@ class VerifiedReadingContext:
         generation_bound=False,
         outcomes=None,
         failed_sources=(),
+        provenance_versions=None,
         _seal=None,
     ):
         require(
@@ -823,7 +978,13 @@ class VerifiedReadingContext:
         self.generation_bound = generation_bound
         self.proof_outcomes = dict(outcomes or {key: True for key in receipts})
         self.failed_sources = frozenset(failed_sources)
-        self.version = digest({"heads": heads, "proof_outcomes": self.proof_outcomes})
+        self.version = digest(
+            {
+                "heads": heads,
+                "proof_outcomes": self.proof_outcomes,
+                **({"provenance": provenance_versions} if provenance_versions else {}),
+            }
+        )
 
     def receipt(self, receipt_id):
         require(receipt_id in self._receipts, "Receipt is outside this verified scope")
@@ -841,8 +1002,92 @@ class VerifiedReadingContext:
         return deepcopy(self._local_values[receipt_id])
 
 
+def _verify_section_groups(db, store, receipts, closures, rows, *, allowed, partial):
+    groups = {}
+    for rid, receipt in receipts.items():
+        if receipt["schema"] == SECTION_SCHEMA:
+            key = (
+                receipt["original_sha256"],
+                frozenset(closures[rid]),
+                tuple(sorted(provenance_ids(receipt))),
+            )
+            groups.setdefault(key, []).append(rid)
+    verified, values, failed_sources, versions = {}, {}, set(), {}
+    for (_, required, _), ids in groups.items():
+        try:
+            missing = required - set(rows)
+            failed_sources.update(missing)
+            require(not missing, "Reading original is not retained")
+            require(
+                not (required & failed_sources),
+                "Reading original failed earlier in this call",
+            )
+            with _section_files(
+                store,
+                [rows[h] for h in sorted(required)],
+                failed_sources,
+            ) as originals:
+                proof = _provenance_proof(
+                    db,
+                    store,
+                    receipts[ids[0]],
+                    required if allowed is None else allowed,
+                    partial=partial,
+                    source_resolver=lambda hashes: _borrow_sources(originals, hashes),
+                )
+                if proof is not None:
+                    for rid in ids:
+                        versions[rid] = proof.version
+                    require(
+                        all(proof.proof_outcomes.values()),
+                        "Reading provenance is not currently verified",
+                    )
+                for rid in ids:
+                    try:
+                        local = verify_receipt_sources(
+                            receipts[rid], originals, provenance=proof
+                        )
+                        if local is not None:
+                            values[rid] = local
+                        verified[rid] = receipts[rid]
+                    except SourceFileLimitError:
+                        raise
+                    except (ComparisonImportError, SourceFileError):
+                        if not partial:
+                            raise
+        except SourceFileLimitError:
+            raise
+        except SourceFileError as exc:
+            if not partial:
+                raise ComparisonImportError(
+                    "Reading original is unavailable or changed"
+                ) from exc
+        except ComparisonImportError:
+            if not partial:
+                raise
+    return verified, values, failed_sources, versions
+
+
+def _reading_election_matches(receipt, values, election_date):
+    context = receipt["source_context"]
+    return (
+        election_date is None
+        or context is None
+        or context["kind"] != "local_filing_context:v1"
+        or isinstance(values, dict)
+        and values.get("election_date") == election_date.isoformat()
+    )
+
+
 def load_verified_reading_context(
-    db, store, receipt_ids, *, lock=False, allowed_source_hashes=None, partial=False
+    db,
+    store,
+    receipt_ids,
+    *,
+    lock=False,
+    allowed_source_hashes=None,
+    partial=False,
+    election_date=None,
 ):
     """Fresh batched proof; partial mode is only for scoped ordinary reads.
 
@@ -850,10 +1095,33 @@ def load_verified_reading_context(
     receipt has its own result; one lost proof cannot invalidate unrelated ones.
     """
     require(not (partial and lock), "Publication cannot use partial reading proof")
+    require(
+        election_date is None or type(election_date) is date,
+        "Reading comparison needs an exact election date",
+    )
     if lock:
         _require_current_heads(db)
     heads = reading_heads(db, receipt_ids)
+    prepared, provenance_plans = {}, {}
+    plan_cache = OrderedDict()
+    for row in _receipt_rows(db, receipt_ids):
+        try:
+            receipt = validate_receipt(row.receipt)
+            require(
+                receipt_digest(receipt) == row.receipt_sha256
+                and subject_key(receipt) == row.subject_key
+                and receipt["original_sha256"] == row.original_sha256,
+                "Stored reading receipt integrity differs",
+            )
+            provenance_plans[row.receipt_sha256] = _planned_provenance(
+                db, receipt, plan_cache, partial=partial
+            )
+            prepared[row.receipt_sha256] = receipt
+        except ComparisonImportError:
+            if not partial:
+                raise
     if lock:
+        _lock_provenance_plans(db, provenance_plans.values())
         subjects = sorted({h["subject_key"] for h in heads.values() if h})
         for batch in _batches(subjects):
             db.execute(
@@ -875,52 +1143,62 @@ def load_verified_reading_context(
     )
     outcomes = {rid: False for rid in heads}
     receipts, hashes = {}, set()
-    for row in _receipt_rows(db, eligible):
+    closures = {}
+    for rid in sorted(eligible & set(prepared)):
         try:
-            receipt = validate_receipt(row.receipt)
-            require(
-                receipt_digest(receipt) == row.receipt_sha256
-                and subject_key(receipt) == row.subject_key
-                and receipt["original_sha256"] == row.original_sha256,
-                "Stored reading receipt integrity differs",
+            receipt = prepared[rid]
+            required = source_dependencies(receipt) | set(
+                provenance_plans[rid]["public_original_hashes"]
             )
             if allowed_source_hashes is not None:
                 require(
                     isinstance(allowed_source_hashes, (list, tuple, set, frozenset))
                     and all(_hash(h) for h in allowed_source_hashes)
-                    and source_dependencies(receipt) <= set(allowed_source_hashes),
+                    and required <= set(allowed_source_hashes),
                     "Reading dependency is outside this exact generation",
                 )
-            receipts[row.receipt_sha256] = receipt
-            hashes.update(source_dependencies(receipt))
+            receipts[rid] = receipt
+            closures[rid] = required
+            hashes.update(required)
         except ComparisonImportError:
             if not partial:
                 raise
     rows = _source_rows(db, hashes)
     require(partial or set(rows) == hashes, "Reading original is not retained")
-    cache, size, local_values = OrderedDict(), 0, {}
-    bodies, body, verified, proven, failed_sources = {}, None, {}, set(), set()
+    verified, local_values, failed_sources, provenance_versions = (
+        _verify_section_groups(
+            db,
+            store,
+            receipts,
+            closures,
+            rows,
+            allowed=allowed_source_hashes,
+            partial=partial,
+        )
+    )
+    cache, size = OrderedDict(), 0
+    bodies, body = {}, None
     for receipt_id, receipt in receipts.items():
+        if receipt["schema"] == SECTION_SCHEMA:
+            continue
         bodies.clear()
         body = None
-        required = source_dependencies(receipt)
+        required = closures[receipt_id]
         try:
             require(required <= set(rows), "Reading original is not retained")
-            if receipt["schema"] == SECTION_SCHEMA:
-                with verified_source_files(
-                    store,
-                    [rows[h] for h in sorted(required)],
-                    required_types={receipt["original_sha256"]: "pdf"},
-                ) as originals:
-                    verify_receipt_sources(receipt, originals)
-                    if receipt["source_context"] is not None:
-                        local_values[receipt_id] = _replay_local_context(
-                            receipt, originals
-                        )
-                outcomes[receipt_id] = True
-                verified[receipt_id] = receipt
-                proven.update(required)
-                continue
+            proof = _provenance_proof(
+                db,
+                store,
+                receipt,
+                required if allowed_source_hashes is None else allowed_source_hashes,
+                partial=partial,
+            )
+            if proof is not None:
+                provenance_versions[receipt_id] = proof.version
+                require(
+                    all(proof.proof_outcomes.values()),
+                    "Reading provenance is not currently verified",
+                )
             require(
                 all(
                     0 < rows[h].byte_size <= MAX_ORIGINAL_BYTES
@@ -953,16 +1231,10 @@ def load_verified_reading_context(
                 cache[h] = body
                 size += len(body)
                 bodies[h] = body
-            verify_receipt_sources(receipt, bodies)
-            if receipt["source_context"] is not None:
-                from alethical.pipeline.election_local_sources import (
-                    replay_source_context,
-                )
-
-                local_values[receipt_id] = replay_source_context(receipt, bodies)
-            outcomes[receipt_id] = True
+            local = verify_receipt_sources(receipt, bodies)
+            if local is not None:
+                local_values[receipt_id] = local
             verified[receipt_id] = receipt
-            proven.update(required)
         except SourceFileLimitError:
             # Capacity is retryable. It must not become missing-source evidence
             # or a new report version, even on an ordinary partial read.
@@ -975,6 +1247,21 @@ def load_verified_reading_context(
         except ComparisonImportError:
             if not partial:
                 raise
+    # A later group can observe loss of a previously healthy shared source.
+    # Final outcomes, returned receipts and original membership must agree.
+    for rid in list(verified):
+        election_matches = _reading_election_matches(
+            verified[rid], local_values.get(rid), election_date
+        )
+        require(
+            partial or election_matches,
+            "Local recipient root belongs to another election",
+        )
+        if closures[rid] & failed_sources or not election_matches:
+            del verified[rid]
+            local_values.pop(rid, None)
+    outcomes.update({rid: True for rid in verified})
+    proven = {h for rid in verified for h in closures[rid]}
     return VerifiedReadingContext(
         verified,
         heads,
@@ -983,6 +1270,7 @@ def load_verified_reading_context(
         generation_bound=allowed_source_hashes is not None,
         outcomes=outcomes,
         failed_sources=failed_sources,
+        provenance_versions=provenance_versions,
         _seal=_CONTEXT_SEAL,
     )
 
@@ -991,6 +1279,7 @@ def reading_requirements(db, receipt_ids):
     """Private scoped dependency/version metadata, never byte proof."""
     heads = reading_heads(db, receipt_ids)
     result = {h: None for h in heads}
+    plan_cache = OrderedDict()
     for row in _receipt_rows(db, receipt_ids):
         receipt = validate_receipt(row.receipt)
         require(
@@ -998,9 +1287,20 @@ def reading_requirements(db, receipt_ids):
             and subject_key(receipt) == row.subject_key,
             "Stored reading receipt integrity differs",
         )
+        provenance = _planned_provenance(db, receipt, plan_cache, partial=True)
         result[row.receipt_sha256] = {
             "head": heads[row.receipt_sha256],
-            "original_hashes": sorted(source_dependencies(receipt)),
+            "original_hashes": sorted(
+                source_dependencies(receipt) | set(provenance["public_original_hashes"])
+            ),
+            **(
+                {
+                    "provenance_heads": provenance["heads"],
+                    "provenance_gaps": provenance["gaps"],
+                }
+                if provenance_ids(receipt)
+                else {}
+            ),
             "field_gaps": [
                 {
                     "measure": field["field_id"].removeprefix("cover."),
@@ -1058,6 +1358,11 @@ def record_reading(
             expected_previous_id=expected_previous_id,
         )
     )
+    required = source_dependencies(receipt)
+    if decision == "checked":
+        provenance_plan = _provenance_requirements(db, receipt)
+        required.update(provenance_plan["public_original_hashes"])
+        _lock_provenance_plans(db, [provenance_plan])
     db.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
         {"key": "source-reading-original:" + receipt["original_sha256"]},
@@ -1068,9 +1373,9 @@ def record_reading(
     )
     if decision == "checked":
         if receipt["schema"] == SECTION_SCHEMA:
-            rows = _source_rows(db, source_dependencies(receipt))
+            rows = _source_rows(db, required)
             require(
-                set(rows) == source_dependencies(receipt),
+                set(rows) == required,
                 "Reading original is not retained",
             )
             try:
@@ -1079,7 +1384,18 @@ def record_reading(
                     rows.values(),
                     required_types={receipt["original_sha256"]: "pdf"},
                 ) as originals:
-                    verify_receipt_sources(receipt, originals, render=True)
+                    provenance = _provenance_proof(
+                        db,
+                        store,
+                        receipt,
+                        required,
+                        source_resolver=lambda hashes: _borrow_sources(
+                            originals, hashes
+                        ),
+                    )
+                    verify_receipt_sources(
+                        receipt, originals, render=True, provenance=provenance
+                    )
             except SourceFileLimitError:
                 raise
             except SourceFileError as exc:

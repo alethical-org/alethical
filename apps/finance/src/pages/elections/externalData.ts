@@ -21,9 +21,14 @@ export interface ExternalContext {
     status: string;
   }>;
 }
-export interface ExternalAccount {
-  authority: string;
+export interface ExternalAccountIdentity {
   account_id: string;
+  issued_id?: boolean;
+  account_id_kind?: 'physical_section' | 'publisher_catalogue_group';
+  source_section?: { source_sha256: string; page: number };
+}
+export interface ExternalAccount extends ExternalAccountIdentity {
+  authority: string;
   name: string;
   source_candidate_id: string | null;
   checked_on: string;
@@ -46,7 +51,7 @@ export interface ExternalReport {
   report_key: string;
   authority: string;
   account_id: string;
-  source_report_id?: string;
+  source_report_id?: string | null;
   report_type?: string;
   series_id?: string;
   period_start?: string;
@@ -162,6 +167,44 @@ export const externalSourcePath = (
   });
 export const accountKey = (account: Pick<ExternalAccount, 'authority' | 'account_id'>) =>
   `${encodeURIComponent(account.authority)}|${encodeURIComponent(account.account_id)}`;
+export function accountIdentity(account: ExternalAccountIdentity) {
+  if (account.issued_id === false && account.account_id_kind === 'physical_section') {
+    const value = account.source_section
+      ? `Page ${account.source_section.page}`
+      : 'Page unavailable';
+    return { label: 'Report section', value, summary: `Report section · ${value}` };
+  }
+  return {
+    label: account.issued_id === false ? 'Filing group' : 'Filing account',
+    value: account.account_id,
+    summary: account.account_id,
+  };
+}
+/** A section's cover can locate that original only; a field's own page wins. */
+export function sourceLocator(binding: Binding, account?: ExternalAccountIdentity) {
+  const section = account?.source_section;
+  return typeof binding.locator.page !== 'number' &&
+    account?.issued_id === false &&
+    account.account_id_kind === 'physical_section' &&
+    section?.source_sha256 === binding.source_sha256
+    ? { ...binding.locator, page: section.page }
+    : binding.locator;
+}
+export function sourceLocationLabel(
+  locator: Binding['locator'],
+  account?: ExternalAccountIdentity,
+) {
+  if (
+    account?.issued_id === false &&
+    account.account_id_kind === 'physical_section' &&
+    Object.keys(locator).length === 1 &&
+    locator.page === account.source_section?.page
+  )
+    return null;
+  return Object.entries(locator)
+    .map(([k, v]) => `${k.replaceAll('_', ' ')} ${v}`)
+    .join(' · ');
+}
 export function reportSelections(raw: string): Map<string, string> | null {
   const result = new Map<string, string>();
   if (!raw) return result;

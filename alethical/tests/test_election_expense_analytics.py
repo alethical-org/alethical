@@ -2168,12 +2168,13 @@ def test_external_drilldown_keeps_exact_report_measure_and_memo(db, own_external
     )
 
 
+@pytest.mark.parametrize("physical_section", [False, True])
 def test_external_shared_account_money_and_party_use_full_memberships(
-    held, monkeypatch
+    held, monkeypatch, physical_section
 ):
     context, races, _, _, _ = held
     race = races[0]
-    base = s._assemble(*held, party="R")
+    base = s._assemble(*held, party="R", _csv=physical_section)
     report = {
         "report_key": "1" * 64,
         "authority": "fec",
@@ -2218,6 +2219,18 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         "period_start": "2026-01-01",
         "period_end": "2026-10-31",
     }
+    if physical_section:
+        # Synthetic already-eligible bulk input tests projection only. It does
+        # not make any unknown-amendment physical report eligible for totals.
+        account.update(
+            issued_id=False,
+            account_id_kind="physical_section",
+            source_section={"source_sha256": "c" * 64, "page": 7},
+        )
+        report["source_report_id"] = None
+        report["sources"] = [
+            {"source_sha256": "c" * 64, "locator": {}, "quote": "Checked section"}
+        ]
     p = {
         "payment_key": "2" * 64,
         "source_row_id": "3",
@@ -2268,9 +2281,21 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         lambda db, docs, hashes, *, store=None: dict.fromkeys(hashes, True),
     )
     result = s._join_external(
-        None, base, bulk, races, report_keys=[], excluded_payee_ids=[]
+        None,
+        base,
+        bulk,
+        races,
+        report_keys=[],
+        excluded_payee_ids=[],
+        _csv=physical_section,
     )
     assert len(result["authority_reports"]) == 1
+    if physical_section:
+        actual = result["authority_reports"][0]
+        assert actual["issued_id"] is False
+        assert actual["account_id_kind"] == "physical_section"
+        assert actual["source_section"] == account["source_section"]
+        assert actual["source_report_id"] is None
     assert (
         result["authority_reports"][0]["source_field_gaps"]
         == report["source_field_gaps"]
@@ -2304,6 +2329,22 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         row for row in csv_rows if row["Row type"] == "External account report"
     )
     assert exported_report["Account party group"] == "Party cannot be assigned"
+    if physical_section:
+        assert exported_report["Account"] is None
+        assert exported_report["Account kind"] == "Report section"
+        assert exported_report["Internal account key"] == account["account_id"]
+        assert exported_report["Source pages"] == "7"
+        # A checked field page must not inherit the section cover page.
+        assert blank["Source pages"] == "2"
+        exported = list(csv.DictReader(io.StringIO(s._csv_body(result))))
+        actual = next(
+            row for row in exported if row["Row type"] == "External account report"
+        )
+        assert actual["Account"] == ""
+        assert actual["Internal account key"] == account["account_id"]
+    else:
+        assert exported_report["Account"] == account["account_id"]
+        assert "Internal account key" not in exported_report
     assert (
         exported_report["Party assignment"]
         == "Shared account, different ballot parties"

@@ -351,8 +351,8 @@
 }
 .ec-measures {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 20px;
+  grid-template-columns: repeat(2, minmax(min-content, 1fr));
+  gap: 16px 32px;
   margin-top: 14px;
 }
 .ec-measures > div {

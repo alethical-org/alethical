@@ -125,8 +125,16 @@ export function ExternalCandidate({
       (kind === 'coverage' ? data.coverage.sources : undefined);
     const binding = bindings?.[Number(index)];
     if (binding && /^\d+$/.test(index)) {
+      const account =
+        report &&
+        data.accounts.find(
+          (a) => a.authority === report.authority && a.account_id === report.account_id,
+        );
+      const identity = account ? x.accountIdentity(account) : undefined;
+      const locator = x.sourceLocator(binding, account || undefined);
+      const location = x.sourceLocationLabel(locator, account || undefined);
       evidence = {
-        pdfPage: typeof binding.locator.page === 'number' ? binding.locator.page : undefined,
+        pdfPage: typeof locator.page === 'number' ? locator.page : undefined,
         attachment: x.externalSourcePath(data, binding.source_sha256),
         evidence: {
           title: gap
@@ -144,16 +152,12 @@ export function ExternalCandidate({
           quote: binding.quote || undefined,
           checked: 'Checked',
           rows: [
-            ...(gap ? [{ label: 'Amount', value: x.fieldGapLabel(gap.state) }] : []),
+            ...(identity ? [{ label: identity.label, value: identity.value }] : []),
+            ...(gap ? [{ label: 'Status', value: x.fieldGapLabel(gap.state) }] : []),
             ...(report && x.unknownAmendments(report)
               ? [{ label: 'Amendments', value: 'Not established; excluded from totals' }]
               : []),
-            {
-              label: 'Source',
-              value: Object.entries(binding.locator)
-                .map(([k, v]) => `${k.replaceAll('_', ' ')} ${v}`)
-                .join(' · '),
-            },
+            ...(location ? [{ label: 'Source', value: location }] : []),
             ...(report || payment
               ? [
                   {
@@ -227,7 +231,11 @@ export function ExternalCandidate({
       )}
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          {data ? 'Couldn’t update campaign reports' : 'Couldn’t load campaign reports'}
+          {read.busy
+            ? 'Records are busy'
+            : data
+              ? 'Couldn’t update campaign reports'
+              : 'Couldn’t load campaign reports'}
         </Refused>
       )}
       {read.notFound && <p className="ec-muted">Campaign reports unavailable</p>}
@@ -404,11 +412,12 @@ function ExternalAccount({
   const [open, setOpen] = useState(false);
   const report = x.chosenReport(reports, chosen);
   const effective = reports.filter((r) => r.effective === true);
+  const identity = x.accountIdentity(account);
   return (
     <div className="ec-account">
       <strong>{account.name}</strong>
       <p className="ec-muted">
-        {authority} · {account.account_id} · Checked {dateLabel(account.checked_on)}
+        {authority} · {identity.summary} · Checked {dateLabel(account.checked_on)}
       </p>
       {report ? (
         <>

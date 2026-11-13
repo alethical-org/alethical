@@ -38,6 +38,42 @@ def checked(db, ctx):
     return decision
 
 
+@pytest.mark.parametrize(
+    ("account", "expected"),
+    [
+        ({"account_id": "group:looks-internal", "issued_id": True}, {}),
+        (
+            {"account_id": "issued-looking", "issued_id": False},
+            {"issued_id": False, "account_id_kind": "publisher_catalogue_group"},
+        ),
+        (
+            {
+                "issued_id": False,
+                "reviewed_key_basis": {"kind": "publisher_catalogue_group"},
+                "publisher_account": {"kind": "physical_section", "issued_id": False},
+            },
+            {"issued_id": False, "account_id_kind": "publisher_catalogue_group"},
+        ),
+    ],
+)
+def test_public_account_identity_keeps_issued_and_legacy_meanings(account, expected):
+    assert reads._public_account_identity(account) == expected
+
+
+def test_section_page_fallback_preserves_explicit_pages_and_foreign_sources():
+    original = {"source_sha256": "a" * 64, "locator": {"page": 9}, "quote": "Exact"}
+    section = {"source_sha256": "a" * 64, "page": 2}
+    assert reads._binding(original, source_section=section)[0]["locator"]["page"] == 9
+    assert (
+        reads._binding(original | {"locator": {}}, source_section=section)[0][
+            "locator"
+        ]["page"]
+        == 2
+    )
+    other = original | {"source_sha256": "b" * 64, "locator": {}}
+    assert reads._binding(other, source_section=section)[0]["locator"] == {}
+
+
 def test_no_review_never_exposes_candidate_figures(db, external):
     publish(db, external)
     result = reads.candidate_finance(db, **args(external))
@@ -62,6 +98,7 @@ def test_temporary_source_capacity_returns_retry_without_revising_data(
     with pytest.raises(HTTPException) as failure:
         reads.candidate_finance(db, **args(external), version=before["version"])
     assert failure.value.status_code == 503
+    assert failure.value.headers == {"Retry-After": "1"}
     monkeypatch.setattr(reads, "_availability", original)
     assert (
         reads.candidate_finance(db, **args(external), version=before["version"])

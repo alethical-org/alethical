@@ -9,6 +9,7 @@ registration alone cannot make local claims checked.
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime
 from html.parser import HTMLParser
 import hashlib
 import json
@@ -455,15 +456,43 @@ def _input(body, source, locator, context):
     allowed = {receipt["original_sha256"]: None}
     if receipt["source_context"] is not None:
         expected = receipt["source_context"]
-        allowed[receipt["original_sha256"]] = expected["document_url"]
-        if locator.get("kind") == "authority":
-            allowed = {expected["publisher_source_sha256"]: expected["publisher_url"]}
-        elif locator.get("kind") in {"account", "report"}:
-            allowed[expected["catalogue_source_sha256"]] = expected["catalogue_url"]
+        if expected["kind"] == "local_filing_context:v1":
+            values = context.local_values(locator["receipt_sha256"])
+            allowed[receipt["original_sha256"]] = values["document_url"]
+            authority = values["authority"]["key"]
+            capture = values["source_chain"][-1]
+            try:
+                copied_at = datetime.fromisoformat(source.get("copied_at"))
+                captured_at = datetime.fromisoformat(capture["copied_at"])
+            except (TypeError, ValueError) as exc:
+                raise ComparisonImportError(
+                    "Local source copy time differs from checked capture"
+                ) from exc
+            require(
+                copied_at.tzinfo is not None and copied_at == captured_at,
+                "Local source copy time differs from checked capture",
+            )
+            captured_media = capture.get("media_type")
+            require(
+                captured_media is None
+                or isinstance(source.get("media_type"), str)
+                and source["media_type"].split(";", 1)[0].strip().lower()
+                == captured_media.split(";", 1)[0].strip().lower(),
+                "Local source media type differs from checked capture",
+            )
+        else:
+            allowed[receipt["original_sha256"]] = expected["document_url"]
+            if locator.get("kind") == "authority":
+                allowed = {
+                    expected["publisher_source_sha256"]: expected["publisher_url"]
+                }
+            elif locator.get("kind") in {"account", "report"}:
+                allowed[expected["catalogue_source_sha256"]] = expected["catalogue_url"]
+            authority = "local:county:18"
         require(
             h in allowed
             and source.get("url") == allowed[h]
-            and source.get("authority") == "local:county:18",
+            and source.get("authority") == authority,
             "Local source metadata differs from checked publisher association",
         )
     require(h in allowed, "Local reading belongs to another original")
@@ -506,13 +535,22 @@ def extract_local_reading(body, source, locator, *, context=None):
         )
         value = _entity(context, locator, report=kind == "report")
         facts = value[kind]
-        quote = {
-            "basis": "checked publisher/catalogue association",
-            "county_row": value["county_literal_row"],
-            "publisher_title": value["publisher_title"],
-            "catalogue_group": value["source_group_label"],
-            "document_url": value["document_url"],
-        }
+        if receipt["source_context"]["kind"] == "local_filing_context:v1":
+            quote = {
+                "basis": "checked publisher and exact document section",
+                "recipient_rows": value["recipient_rows"],
+                "directory_entry": value["directory_entry"],
+                "document_url": value["document_url"],
+                "section": value["section"],
+            }
+        else:
+            quote = {
+                "basis": "checked publisher/catalogue association",
+                "county_row": value["county_literal_row"],
+                "publisher_title": value["publisher_title"],
+                "catalogue_group": value["source_group_label"],
+                "document_url": value["document_url"],
+            }
         if kind != "authority":
             quote["observed_fields"] = {
                 k: f["literal"]

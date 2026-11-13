@@ -83,7 +83,32 @@ def public_source(source):
     }
 
 
-def _binding(value):
+def _public_account_identity(account):
+    """Describe a checked account's key without presenting an internal key as issued."""
+    if account.get("issued_id") is not False:
+        return {}
+    basis = account.get("reviewed_key_basis") or {}
+    publisher = (
+        account.get("publisher_account") or {}
+        if basis.get("kind") == "local_filing_context:v1"
+        else {}
+    )
+    if (
+        publisher.get("kind") == "physical_section"
+        and publisher.get("issued_id") is False
+    ):
+        return {
+            "issued_id": False,
+            "account_id_kind": "physical_section",
+            "source_section": {
+                "source_sha256": basis["original_sha256"],
+                "page": basis["cover"]["page"],
+            },
+        }
+    return {"issued_id": False, "account_id_kind": "publisher_catalogue_group"}
+
+
+def _binding(value, *, reading_context=None, source_section=None):
     result = []
     for binding in storage.bindings(value):
         if not isinstance(binding, dict):
@@ -98,12 +123,35 @@ def _binding(value):
             original = binding.get("locator", {})
             if original.get("field_id"):
                 locator["field"] = original["field_id"]
+            if (
+                "page" not in locator
+                and reading_context is not None
+                and original.get("receipt_sha256")
+            ):
+                receipt = reading_context.receipt(original["receipt_sha256"])
+                if binding["source_sha256"] == receipt["original_sha256"]:
+                    field = next(
+                        (
+                            f
+                            for f in receipt["fields"]
+                            if f["field_id"] == original.get("field_id")
+                        ),
+                        None,
+                    )
+                    if field is not None:
+                        locator["page"] = field["page"]
             if binding["adapter"] == "local_native_form:v1":
                 locator["page"] = 1  # The fixed native adapter reads page1 only.
                 if original.get("kind") == "payment":
                     row_id = (binding.get("facts") or {}).get("source_row_id", "")
                     if row_id.rsplit(":", 1)[-1].isdigit():
                         locator["row"] = int(row_id.rsplit(":", 1)[-1])
+        if (
+            "page" not in locator
+            and source_section is not None
+            and binding["source_sha256"] == source_section["source_sha256"]
+        ):
+            locator["page"] = source_section["page"]
         result.append(
             {
                 "source_sha256": binding["source_sha256"],
@@ -187,7 +235,12 @@ def _source_capacity_errors(operation):
         try:
             return operation(*args, **kwargs)
         except SourceFileLimitError:
-            _problem(503, "Records are busy. Try again.")
+            raise problem_exception(
+                503,
+                "Service Unavailable",
+                "Records are busy",
+                headers={"Retry-After": "1"},
+            ) from None
 
     return wrapped
 
@@ -376,7 +429,7 @@ def _context(
         ],
     ]:
         plan = reading_plans.setdefault(
-            selected["id"], {"ids": set(), "sources": set()}
+            selected["id"], {"ids": set(), "sources": set(), "generation": selected}
         )
         plan["sources"].update(source["sha256"] for source in selected["sources"])
         for rid, requirement in storage._reading_requirements(selected, cache).items():
@@ -394,6 +447,7 @@ def _context(
         for selected_id, state in reading_versions.items()
     }
     cache["local_reading_outcomes"] = proof_outcomes
+    reading_proof_versions = {}
     for selected_id, plan in reading_plans.items():
         if plan["ids"]:
             proof = readings.load_verified_reading_context(
@@ -402,8 +456,10 @@ def _context(
                 plan["ids"],
                 allowed_source_hashes=plan["sources"],
                 partial=True,
+                election_date=storage.reading_election_date(db, plan["generation"]),
             )
             cache[("verified_local_readings", selected_id)] = proof
+            reading_proof_versions[selected_id] = proof.version
             proof_outcomes.setdefault(selected_id, {}).update(proof.proof_outcomes)
             for h in proof.failed_sources:
                 available[h] = False
@@ -507,7 +563,11 @@ def _context(
             "outcome_captures": sorted(captures),
             "outcome_sources": outcome_available,
             **(
-                {"source_readings": reading_versions, "reading_proof": proof_outcomes}
+                {
+                    "source_readings": reading_versions,
+                    "reading_proof": proof_outcomes,
+                    "reading_proof_versions": reading_proof_versions,
+                }
                 if reading_versions
                 else {}
             ),
@@ -674,6 +734,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
     ctx, g, race, candidate, histories, bodies, available, store = state
     cache = cache if cache is not None else {}
     indexes = indexes if indexes is not None else _indexes(g)
+    reading_context = cache.get(("verified_local_readings", g["id"]))
     race_id, candidate_id = race.id, candidate["candidate_id"]
     latest = {}
     for review in histories:
@@ -732,11 +793,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                 "account_id": key[1],
                 "name": current["name"],
                 "source_candidate_id": current.get("source_candidate_id"),
-                **(
-                    {"issued_id": False, "account_id_kind": "publisher_catalogue_group"}
-                    if current.get("issued_id") is False
-                    else {}
-                ),
+                **_public_account_identity(current),
                 "period_start": review.period_start.isoformat(),
                 "period_end": review.period_end.isoformat(),
                 "checked_on": review.reviewed_at.date().isoformat(),
@@ -745,6 +802,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
         )
     reports = []
     for account, review in approved:
+        source_section = _public_account_identity(account).get("source_section")
         for report in indexes["account_reports"].get(
             (account["authority"], account["account_id"]), []
         ):
@@ -799,7 +857,13 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                         )
                         if k in f
                     }
-                    | {"sources": _binding(f["binding"])}
+                    | {
+                        "sources": _binding(
+                            f["binding"],
+                            reading_context=reading_context,
+                            source_section=source_section,
+                        )
+                    }
                     for f in report["figures"]
                     if review.period_start.isoformat()
                     <= f["period_start"]
@@ -915,7 +979,9 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                     else "sources_unavailable",
                     "sources": _binding(
                         storage.bindings(report.get("binding"))
-                        + storage.bindings(report.get("status_binding"))
+                        + storage.bindings(report.get("status_binding")),
+                        reading_context=reading_context,
+                        source_section=source_section,
                     )
                     if source_available
                     else [],
@@ -1009,7 +1075,15 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                     for k in ("version_scope", "amendment_status")
                     if k in report
                 },
-                "sources": _binding(payment["binding"]),
+                "sources": _binding(
+                    payment["binding"],
+                    reading_context=reading_context,
+                    source_section=_public_account_identity(
+                        indexes["accounts"][
+                            (payment["authority"], payment["account_id"])
+                        ]
+                    ).get("source_section"),
+                ),
             }
         )
     payments.sort(key=lambda payment: payment["payment_key"])
@@ -1145,7 +1219,13 @@ def _own_payments(entry, indexes, generation, available, cache):
                     for k in ("version_scope", "amendment_status")
                     if k in report
                 },
-                "sources": _binding(payment["binding"]),
+                "sources": _binding(
+                    payment["binding"],
+                    reading_context=cache.get(
+                        ("verified_local_readings", generation["id"])
+                    ),
+                    source_section=account.get("source_section"),
+                ),
             }
     return [rows[key] for key in sorted(rows)]
 

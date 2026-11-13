@@ -30,7 +30,7 @@ import {
   periodLabel,
 } from './format';
 import * as d from './expenseReportData';
-import { externalSourcePath, coverageLabel } from './externalData';
+import { accountIdentity, externalSourcePath, coverageLabel } from './externalData';
 import { AuthorityFigures, AuthorityComparisons, authorityEvidence } from './expenseExternal';
 import './comparison.css';
 import './expenseReport.css';
@@ -104,7 +104,7 @@ function Notice({
       ) : (
         read.failed && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            {read.data ? 'Couldn’t update results' : message}
+            {read.busy ? 'Records are busy' : read.data ? 'Couldn’t update results' : message}
           </Refused>
         )
       )}
@@ -1244,7 +1244,11 @@ function CandidateRow({
             />
           ) : (
             <div className="ex-account ex-account-reference" key={account.report_key}>
-              <strong>Shared campaign account {account.account_id}</strong>
+              <strong>
+                {account.account_id_kind === 'physical_section' && account.issued_id === false
+                  ? `Shared report section · ${accountIdentity(account).value}`
+                  : `Shared campaign account ${account.account_id}`}
+              </strong>
               <p>Account figures shown with {ownMoney(account)?.name}</p>
               <button
                 className="ec-link"
@@ -1791,7 +1795,7 @@ function Exclusions({
           />
           {applyTarget !== null && applyRead.failed && !applyRead.changed && (
             <Refused onRetry={applyRead.retry} retrying={applyRead.pending}>
-              Couldn’t update results
+              {applyRead.busy ? 'Records are busy' : 'Couldn’t update results'}
             </Refused>
           )}
           {applyTarget !== null && applyRead.changed && (
@@ -1903,21 +1907,32 @@ function Exclusions({
                   ]}
                 />
                 <span className="ec-muted">{d.addressLines(payee.payee).join(', ')}</span>
-                {payee.account_reports.map((account) => (
-                  <div className="ex-part" key={account.report_key}>
-                    <span>
-                      {account.claims.map((claim) => claim.name).join(' / ')} · Account{' '}
-                      {account.account_id ?? account.registration_number}
-                    </span>
-                    <strong className="ex-number">
-                      {account.amounts ? (
-                        moneyLabel(account.amounts.total)
-                      ) : (
-                        <ReportedValues values={account.reported_amounts} />
-                      )}
-                    </strong>
-                  </div>
-                ))}
+                {payee.account_reports.map((account) => {
+                  const external = data.authority_reports?.find(
+                    (report) => report.report_key === account.report_key,
+                  );
+                  const identity = external
+                    ? accountIdentity(external)
+                    : {
+                        label: 'Account',
+                        value: account.account_id ?? account.registration_number,
+                      };
+                  return (
+                    <div className="ex-part" key={account.report_key}>
+                      <span>
+                        {account.claims.map((claim) => claim.name).join(' / ')} · {identity.label}{' '}
+                        {identity.value}
+                      </span>
+                      <strong className="ex-number">
+                        {account.amounts ? (
+                          moneyLabel(account.amounts.total)
+                        ) : (
+                          <ReportedValues values={account.reported_amounts} />
+                        )}
+                      </strong>
+                    </div>
+                  );
+                })}
               </li>
             ))}
           </ul>

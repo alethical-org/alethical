@@ -5,7 +5,7 @@ import { clearReadCache } from '../api/read';
 import { navigate } from '../router';
 import { ExpenseReport } from '../pages/elections/ExpenseReport';
 import * as d from '../pages/elections/expenseReportData';
-import { authorityGroups } from '../pages/elections/expenseExternal';
+import { authorityEvidence, authorityGroups } from '../pages/elections/expenseExternal';
 import { reportedMoneyLabel } from '../pages/elections/format';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -588,6 +588,32 @@ it('retains old-scope rows on failed search, with retry and no replacement zero'
   );
 });
 
+it('keeps the old expense scope while sources are busy and retries the requested scope', async () => {
+  await render('&expenseQuery=Dana');
+  handler = (url) =>
+    url.searchParams.get('candidate_query') === 'Robin'
+      ? new Response('', { status: 503, headers: { 'Retry-After': '0.001' } })
+      : undefined;
+  await act(async () => navigate(rootPath + '&expenseQuery=Robin', { replace: true }));
+  await settle();
+  await vi.waitFor(() =>
+    expect(container.querySelector('.ex-candidates')?.textContent).toContain('Records are busy'),
+  );
+  const previous = container.querySelector('.ex-candidates')!;
+  expect(previous.textContent).toContain('Example Dana');
+  expect(previous.textContent).toContain('Candidates matching “Dana”');
+  expect(previous.textContent).not.toContain('No matching candidates');
+  handler = null;
+  const retry = [...previous.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
+    button.textContent?.includes('Try again'),
+  )!;
+  await click(retry);
+  const current = container.querySelector('.ex-candidates')!;
+  expect(current.textContent).toContain('Example Robin');
+  expect(current.textContent).not.toContain('Records are busy');
+  expect(current.textContent).not.toContain('Candidates matching “Dana”');
+});
+
 it('ignores a late candidate search reply after a newer query', async () => {
   let finish: ((response: Response) => void) | undefined;
   handler = (url) =>
@@ -1024,9 +1050,55 @@ it('opens the exact external figure source and uses its copy date rather than ge
   expect(panel.textContent).toContain('Federal Election Commission');
   expect(panel.textContent).toContain('CopiedNov 10, 2026');
   expect(panel.textContent).toContain('1234.99');
+  expect(panel.textContent).toContain('Filing accountC00000001');
   const source = requests.find((url) => url.pathname.includes('/external-finance/sources/'))!;
   expect(source.pathname).toContain('8'.repeat(64));
   expect(source.searchParams.get('generation_id')).toBe('7'.repeat(64));
+});
+it('keeps a bundled expense report section separate from publisher-issued account numbers', async () => {
+  const report = externalFixture();
+  Object.assign(report, {
+    account_id: `group:${'a'.repeat(64)}`,
+    issued_id: false,
+    account_id_kind: 'physical_section',
+    source_section: { source_sha256: '8'.repeat(64), page: 5 },
+  });
+  report.source_report_id = null;
+  report.sources[0].locator = {};
+  await render(`&expenseSource=external-report:${report.report_key}:report:0`);
+  expect(container.querySelector('.ex-authority-account')?.textContent).toContain(
+    'Report section · Page 5',
+  );
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Report sectionPage 5');
+  expect(panel.textContent).not.toContain('page 5');
+  expect(panel.textContent).not.toContain(report.account_id);
+  expect(panel.textContent).not.toContain('Filing account');
+});
+it('opens the field page before its section cover and never assigns that cover to another source', () => {
+  const report = externalFixture();
+  Object.assign(report, {
+    issued_id: false,
+    account_id_kind: 'physical_section',
+    source_section: { source_sha256: '8'.repeat(64), page: 5 },
+  });
+  const key = `external-report:${report.report_key}:figure.0:0`;
+  const binding = report.reported_measures![0].sources[0];
+  binding.locator.page = 9;
+  expect(authorityEvidence(data, report, key)?.pdfPage).toBe(9);
+  delete binding.locator.page;
+  expect(authorityEvidence(data, report, key)?.pdfPage).toBe(5);
+  binding.source_sha256 = '6'.repeat(64);
+  expect(authorityEvidence(data, report, key)?.pdfPage).toBeUndefined();
+  Object.assign(report, {
+    account_id_kind: 'publisher_catalogue_group',
+    account_id: 'catalogue-group',
+  });
+  const evidence = authorityEvidence(data, report, key)!;
+  expect(evidence.evidence.rows).toContainEqual({
+    label: 'Filing group',
+    value: 'catalogue-group',
+  });
 });
 it('keeps external report selections for candidate payee drilldown', () => {
   const report = externalFixture();

@@ -304,3 +304,89 @@ def test_partial_ordinary_proof_keeps_unrelated_receipt_usable(db, monkeypatch):
         r.load_verified_reading_context(
             db, store, [one.receipt_sha256, two.receipt_sha256], lock=True, partial=True
         )
+
+
+@pytest.mark.parametrize("literal", ["X", "x", "✓", "✔", "☒", "●", "/", "■"])
+def test_exact_checked_mark_literals_preserve_source_representation(literal):
+    # The filled radio dot and diagonal selected-box stroke occur in retained
+    # Minnesota forms. This accepts their representation, never their review.
+    field = r.field_proposal(
+        "cover.selection",
+        page=1,
+        bounds=[10, 10, 20, 20],
+        label="Selected box",
+        literal=literal,
+        value_type="mark",
+    )
+    assert field["literal"] == literal
+    assert field["state"] == "value"
+    assert field["normalized"] == "marked"
+    assert "decision" not in field and "candidate_name" not in field
+
+
+@pytest.mark.parametrize(
+    "literal", ["○", "◯", "☐", "□", "yes", "1", "0", 0, "·", ".", "● ", "/ ", ""]
+)
+def test_mark_normalization_refuses_unmarked_or_inferred_values(literal):
+    with pytest.raises(ComparisonImportError, match="explicitly checked source mark"):
+        r.normalize_field(literal, "mark", "value")
+
+
+@pytest.mark.parametrize("literal", ["X", "x", "✓", "✔", "☒", "●", "/", "■"])
+@pytest.mark.parametrize(
+    "state", ["blank", "ambiguous", "unreadable", "not_checked", "redacted"]
+)
+def test_uncertain_mark_state_never_normalizes_to_marked(literal, state):
+    assert r.normalize_field(literal, "mark", state) is None
+
+
+@pytest.mark.parametrize(
+    ("literal", "expected"),
+    [
+        ("03-10-2026", "2026-03-10"),
+        ("11-16-2025", "2025-11-16"),
+        ("03-09-2026", "2026-03-09"),
+        ("2-29-2024", "2024-02-29"),
+        ("03/10/2026", "2026-03-10"),
+        ("3/10/26", "2026-03-10"),
+        ("2026-03-10", "2026-03-10"),
+    ],
+)
+def test_checked_us_dates_preserve_literal_and_exact_calendar_value(literal, expected):
+    field = r.field_proposal(
+        "cover.period_start",
+        page=1,
+        bounds=[10, 10, 20, 20],
+        label="From",
+        literal=literal,
+        value_type="date",
+    )
+    assert field["literal"] == literal
+    assert field["normalized"] == expected
+    assert "decision" not in field
+
+
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "02-29-2026",
+        "13-01-2026",
+        "03-32-2026",
+        "00-10-2026",
+        "03-10-26",
+        "03/10-2026",
+        "03-10/2026",
+        "03-10-2026 ",
+        "around 03-10-2026",
+    ],
+)
+def test_checked_us_date_refuses_invalid_or_unsupported_representation(literal):
+    with pytest.raises(ComparisonImportError):
+        r.normalize_field(literal, "date", "value")
+
+
+@pytest.mark.parametrize(
+    "state", ["blank", "ambiguous", "unreadable", "not_checked", "redacted"]
+)
+def test_uncertain_us_date_never_becomes_a_calendar_value(state):
+    assert r.normalize_field("03-10-2026", "date", state) is None

@@ -3,7 +3,13 @@
 import { apiPath } from '../../api/read';
 import type { Page, RetainedSource } from './data';
 import { periodLabel } from './format';
-import type { Binding, ExternalFigure, ExternalAccount, SourceFieldGap } from './externalData';
+import type {
+  Binding,
+  ExternalFigure,
+  ExternalAccount,
+  ExternalAccountIdentity,
+  SourceFieldGap,
+} from './externalData';
 
 export type Party = 'R' | 'DFL' | 'NP' | 'other' | 'unknown';
 export type Geography = 'MN' | 'out_of_state' | 'unknown';
@@ -287,13 +293,12 @@ export interface ReportedAmount {
   currency: string;
   amount: string | null;
 }
-export interface AuthorityReport {
+export interface AuthorityReport extends ExternalAccountIdentity {
   authority: string;
   authority_name: string;
-  account_id: string;
   account_name: string;
   report_key: string;
-  source_report_id: string;
+  source_report_id: string | null;
   report_type: string;
   period_start: string | null;
   period_end: string | null;

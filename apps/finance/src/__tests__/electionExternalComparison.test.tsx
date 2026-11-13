@@ -124,6 +124,29 @@ it('shows unreadable local fields with their exact source and no guessed amount'
   expect(panel.textContent).toContain('1?0');
   expect(panel.textContent).toContain('page 3');
 });
+it('identifies a bundled report by its checked section page without inventing a filing number', async () => {
+  const account = data.accounts[0];
+  Object.assign(account, {
+    account_id: `group:${H('f')}`,
+    issued_id: false,
+    account_id_kind: 'physical_section',
+    source_section: { source_sha256: source, page: 5 },
+  });
+  data.reports[0].account_id = account.account_id;
+  data.reports[0].source_report_id = null;
+  data.reports[0].sources[0].locator = {};
+  await render();
+  expect(container.querySelector('.ec-account')?.textContent).toContain('Report section · Page 5');
+  expect(container.textContent).not.toContain(account.account_id);
+  await render({
+    source: `external:${encodeURIComponent(candidate.candidate_id)}:report:${reportKey}:0`,
+  });
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Report sectionPage 5');
+  expect(panel.textContent).not.toContain('page 5');
+  expect(panel.textContent).not.toContain('Filing account');
+  expect(panel.textContent).not.toContain(account.account_id);
+});
 beforeEach(() => {
   clearReadCache();
   vi.clearAllMocks();
@@ -270,6 +293,23 @@ it('shows own source measures with exact dates and whole dollars, without relabe
     generation,
     selectedReports: [reportKey],
   });
+});
+it('keeps prior campaign figures through source capacity failures and recovers on retry', async () => {
+  await render();
+  const fetcher = vi.mocked(fetch);
+  fetcher.mockImplementation(
+    async () => new Response('', { status: 503, headers: { 'Retry-After': '0.001' } }),
+  );
+  await render({ revision: 1 });
+  await vi.waitFor(() => expect(container.textContent).toContain('Records are busy'));
+  expect(container.textContent).toContain('$1,200');
+  expect(container.textContent).toContain('Showing previous records');
+  expect(container.textContent).not.toContain('No campaign reports');
+  fetcher.mockImplementation(async () => json(data));
+  await click(buttons('Try again')[0]);
+  expect(container.textContent).not.toContain('Records are busy');
+  expect(container.textContent).not.toContain('Showing previous records');
+  expect(container.textContent).toContain('$1,200');
 });
 it('opens the figure’s own retained source using its generation and Finance authorization', async () => {
   const selectedSource = `external:${encodeURIComponent(candidate.candidate_id)}:figure:${reportKey}.0:0`;
