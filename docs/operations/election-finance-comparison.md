@@ -428,7 +428,7 @@ separate decisions.
 
 ## Fresh source reads
 
-Election analytics readers share a process-wide pool of 16 source workers. Each
+Election analytics readers share a process-wide pool of 32 source workers. Each
 request keeps at most 64 MiB of compressed originals and starts with an empty
 cache; no source-availability decision survives the request. Repeated uses of an
 original within that request share its bytes, then perform their own hash, length
@@ -437,15 +437,27 @@ work before removing their temporary files.
 
 Hash-keyed source checks refill their bounded queue as any check finishes, so an
 earlier slow file cannot leave available workers idle. Each request holds at most
-16 submitted checks; the shared worker limit stays 16. The general source mapper
+32 submitted checks; the shared worker limit stays 32. The general source mapper
 preserves input order unless a caller explicitly opts into completion order.
 Interrupts during cleanup wait for started checks to finish before propagating.
 
-These readers use a 16-connection storage client with a 10-second connection
+These readers use a 32-connection storage client with a 10-second connection
 timeout, 30-second read timeout and 1 attempt per request. Ingestion clients keep
 their existing settings. Source loss changes the report version and withholds the
 affected figure; retry starts a fresh check. A storage-only timing does not prove
 full report latency or deployed capacity.
+
+The 32-worker limit follows a same-source 16/32/16 comparison and a bounded mixed
+whole-election/candidate read. Both retained identical report bytes and fresh
+source proofs; the mixed read stayed within the process ceiling. This is a bounded
+setting, not a per-request pool or permission for automatic concurrency growth.
+
+An initial expense request can select `view=payees` to return its first payee page
+and scoped version together. Candidate payee expansion uses that one checked read
+instead of discarding a candidate page before reading payees. Later searches and
+pages retain that scoped version; a changed source requires recovery. Offsets after
+the first page and the separate payee, payment and export routes still require both
+snapshot and version pins. The whole-election version cannot pin candidate detail.
 
 Large originals are checked sequentially within one request so it does not exhaust
 its own file budget. Large local PDFs reopen as bounded verified files only while

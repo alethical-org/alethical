@@ -62,13 +62,17 @@ def _require_pinned(filters):
 @router.get("/elections/{election_key}/analytics/expenses")
 def report(
     filters: dict = Depends(_filters),
+    view: Literal["candidates", "payees"] = "candidates",
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0, le=2147483647),
     db: Session = Depends(get_db),
 ):
     if offset:
         _require_pinned(filters)
-    return {"data": reads.report(db, **filters, limit=limit, offset=offset)}
+    # A new candidate scope can establish its own version and first payee page
+    # in one checked read, instead of fetching and discarding a candidate page.
+    read = reads.payees if view == "payees" else reads.report
+    return {"data": read(db, **filters, limit=limit, offset=offset)}
 
 
 @router.get("/elections/{election_key}/analytics/expenses/payees")

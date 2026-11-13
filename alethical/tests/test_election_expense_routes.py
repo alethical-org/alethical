@@ -36,8 +36,9 @@ def private(response):
 
 @pytest.mark.parametrize("suffix,service", ROUTES)
 @pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.parametrize("view", ["candidates", "payees"])
 def test_no_expense_or_source_reads_without_finance_access(
-    finance_api, finance_db, monkeypatch, suffix, service, status
+    finance_api, finance_db, monkeypatch, suffix, service, status, view
 ):
     def forbidden(*args, **kwargs):
         pytest.fail("Refused request entered expense or source reads")
@@ -49,7 +50,7 @@ def test_no_expense_or_source_reads_without_finance_access(
     else:
         finance_access.revoke(finance_db, FINANCE_EMAIL)
         finance_db.commit()
-    response = finance_api.get(BASE + suffix, params=PINS)
+    response = finance_api.get(BASE + suffix, params=PINS | {"view": view})
     assert response.status_code == status, response.text
     private(response)
 
@@ -105,6 +106,47 @@ def test_drilldown_pagination_and_exports_need_both_pins(
     )
     response = finance_api.get(BASE + suffix, params=params | pins)
     assert response.status_code == 422, response.text
+
+
+def test_first_payee_view_establishes_its_own_checked_scope(finance_api, monkeypatch):
+    calls = []
+
+    def captured(db, **kwargs):
+        calls.append(kwargs)
+        return {"version": "e" * 16, "snapshot_id": "a" * 64, "payees": []}
+
+    monkeypatch.setattr(reads, "payees", captured)
+    monkeypatch.setattr(
+        reads, "report", lambda *a, **kw: pytest.fail("Redundant candidate report")
+    )
+    response = finance_api.get(
+        BASE,
+        params={"view": "payees", "race_id": "c" * 64, "candidate_id": "one"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["version"] == "e" * 16
+    assert len(calls) == 1
+    assert calls[0]["race_id"] == "c" * 64
+    assert calls[0]["candidate_id"] == "one"
+    assert calls[0]["version"] is None
+    private(response)
+
+
+@pytest.mark.parametrize("pins", [{}, {"version": "b" * 16}, {"snapshot_id": "a" * 64}])
+def test_payee_view_continuation_still_needs_both_pins(finance_api, monkeypatch, pins):
+    monkeypatch.setattr(
+        reads, "payees", lambda *a, **kw: pytest.fail("Unpinned payee continuation")
+    )
+    response = finance_api.get(BASE, params=pins | {"view": "payees", "offset": 50})
+    assert response.status_code == 422
+
+
+def test_unknown_expense_view_fails_before_reads(finance_api, monkeypatch):
+    monkeypatch.setattr(
+        reads, "report", lambda *a, **kw: pytest.fail("Invalid view entered reads")
+    )
+    response = finance_api.get(BASE, params={"view": "payments"})
+    assert response.status_code == 422
 
 
 @pytest.mark.parametrize("suffix,service", ROUTES[:3])
@@ -189,17 +231,21 @@ def test_actual_export_name_search_keeps_selected_scope_and_missing_candidates(
     )
 
 
+@pytest.mark.parametrize("view", ["candidates", "payees"])
 def test_actual_report_export_and_source_loss_keep_same_evidence(
-    finance_api, finance_db, comparison, monkeypatch
+    finance_api, finance_db, comparison, monkeypatch, view
 ):
     store, source, document = retained_read_store(finance_db, comparison)
     monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
-    response = finance_api.get(BASE)
+    response = finance_api.get(BASE, params={"view": view})
     assert response.status_code == 200, response.text
     private(response)
     first = response.json()["data"]
     assert first["summary"]["source_report_totals"]["amounts"]["total"] == "7.00"
     pins = {key: first[key] for key in PINS}
+    if view == "payees":
+        continuation = finance_api.get(BASE + "/payees", params=pins)
+        assert continuation.json()["data"] == first
     for format in ("json", "csv"):
         response = finance_api.get(
             BASE + "/export",
@@ -241,14 +287,17 @@ def test_actual_report_export_and_source_loss_keep_same_evidence(
             context["summary"]["source_report_totals"]
             == first["summary"]["source_report_totals"]
         )
-    store.objects.pop(document.object_key)
+    original = store.objects.pop(document.object_key)
     for suffix, _ in ROUTES:
         response = finance_api.get(BASE + suffix, params=pins)
         assert response.status_code == 409, response.text
         private(response)
-    fresh = finance_api.get(BASE).json()["data"]
+    fresh = finance_api.get(BASE, params={"view": view}).json()["data"]
     assert fresh["version"] != first["version"]
     assert fresh["summary"]["source_report_totals"]["amounts"] is None
+    store.objects[document.object_key] = original
+    recovered = finance_api.get(BASE, params={"view": view}).json()["data"]
+    assert recovered == first
 
 
 def test_actual_name_search_report_selection_drilldowns_and_exports(
