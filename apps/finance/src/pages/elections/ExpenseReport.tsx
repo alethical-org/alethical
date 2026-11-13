@@ -125,7 +125,10 @@ function Scope({ read, path }: { read: Read<d.ExpenseAnswer>; path: string | nul
         ? ` · Candidates matching “${read.data.filters.candidate_query}”`
         : ''}
       {read.data.filters.payee_query ? ` · Payees matching “${read.data.filters.payee_query}”` : ''}{' '}
-      · {read.data.filters.report_keys?.length ? 'Selected reports' : 'Latest available reports'}
+      ·{' '}
+      {read.data.filters.selected_only || read.data.filters.report_keys?.length
+        ? 'Selected reports'
+        : 'Latest available reports'}
     </p>
   );
 }
@@ -337,6 +340,7 @@ export function ExpenseReport({
   const query: d.ExpenseQuery = {
     race_id: raceId,
     report_keys: reports ?? [],
+    selected_only: !!reports?.length,
     excluded_payee_ids: exclusions ?? [],
   };
   const baselinePath = valid ? d.expensePath(electionKey, '', query) : null;
@@ -364,6 +368,7 @@ export function ExpenseReport({
   const candidateQuery: d.ExpenseQuery = {
     race_id: raceId,
     report_keys: matchingKeys,
+    selected_only: !!reports?.length,
     candidate_query: queryText,
   };
   const candidateSeedPath =
@@ -480,7 +485,11 @@ export function ExpenseReport({
   const partySource = baseline?.account_reports
     .flatMap((account) =>
       account.claims.flatMap((claim) =>
-        (claim.party_sources ?? []).map((source) => ({ account, claim, source })),
+        (claim.party_sources ?? []).map((source) => ({
+          account,
+          claim,
+          source,
+        })),
       ),
     )
     .find(({ account, claim, source }) => sourceKey === partySourceKey(account, claim, source));
@@ -488,7 +497,9 @@ export function ExpenseReport({
     current && baseline
       ? sourceAccount
         ? reportEvidence(baseline, sourceAccount, (claim, source) =>
-            setAddress({ expenseSource: partySourceKey(sourceAccount, claim, source) }),
+            setAddress({
+              expenseSource: partySourceKey(sourceAccount, claim, source),
+            }),
           )
         : partySource
           ? partyEvidence(baseline, partySource.claim, partySource.source)
@@ -1319,7 +1330,7 @@ function CandidateRow({
               {candidate.gaps.some((gap) => gap.state === 'amendment_status_not_established')
                 ? 'Amendments not established; excluded from totals'
                 : candidate.gaps.some((gap) => gap.state === 'selected_report_not_associated')
-                  ? 'Latest report not linked to this candidate'
+                  ? 'Selected report not linked to this candidate'
                   : candidate.external_coverage
                     ? coverageLabel(candidate.external_coverage.status)
                     : candidate.filing_authority === 'fec'
@@ -1453,6 +1464,7 @@ function CandidatePayees({
   const query: d.ExpenseQuery = {
     race_id: candidate.race_id,
     candidate_id: candidate.candidate_id,
+    selected_only: selectedReports.length > 0,
     report_keys: d.scopedReportKeys(
       baseline,
       selectedReports,
@@ -2150,7 +2162,10 @@ function partyEvidence(
         { label: 'Candidate', value: claim.name },
         { label: 'Party as filed', value: source.party_value },
         { label: 'Candidate ID', value: source.candidate_id },
-        { label: 'Source row', value: row == null ? 'Unavailable' : String(row) },
+        {
+          label: 'Source row',
+          value: row == null ? 'Unavailable' : String(row),
+        },
         ...(!available
           ? [
               {

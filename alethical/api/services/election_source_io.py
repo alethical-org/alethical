@@ -2,10 +2,23 @@
 
 from collections import OrderedDict, deque
 from concurrent.futures import ThreadPoolExecutor, wait
+import gzip
 from pathlib import Path
-from threading import Lock, RLock, BoundedSemaphore
+from threading import Event, Lock, RLock, BoundedSemaphore
+import zlib
+
+from botocore.exceptions import ClientError
 
 from alethical.pipeline.election_comparison import ComparisonImportError
+from alethical.pipeline.election_source_files import (
+    SourceFileError,
+    SourceFileLimitError,
+)
+from alethical.pipeline.raw_file_store import (
+    StorageIntegrityError,
+    StorageObjectMissingError,
+    StorageReadError,
+)
 
 # One process budget, not 16 new remote readers for each admitted HTTP request.
 SOURCE_WORKERS = 16
@@ -71,7 +84,8 @@ class FreshReadStore:
                     self.entries[key] = body
                     if max_bytes is not None and len(body) > max_bytes:
                         raise ComparisonImportError("Source exceeds retained length")
-                    Path(path).write_bytes(body)
+                    if Path(path).write_bytes(body) != len(body):
+                        raise StorageReadError("Cached source write was incomplete")
                     return
             with _READ_SLOTS:
                 self.store.get(key, path, max_bytes=max_bytes)
@@ -88,14 +102,103 @@ class FreshReadStore:
                     # originals remain bounded files owned by their validators.
                     body = Path(path).read_bytes()
                     if len(body) != length:
-                        raise ComparisonImportError("Source changed while being read")
+                        raise StorageReadError("Source changed while being read")
                     self.entries[key] = body
                     self.size += length
 
 
 def request_store(store):
     """Preserve an explicitly passed request scope instead of nesting caches."""
-    return store if isinstance(store, FreshReadStore) else FreshReadStore(store)
+    return (
+        store
+        if isinstance(store, (FreshReadStore, SourceReadScope))
+        else FreshReadStore(store)
+    )
+
+
+def _operational_source_error(error, *, decoding=False):
+    """Unwrap only known validation wrappers; never inspect private error text."""
+    seen = set()
+    wrapped = False
+    while isinstance(error, (ComparisonImportError, SourceFileError)):
+        if isinstance(error, SourceFileLimitError) or id(error) in seen:
+            return True
+        seen.add(id(error))
+        if error.__cause__ is None:
+            return False
+        wrapped = True
+        error = error.__cause__
+    if isinstance(error, (StorageObjectMissingError, StorageIntegrityError)):
+        return False
+    if isinstance(error, ClientError):
+        code = error.response.get("Error", {}).get("Code")
+        status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        return not (
+            error.operation_name == "GetObject"
+            and (code == "NoSuchKey" or (code in {"404", "NotFound"} and status == 404))
+        )
+    if decoding and isinstance(error, (gzip.BadGzipFile, EOFError, zlib.error)):
+        return False
+    if decoding and wrapped and isinstance(error, (ValueError, TypeError, KeyError)):
+        # A validator's malformed-field refusal remains a gap. The request flag
+        # separately records these exceptions if they actually came from GET.
+        return False
+    return True
+
+
+def raise_source_read_error(error):
+    """Keep proved evidence gaps distinct from a failed read operation."""
+    if _operational_source_error(error, decoding=True):
+        from alethical.api.problems import problem_exception
+
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            "Records are busy",
+            headers={"Retry-After": "1"},
+        ) from None
+
+
+class SourceReadScope:
+    """Remember failed operations if a partial validator consumes their errors.
+
+    This flag lives only for the request and supplies no source verdict or bytes.
+    The existing request store remains the single compressed-byte cache.
+    """
+
+    def __init__(self, store):
+        self.store = request_store(store)
+        self._failed = Event()
+
+    def get(self, key, path, *, max_bytes=None):
+        try:
+            return self.store.get(key, path, max_bytes=max_bytes)
+        except Exception as error:
+            self.record_failure(error, decoding=False)
+            raise
+
+    def record_failure(self, error, *, decoding=True):
+        if _operational_source_error(error, decoding=decoding):
+            self._failed.set()
+
+    def raise_if_failed(self):
+        if self._failed.is_set():
+            raise_source_read_error(StorageReadError("Source operation failed"))
+
+
+def source_read_scope(store=None, *, factory):
+    if isinstance(store, SourceReadScope):
+        return store
+
+    def create_store():
+        try:
+            return factory()
+        except Exception as error:
+            raise StorageReadError("Source storage setup failed") from error
+
+    return SourceReadScope(
+        store if store is not None else lazy_request_store(create_store)
+    )
 
 
 class _LazySourceStore:

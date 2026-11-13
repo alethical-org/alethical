@@ -22,7 +22,9 @@ import re
 from pathlib import Path
 import tempfile
 from urllib.parse import quote, urlencode
+import zlib
 
+from botocore.exceptions import ClientError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -44,6 +46,12 @@ from alethical.pipeline.campaign_finance import (
     INDEPENDENT_COLUMNS,
 )
 from alethical.pipeline.election_account_reviews import candidate_identity
+from alethical.pipeline.election_comparison import ComparisonImportError
+from alethical.pipeline.raw_file_store import (
+    StorageIntegrityError,
+    StorageObjectMissingError,
+    StorageReadError,
+)
 from alethical.api.services.election_source_io import (
     reader_store_from_env as raw_file_store_from_env,
 )
@@ -87,6 +95,13 @@ class _SourceProof:
     prefix: bytes | None = None
 
 
+def _source_read_unavailable():
+    """A failed operation cannot establish a smaller set of source evidence."""
+    return problem_exception(
+        503, "Service Unavailable", "Records are busy", headers={"Retry-After": "1"}
+    )
+
+
 def _verify_original(store, proof: _SourceProof | None, output: Path | None = None):
     """Prove one exact retained original without buffering its entire body."""
     if (
@@ -107,7 +122,28 @@ def _verify_original(store, proof: _SourceProof | None, output: Path | None = No
             prefix="election-analytics-proof-"
         ) as directory:
             path = Path(directory) / "original.csv.gz"
-            store.get(proof.object_key, str(path), max_bytes=proof.compressed_size)
+            try:
+                store.get(proof.object_key, str(path), max_bytes=proof.compressed_size)
+            except (
+                StorageObjectMissingError,
+                StorageIntegrityError,
+                ComparisonImportError,
+            ):
+                return False
+            except ClientError as error:
+                code = error.response.get("Error", {}).get("Code")
+                status = error.response.get("ResponseMetadata", {}).get(
+                    "HTTPStatusCode"
+                )
+                if error.operation_name == "GetObject" and (
+                    code == "NoSuchKey"
+                    or (code in {"404", "NotFound"} and status == 404)
+                ):
+                    return False
+                raise _source_read_unavailable() from None
+            except Exception:
+                # SDK errors may contain private endpoints and object keys.
+                raise _source_read_unavailable() from None
             if path.stat().st_size != proof.compressed_size:
                 return False
             compressed_hash = hashlib.sha256()
@@ -139,12 +175,19 @@ def _verify_original(store, proof: _SourceProof | None, output: Path | None = No
                         return False
                     raw_hash.update(chunk)
                     if target is not None:
-                        target.write(chunk)
+                        if target.write(chunk) != len(chunk):
+                            raise StorageReadError(
+                                "Original download write was incomplete"
+                            )
             return size == proof.raw_size and raw_hash.hexdigest() == proof.raw_hash
-    except Exception:
-        # Missing, changed, unreadable and malformed originals are all source
-        # unavailability, never empty datasets or zero-valued figures.
+    except (gzip.BadGzipFile, EOFError, zlib.error):
+        # Complete retained bytes that cannot decode are invalid evidence.
         return False
+    except HTTPException:
+        raise
+    except Exception:
+        # Local I/O or cleanup failure also leaves the proof incomplete.
+        raise _source_read_unavailable() from None
 
 
 def _source_availability(proofs, requested_output=None, *, cache=None, store=None):
@@ -165,10 +208,18 @@ def _source_availability(proofs, requested_output=None, *, cache=None, store=Non
     }
     if not needed:
         return {key: cache[proof] for key, proof in proofs.items()}
-    try:
-        store = request_store(store if store is not None else raw_file_store_from_env())
-    except Exception:
-        return {dataset: False for dataset in proofs}
+
+    def create_store():
+        try:
+            return raw_file_store_from_env()
+        except Exception:
+            # A missing configuration file is not a missing source object.
+            raise _source_read_unavailable() from None
+
+    # A missing proof needs no client; required setup failures are retryable.
+    store = (
+        request_store(store) if store is not None else lazy_request_store(create_store)
+    )
 
     def checked(proof):
         return proof, _verify_original(

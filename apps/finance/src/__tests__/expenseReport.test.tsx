@@ -350,6 +350,7 @@ beforeEach(() => {
         candidate_query: q,
         payee_query: url.searchParams.get('payee_query') || '',
         report_keys: url.searchParams.getAll('report_keys'),
+        selected_only: url.searchParams.get('selected_only') === 'true',
         excluded_payee_ids: url.searchParams.getAll('excluded_payee_ids'),
       };
       if (q || url.searchParams.has('candidate_id')) {
@@ -553,8 +554,63 @@ it('selects only held report keys and clears exclusions on period change', async
   expect(url.searchParams.get('expenseReports')).toBe(old);
   expect(url.searchParams.has('expenseExcluded')).toBe(false);
   expect(requests.at(-1)?.searchParams.getAll('report_keys')).toEqual([old]);
+  expect(requests.at(-1)?.searchParams.get('selected_only')).toBe('true');
   expect(url.searchParams.get('q')).toBe('old-race-search');
   expect(url.searchParams.get('page')).toBe('3');
+});
+
+it('keeps selected-period scope when a candidate has no matching selected report', async () => {
+  await render(`&expenseReports=${old}&expenseQuery=Pat`);
+  const candidateRequest = requests.find(
+    (url) => url.searchParams.get('candidate_query') === 'Pat',
+  )!;
+  expect(candidateRequest.searchParams.getAll('report_keys')).toEqual([]);
+  expect(candidateRequest.searchParams.get('selected_only')).toBe('true');
+  await click(buttons('View payees')[0]);
+  const scoped = requests.filter((url) => url.searchParams.get('candidate_id') === 'pat');
+  expect(scoped.length).toBeGreaterThan(0);
+  expect(scoped.every((url) => url.searchParams.get('selected_only') === 'true')).toBe(true);
+  expect(scoped.every((url) => url.searchParams.getAll('report_keys').length === 0)).toBe(true);
+});
+
+it('keeps selected-only scope in CSV and clears it when returning to latest reports', async () => {
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  handler = (url) =>
+    url.pathname.endsWith('/export')
+      ? new Response('exact,25.75', { headers: { 'Content-Type': 'text/csv' } })
+      : undefined;
+  await render(`&expenseReports=${old}`);
+  await click(buttons('Download CSV')[0]);
+  const download = requests.find((url) => url.pathname.endsWith('/export'))!;
+  expect(download.searchParams.get('selected_only')).toBe('true');
+  expect(download.searchParams.getAll('report_keys')).toEqual([old]);
+  await click(container.querySelector<HTMLButtonElement>('.ex-finder [aria-haspopup="listbox"]')!);
+  await click(buttons('Latest available reports')[0]);
+  expect(new URL(window.location.href).searchParams.has('expenseReports')).toBe(false);
+  expect(requests.at(-1)?.searchParams.get('selected_only')).toBe('false');
+  expect(requests.at(-1)?.searchParams.getAll('report_keys')).toEqual([]);
+});
+
+it('groups identical named periods across account-specific filing codes without claiming a shared amendment', () => {
+  const source = structuredClone(data);
+  source.report_options[0].reports = [source.report_options[0].reports[0]];
+  source.report_options[1].reports = [source.report_options[1].reports[0]];
+  source.report_options[0].reports[0].filing = {
+    ...filing,
+    report_type: 'H',
+    effective_amendment_index: 1,
+  };
+  source.report_options[1].reports[0].filing = {
+    ...filing,
+    report_type: 'K',
+    effective_amendment_index: 0,
+  };
+  const choices = d.optionGroups(source);
+  expect(choices).toHaveLength(1);
+  expect(choices[0].keys).toEqual([latest, second]);
+  expect(choices[0].label).not.toContain('Amended');
+  expect(source.report_options[0].reports[0].filing.report_type).toBe('H');
+  expect(source.report_options[1].reports[0].filing.report_type).toBe('K');
 });
 
 it('blocks malformed linked queries and selections before API work', async () => {
@@ -612,6 +668,49 @@ it('keeps the old expense scope while sources are busy and retries the requested
   expect(current.textContent).toContain('Example Robin');
   expect(current.textContent).not.toContain('Records are busy');
   expect(current.textContent).not.toContain('Candidates matching “Dana”');
+});
+
+it('keeps summary figures and candidates through a busy read and disables export until recovery', async () => {
+  await render();
+  const previousParty = container.querySelector('.ex-party')!.textContent;
+  const previousCandidates = [...container.querySelectorAll('.ex-candidate')].map(
+    (node) => node.textContent,
+  );
+  handler = (url) =>
+    url.pathname.endsWith('/expenses') && url.searchParams.has('report_keys')
+      ? new Response('', { status: 503, headers: { 'Retry-After': '0.001' } })
+      : undefined;
+  await act(async () => navigate(rootPath + `&expenseReports=${old}`, { replace: true }));
+  await settle();
+  await vi.waitFor(() => expect(container.textContent).toContain('Records are busy'));
+  expect(container.querySelector('.ex-party')!.textContent).toBe(previousParty);
+  expect([...container.querySelectorAll('.ex-candidate')].map((node) => node.textContent)).toEqual(
+    previousCandidates,
+  );
+  expect(container.textContent).toContain('Showing previous report scope');
+  expect(buttons('Download CSV')[0].disabled).toBe(true);
+  expect(container.textContent).not.toContain('These records changed');
+  handler = null;
+  await click(buttons('Try again')[0]);
+  expect(container.textContent).not.toContain('Records are busy');
+  expect(container.textContent).not.toContain('Showing previous report scope');
+  expect(buttons('Download CSV')[0].disabled).toBe(false);
+});
+
+it('shows a busy initial summary as a failure and never downloads a failed CSV', async () => {
+  handler = () => new Response('', { status: 503, headers: { 'Retry-After': '0.001' } });
+  await render();
+  await vi.waitFor(() => expect(container.textContent).toContain('Records are busy'));
+  expect(container.querySelector('.ex-party')).toBeNull();
+  expect(buttons('Download CSV')[0].disabled).toBe(true);
+  handler = null;
+  await click(buttons('Try again')[0]);
+  expect(container.querySelector('.ex-party')).not.toBeNull();
+  handler = (url) =>
+    url.pathname.endsWith('/export') ? new Response('', { status: 503 }) : undefined;
+  await click(buttons('Download CSV')[0]);
+  expect(URL.createObjectURL).not.toHaveBeenCalled();
+  expect(container.textContent).not.toContain('Download started');
 });
 
 it('ignores a late candidate search reply after a newer query', async () => {
@@ -1419,7 +1518,11 @@ it('keeps the expense download alive for a healthy 20-second response', async ()
         ? new Promise<Response>((resolve) =>
             setTimeout(
               () =>
-                resolve(new Response('exact,25.75', { headers: { 'Content-Type': 'text/csv' } })),
+                resolve(
+                  new Response('exact,25.75', {
+                    headers: { 'Content-Type': 'text/csv' },
+                  }),
+                ),
               20_000,
             ),
           )

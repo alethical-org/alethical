@@ -21,7 +21,8 @@ from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
 from alethical.api.services.election_source_io import (
     outcome_map,
-    request_store,
+    raise_source_read_error,
+    source_read_scope,
     source_map,
 )
 from alethical.db import models as m
@@ -33,6 +34,7 @@ from alethical.pipeline.election_comparison import (
     read_source,
 )
 from alethical.pipeline.election_source_files import (
+    SourceFileError,
     SourceFileLimitError,
     verified_source_files,
 )
@@ -224,6 +226,7 @@ def _binding(value, *, reading_context=None, source_section=None):
 
 
 def _availability(db, store, hashes):
+    store = source_read_scope(store, factory=raw_file_store_from_env)
     bodies, available = {}, {}
     rows = (
         {
@@ -272,7 +275,8 @@ def _availability(db, store, hashes):
             return h, True
         except SourceFileLimitError:
             raise
-        except Exception:
+        except Exception as error:
+            raise_source_read_error(error)
             return h, False
 
     # The general I/O pool is wider than the bounded large-file budget. Do not
@@ -287,6 +291,7 @@ def _availability(db, store, hashes):
     ]
     available.update(source_map(checked, small))
     available.update(checked(job) for job in large)
+    store.raise_if_failed()
     return bodies, available
 
 
@@ -302,12 +307,16 @@ def _source_capacity_errors(operation):
                 "Records are busy",
                 headers={"Retry-After": "1"},
             ) from None
+        except (ComparisonImportError, SourceFileError) as error:
+            raise_source_read_error(error)
+            raise
 
     return wrapped
 
 
 def _inventory_versions(db, store, generation, available, cache):
     """Finish optional whole-inventory replay before creating this request's pin."""
+    store = source_read_scope(store, factory=raw_file_store_from_env)
     versions, dependencies = {}, {}
     for report in generation["reports"]:
         if report.get("version_binding") is None:
@@ -341,7 +350,9 @@ def _inventory_versions(db, store, generation, available, cache):
             )
         except SourceFileLimitError:
             raise
-        except ComparisonImportError:
+        except ComparisonImportError as error:
+            raise_source_read_error(error)
+            store.raise_if_failed()
             continue
         if facts is not None:
             versions[key] = {"state": "checked", "facts": facts}
@@ -351,6 +362,7 @@ def _inventory_versions(db, store, generation, available, cache):
         if not all(available.get(h, False) for h in hashes):
             versions[key] = {"state": "amendment_status_not_established", "facts": None}
     cache[("local_inventory_versions", generation["id"])] = versions
+    store.raise_if_failed()
     return versions
 
 
@@ -407,7 +419,7 @@ def _context(
 ):
     cache = cache if cache is not None else {}
     finance_versions.pin(db)
-    store = request_store(store or raw_file_store_from_env())
+    store = source_read_scope(store, factory=raw_file_store_from_env)
     row = _published_row(db, election_key, generation_id)
     history_query = select(m.ElectionCampaignAccountDecision).where(
         m.ElectionCampaignAccountDecision.election_key == election_key,
@@ -605,6 +617,7 @@ def _context(
                 partial=True,
                 election_date=storage.reading_election_date(db, plan["generation"]),
             )
+            store.raise_if_failed()
             cache[("verified_local_readings", selected_id)] = proof
             reading_proof_versions[selected_id] = proof.version
             proof_outcomes.setdefault(selected_id, {}).update(proof.proof_outcomes)
@@ -661,14 +674,16 @@ def _context(
                 and review.identity
                 == reviews.candidate_identity(selected_race, selected_candidate)
             ):
-                if not storage.account_review_available(
+                review_available = storage.account_review_available(
                     db,
                     review,
                     selected_race,
                     selected_candidate,
                     store=store,
                     cache=cache,
-                ):
+                )
+                store.raise_if_failed()
+                if not review_available:
                     validation_failures.append(review.request_key)
     attachment_versions = {}
     cache["attachment_payment_outcomes"] = attachment_versions
@@ -731,6 +746,7 @@ def _context(
             else {}
         ).items()
     }
+    store.raise_if_failed()
     token = digest(
         {
             "generation": row.id,
@@ -790,7 +806,7 @@ def _context(
 
 def context(db, *, election_key, generation_id=None, version=None, store=None):
     cache = {}
-    ctx, g, _, _, _, _, available, _ = _context(
+    ctx, g, _, _, _, _, available, store = _context(
         db,
         election_key=election_key,
         generation_id=generation_id,
@@ -798,12 +814,14 @@ def context(db, *, election_key, generation_id=None, version=None, store=None):
         store=store,
         cache=cache,
     )
-    return {
+    result = {
         **ctx,
         "coverage": [
             _public_coverage(r, available, g, cache=cache) for r in g["coverage"]
         ],
     }
+    store.raise_if_failed()
+    return result
 
 
 def _coverage_hashes(row, generation, *, cache=None):
@@ -923,6 +941,7 @@ def candidate_finance(
 
 def _candidate_records(db, state, *, cache=None, indexes=None):
     ctx, g, race, candidate, histories, bodies, available, store = state
+    store = source_read_scope(store, factory=raw_file_store_from_env)
     cache = cache if cache is not None else {}
     indexes = indexes if indexes is not None else _indexes(g)
     reading_context = cache.get(("verified_local_readings", g["id"]))
@@ -945,6 +964,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                 )
                 else "checked"
             )
+            store.raise_if_failed()
             if current is None or current.get("status") != "checked":
                 state = "account_not_in_generation"
             if state == "checked":
@@ -1293,6 +1313,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
 
     result["own_payments"] = _own_payments(result, indexes, g, available, cache)
     _source_dates(result, g, available)
+    store.raise_if_failed()
     return result
 
 
@@ -1415,7 +1436,7 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
     Compressed bytes are cached up to 64 MiB, and decoded bodies are discarded.
     Real-corpus run time remains a measured deployment acceptance requirement.
     """
-    store = request_store(store or raw_file_store_from_env())
+    store = source_read_scope(store, factory=raw_file_store_from_env)
     cache = {}
     state = _context(
         db,
@@ -1470,7 +1491,7 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
         for entry in candidates
         if entry["coverage"].get("stable_id")
     }
-    return {
+    result = {
         **ctx,
         "coverage": [
             reviewed_coverage.get(r["stable_id"])
@@ -1494,6 +1515,8 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
         ],
         "measure_note": "Historical and overlapping reports remain separate; no totals are inferred",
     }
+    store.raise_if_failed()
+    return result
 
 
 def source_body(db, *, election_key, generation_id, source_hash, store=None):
@@ -1512,12 +1535,15 @@ def source_body(db, *, election_key, generation_id, source_hash, store=None):
     metadata = selected[0] if selected and len(selected) == 1 else None
     if metadata is None:
         _problem(404, "Source not found in this published generation.")
+    store = source_read_scope(store, factory=raw_file_store_from_env)
     try:
         row = db.get(m.ElectionResultSource, source_hash)
         if row is None:
             raise ComparisonImportError("Missing original")
-        body = read_source(request_store(store or raw_file_store_from_env()), row)
-    except Exception:
+        body = read_source(store, row)
+        store.raise_if_failed()
+    except Exception as error:
+        raise_source_read_error(error)
         _problem(503, "This retained source is unavailable. Try again.")
     media_type = metadata["media_type"]
     extension = {

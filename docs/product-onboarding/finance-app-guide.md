@@ -506,6 +506,9 @@ an unavailable source is not a no-match result.
   ballot party and payee detail with filed addresses and purposes. Party and location
   comparisons retain the complete baseline beside the adjusted view. Readers can
   select or restore payees to exclude; exclusions do not change subsidy receipts.
+  A reporting-period choice includes only its selected reports. Candidates without
+  one remain visible with the gap; later reports are not substituted. Choose Latest
+  available reports to return to the current report for each account.
   Missing addresses, non-itemized spending and unreconciled details remain separate.
   Federal and local accounts keep their own source labels, periods and currencies;
   incompatible measures are not combined into a Board total. Candidate and payee
@@ -513,6 +516,8 @@ an unavailable source is not a no-match result.
   CSV downloads keep exact amounts, selected scope, inclusion flags and source links;
   screen amounts omit cents without rounding. Source links reopen the authenticated
   Finance evidence view for the pinned record, with no access token in the address.
+  A temporary source-read failure keeps previous figures visible with a retry action
+  and disables current exports until recovery; it does not lower totals.
 - **Funder reports (`report=funders` in Money by race)**: compare direct contributions
   and independent spending for or against exact candidacies. Distinct candidates and
   source-backed outcomes are counted separately from payments, with unresolved

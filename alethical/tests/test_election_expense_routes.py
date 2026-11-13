@@ -135,7 +135,7 @@ def test_exact_filters_reach_reads_unchanged(
     monkeypatch.setattr(reads, service, captured)
     response = finance_api.get(BASE + suffix, params=filters)
     assert response.status_code == 200, response.text
-    assert calls == [filters | {"election_key": KEY}]
+    assert calls == [filters | {"election_key": KEY, "selected_only": False}]
     private(response)
 
 

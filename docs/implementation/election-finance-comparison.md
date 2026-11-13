@@ -105,6 +105,20 @@ Address geography describes the filed address, not where work or economic benefi
 occurred. Subsidy receipts and expenses do not trace particular subsidy dollars to
 particular vendors. A policy assessment needs the actual bill and its question.
 
+Choosing a reporting period uses only its explicitly selected effective reports,
+including after candidate search, payee drilldown, pagination and CSV export.
+Candidates without a matching selected report remain visible with the report gap;
+their later reports never silently enter the comparison. Latest available reports
+is a separate choice. Identical named periods can share a menu choice across
+account-specific filing codes, while each account keeps its own source and amendment.
+The selection mode participates in the response version, including an empty selection.
+
+A temporary failure to read retained evidence fails the request with a safe retry
+action; it never yields a successful report with fewer accounts or lower totals.
+Previous figures remain visibly previous during recovery, with current exports
+disabled. Confirmed missing or invalid evidence still produces the existing scoped
+gap. Every recovery checks the source bytes afresh.
+
 Candidate party comes from the exact retained official election record that holds
 the value; its literal value and source remain available. Local candidate rosters
 without a party column cannot supply that field: retain the official result-row

@@ -62,6 +62,14 @@ class StorageIntegrityError(RuntimeError):
     """Read-back bytes provably differ from the expected original."""
 
 
+class StorageReadError(RuntimeError):
+    """An original's transfer did not complete; its contents remain unproved."""
+
+
+class StorageObjectMissingError(FileNotFoundError):
+    """The requested stored object is absent, not a local working file."""
+
+
 def sha256_of_file(path: str) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -177,7 +185,7 @@ class RawFileStore:
         body = response["Body"]
         try:
             if max_bytes is not None and int(response["ContentLength"]) > max_bytes:
-                raise RuntimeError(
+                raise StorageIntegrityError(
                     "Object grew beyond its inventory size; read refused."
                 )
             remaining = int(response["ContentLength"])
@@ -185,10 +193,13 @@ class RawFileStore:
                 while remaining:
                     chunk = body.read(min(READ_CHUNK_BYTES, remaining))
                     if not chunk:
-                        raise RuntimeError(
+                        raise StorageReadError(
                             "Object read ended before its declared size."
                         )
-                    handle.write(chunk)
+                    if handle.write(chunk) != len(chunk):
+                        raise StorageReadError(
+                            "Object destination write was incomplete"
+                        )
                     remaining -= len(chunk)
         finally:
             body.close()

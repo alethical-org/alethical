@@ -132,19 +132,25 @@ def archive_source(db: Session, store, body: bytes) -> str:
 
 
 def read_source(store, source: m.ElectionResultSource) -> bytes:
-    with tempfile.TemporaryDirectory(prefix="election-read-") as directory:
-        path = str(Path(directory) / "body.gz")
-        store.get(source.object_key, path, max_bytes=source.compressed_byte_size)
-        if sha256_of_file(path) != source.compressed_hash:
-            raise ComparisonImportError("Stored source fingerprint does not match")
-        with gzip.open(path, "rb") as handle:
-            body = handle.read(source.byte_size + 1)
-    if (
-        len(body) != source.byte_size
-        or hashlib.sha256(body).hexdigest() != source.content_hash
-    ):
-        raise ComparisonImportError("Restored source fingerprint does not match")
-    return body
+    try:
+        with tempfile.TemporaryDirectory(prefix="election-read-") as directory:
+            path = str(Path(directory) / "body.gz")
+            store.get(source.object_key, path, max_bytes=source.compressed_byte_size)
+            if sha256_of_file(path) != source.compressed_hash:
+                raise ComparisonImportError("Stored source fingerprint does not match")
+            with gzip.open(path, "rb") as handle:
+                body = handle.read(source.byte_size + 1)
+        if (
+            len(body) != source.byte_size
+            or hashlib.sha256(body).hexdigest() != source.content_hash
+        ):
+            raise ComparisonImportError("Restored source fingerprint does not match")
+        return body
+    except Exception as error:
+        record_failure = getattr(store, "record_failure", None)
+        if callable(record_failure):
+            record_failure(error)
+        raise
 
 
 def prepare_generation(

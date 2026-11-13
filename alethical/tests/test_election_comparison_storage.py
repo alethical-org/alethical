@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 from alethical.db import models as m
 from alethical.db.session import get_engine
 from alethical.pipeline import election_comparison as storage
+from alethical.pipeline.raw_file_store import (
+    StorageIntegrityError,
+    StorageObjectMissingError,
+)
 from alethical.tests.test_election_comparison_command import command, source_set  # noqa: F401
 
 
@@ -37,8 +41,12 @@ class MemoryStore:
         self.objects[key] = body
 
     def get(self, key, path, *, max_bytes=None):
-        body = self.objects[key]
-        assert max_bytes is None or len(body) <= max_bytes
+        try:
+            body = self.objects[key]
+        except KeyError:
+            raise StorageObjectMissingError(key) from None
+        if max_bytes is not None and len(body) > max_bytes:
+            raise StorageIntegrityError("Object grew beyond its inventory size")
         Path(path).write_bytes(body)
 
 
