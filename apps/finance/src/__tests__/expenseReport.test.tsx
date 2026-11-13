@@ -839,6 +839,35 @@ it('keeps unavailable party sources disabled without fetching a substitute', asy
   expect(requests.some((url) => url.pathname.includes(`/sources/${'2'.repeat(64)}`))).toBe(false);
 });
 
+it.each([
+  ['unavailable', 'Unavailable'],
+  ['not_checked', 'Not checked'],
+])(
+  'preserves %s party-source status when restoring a copied panel address',
+  async (availability, label) => {
+    const hash = '2'.repeat(64);
+    data.account_reports[0].claims[0] = {
+      ...dana,
+      party_sources: [
+        {
+          kind: 'candidate_roster',
+          source_sha256: hash,
+          row_number: null,
+          candidate_id: dana.candidate_id,
+          party_value: dana.filed_party!,
+          availability,
+        },
+      ],
+    };
+    const key = `party:${latest}:${d.claimKey(dana)}:${hash}:`;
+    await render(`&expenseSource=${encodeURIComponent(key)}`);
+    const panel = document.querySelector('[role="dialog"]')!;
+    expect(panel.textContent).toContain(`Original source${label}`);
+    expect(panel.querySelector('a')).toBeNull();
+    expect(requests.some((url) => url.pathname.includes(`/sources/${hash}`))).toBe(false);
+  },
+);
+
 it('adds exact decimal amounts and credits without binary float or missing-as-zero', () => {
   expect(d.sumMoney(['9007199254740993.01', '-0.02', '0.0099'])).toBe('9007199254740992.9999');
   expect(d.sumMoney(['0.10', '0.20'])).toBe('0.30');

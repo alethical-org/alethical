@@ -2107,7 +2107,7 @@ function reportEvidence(
         ...account.claims.flatMap((claim) =>
           (claim.party_sources ?? []).map((source) => ({
             label: `Official party source · ${claim.name}`,
-            value: `${source.kind === 'official_result' ? 'Official result' : 'Candidate record'}${source.row_number == null ? '' : `, row ${source.row_number}`} · ${source.party_value}${source.availability === 'available' ? '' : ' · Source unavailable'}`,
+            value: `${source.kind === 'official_result' ? 'Official result' : 'Candidate record'}${source.row_number == null ? '' : `, row ${source.row_number}`} · ${source.party_value}${source.availability === 'available' ? '' : source.availability === 'not_checked' ? ' · Source not checked' : ' · Source unavailable'}`,
           })),
         ),
         { label: 'Source version', value: account.source.sha256 },
@@ -2151,6 +2151,14 @@ function partyEvidence(
         { label: 'Party as filed', value: source.party_value },
         { label: 'Candidate ID', value: source.candidate_id },
         { label: 'Source row', value: row == null ? 'Unavailable' : String(row) },
+        ...(!available
+          ? [
+              {
+                label: 'Original source',
+                value: source.availability === 'not_checked' ? 'Not checked' : 'Unavailable',
+              },
+            ]
+          : []),
       ],
     },
     attachment: available
