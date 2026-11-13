@@ -753,3 +753,124 @@ def test_candidate_votes_keep_exact_summary_or_precinct_evidence(
             assert {r["Note"] for r in actual} == {
                 "Sum of the listed precinct source rows"
             }
+
+
+@pytest.fixture()
+def raw_order_precinct(finance_db, originals):
+    """Synthetic fixture with the real SOS raw-row contract, not prejoined IDs."""
+    race = finance_db.get(m.ElectionComparisonRace, (SNAPSHOT, RACE))
+    payload = deepcopy(race.payload)
+    rows = []
+    for number, (candidate, order) in enumerate(
+        zip(payload["candidates"], ("9001", "9002", "9901"), strict=True), 1
+    ):
+        candidate["candidate_order_code"] = order
+        candidate["source_rows"] = [number]
+        if candidate["is_write_in_aggregate"]:
+            candidate["candidate_id"] = None
+        rows.append(
+            {
+                "row_number": number,
+                "candidate_order_code": order,
+                "candidate_name": candidate["name"],
+                "party": candidate["party"],
+                "is_write_in_aggregate": candidate["is_write_in_aggregate"],
+                "votes": number,
+            }
+        )
+    race.payload = payload
+    _precinct(finance_db, key="01:0042", name="Raw-order precinct")
+    precinct = finance_db.get(m.ElectionComparisonPrecinct, (SNAPSHOT, RACE, "01:0042"))
+    precinct.payload = {"source_sha256": SOURCE, "rows": rows}
+    finance_db.commit()
+    return race, precinct
+
+
+@pytest.mark.parametrize("explicit_ids", [False, True])
+def test_precinct_csv_joins_exact_race_source_order(
+    finance_api, finance_db, raw_order_precinct, explicit_ids
+):
+    _, precinct = raw_order_precinct
+    if explicit_ids:
+        payload = deepcopy(precinct.payload)
+        for row, cid in zip(payload["rows"], ("a", "b", None), strict=True):
+            row.pop("candidate_order_code")
+            row["candidate_id"] = cid
+        precinct.payload = payload
+        finance_db.commit()
+    rows = parsed(finance_api.get(URL, params={"snapshot_id": SNAPSHOT}))
+    rows = [r for r in rows if r["Row type"] == "Precinct candidate"]
+    assert [(r["Candidate ID"], r["Candidate"], r["Precinct votes"]) for r in rows] == [
+        ("a", "José Example", "1"),
+        ("b", "Another Candidate", "2"),
+        ("", "WRITE-IN", "3"),
+    ]
+    assert [r["Source row"] for r in rows] == ["1", "2", "3"]
+    assert {r["Source hash"] for r in rows} == {SOURCE}
+
+
+@pytest.mark.parametrize(
+    "conflict",
+    [
+        "order",
+        "name",
+        "party",
+        "aggregate",
+        "source_row",
+        "source_hash",
+        "explicit_id",
+        "duplicate_order",
+    ],
+)
+def test_precinct_csv_refuses_conflicting_source_identity(
+    finance_api, finance_db, raw_order_precinct, conflict
+):
+    race, precinct = raw_order_precinct
+    payload = deepcopy(precinct.payload)
+    row = payload["rows"][0]
+    if conflict == "duplicate_order":
+        race_payload = deepcopy(race.payload)
+        race_payload["candidates"][1]["candidate_order_code"] = row[
+            "candidate_order_code"
+        ]
+        race.payload = race_payload
+    elif conflict == "source_hash":
+        row["source_sha256"] = "f" * 64
+    else:
+        key, value = {
+            "order": ("candidate_order_code", "9009"),
+            "name": ("candidate_name", "Different Name"),
+            "party": ("party", "OTHER"),
+            "aggregate": ("is_write_in_aggregate", True),
+            "source_row": ("row_number", 99),
+            "explicit_id": ("candidate_id", "b"),
+        }[conflict]
+        row[key] = value
+    precinct.payload = payload
+    finance_db.commit()
+    response = finance_api.get(URL, params={"snapshot_id": SNAPSHOT})
+    assert response.status_code == 503
+    assert not response.text.startswith("Row type")
+
+
+def test_precinct_without_any_identity_key_does_not_join_by_name(
+    finance_api, finance_db, raw_order_precinct
+):
+    _, precinct = raw_order_precinct
+    payload = deepcopy(precinct.payload)
+    for row in payload["rows"]:
+        row.pop("candidate_order_code")
+    precinct.payload = payload
+    finance_db.commit()
+    rows = parsed(finance_api.get(URL, params={"snapshot_id": SNAPSHOT}))
+    rows = [r for r in rows if r["Row type"] == "Precinct candidate"]
+    assert all(r["Candidate ID"] == "" for r in rows)
+    assert [(r["Candidate"], r["Precinct votes"], r["Source row"]) for r in rows] == [
+        ("José Example", "1", "1"),
+        ("Another Candidate", "2", "2"),
+        ("WRITE-IN", "3", "3"),
+    ]
+    assert all(
+        r["Gap"] == "Candidate ID is not linked to this source row" for r in rows[:2]
+    )
+    assert rows[2]["Gap"] == ""

@@ -103,10 +103,18 @@ export function ExternalCandidate({
   if (data && !snapshotChanged && !read.changed && sourceParts.length === 3) {
     const [kind, key, index] = sourceParts;
     const [reportKey, figureIndex] = key.split('.');
+    const payment =
+      kind === 'own-payment'
+        ? data.own_payments?.find((p) => p.payment_key === key)
+        : kind === 'payment'
+          ? data.payments.find((p) => p.payment_key === key)
+          : undefined;
     const report =
-      kind === 'report' || kind === 'figure' || kind === 'gap' || kind === 'version'
-        ? data.reports.find((r) => r.report_key === reportKey)
-        : undefined;
+      kind === 'own-payment'
+        ? data.reports.find((r) => r.report_key === payment?.report_key)
+        : kind === 'report' || kind === 'figure' || kind === 'gap' || kind === 'version'
+          ? data.reports.find((r) => r.report_key === reportKey)
+          : undefined;
     const figure =
       kind === 'figure' && /^\d+$/.test(figureIndex ?? '')
         ? report?.figures?.[Number(figureIndex)]
@@ -115,8 +123,6 @@ export function ExternalCandidate({
       kind === 'gap' && /^\d+$/.test(figureIndex ?? '')
         ? report?.source_field_gaps?.[Number(figureIndex)]
         : undefined;
-    const payment =
-      kind === 'payment' ? data.payments.find((p) => p.payment_key === key) : undefined;
     const bindings =
       figure?.sources ??
       gap?.sources ??
@@ -143,7 +149,7 @@ export function ExternalCandidate({
             : figure
               ? `${figure.label} · ${reportedFigureLabel(figure)}`
               : payment
-                ? `${position(payment.direction)} · ${candidate.name}`
+                ? `${kind === 'own-payment' ? 'Payment' : position(payment.direction)} · ${candidate.name}`
                 : report
                   ? `Report ${report.source_report_id ?? report.report_type ?? ''}`
                   : candidate.name,
@@ -156,7 +162,12 @@ export function ExternalCandidate({
             ...(identity ? [{ label: identity.label, value: identity.value }] : []),
             ...(gap ? [{ label: 'Status', value: x.fieldGapLabel(gap.state) }] : []),
             ...(report && x.unknownAmendments(report)
-              ? [{ label: 'Amendments', value: 'Not established; excluded from totals' }]
+              ? [
+                  {
+                    label: 'Amendments',
+                    value: 'Not established; excluded from totals',
+                  },
+                ]
               : []),
             ...(report && x.inventoryVersionLabel(report)
               ? [{ label: 'Version', value: x.inventoryVersionLabel(report)! }]
@@ -178,7 +189,7 @@ export function ExternalCandidate({
               : []),
             ...(payment
               ? [
-                  { label: 'Filing account', value: payment.account_id },
+                  ...(!identity ? [{ label: 'Filing account', value: payment.account_id }] : []),
                   { label: 'Date', value: dateLabel(payment.date) },
                   {
                     label: 'Amount',
@@ -191,6 +202,7 @@ export function ExternalCandidate({
                   {
                     label: 'Filed address',
                     value: x.paymentAddress(payment) || 'Unavailable',
+                    preserveWhitespace: true,
                   },
                   {
                     label: 'Purpose',
@@ -270,6 +282,9 @@ export function ExternalCandidate({
               )}
               chosen={choices ? (choices.get(x.accountKey(account)) ?? null) : 'invalid'}
               authority={authority(account.authority)}
+              payments={(data.own_payments ?? []).filter(
+                (p) => p.authority === account.authority && p.account_id === account.account_id,
+              )}
               onSelect={(key) => onSelect(x.selectReport(selected, account, key))}
               onSource={(key, index, kind) => open(kind ?? 'report', key, index)}
             />
@@ -301,7 +316,9 @@ export function ExternalCandidate({
                         {dateLabel(payment.date)} · Filing account {payment.account_id}
                       </p>
                       {x.payeeName(payment.payee) && <p>{x.payeeName(payment.payee)}</p>}
-                      {x.paymentAddress(payment) && <p>{x.paymentAddress(payment)}</p>}
+                      {x.paymentAddress(payment) && (
+                        <p className="ec-filed-address">{x.paymentAddress(payment)}</p>
+                      )}
                       {payment.purpose && <p>{payment.purpose}</p>}
                       <p className="ec-muted">
                         {authority(payment.authority)} · {payment.transaction_type}
@@ -397,11 +414,98 @@ export function ExternalCandidate({
   );
 }
 
+function OwnReportPayments({
+  payments,
+  onSource,
+}: {
+  payments: x.ExternalPayment[];
+  onSource: (key: string, index: number) => void;
+}) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const pages = Math.max(1, Math.ceil(payments.length / 50));
+  useEffect(() => setPage((current) => Math.min(current, pages)), [pages]);
+  function move(button: HTMLButtonElement, value: number) {
+    setPage(value);
+    const heading = button.closest('section')?.querySelector('h5');
+    heading?.focus();
+    heading?.scrollIntoView?.({ block: 'start' });
+  }
+  return (
+    <div className="ec-report-history">
+      <button
+        className="ec-link"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(!open)}
+      >
+        <Caret up={open} />
+        View payments ({count(payments.length)})
+      </button>
+      {open && (
+        <section id={id} className="ec-payments" aria-label="Payments in this filing">
+          <h5 tabIndex={-1}>Payments</h5>
+          {!payments.length && <p className="ec-muted">No checked payment records</p>}
+          <ul className="ec-external-payments">
+            {payments.slice((page - 1) * 50, page * 50).map((payment) => (
+              <li key={payment.payment_key}>
+                <strong>{reportedMoneyLabel(payment.amount, payment.currency)}</strong>
+                <p>{dateLabel(payment.date)}</p>
+                {x.payeeName(payment.payee) && <p>{x.payeeName(payment.payee)}</p>}
+                {x.paymentAddress(payment) && (
+                  <p className="ec-filed-address">{x.paymentAddress(payment)}</p>
+                )}
+                {payment.purpose && <p>{payment.purpose}</p>}
+                {payment.nonadditive && (
+                  <p className="ec-muted">Supplemental memo, not added to spending</p>
+                )}
+                {payment.sources.map((_, index) => (
+                  <button
+                    className="ec-link"
+                    key={index}
+                    onClick={() => onSource(payment.payment_key, index)}
+                  >
+                    View source{payment.sources.length > 1 ? ` ${index + 1}` : ''}
+                    <span className="ec-sr-only"> for payment on {dateLabel(payment.date)}</span>
+                  </button>
+                ))}
+              </li>
+            ))}
+          </ul>
+          {pages > 1 && (
+            <nav className="ec-pagination" aria-label="Filing payment pages">
+              <button
+                className="ec-button"
+                disabled={page === 1}
+                onClick={(event) => move(event.currentTarget, page - 1)}
+              >
+                Previous
+              </button>
+              <span>
+                Page {page} of {pages}
+              </span>
+              <button
+                className="ec-button"
+                disabled={page === pages}
+                onClick={(event) => move(event.currentTarget, page + 1)}
+              >
+                Next
+              </button>
+            </nav>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
 function ExternalAccount({
   account,
   reports,
   chosen,
   authority,
+  payments,
   onSelect,
   onSource,
 }: {
@@ -409,6 +513,7 @@ function ExternalAccount({
   reports: x.ExternalReport[];
   chosen: string | null;
   authority: string;
+  payments: x.ExternalPayment[];
   onSelect: (key: string) => void;
   onSource: (key: string, index?: number, kind?: string) => void;
 }) {
@@ -444,7 +549,8 @@ function ExternalAccount({
                   key={`version:${i}`}
                   onClick={() => onSource(report.report_key, i, 'version')}
                 >
-                  View version source{report.version_sources!.length > 1 ? ` ${i + 1}` : ''}
+                  View version source
+                  {report.version_sources!.length > 1 ? ` ${i + 1}` : ''}
                 </button>
               ))}
             </div>
@@ -488,6 +594,11 @@ function ExternalAccount({
           {!!report.unavailable_measures?.length && (
             <p className="ec-muted">Some figure sources are unavailable</p>
           )}
+          <OwnReportPayments
+            key={report.report_key}
+            payments={payments.filter((p) => p.report_key === report.report_key)}
+            onSource={(key, index) => onSource(key, index, 'own-payment')}
+          />
           {report.sources.map((_, i) => (
             <button className="ec-link" key={i} onClick={() => onSource(report.report_key, i)}>
               View report{report.sources.length > 1 ? ` ${i + 1}` : ''}

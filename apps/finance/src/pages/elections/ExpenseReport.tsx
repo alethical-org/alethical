@@ -1519,7 +1519,9 @@ function PayeeList({
               <div>
                 <h5>{payee.payee?.name || 'Payee not shown'}</h5>
                 {d.addressLines(payee.payee).map((line, index) => (
-                  <p key={index}>{line}</p>
+                  <p className="ec-filed-address" key={index}>
+                    {line}
+                  </p>
                 ))}
                 {payee.geography === 'unknown' && <p>Location unavailable</p>}
                 {payee.payee_id && excluded.includes(payee.payee_id) && (
@@ -1836,7 +1838,7 @@ function Exclusions({
                       />
                       <span>
                         <strong>{payee.payee?.name || 'Payee not shown'}</strong>
-                        <small>{d.addressLines(payee.payee).join(', ')}</small>
+                        <small className="ec-filed-address">{d.addressText(payee.payee)}</small>
                       </span>
                       <strong className="ex-number">
                         {payee.amounts ? (
@@ -1906,7 +1908,7 @@ function Exclusions({
                     ],
                   ]}
                 />
-                <span className="ec-muted">{d.addressLines(payee.payee).join(', ')}</span>
+                <span className="ec-muted ec-filed-address">{d.addressText(payee.payee)}</span>
                 {payee.account_reports.map((account) => {
                   const external = data.authority_reports?.find(
                     (report) => report.report_key === account.report_key,
@@ -1955,7 +1957,8 @@ function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence 
         { label: 'Payee', value: payee.payee?.name || 'Payee not shown' },
         {
           label: 'Address as shown',
-          value: d.addressLines(payee.payee).join(', '),
+          value: d.addressText(payee.payee),
+          preserveWhitespace: true,
         },
         {
           label: 'Purpose',
@@ -2067,7 +2070,8 @@ function paymentEvidence(data: d.ExpenseAnswer, payment: d.Payment): ElectionEvi
         { label: 'Payee', value: payment.payee?.name || 'Payee not shown' },
         {
           label: 'Address as shown',
-          value: d.addressLines(payment.payee).join(', '),
+          value: d.addressText(payment.payee),
+          preserveWhitespace: true,
         },
         { label: 'Purpose', value: payment.purpose || 'Not reported' },
         {

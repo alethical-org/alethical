@@ -152,7 +152,7 @@ def normalize_field(literal, value_type, state):
     if match is None:
         # Local forms also print US month-day-year with hyphens. Retain the
         # exact literal; only a checked value gets calendar normalization.
-        match = re.fullmatch(r"([0-9]{1,2})-([0-9]{1,2})-([0-9]{4})", literal)
+        match = re.fullmatch(r"([0-9]{1,2})-([0-9]{1,2})-([0-9]{2}|[0-9]{4})", literal)
     try:
         if match:
             month, day, year = map(int, match.groups())

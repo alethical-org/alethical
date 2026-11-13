@@ -947,7 +947,7 @@ def extract_local_reading(body, source, locator, *, context=None):
             facts, _quote({"label": f["label"], "literal": f["literal"]})
         )
     require(
-        kind == "payment"
+        kind in {"payment", "payment_address"}
         and set(locator) == {"kind", "receipt_sha256", "page", "row"}
         and type(locator["page"]) is int
         and type(locator["row"]) is int,
@@ -985,6 +985,24 @@ def extract_local_reading(body, source, locator, *, context=None):
         return f["normalized"] if f and f["state"] == "value" else None
 
     row_id = f"{receipt['original_sha256']}:page{locator['page']}:disbursements:{locator['row']}"
+    if kind == "payment_address":
+        address = _local_payee_address(by_name)
+        observations = {
+            name: {"literal": by_name[name]["literal"], "state": by_name[name]["state"]}
+            for name in ("payee_address", "payee_street")
+            if name in by_name
+        }
+        return CheckedExtraction(
+            {
+                **{
+                    k: report[k]
+                    for k in ("authority", "account_id", "source_report_id")
+                },
+                "source_row_id": row_id,
+                "payee_address": address,
+            },
+            _quote(observations),
+        )
     return CheckedExtraction(
         _payment_facts(
             report,
@@ -997,6 +1015,45 @@ def extract_local_reading(body, source, locator, *, context=None):
         ),
         _quote({k: f["literal"] for k, f in by_name.items()}),
     )
+
+
+def _local_payee_address(by_name):
+    # Only an individually checked visible address can supply an address fact.
+    field = by_name.get("payee_address")
+    require(
+        field is not None and field["value_type"] == "text",
+        "Local address needs its checked text cell",
+    )
+    for name in ("payee_address", "payee_street"):
+        observation = by_name.get(name)
+        require(
+            observation is None
+            or (
+                observation["value_type"] == "text"
+                and observation["state"]
+                in {"value", "blank", "ambiguous", "unreadable", "redacted"}
+            ),
+            "Local address observation has not been checked as text",
+        )
+    address = dict.fromkeys(
+        ("street_1", "street_2", "city", "state", "postal_code", "as_filed")
+    )
+    if field["state"] != "value":
+        return address
+    literal = field["literal"]
+    require(
+        isinstance(literal, str)
+        and bool(literal.strip())
+        and literal == field["normalized"],
+        "Local address differs from checked literal",
+    )
+    address["as_filed"] = literal
+    states = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI".split()
+    pattern = rf"(?<![A-Za-z0-9])({'|'.join(states)})[ \t]+([0-9]{{5}}(?:-[0-9]{{4}})?)(?![A-Za-z0-9-])"
+    matches = list(re.finditer(pattern, literal))
+    if len(matches) == 1 and not literal[matches[0].end() :].strip():
+        address["state"], address["postal_code"] = matches[0].groups()
+    return address
 
 
 def _payment_facts(report, row_id, day, amount, currency, payee, purpose):

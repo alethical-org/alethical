@@ -141,6 +141,7 @@ export interface ReportOption {
 export interface PayeeIdentity {
   name: string | null;
   address: {
+    as_filed?: string | null;
     lines?: string[];
     street?: string | null;
     city?: string | null;
@@ -432,11 +433,16 @@ export function adjustedReportTotal(account: AccountReport): string | null {
 export function addressLines(payee: PayeeIdentity | null): string[] {
   const address = payee?.address;
   if (!address) return ['Address not shown'];
+  if (address.as_filed) return address.as_filed.split(/\r\n|\r|\n/);
   const city = [address.city, address.state, address.postal_code].filter(Boolean).join(' ');
   const street = address.street;
   if (!city && !street && address.lines?.length) return address.lines;
   if (!city && !street) return ['Address not shown'];
   return [street || 'Street address not shown', ...(city ? [city] : [])];
+}
+
+export function addressText(payee: PayeeIdentity | null): string {
+  return payee?.address?.as_filed ?? addressLines(payee).join(', ');
 }
 /** Restrict overrides to the exact accounts in a detail-discovery scope. All
  * governing memberships remain server-owned and are never reclassified here. */

@@ -393,7 +393,7 @@ def _context(
         account_keys,
         stable_id=candidate.get("candidate_stable_id") if candidate else None,
         extra_hashes=review_hashes,
-        include_own_payments=all_scope,
+        include_own_payments=all_scope or candidate is not None,
     )
     # All history for each generation is planned before validating a single
     # account. A narrower candidate view never occupies the full-generation cache.
@@ -1196,6 +1196,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
             status="account_confirmed", status_basis="checked_account", gap=None
         )
 
+    result["own_payments"] = _own_payments(result, indexes, g, available, cache)
     _source_dates(result, g, available)
     return result
 
@@ -1368,8 +1369,6 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
                 cache=cache,
                 indexes=indexes,
             )
-            entry["own_payments"] = _own_payments(entry, indexes, g, available, cache)
-            _source_dates(entry["own_payments"], g, available)
             candidates.append({k: v for k, v in entry.items() if k not in ctx})
     reviewed_coverage = {
         entry["coverage"]["stable_id"]: entry["coverage"]

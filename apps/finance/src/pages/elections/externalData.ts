@@ -117,6 +117,7 @@ export interface ExternalPayment extends ReportVersion {
     | null;
   purpose: string | null;
   payee_address?: {
+    as_filed?: string | null;
     street_1: string | null;
     street_2: string | null;
     city: string | null;
@@ -149,6 +150,7 @@ export interface ExternalCandidate extends ExternalContext {
   };
   reports: ExternalReport[];
   payments: ExternalPayment[];
+  own_payments?: ExternalPayment[];
 }
 export interface ExternalPayments extends ExternalContext {
   race_id: string;
@@ -182,7 +184,11 @@ export function accountIdentity(account: ExternalAccountIdentity) {
     const value = account.source_section
       ? `Page ${account.source_section.page}`
       : 'Page unavailable';
-    return { label: 'Report section', value, summary: `Report section · ${value}` };
+    return {
+      label: 'Report section',
+      value,
+      summary: `Report section · ${value}`,
+    };
   }
   return {
     label: account.issued_id === false ? 'Filing group' : 'Filing account',
@@ -278,7 +284,8 @@ export const payeeAddress = (payee: ExternalPayment['payee']) =>
     : '';
 export const paymentAddress = (payment: ExternalPayment) =>
   payment.payee_address
-    ? [
+    ? (payment.payee_address.as_filed ??
+      [
         payment.payee_address.street_1,
         payment.payee_address.street_2,
         payment.payee_address.city,
@@ -286,5 +293,5 @@ export const paymentAddress = (payment: ExternalPayment) =>
         payment.payee_address.postal_code,
       ]
         .filter(Boolean)
-        .join(', ')
+        .join(', '))
     : payeeAddress(payment.payee);

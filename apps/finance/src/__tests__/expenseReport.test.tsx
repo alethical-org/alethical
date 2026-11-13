@@ -826,6 +826,54 @@ it('does not mistake the sole filed locality line for a street', () => {
   ).toEqual(['Unparsed address as shown']);
 });
 
+it('keeps a checked literal address ahead of its parsed state and ZIP', () => {
+  const filed = {
+    ...identity,
+    address: {
+      as_filed: '1445 Valleyhigh Drive NW\nRochester MN 55901',
+      street: null,
+      city: null,
+      state: 'MN',
+      postal_code: '55901',
+    },
+  };
+  expect(d.addressLines(filed)).toEqual(['1445 Valleyhigh Drive NW', 'Rochester MN 55901']);
+});
+
+it('preserves a checked multiline address in payees and their source panel', async () => {
+  const filed = {
+    ...identity,
+    address: {
+      as_filed: '1445 Valleyhigh Drive NW\nRochester MN 55901',
+      street: null,
+      city: null,
+      state: 'MN',
+      postal_code: '55901',
+    },
+  };
+  handler = (url) =>
+    url.pathname.endsWith('/payees')
+      ? json({
+          ...data,
+          payees: [{ ...payee(), payee: filed }],
+          page: { limit: 50, offset: 0, total: 1 },
+        })
+      : undefined;
+  await render(`&expenseCandidate=${encodeURIComponent(d.claimKey(dana))}`);
+  const list = container.querySelector('.ex-payee-main')!;
+  expect(list.textContent).toContain('1445 Valleyhigh Drive NW');
+  expect(list.textContent).toContain('Rochester MN 55901');
+  expect(list.textContent).not.toContain('Street address not shown');
+  await click(container.querySelector<HTMLButtonElement>('.ex-payee-actions button:last-child')!);
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain(filed.address.as_filed);
+  expect(panel.textContent).not.toContain('Street address not shown');
+  const label = [...panel.querySelectorAll('dt')].find(
+    (node) => node.textContent === 'Address as shown',
+  )!;
+  expect(getComputedStyle(label.nextElementSibling!).whiteSpace).toBe('pre-wrap');
+});
+
 it('keeps exclusion ticks and the open panel when applying them fails', async () => {
   await render();
   await click(buttons('Exclude selected payees')[0]);

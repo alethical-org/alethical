@@ -1,6 +1,8 @@
 """Scanned certifications use the same checked state in the public result readers."""
 
 # ruff: noqa: F401, F811
+import csv
+import io
 import json
 from types import SimpleNamespace
 
@@ -10,6 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from alethical.api.services import election_comparison_reads as results
+from alethical.api.services import election_comparison_export as export
 from alethical.api.services import election_source_io
 from alethical.db import models as m
 from alethical.pipeline import election_comparison as storage
@@ -106,6 +109,46 @@ def test_scanned_public_readers_agree_and_refresh_after_source_loss(db, public_s
     store.objects[original.object_key] = saved
     restored = _views(db, snapshot, race)
     assert restored[0]["race"]["outcome_review"] == outcome
+
+
+def test_scanned_export_keeps_pdf_pages_off_its_html_publisher(
+    db, public_scanned, monkeypatch
+):
+    store, receipt, _, snapshot, race, _ = public_scanned
+    monkeypatch.setattr(results, "raw_file_store_from_env", lambda: store)
+    detail = results.race_detail(
+        db, election_key=snapshot.election_key, snapshot_id=snapshot.id, race_id=race.id
+    )
+    evidence = detail["race"]["outcome_review"]["evidence"][0]
+    body = export.export_csv(
+        db, election_key=snapshot.election_key, snapshot_id=snapshot.id, race_id=race.id
+    )
+    rows = list(csv.DictReader(io.StringIO(body.decode("utf-8-sig"))))
+    documents = [
+        row
+        for row in rows
+        if row["Row type"] == "Evidence"
+        and row["Source hash"] == receipt["original_sha256"]
+    ]
+    publishers = [
+        row
+        for row in rows
+        if row["Row type"] == "Evidence"
+        and row["Source hash"] == evidence["publisher_sha256"]
+    ]
+    assert documents and publishers
+    assert {row["Source page"] for row in documents} == {"1"}
+    assert all(
+        row["Source page"] == ""
+        and row["Source row"] == ""
+        and row["Source field"] == ""
+        for row in publishers
+    )
+    assert all(
+        evidence["publisher_sha256"] in row["Source URL"]
+        and f"snapshot_id={snapshot.id}" in row["Source URL"]
+        for row in publishers
+    )
 
 
 @pytest.mark.parametrize("view", ["detail", "precincts"])

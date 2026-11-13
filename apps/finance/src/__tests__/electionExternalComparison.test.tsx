@@ -124,6 +124,124 @@ it('shows unreadable local fields with their exact source and no guessed amount'
   expect(panel.textContent).toContain('1?0');
   expect(panel.textContent).toContain('page 3');
 });
+it('opens own payments for an exact filing without including unknown amendments in totals', async () => {
+  Object.assign(data.reports[0], {
+    effective: null,
+    version_scope: 'exact_document',
+    amendment_status: 'not_established',
+  });
+  data.own_payments = [
+    {
+      ...data.payments[0],
+      payment_key: H('2'),
+      account_id: data.accounts[0].account_id,
+      report_key: reportKey,
+      effective: null,
+      version_scope: 'exact_document',
+      amendment_status: 'not_established',
+      direction: 'unknown',
+      payee: 'Own filing printer',
+      payee_address: {
+        as_filed: '1445 Valleyhigh Drive NW\nRochester MN 55901',
+        street_1: null,
+        street_2: null,
+        city: null,
+        state: 'MN',
+        postal_code: '55901',
+      },
+    },
+  ];
+  await render();
+  expect(container.textContent).not.toContain('Own filing printer');
+  await render({ selected: `fec|C00000001|${reportKey}` });
+  const open = buttons('View payments')[0];
+  expect(open).toBeDefined();
+  await click(open);
+  const section = container.querySelector('.ec-account .ec-payments')!;
+  expect(section.textContent).toContain('Own filing printer');
+  expect(section.textContent).toContain('1445 Valleyhigh Drive NW\nRochester MN 55901');
+  expect(section.textContent).not.toContain('Position not stated');
+  expect(onStatus.mock.calls.at(-1)![1].selectedReports).toEqual([]);
+  await click(section.querySelector('button')!);
+  expect(onSource).toHaveBeenLastCalledWith(
+    `external:${encodeURIComponent(candidate.candidate_id)}:own-payment:${H('2')}:0`,
+  );
+  await render({ selected: `fec|C00000001|${reportKey}`, source: onSource.mock.calls.at(-1)![0] });
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Own filing printer');
+  expect(panel.textContent).toContain('Not established; excluded from totals');
+  expect(panel.textContent).toContain('1445 Valleyhigh Drive NW\nRochester MN 55901');
+  expect(panel.textContent).not.toContain('Independent spending for');
+});
+it('keeps own payment detail inside the chosen account and report', async () => {
+  data.own_payments = [
+    {
+      ...data.payments[0],
+      payment_key: H('2'),
+      account_id: data.accounts[0].account_id,
+      report_key: reportKey,
+      payee: 'Chosen filing printer',
+    },
+    {
+      ...data.payments[0],
+      payment_key: H('3'),
+      account_id: data.accounts[0].account_id,
+      report_key: H('4'),
+      payee: 'Other filing printer',
+    },
+    {
+      ...data.payments[0],
+      payment_key: H('5'),
+      account_id: 'C00000009',
+      report_key: reportKey,
+      payee: 'Other account printer',
+    },
+  ];
+  await render();
+  const open = buttons('View payments')[0];
+  expect(open).toBeDefined();
+  await click(open);
+  const section = container.querySelector('.ec-account .ec-payments')!;
+  expect(section.textContent).toContain('Chosen filing printer');
+  expect(section.textContent).not.toContain('Other filing printer');
+  expect(section.textContent).not.toContain('Other account printer');
+});
+it('pages filing payments and resets the detail when another filing is chosen', async () => {
+  const otherReport = H('4');
+  data.reports.push({ ...data.reports[0], report_key: otherReport });
+  data.own_payments = Array.from({ length: 51 }, (_, index) => ({
+    ...data.payments[0],
+    payment_key: String(index).padStart(64, '0'),
+    account_id: data.accounts[0].account_id,
+    report_key: reportKey,
+    payee: `Filing payee ${index + 1}`,
+  }));
+  data.own_payments.push({
+    ...data.own_payments[0],
+    payment_key: H('9'),
+    report_key: otherReport,
+    payee: 'Other filing payee',
+  });
+  await render({ selected: `fec|C00000001|${reportKey}` });
+  await click(buttons('View payments')[0]);
+  expect(container.querySelector('.ec-account .ec-payments')?.textContent).not.toContain(
+    'Filing payee 51',
+  );
+  await click(buttons('Next')[0]);
+  expect(container.querySelector('.ec-account .ec-payments')?.textContent).toContain(
+    'Filing payee 51',
+  );
+  expect(document.activeElement?.textContent).toBe('Payments');
+  await render({ selected: `fec|C00000001|${otherReport}` });
+  expect(container.querySelector('.ec-account .ec-payments')).toBeNull();
+  await click(buttons('View payments')[0]);
+  expect(container.querySelector('.ec-account .ec-payments')?.textContent).toContain(
+    'Other filing payee',
+  );
+  expect(container.querySelector('.ec-account .ec-payments')?.textContent).not.toContain(
+    'Filing payee 51',
+  );
+});
 it('dates the checked listing separately from a companion PDF and opens each version source', async () => {
   Object.assign(data.reports[0], {
     report_type: null,
@@ -405,6 +523,29 @@ it('opens a payment source with the filed payee name and address', async () => {
   const panel = container.querySelector('[role="dialog"]');
   expect(panel?.textContent).toContain('Example vendor');
   expect(panel?.textContent).toContain('123 Main St');
+});
+it('keeps the complete checked address when only state and ZIP were parsed', async () => {
+  const literal = '1445 Valleyhigh Drive NW\nRochester MN 55901';
+  data.payments[0].payee_address = {
+    street_1: null,
+    street_2: null,
+    city: null,
+    state: 'MN',
+    postal_code: '55901',
+    as_filed: literal,
+  };
+  await render();
+  await click(buttons('Spending and support')[0]);
+  expect(container.textContent).toContain(literal);
+  await render({
+    source: `external:${encodeURIComponent(candidate.candidate_id)}:payment:${data.payments[0].payment_key}:0`,
+  });
+  const panel = container.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain(literal);
+  const label = [...panel.querySelectorAll('dt')].find(
+    (node) => node.textContent === 'Filed address',
+  )!;
+  expect(getComputedStyle(label.nextElementSibling!).whiteSpace).toBe('pre-wrap');
 });
 it('shows unknown amounts separately from source zero', async () => {
   data.reports[0].figures![0].value = null;

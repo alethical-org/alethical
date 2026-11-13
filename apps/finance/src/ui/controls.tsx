@@ -374,6 +374,8 @@ export function Empty({ title, next }: { title: string; next?: string }) {
 export interface EvidenceRow {
   label: string;
   value: string;
+  /** Preserve spacing and line breaks in an exact source value, such as an address. */
+  preserveWhitespace?: boolean;
   /** A Finance page the value opens (an employer as filed opens its spelling). */
   href?: string;
 }
@@ -496,7 +498,7 @@ export function EvidencePanel({
             {evidence.rows.map((row) => (
               <div key={row.label} className="f-sources-row">
                 <dt>{row.label}</dt>
-                <dd>
+                <dd style={row.preserveWhitespace ? { whiteSpace: 'pre-wrap' } : undefined}>
                   {row.href ? (
                     <Link to={row.href} className="f-evidence-link">
                       {row.value}

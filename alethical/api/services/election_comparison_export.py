@@ -171,6 +171,63 @@ def _cell(value):
     )
 
 
+def _precinct_candidate_id(race, row, source_sha256):
+    """Join raw SOS order within this race, never by name or an ID suffix."""
+    order = row.get("candidate_order_code")
+    explicit_id = row.get("candidate_id")
+    if order is None and explicit_id is None:
+        # Older rows may have no join key. Keep their source values and show a
+        # gap; a matching name alone is not authority to attach a candidacy.
+        return None
+    choices = [
+        candidate
+        for candidate in race["candidates"]
+        if (
+            candidate.get("candidate_order_code") == order
+            if order is not None
+            else candidate.get("candidate_id") == explicit_id
+        )
+    ]
+    if len(choices) != 1:
+        _problem(503, "This precinct candidate identity is unavailable")
+    candidate = choices[0]
+    name = row.get("candidate_name", row.get("name"))
+    if (
+        source_sha256 != race.get("source_sha256")
+        or name != candidate["name"]
+        or ("name" in row and row["name"] != name)
+        or ("party" in row and row["party"] != candidate.get("party"))
+        or (
+            "is_write_in_aggregate" in row
+            and row["is_write_in_aggregate"]
+            is not candidate.get("is_write_in_aggregate")
+        )
+        or (explicit_id is not None and explicit_id != candidate.get("candidate_id"))
+        or ("office_id" in row and row["office_id"] != race.get("office_id"))
+    ):
+        _problem(503, "This precinct candidate differs from its race source")
+    if order is not None and (
+        not isinstance(order, str)
+        or "party" not in row
+        or type(row.get("is_write_in_aggregate")) is not bool
+        or not isinstance(candidate.get("source_rows"), list)
+    ):
+        _problem(503, "This precinct candidate source identity is incomplete")
+    if candidate.get("source_rows") is not None and (
+        type(row.get("row_number")) is not int
+        or row["row_number"] not in candidate["source_rows"]
+    ):
+        _problem(503, "This precinct row is outside its candidate source evidence")
+    if candidate.get("is_write_in_aggregate"):
+        return None
+    if (
+        not isinstance(candidate.get("candidate_id"), str)
+        or not candidate["candidate_id"]
+    ):
+        _problem(503, "This named precinct candidate has no source candidacy")
+    return candidate["candidate_id"]
+
+
 def _words(value):
     """Only allowlisted public gap values reach this helper."""
     if isinstance(value, str):
@@ -519,7 +576,7 @@ def export_csv(
                 h,
                 subject=subject,
                 metadata=election_sources.get(h),
-                locator=evidence.get("locator"),
+                locator=evidence.get("locator") if hash_key == "sha256" else None,
             )
     for diagnostic in race.get("diagnostics", []):
         add(
@@ -910,10 +967,19 @@ def export_csv(
         for precinct in page["precincts"]:
             h = precinct.get("source_sha256") or race.get("source_sha256")
             for row in precinct.get("rows", []):
+                candidate_id = _precinct_candidate_id(
+                    race, row, row.get("source_sha256") or h
+                )
                 add(
                     "Precinct candidate",
                     **{
-                        "Candidate ID": row.get("candidate_id"),
+                        "Candidate ID": candidate_id,
+                        "Gap": "Candidate ID is not linked to this source row"
+                        if candidate_id is None
+                        and row.get("candidate_order_code") is None
+                        and row.get("candidate_id") is None
+                        and not row.get("is_write_in_aggregate")
+                        else None,
                         "Candidate": row.get("candidate_name", row.get("name")),
                         "Party": row.get("party"),
                         "Precinct votes": row.get("votes"),

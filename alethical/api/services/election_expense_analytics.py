@@ -99,15 +99,18 @@ def _identity(item):
     return {
         "name": item.get("name"),
         "address": {
-            k: address.get(k)
-            for k in (
-                "lines",
-                "street",
-                "city",
-                "state",
-                "postal_code",
-                "geography_status",
-            )
+            **({"as_filed": address["as_filed"]} if "as_filed" in address else {}),
+            **{
+                k: address.get(k)
+                for k in (
+                    "lines",
+                    "street",
+                    "city",
+                    "state",
+                    "postal_code",
+                    "geography_status",
+                )
+            },
         },
         "source": [_location(s) for s in item.get("source", [])],
     }
@@ -1644,7 +1647,10 @@ def _external_identity(payment):
     return pid, {
         "name": name,
         "address": {
-            "lines": [
+            **({"as_filed": fields["as_filed"]} if "as_filed" in fields else {}),
+            "lines": [fields["as_filed"]]
+            if fields.get("as_filed")
+            else [
                 fields[k]
                 for k in ("street_1", "street_2", "city", "state", "postal_code")
                 if fields.get(k)
@@ -2712,8 +2718,11 @@ def _csv_address(identity):
         "Filed city": address.get("city"),
         "Filed state": address.get("state"),
         "Filed postal code": address.get("postal_code"),
-        "Filed address": _csv_join(address.get("lines") or []),
-        "Filed address status": "Address not shown"
+        "Filed address": address.get("as_filed")
+        or _csv_join(address.get("lines") or []),
+        "Filed address status": "Address shown as filed"
+        if address.get("as_filed")
+        else "Address not shown"
         if not address.get("lines")
         else "Street address not shown"
         if not address.get("street")
@@ -3000,11 +3009,14 @@ def _external_csv_rows(data):
                 else "External payment",
                 "Payee": payee.get("name"),
                 "Payee ID": payment["payee_id"],
-                "Filed address": _csv_join(address.get("lines") or []),
+                "Filed address": address.get("as_filed")
+                or _csv_join(address.get("lines") or []),
                 "Filed state": address.get("state"),
                 "Filed postal code": address.get("postal_code"),
                 "Filed geography": payment["geography"],
-                "Filed address status": payee.get("address_status"),
+                "Filed address status": _csv_address(payee)["Filed address status"]
+                if address.get("as_filed")
+                else payee.get("address_status"),
                 "Date": payment["date"],
                 "Purpose": payment["purpose"],
                 "Measure": payment["measure_label"],

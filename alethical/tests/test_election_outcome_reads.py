@@ -4,6 +4,7 @@
 import pytest
 
 from alethical.api.services import election_comparison_reads as reads
+from alethical.api.services import election_source_io
 from alethical.api.routers import election_comparison as router
 from alethical.pipeline import election_outcomes as outcomes
 from alethical.pipeline import election_comparison as storage
@@ -42,6 +43,8 @@ def api_context(finance_db, prepared, monkeypatch):
     value = context.__wrapped__(finance_db, prepared, monkeypatch)
     storage.publish_generation(finance_db, value[0].id, expected_previous=None)
     monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: value[3])
+    # API proof checks and downloads must read the same retained fixture bytes.
+    monkeypatch.setattr(election_source_io, "reader_store_from_env", lambda: value[3])
     return value
 
 

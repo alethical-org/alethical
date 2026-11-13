@@ -199,6 +199,18 @@ fields stay distinct; none becomes zero. Candidate/account identity and the
 applicable dates need their own checked evidence. Public source views and CSV keep
 the gap and locator; a blank quotation stays blank, never replaced by a label.
 
+A local payment address uses a separate checked `payment_address` binding, leaving
+existing payment facts and quotes unchanged. Its optional `as_filed` value keeps
+the exact visible text and line breaks through reports, source panels and CSV.
+Do not label an unparsed address as a missing street. Derive state and ZIP only
+from one terminal uppercase USPS state/territory token followed by a complete ZIP
+or ZIP+4; keep street and city unparsed. Other forms retain their literal text
+with unknown geography. No vendor lookup, hidden text or payee-name inference
+supplies an address. An unchecked address cannot supply this supplemental binding;
+blank, ambiguous, unreadable and redacted observations retain their distinct
+states without a positive address claim. Address support does not resolve a
+candidate, report-period or amendment hold.
+
 A checked money field may show exactly two raised cents digits after explicit
 whole dollars, with or without a decimal point. Normalize those digits while
 preserving the literal source text. A terminal dash, mixed or incomplete digits,
@@ -230,6 +242,15 @@ selection and additive candidate, party and funder totals require `effective: tr
 Unknown amendments are never labelled superseded; they stay excluded with the
 reason “Amendments not established”. A checked source-version relationship is
 needed to remove that hold. This hold does not finish recoverable filing coverage.
+
+Candidate detail exposes the reviewed account's own payments under the selected
+filing, separately from spending for or against a candidate. Scope each list to
+that account, authority and exact report; changing the filing resets its open
+list and page. Unknown amendments remain inspectable with the report's exclusion
+notice, without entering additive totals or acquiring a support/opposition label.
+Each payment opens its own retained source, including the filed address and
+report period. Source loss or a withdrawn reading/account review removes the
+affected detail and invalidates an older pinned view through the existing gates.
 
 A primary exact-document report with checked name and ordered dates may retain
 a missing report type or its literal Amended type. Neither establishes the latest
@@ -415,6 +436,14 @@ identify the exact summary records or complete precinct rows supporting each
 vote total. Aggregate rows cite those vote records directly, never an absent
 roster entry. Unknown votes stay blank, and repeated proof does not repeat or add
 the numeric total.
+
+Precinct exports bind a raw candidate-order code within its exact race, checking
+the candidate's name, party, aggregate status, source hash and source-row
+membership. Conflicting identities stop the export. Older rows without a join key
+keep their source values and an explicit unlinked-ID gap; names alone never supply
+an ID. PDF outcome page and field locations belong only to that PDF's Evidence
+row. Its separate publisher link keeps its own source identity without inheriting
+the PDF coordinates.
 
 ## Acceptance before calling the comparison complete
 

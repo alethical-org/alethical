@@ -546,7 +546,17 @@ def validate_generation(g):
                 require(
                     isinstance(address, dict)
                     and set(address)
-                    == {"street_1", "street_2", "city", "state", "postal_code"}
+                    in (
+                        {"street_1", "street_2", "city", "state", "postal_code"},
+                        {
+                            "street_1",
+                            "street_2",
+                            "city",
+                            "state",
+                            "postal_code",
+                            "as_filed",
+                        },
+                    )
                     and all(
                         v is None
                         or (
@@ -554,7 +564,20 @@ def validate_generation(g):
                             and len(v) <= 200
                             and not any(ord(c) < 32 and c != "\t" for c in v)
                         )
-                        for v in address.values()
+                        for key, v in address.items()
+                        if key != "as_filed"
+                    )
+                    and (
+                        address.get("as_filed") is None
+                        or (
+                            isinstance(address["as_filed"], str)
+                            and bool(address["as_filed"].strip())
+                            and len(address["as_filed"]) <= 4000
+                            and not any(
+                                ord(c) < 32 and c not in "\t\r\n"
+                                for c in address["as_filed"]
+                            )
+                        )
                     ),
                     "Payment address must contain exact source fields",
                 )
