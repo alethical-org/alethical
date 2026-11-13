@@ -1494,6 +1494,13 @@ def reading_plan(db, receipt_ids, *, partial=False):
         len(ids) <= MAX_RECORDS * 2 and all(p.fingerprint(i) for i in ids),
         "Board reading closure exceeds bounds",
     )
+    if not ids:
+        return {
+            "reading_receipt_ids": [],
+            "source_hashes": [],
+            "provenance_receipt_ids": [],
+            "subject_keys": [],
+        }
     hashes, provenance_ids = set(), set()
     found = set()
     for row in r._receipt_rows(db, ids):
