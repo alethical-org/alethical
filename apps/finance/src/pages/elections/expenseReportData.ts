@@ -110,6 +110,26 @@ export interface AccountReport {
     source_lines: number[];
   } | null;
   public_subsidy_gap: string | null;
+  public_subsidy_comparison?: {
+    status: 'sources_disagree';
+    included_in_total: boolean;
+    filed: {
+      total: string;
+      source_page: number;
+      source_lines: number[];
+      source_sha256: string;
+      period_start: string;
+      period_end: string;
+    };
+    overview: {
+      amount: string;
+      period_start: string;
+      period_end: string;
+      source: RetainedSource & { retained_source_url: string };
+    };
+    receipt_status: 'checked' | 'unavailable';
+    receipt_pages: number[];
+  } | null;
   detail_status: string;
   detail_gap: string | null;
   itemized_totals: Amounts | null;

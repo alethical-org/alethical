@@ -1606,3 +1606,583 @@ def test_sealed_index_reads_only_selected_bytes_despite_large_unrelated_report(
     payload_queries = [q for q in statements if "election_finance_report.payload" in q]
     assert len(payload_queries) == 1 and "report_key IN" in payload_queries[0]
     assert len(parent.report_index["reports"]) == 2
+
+
+def subsidy_pdf(*, receipt_amount="300.00", row_amount="300.00", cover=COVER):
+    writer = PdfWriter()
+    for lines in [
+        cover,
+        SUMMARY,
+        [
+            "Schedule A2 - PS Receipts from Public Subsidy Payment",
+            "Example, Candidate House District 10A Committee",
+            "Date Total",
+            f"08/26/2026 Public subsidy payment from State of Minnesota {row_amount}",
+            f"Amount Received {receipt_amount}",
+            "Campaign Finance Reporter Online 1.0.4439 XSD Version: 2.6 Printed 10/26/2026",
+            "Page 3",
+        ],
+    ]:
+        writer.add_page(PdfReader(io.BytesIO(pdf_of(lines))).pages[0])
+    output = io.BytesIO()
+    writer.write(output)
+    return output.getvalue()
+
+
+def subsidy_financial(amount="0.00"):
+    return f.FinancialTab(
+        years={
+            2026: f.YearFigures(
+                year=2026,
+                heading="2026",
+                reported_through=date(2026, 10, 19),
+                amounts={"public_subsidy_payments": Decimal(amount)},
+            )
+        }
+    )
+
+
+def test_filed_subsidy_v2_preserves_disagreement_with_literal_figure():
+    body = subsidy_pdf()
+    legacy = s.extract_report_evidence(
+        body,
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        subsidy_financial(),
+        include_public_subsidy=True,
+    )
+    assert "public_subsidy_payments" not in legacy["figures"]
+    result = s.extract_report_evidence(
+        body,
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        subsidy_financial(),
+        include_public_subsidy=True,
+        public_subsidy_source_method_version=2,
+    )
+    assert result["figures"]["public_subsidy_payments"]["total"] == "300.00"
+    assert result["public_subsidy_gap"] is None
+    comparison = result["public_subsidy_comparison"]
+    assert comparison["status"] == "sources_disagree"
+    assert comparison["overview"] == {
+        "amount": "0.00",
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-19",
+    }
+    assert comparison["filed"]["source_sha256"] == s.file_hash(body)
+    assert comparison["receipts"]["status"] == "checked"
+    assert comparison["receipts"]["total"] == Decimal("300.00")
+
+
+@pytest.mark.parametrize("version", [None, True, False, 0, 3, "2", 2.0, [], {}])
+def test_subsidy_method_rejects_unknown_explicit_versions(version):
+    with pytest.raises(s.FinanceCollectionError, match="subsidy source method"):
+        s.extract_report_evidence(
+            pdf(),
+            "19399",
+            filing(),
+            d.ReportDocument(),
+            subsidy_financial(),
+            include_public_subsidy=True,
+            public_subsidy_source_method_version=version,
+        )
+
+
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("overview", ["300.00", "0.00"])
+def test_subsidy_method_keeps_matching_and_legacy_paths_scan_free(
+    monkeypatch, version, overview
+):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Unexpected extra receipt scan")
+
+    if version == 1 or overview == "300.00":
+        monkeypatch.setattr(s, "extract_subsidy_receipts", forbidden)
+        result = s.extract_report_evidence(
+            subsidy_pdf(),
+            "19399",
+            filing(),
+            d.ReportDocument(),
+            subsidy_financial(overview),
+            include_public_subsidy=True,
+            public_subsidy_source_method_version=version,
+        )
+        assert "public_subsidy_comparison" not in result
+        assert ("public_subsidy_payments" in result["figures"]) is (
+            overview == "300.00"
+        )
+    else:
+        result = s.extract_report_evidence(
+            subsidy_pdf(),
+            "19399",
+            filing(),
+            d.ReportDocument(),
+            subsidy_financial(overview),
+            include_public_subsidy=True,
+            public_subsidy_source_method_version=version,
+        )
+        assert result["public_subsidy_comparison"]["receipts"]["status"] == "checked"
+        assert result["figures"]["public_subsidy_payments"]["total"] == "300.00"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [pdf(), subsidy_pdf(receipt_amount="301.00"), subsidy_pdf(row_amount="299.00")],
+)
+def test_qualified_subsidy_missing_or_contradictory_detail_stays_unknown(body):
+    result = s.extract_report_evidence(
+        body,
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        subsidy_financial(),
+        include_public_subsidy=True,
+        public_subsidy_source_method_version=2,
+    )
+    assert result["public_subsidy_gap"]
+    assert "public_subsidy_payments" not in result["figures"]
+    assert result["public_subsidy_comparison"]["receipts"]["status"] == "unavailable"
+    assert result["public_subsidy_comparison"]["overview"]["amount"] == "0.00"
+    assert result["figures"]["campaign_expenditures"]["total"] == "127.00"
+
+
+@pytest.mark.parametrize(
+    "cover",
+    [
+        [
+            line.replace("Candidate", "Different")
+            if line.startswith("Candidate Name:")
+            else line
+            for line in COVER
+        ],
+        [line.replace("House District 10A", "House District 10B") for line in COVER],
+        [line.replace("10/19/2026", "08/25/2026") for line in COVER],
+        [line.replace("19399", "19400") for line in COVER],
+    ],
+)
+def test_subsidy_wrong_identity_registration_period_does_not_qualify(cover):
+    result = s.extract_report_evidence(
+        subsidy_pdf(cover=cover),
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        subsidy_financial(),
+        include_public_subsidy=True,
+        public_subsidy_source_method_version=2,
+    )
+    assert (
+        result["status"] == "requires_review"
+        or "public_subsidy_payments" not in result["figures"]
+    )
+    assert (
+        "public_subsidy_comparison" not in result
+        or result["public_subsidy_comparison"]["receipts"]["status"] == "unavailable"
+    )
+    assert result["public_subsidy_gap"] or result["status"] == "requires_review"
+
+
+def test_subsidy_summary_cannot_be_filled_from_receipt_or_overview_remainder():
+    summary = [
+        "7 Public Subsidy" if line.startswith("7 ") else line for line in SUMMARY
+    ]
+    body = pdf(summary=summary)
+    result = s.extract_report_evidence(
+        body,
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        subsidy_financial(),
+        include_public_subsidy=True,
+        public_subsidy_source_method_version=2,
+    )
+    assert "public_subsidy_payments" not in result["figures"]
+    assert result["public_subsidy_gap"]
+
+
+def test_subsidy_upgrade_is_immutable_preserves_expenses_and_source_dates(
+    recovery_bundle,
+):
+    directory, kwargs = recovery_bundle
+    prepared = s.prepare_collection(
+        directory, **kwargs, public_subsidy_source_method_version=1
+    )
+    legacy = s.add_campaign_expenses(*prepared)
+    before = deepcopy(legacy)
+    upgraded = s.add_filed_public_subsidy(legacy, prepared[1], prepared[2])
+    assert legacy == before
+    assert upgraded["id"] != before["id"]
+    for key in ("sources", "copied_at", "coverage"):
+        assert upgraded[key] == before[key]
+    for old, new in zip(before["reports"], upgraded["reports"]):
+        assert (
+            new["payload"]["campaign_expenses"] == old["payload"]["campaign_expenses"]
+        )
+        assert new["payload"]["public_subsidy_source_method_version"] == 2
+        assert new["payload"]["financial_source"] == old["payload"]["financial_source"]
+        allowed = {
+            "public_subsidy_source_method_version",
+            "extraction",
+            "figures",
+            "public_subsidy_gap",
+            "public_subsidy_comparison",
+        }
+        assert {
+            key: value for key, value in new["payload"].items() if key not in allowed
+        } == {key: value for key, value in old["payload"].items() if key not in allowed}
+    assert s.add_filed_public_subsidy(upgraded, prepared[1], prepared[2]) == upgraded
+    s._require_expense_reproduction(
+        upgraded["reports"], prepared[1], prepared[2], "changed"
+    )
+
+
+@pytest.mark.parametrize("version", [None, False, "2", 3])
+def test_subsidy_stored_unknown_method_refuses_even_with_recomputed_id(
+    prepared, version
+):
+    collection = deepcopy(prepared[0])
+    collection["reports"][0]["payload"]["public_subsidy_source_method_version"] = (
+        version
+    )
+    collection["id"] = s.collection_digest(collection)
+    with pytest.raises(s.FinanceCollectionError, match="subsidy source method"):
+        s.validate_collection(collection)
+
+
+def test_subsidy_legacy_and_v2_publish_restore_keep_distinct_generations(
+    db, recovery_bundle
+):
+    directory, kwargs = recovery_bundle
+    prepared = s.prepare_collection(
+        directory, **kwargs, public_subsidy_source_method_version=1
+    )
+    upgraded = s.add_filed_public_subsidy(*prepared)
+    store = retain(db, prepared)
+    first = s.stage_collection(db, prepared[0], store=store)
+    s.publish_collection(db, first, expected_previous=None)
+    second = s.stage_collection(db, upgraded, store=store)
+    s.publish_collection(db, second, expected_previous=first)
+    s.publish_collection(db, first, expected_previous=second, restore=True)
+    assert (
+        s._stored_collection(db, first)["reports"][0]["payload"].get(
+            "public_subsidy_source_method_version", 1
+        )
+        == 1
+    )
+    assert (
+        s._stored_collection(db, second)["reports"][0]["payload"][
+            "public_subsidy_source_method_version"
+        ]
+        == 2
+    )
+
+
+def test_subsidy_reproduction_without_expenses_does_not_add_detail_scan(
+    recovery_bundle, monkeypatch
+):
+    directory, kwargs = recovery_bundle
+    prepared = s.prepare_collection(directory, **kwargs)
+    upgraded = s.add_filed_public_subsidy(*prepared)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Subsidy reproduction must not add an expense layout scan")
+
+    monkeypatch.setattr(s, "extract_campaign_expenses", forbidden)
+    s._require_expense_reproduction(
+        upgraded["reports"], prepared[1], prepared[2], "changed"
+    )
+
+
+@pytest.mark.parametrize("changed", ["amendment", "period", "registration"])
+def test_subsidy_catalogue_binding_rejects_changed_selected_report(
+    recovery_bundle, changed
+):
+    directory, kwargs = recovery_bundle
+    collection, originals, _ = s.prepare_collection(directory, **kwargs)
+    row = deepcopy(collection["reports"][0])
+    row["payload"]["public_subsidy_comparison"] = {"status": "sources_disagree"}
+    if changed == "amendment":
+        row["payload"]["filing"]["effective_amendment_index"] = 1
+    elif changed == "period":
+        row["payload"]["filing"]["cut_off_date"] = "2026-07-20"
+    else:
+        row["payload"]["filing"]["registration_number"] = "19400"
+    with pytest.raises(s.FinanceCollectionError, match="catalogue report or amendment"):
+        s._require_subsidy_catalogue(row, originals)
+
+
+def test_subsidy_upgrade_checks_original_extraction_before_changing_method(prepared):
+    collection = deepcopy(prepared[0])
+    row = collection["reports"][0]
+    # A recomputed generation ID cannot approve invented source values.
+    row["payload"]["extraction"]["page_count"] = 999
+    collection["id"] = s.collection_digest(collection)
+    with pytest.raises(s.FinanceCollectionError, match="does not reproduce"):
+        s.add_filed_public_subsidy(collection, prepared[1], prepared[2])
+
+
+def test_subsidy_upgrade_reproduces_preserved_expense_evidence(recovery_bundle):
+    directory, kwargs = recovery_bundle
+    prepared = s.prepare_collection(directory, **kwargs)
+    collection = s.add_campaign_expenses(*prepared)
+    collection["reports"][0]["payload"]["campaign_expenses"]["errors"].append(
+        "Invented gap"
+    )
+    collection["id"] = s.collection_digest(collection)
+    s.validate_collection(collection)
+    with pytest.raises(
+        s.FinanceCollectionError, match="Original expense evidence does not reproduce"
+    ):
+        s.add_filed_public_subsidy(collection, prepared[1], prepared[2])
+
+
+@pytest.fixture
+def conflicting_subsidy_bundle(recovery_bundle):
+    from alethical.tests.test_campaign_finance_filings import FakeBoard
+
+    directory, kwargs = recovery_bundle
+    manifest = json.loads((directory / "recovery-manifest.json").read_text())
+    recovery = json.loads((directory / "recovered-evidence.json").read_text())
+    entries, bodies = s._read_archive(directory, manifest)
+    now = datetime.fromisoformat(manifest["completed_at"])
+    archive = f.ResponseArchive(str(directory / "responses.jsonl.gz"))
+    catalogue_hash = recovery[0]["catalogue_source"]["sha256"]
+    catalogue_entry = next(
+        entry for entry in entries.values() if entry["sha256"] == catalogue_hash
+    )
+    catalogue_response = f.Response(
+        catalogue_entry["url"],
+        catalogue_entry["form"],
+        200,
+        bodies[catalogue_hash],
+        catalogue_hash,
+        now,
+        now,
+    )
+    catalogue_line = archive.write(
+        "catalogue", catalogue_response, registration_number="19399"
+    )
+    recovery[0]["catalogue_source"]["archive_line"] = catalogue_line
+    body = subsidy_pdf()
+    doc_response = f.Response(
+        d.document_url(), entries[2]["form"], 200, body, s.file_hash(body), now, now
+    )
+    doc_line = archive.write(
+        "report_document", doc_response, registration_number="19399"
+    )
+    (directory / "19399-2026-E-0.pdf").write_bytes(body)
+    recovery[0]["document"].update(
+        sha256=doc_response.content_hash, archive_line=doc_line
+    )
+    board = FakeBoard()
+    board.reported_through[("15667", 2026)] = "10/19/2026"
+    board.amount_overrides[("15667", 2026)] = {
+        "Campaign expenditures": "$80.00",
+        "Total expenditures": "$130.00",
+        "Public subsidy payments": "$0.00",
+    }
+    financial_body = json.dumps(board.financial_payload("15667", (2026, 2027))).encode()
+    form = f.viewer_form("19399", (2026, 2027), "financial")
+    response = f.Response(
+        f.viewer_url(f.FilerKind.candidate_committee),
+        form,
+        200,
+        financial_body,
+        s.file_hash(financial_body),
+        now,
+        now,
+    )
+    line = archive.write("financial", response, registration_number="19399")
+    recovery[0]["financial_source"] = {
+        "archive_line": line,
+        "sha256": response.content_hash,
+    }
+    h, size, count = archive.close()
+    manifest["archive"] = {
+        "compressed_sha256": h,
+        "compressed_bytes": size,
+        "response_count": count,
+    }
+    (directory / "recovery-manifest.json").write_text(json.dumps(manifest))
+    (directory / "recovered-evidence.json").write_text(json.dumps(recovery))
+    return directory, kwargs
+
+
+def test_qualified_subsidy_generation_stage_reproduces_conflict_and_restores(
+    db, conflicting_subsidy_bundle
+):
+    directory, kwargs = conflicting_subsidy_bundle
+    legacy, originals, documents = s.prepare_collection(
+        directory, **kwargs, public_subsidy_source_method_version=1
+    )
+    old = legacy["reports"][0]["payload"]
+    assert old["public_subsidy_gap"] and "public_subsidy_payments" not in old["figures"]
+    upgraded = s.add_filed_public_subsidy(legacy, originals, documents)
+    new = upgraded["reports"][0]["payload"]
+    assert new["figures"]["public_subsidy_payments"]["total"] == "300.00"
+    assert (
+        new["public_subsidy_comparison"]
+        == new["extraction"]["public_subsidy_comparison"]
+    )
+    assert new["public_subsidy_comparison"]["status"] == "sources_disagree"
+    assert new["financial_source"] == old["financial_source"]
+    store = retain(db, (legacy, originals, documents))
+    first = s.stage_collection(db, legacy, store=store)
+    s.publish_collection(db, first, expected_previous=None)
+    second = s.stage_collection(db, upgraded, store=store)
+    s.publish_collection(db, second, expected_previous=first)
+    assert (
+        s._stored_collection(db, second)["reports"][0]["payload"]["figures"][
+            "public_subsidy_payments"
+        ]["total"]
+        == "300.00"
+    )
+    s.publish_collection(db, first, expected_previous=second, restore=True)
+    restored = s._stored_collection(db, first)["reports"][0]["payload"]
+    assert (
+        "public_subsidy_payments" not in restored["figures"]
+        and restored["public_subsidy_gap"]
+    )
+
+
+def test_prepare_collection_opt_in_dispatches_subsidy_method(
+    conflicting_subsidy_bundle,
+):
+    directory, kwargs = conflicting_subsidy_bundle
+    value, _, _ = s.prepare_collection(
+        directory, public_subsidy_source_method_version=2, **kwargs
+    )
+    payload = value["reports"][0]["payload"]
+    assert payload["public_subsidy_source_method_version"] == 2
+    assert payload["figures"]["public_subsidy_payments"]["total"] == "300.00"
+    assert payload["public_subsidy_comparison"]["status"] == "sources_disagree"
+
+
+def test_qualified_subsidy_rejects_unconsumed_ps_marker_with_malformed_purpose():
+    writer = PdfWriter()
+    for page in PdfReader(io.BytesIO(subsidy_pdf())).pages:
+        writer.add_page(page)
+    extra = [
+        "Schedule A2 - PS",
+        "Example, Candidate House District 10A Committee",
+        "Date Total",
+        "08/27/2026 Public subsidy payment from State of Minnes0ta 100.00",
+        "Amount Received 100.00",
+        "Campaign Finance Reporter Online 1.0.4439 XSD Version: 2.6 Printed 10/26/2026",
+        "Page 4",
+    ]
+    writer.add_page(PdfReader(io.BytesIO(pdf_of(extra))).pages[0])
+    output = io.BytesIO()
+    writer.write(output)
+    result = s.extract_report_evidence(
+        output.getvalue(),
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        subsidy_financial(),
+        include_public_subsidy=True,
+        public_subsidy_source_method_version=2,
+    )
+    assert "public_subsidy_payments" not in result["figures"]
+    assert (
+        result["public_subsidy_comparison"]["receipts"]["reason"]
+        == "orphan_subsidy_content"
+    )
+    assert result["public_subsidy_gap"]
+
+
+def test_qualified_subsidy_zero_needs_a_dated_receipt_row():
+    writer = PdfWriter()
+    summary = [
+        line.replace("300.00", "0.00")
+        .replace("897.00", "597.00")
+        .replace("937.00", "637.00")
+        for line in SUMMARY
+    ]
+    for lines in [
+        COVER,
+        summary,
+        [
+            "Schedule A2 - PS Receipts from Public Subsidy Payment",
+            "Example, Candidate House District 10A Committee",
+            "Date Total",
+            "Amount Received 0.00",
+            "Campaign Finance Reporter Online 1.0.4439 XSD Version: 2.6 Printed 10/26/2026",
+            "Page 3",
+        ],
+    ]:
+        writer.add_page(PdfReader(io.BytesIO(pdf_of(lines))).pages[0])
+    output = io.BytesIO()
+    writer.write(output)
+    result = s.extract_report_evidence(
+        output.getvalue(),
+        "19399",
+        filing(),
+        d.ReportDocument(),
+        subsidy_financial("300.00"),
+        include_public_subsidy=True,
+        public_subsidy_source_method_version=2,
+    )
+    assert "public_subsidy_payments" not in result["figures"]
+    assert result["public_subsidy_comparison"]["receipts"]["rows"] == []
+    assert (
+        result["public_subsidy_gap"]
+        == "Public subsidy receipt schedule has no dated payment rows"
+    )
+
+
+def test_new_subsidy_preparation_defaults_current_but_legacy_is_explicit(
+    conflicting_subsidy_bundle,
+):
+    directory, kwargs = conflicting_subsidy_bundle
+    default = s.prepare_collection(directory, **kwargs)[0]
+    current = s.prepare_collection(
+        directory, public_subsidy_source_method_version=2, **kwargs
+    )[0]
+    legacy = s.prepare_collection(
+        directory, public_subsidy_source_method_version=1, **kwargs
+    )[0]
+    assert default == current
+    assert (
+        default["reports"][0]["payload"]["figures"]["public_subsidy_payments"]["total"]
+        == "300.00"
+    )
+    assert (
+        legacy["reports"][0]["payload"].get("public_subsidy_source_method_version", 1)
+        == 1
+    )
+    assert "public_subsidy_payments" not in legacy["reports"][0]["payload"]["figures"]
+
+
+@pytest.mark.parametrize("command", ["prepare", "stage"])
+@pytest.mark.parametrize("version", [None, 1, 2])
+def test_subsidy_cli_forwards_new_default_and_explicit_method(
+    prepared, tmp_path, monkeypatch, command, version
+):
+    from scripts import stage_election_finance as cli
+
+    observed = []
+
+    def prepare(*args, **kwargs):
+        observed.append(kwargs)
+        return prepared
+
+    monkeypatch.setattr(cli.storage, "prepare_collection", prepare)
+    argv = [
+        command,
+        "--directory",
+        str(tmp_path),
+        "--roster-directory",
+        str(tmp_path),
+        "--directory-file",
+        str(tmp_path / "register.json"),
+        "--directory-metadata",
+        str(tmp_path / "metadata.json"),
+    ]
+    if version is not None:
+        argv += ["--public-subsidy-source-method-version", str(version)]
+    assert cli.main(argv) == 0
+    assert observed[0]["public_subsidy_source_method_version"] == (
+        2 if version is None else version
+    )

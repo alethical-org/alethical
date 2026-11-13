@@ -84,6 +84,70 @@ def _source(row):
     return finance._source(row or {})
 
 
+def _subsidy_comparison(payload, context, *, originals_available, included):
+    """Expose dated source disagreement without private receipt/review internals."""
+    comparison = payload.get("public_subsidy_comparison")
+    version = payload.get("public_subsidy_source_method_version")
+    if (
+        not originals_available
+        or type(version) is not int
+        or version != 2
+        or not isinstance(comparison, dict)
+        or comparison.get("status") != "sources_disagree"
+    ):
+        return None
+    overview_source = _source(payload.get("financial_source"))
+    overview_hash = overview_source.get("sha256")
+    if not overview_hash:
+        return None
+    overview_source["retained_source_url"] = (
+        f"/api/v1/finance/elections/{quote(context['election_key'], safe='')}/finance/sources/{overview_hash}/raw?"
+        + urlencode({"collection_id": context["collection_id"]})
+    )
+    return {
+        "status": "sources_disagree",
+        "included_in_total": included,
+        "filed": {
+            k: v
+            for k, v in comparison["filed"].items()
+            if k
+            in {
+                "cash",
+                "total",
+                "source_page",
+                "source_lines",
+                "source_sha256",
+                "period_start",
+                "period_end",
+            }
+        },
+        "overview": {
+            **{
+                k: v
+                for k, v in comparison["overview"].items()
+                if k in {"amount", "period_start", "period_end"}
+            },
+            "source": overview_source,
+        },
+        "receipt_status": comparison["receipts"]["status"],
+        "receipt_pages": comparison["receipts"].get("schedule_pages", []),
+    }
+
+
+def _subsidy_disagreement_totals(accounts):
+    conflicts = [a for a in accounts if a.get("public_subsidy_comparison")]
+    included = [a for a in conflicts if a["public_subsidy"] is not None]
+    return {
+        "source_disagreement_accounts": len(conflicts),
+        "source_disagreement_included_accounts": len(included),
+        "source_disagreement_amount": _exact_amount_sum(
+            a["public_subsidy"]["total"] for a in included
+        )
+        if included
+        else None,
+    }
+
+
 def _location(item):
     if item is None:
         return None
@@ -1336,6 +1400,12 @@ def _assemble(
             "public_subsidy_gap": None
             if figures and figures.get("public_subsidy_payments")
             else "public_subsidy_unavailable",
+            "public_subsidy_comparison": _subsidy_comparison(
+                p,
+                context,
+                originals_available=original_ok,
+                included=bool(figures and figures.get("public_subsidy_payments")),
+            ),
             "detail_status": "checked" if detail_ok else "unavailable",
             "detail_gap": None
             if detail_ok
@@ -1586,6 +1656,7 @@ def _assemble(
         },
         "public_subsidy_receipts": {
             "available_accounts": len(subsidy),
+            **_subsidy_disagreement_totals(account_reports),
             "amount": format(
                 sum(
                     (Decimal(a["public_subsidy"]["total"]) for a in subsidy), Decimal(0)
@@ -1597,6 +1668,9 @@ def _assemble(
             "by_party": {
                 key: {
                     "available_accounts": sum(a["party_group"] == key for a in subsidy),
+                    **_subsidy_disagreement_totals(
+                        [a for a in account_reports if a["party_group"] == key]
+                    ),
                     "amount": format(
                         sum(
                             (
@@ -2810,6 +2884,10 @@ _CSV_COLUMNS = (
     "Figure status",
     "Detail status",
     "Subsidy status",
+    "Subsidy overview USD",
+    "Subsidy overview source URL",
+    "Subsidy overview source SHA256",
+    "Subsidy overview copied at",
     "Gaps",
     "Candidate count",
     "Account count",
@@ -3226,6 +3304,7 @@ def _csv_body(data):
         "Amendment",
         "Report year",
         "Public subsidy USD",
+        "Subsidy overview USD",
         "Reported measure value",
         "Reported payment amount",
         "Memo detail amount",
@@ -3409,6 +3488,25 @@ def _csv_body(data):
     ):
         meta(label, value)
 
+    conflict_summary = data["summary"]["public_subsidy_receipts"]
+    if conflict_summary.get("source_disagreement_accounts"):
+        meta(
+            "Subsidy accounts with differing source totals",
+            conflict_summary["source_disagreement_accounts"],
+        )
+        meta(
+            "Reported subsidy included despite source difference USD",
+            conflict_summary["source_disagreement_amount"],
+        )
+        meta(
+            "Subsidy accounts included with differing source totals",
+            conflict_summary["source_disagreement_included_accounts"],
+        )
+        meta(
+            "Subsidy source differences",
+            "Public subsidy USD uses the selected filing where its summary and dated receipt detail agree. The same-period online overview differs. Both retained sources remain linked; this is a reported receipt, not independent proof of payment.",
+        )
+
     account_details = defaultdict(list)
     candidates_by_key = {
         (c["race_id"], c["candidate_id"]): c for c in data["candidates"]
@@ -3524,7 +3622,12 @@ def _csv_body(data):
             "Source SHA256": source.get("sha256"),
             "Figure status": _csv_words(account["figure_status"]),
             "Detail status": _csv_words(account["detail_status"]),
-            "Subsidy status": "checked"
+            "Subsidy status": "Reported amount; sources disagree"
+            if account["public_subsidy"] is not None
+            and account.get("public_subsidy_comparison")
+            else "Unavailable; sources disagree"
+            if account.get("public_subsidy_comparison")
+            else "checked"
             if account["public_subsidy"] is not None
             else "unavailable",
             "Gaps": _csv_join(
@@ -3539,6 +3642,8 @@ def _csv_body(data):
         context_by_report[account["report_key"]] = common
         expense = account.get("expense_source") or {}
         subsidy = account["public_subsidy"] or {}
+        overview = (account.get("public_subsidy_comparison") or {}).get("overview", {})
+        overview_source = overview.get("source", {})
         account_rows.append(
             common
             | {
@@ -3547,6 +3652,13 @@ def _csv_body(data):
                 **_csv_amounts("Report", account["campaign_expenses"]),
                 **_csv_amounts("Non-itemized", account["non_itemized_totals"]),
                 "Public subsidy USD": subsidy.get("total"),
+                "Subsidy overview USD": overview.get("amount"),
+                "Subsidy overview source URL": _csv_source_url(
+                    overview_source.get("retained_source_url")
+                ),
+                "Subsidy overview source SHA256": overview_source.get("sha256"),
+                "Subsidy overview copied at": overview_source.get("copied_at")
+                or overview_source.get("held_at"),
                 "Source references": evidence_references(
                     [
                         e
@@ -3564,9 +3676,9 @@ def _csv_body(data):
                 ),
                 "Source lines": _csv_join(
                     [
-                        "Campaign expenses: "
+                        "Campaign expenses summary rows: "
                         + ", ".join(map(str, expense.get("summary_lines", []))),
-                        "Public subsidy: "
+                        "Public subsidy summary rows: "
                         + ", ".join(map(str, subsidy.get("source_lines", []))),
                     ]
                 ),
