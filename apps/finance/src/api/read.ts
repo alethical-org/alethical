@@ -242,10 +242,13 @@ export function useRead<T>(
     unwrapped = false,
     acceptData,
     revision = 0,
+    enabled = true,
   }: {
     keepPrevious?: boolean;
     /** A deliberate whole-list reload bypasses cached pages. */
     revision?: number | string;
+    /** Wait for another read's fresh pins, retaining only this account's data. */
+    enabled?: boolean;
     /** A few routes (`/candidates/{id}`, `/people/{id}`) answer with the record
      * itself rather than `{ data: … }`. */
     unwrapped?: boolean;
@@ -278,7 +281,10 @@ export function useRead<T>(
   const latest = useRef(0);
 
   useEffect(() => {
-    if (!key || !path) return;
+    if (!enabled || !key || !path) {
+      setPending(false);
+      return;
+    }
     const held = attempt === 0 ? freshAnswer(key) : null;
     if (held) {
       setAnswer({ key, answer: held as ReadAnswer<T> });
@@ -321,7 +327,7 @@ export function useRead<T>(
       latest.current += 1;
       controller.abort();
     };
-  }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped, scope]);
+  }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped, scope, enabled]);
 
   const current = answer && answer.key === key ? answer.answer : null;
   const own =
@@ -333,8 +339,9 @@ export function useRead<T>(
     data: shown?.data ?? null,
     dataPath: shown?.path ?? null,
     page: shown?.page ?? null,
-    loading: key !== null && shown === null && (current === null || pending),
+    loading: enabled && key !== null && shown === null && (current === null || pending),
     updating:
+      enabled &&
       key !== null &&
       keepPrevious &&
       own === null &&
@@ -345,7 +352,7 @@ export function useRead<T>(
     changed: current?.state === 'failed' && current.changed === true,
     accessDenied: current?.state === 'failed' && current.accessDenied === true,
     notFound: current?.state === 'not-found',
-    pending: key !== null && pending,
+    pending: enabled && key !== null && pending,
     retry,
   };
 }

@@ -216,6 +216,74 @@ it('reloads candidate evidence after changed records instead of reusing the cach
   expect(container.textContent).toContain('Example candidate');
   expect(paths.filter((path) => new URL(path).pathname.endsWith('/candidates'))).toHaveLength(2);
 });
+it.each(['changed', 'same', 'failed then recovered'])(
+  'waits for fresh first-page pins on a later funder page, retaining rows (%s version)',
+  async (scenario) => {
+    window.history.replaceState(null, '', window.location.href + '&fpage=2');
+    const originalFetch = fetch;
+    let firstReads = 0;
+    let finishFirst!: (response: Response) => void;
+    const freshVersion = scenario === 'same' ? context.version : 'e'.repeat(16);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input);
+        if (!url.pathname.endsWith('/funders')) return originalFetch(input, init);
+        paths.push(input);
+        const offset = Number(url.searchParams.get('offset') || 0);
+        if (!offset && ++firstReads === 2)
+          return new Promise<Response>((resolve) => {
+            finishFirst = resolve;
+          });
+        return json({
+          ...context,
+          version:
+            url.searchParams.get('version') || (firstReads > 2 ? freshVersion : context.version),
+          funders: [funder],
+          page: { total: 100, limit: 50, offset, has_more: !offset },
+        });
+      }),
+    );
+    const continuations = () =>
+      paths
+        .map((path) => new URL(path))
+        .filter(
+          (url) => url.pathname.endsWith('/funders') && url.searchParams.get('offset') === '50',
+        );
+    await render();
+    expect(continuations()).toHaveLength(1);
+    changed = true;
+    await click(buttons('View candidates')[0]);
+    changed = false;
+    await click(buttons('Reload comparison')[0]);
+    expect(firstReads).toBe(2);
+    expect(container.textContent).toContain('Example funder');
+    expect(continuations()).toHaveLength(1);
+    if (scenario === 'failed then recovered') {
+      await act(async () => finishFirst(new Response('', { status: 500 })));
+      await settle();
+      expect(container.textContent).toContain('Example funder');
+      expect(container.textContent).toContain('Couldn’t update results');
+      expect(continuations()).toHaveLength(1);
+      await click(buttons('Try again')[0]);
+    } else {
+      await act(async () =>
+        finishFirst(
+          json({
+            ...context,
+            version: freshVersion,
+            funders: [funder],
+            page: { total: 100, limit: 50, offset: 0, has_more: true },
+          }),
+        ),
+      );
+      await settle();
+    }
+    expect(continuations()).toHaveLength(2);
+    expect(continuations()[1].searchParams.get('version')).toBe(freshVersion);
+    expect(container.textContent).toContain('Example funder');
+  },
+);
 it('keeps source and auth secrets out of report navigation and rejects foreign return state', () => {
   const url = new URL(
     'https://alethicalfinance.com/money/races?election=mn-2026-11-03-general&race=r&report=funders&fq=Example&funder=one&token=secret&expenseExcluded=old',

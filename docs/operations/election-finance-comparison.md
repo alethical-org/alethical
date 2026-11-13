@@ -468,6 +468,39 @@ private; public gaps describe missing records or figures. A currently confirmed
 campaign account replaces a stale unmatched collection status without implying
 that its reports or figures are complete.
 
+### Bounded report work
+
+Account evidence reads select only each collection's identity, election key,
+publication state and retained-source inventory. They do not transfer its report
+index or coverage payload. Source-role membership and fresh original checks still
+run; omitted fields cannot silently trigger a later full-row fetch.
+
+Funder and candidate summaries read only the core identity, amount and
+classification fields for every annual event, retaining the global
+reconciliation. They do not load unused source columns. Race-filtered record and
+export reads then load full source fields in batches only for selected Board
+rows; a missing detail row refuses the read. Whole-election record and export
+reads retain their full-row path. Core queries use a buffered result to avoid
+repeated remote cursor fetches. Funder identities, shared-account claims, exact
+amounts, source checks and global version dependencies remain unchanged. External
+account groups stay complete before report selection and display filtering.
+
+An exact-race expense read loads the requested race plus every Board decision race
+and external account candidate race. It counts all named candidacies in SQL, so
+the whole-election coverage count stays unchanged. Shared memberships and party
+evidence remain in the read. Closing snapshot and collection checks select their
+published IDs with the same publication predicates, without reloading JSON.
+
+An unnamed write-in aggregate can have a null candidate ID. Version hashing uses
+a tagged list of ID/value pairs for that candidate map, preserving the distinction
+between null and a literal string ID. Outcome claims remain unchanged; existing
+all-string-ID maps keep their prior version bytes.
+
+Reloading a later funder page retains its rows while the first page obtains fresh
+pins. Only then does the continuation reload, including when those pins are
+unchanged. A failed refresh keeps previous results and retry, with current exports
+disabled; it never starts a new continuation with stale pins.
+
 ## Publisher inventory and filing versions
 
 Raw local report facts keep unknown amendment status unless a separate checked
