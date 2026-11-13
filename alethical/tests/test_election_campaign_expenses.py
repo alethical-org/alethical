@@ -469,3 +469,203 @@ def test_parent_totals_cannot_rescue_unreadable_pdf_summary(monkeypatch):
     assert value["status"] == "unavailable"
     assert value["rows"] == []
     assert "unreadable_summary_columns" in value["errors"]
+
+
+@pytest.mark.parametrize(
+    "locality,city,state,postal_code",
+    [
+        ("Minneapolis, MN 55414 2500", "Minneapolis", "MN", "55414-2500"),
+        ("Saint Paul, MN 55101 0800", "Saint Paul", "MN", "55101-0800"),
+        ("Amsterdam, NY 12010,", "Amsterdam", "NY", "12010"),
+        ("Seattle, WA 98109,", "Seattle", "WA", "98109"),
+    ],
+)
+def test_filed_address_spacing_and_terminal_comma_keep_source_and_payment(
+    monkeypatch, locality, city, state, postal_code
+):
+    # Exact locality patterns from the retained reports; no vendor lookup.
+    value = read(
+        monkeypatch,
+        "Example Print\n      "
+        + locality
+        + "\n"
+        + HEADER
+        + "\n"
+        + transaction()
+        + "\n"
+        + totals(),
+    )
+    assert value["status"] == "checked", value["errors"]
+    row = value["rows"][0]
+    assert row["payee"]["address"] == {
+        "lines": [locality],
+        "street": None,
+        "city": city,
+        "state": state,
+        "postal_code": postal_code,
+        "geography_status": "filed_us",
+    }
+    assert row["payee"]["name"] == "Example Print"
+    assert row["payee"]["source"][1]["text"] == "      " + locality
+    assert (
+        row["payee"]["source"][1]["source_sha256"] == hashlib.sha256(BODY).hexdigest()
+    )
+    assert row["amounts"] == dict(zip(e._COLUMNS, ("10.00", "0.00", "0.00", "10.00")))
+    assert row["date"] == "2026-02-03"
+    assert row["source"][0]["text"] == transaction()
+    assert row["underlying_vendor"] is None
+    assert "payee_geography_unknown_or_foreign" not in row["uncertainties"]
+
+
+@pytest.mark.parametrize(
+    "locality",
+    [
+        "Preston, MN 5965",
+        "London, MN EC2A 3JF",
+        "Seattle, WA Seattle",
+        "Ashland, WI 7158587330",
+        "SAINT PAUL, MN 55105-",
+        "Belderville, WI 54003q",
+        "Brooklyn Park, MN 5545",
+        "Seattle, WA 98109,,",
+        "Seattle, WA 98109 extra",
+        "Seattle, WA 98109 1234,",
+        "Seattle, WA 98109-1234,",
+        "Seattle, WA 981091234,",
+        "Seattle, WA 98109  1234",
+        "Seattle, WA 98109\t1234",
+        "Seattle, WA 98109\u00a01234",
+        "Seattle, WA 98109 123",
+        "Seattle, WA 98109 12345",
+        "Seattle, WA 98109, extra",
+        "Seattle, WA 98109 ,",
+        "Seattle, wa 98109 1234",
+        "Seattle, XX 98109 1234",
+        "Seattle, wa 98109,",
+        "Seattle, XX 98109,",
+        "Seattle, WA",
+        "WA",
+        "",
+    ],
+)
+def test_other_unrecognised_filed_addresses_stay_unknown(locality):
+    assert e._address([locality]) == {
+        "lines": [locality],
+        "street": None,
+        "city": None,
+        "state": None,
+        "postal_code": None,
+        "geography_status": "unknown",
+    }
+
+
+@pytest.mark.parametrize(
+    "locality,postal_code,status",
+    [
+        ("Sample City, MN 55101", "55101", "filed_us"),
+        ("Sample City, MN 551011234", "551011234", "filed_us"),
+        ("Sample City, MN 55101-1234", "55101-1234", "filed_us"),
+        ("Sample City, mn 55101", "55101", "unknown_state"),
+        ("Sample City, XX 55101", "55101", "unknown_state"),
+    ],
+)
+@pytest.mark.parametrize("version", [1, 2])
+def test_existing_address_grammar_keeps_exact_lines_and_state_case(
+    locality, postal_code, status, version
+):
+    lines = ["123 Filed Street", locality]
+    result = e._address(lines, address_format_version=version)
+    assert result["lines"] == lines
+    assert result["street"] == "123 Filed Street"
+    assert result["city"] == "Sample City"
+    assert result["state"] == locality.split(", ")[1].split()[0]
+    assert result["postal_code"] == postal_code
+    assert result["geography_status"] == status
+    assert e._address([])["geography_status"] == "missing"
+
+
+@pytest.mark.parametrize(
+    "locality",
+    [
+        "Minneapolis, MN 55414 2500",
+        "Saint Paul, MN 55101 0800",
+        "Amsterdam, NY 12010,",
+        "Seattle, WA 98109,",
+    ],
+)
+def test_legacy_address_version_keeps_original_unknown_rows(monkeypatch, locality):
+    detail = (
+        "Example Print\n      "
+        + locality
+        + "\n"
+        + HEADER
+        + "\n"
+        + transaction()
+        + "\n"
+        + totals()
+    )
+    legacy = read(monkeypatch, detail, address_format_version=1)
+    current = read(monkeypatch, detail, address_format_version=2)
+    assert legacy["status"] == current["status"] == "checked"
+    assert legacy["schema_version"] == current["schema_version"] == 1
+    old, new = legacy["rows"][0], current["rows"][0]
+    assert old["payee"]["address"] == {
+        "lines": [locality],
+        "street": None,
+        "city": None,
+        "state": None,
+        "postal_code": None,
+        "geography_status": "unknown",
+    }
+    assert "payee_geography_unknown_or_foreign" in old["uncertainties"]
+    assert new["payee"]["address"]["geography_status"] == "filed_us"
+    # Only parsed geography and its uncertainty flag may change.
+    new["payee"]["address"] = old["payee"]["address"]
+    new["uncertainties"] = old["uncertainties"]
+    assert legacy == current
+
+
+@pytest.mark.parametrize("version", [None, 0, 3, "1", "2", True, 1.0, 2.0])
+def test_unsupported_address_version_never_reads_or_checks_pdf(monkeypatch, version):
+    def forbidden(body):
+        raise AssertionError("Unsupported version must not read the PDF")
+
+    monkeypatch.setattr(e, "_pdf_pages", forbidden)
+    result = e.extract_campaign_expenses(
+        BODY,
+        period_start="2026-01-01",
+        period_end="2026-10-19",
+        address_format_version=version,
+    )
+    assert result["schema_version"] == 1
+    assert result["status"] == "unavailable"
+    assert result["errors"] == ["unsupported_address_format_version"]
+    assert result["rows"] == result["proposals"] == []
+
+
+@pytest.mark.parametrize("prefix", ["Reimbursement:", "Credit card:"])
+@pytest.mark.parametrize("version,status", [(1, "unknown"), (2, "filed_us")])
+def test_address_version_reaches_grouped_payee_and_underlying_vendor(
+    monkeypatch, prefix, version, status
+):
+    detail = (
+        f"{prefix} Example Person\n      Saint Paul, MN 55101 0800\n"
+        "Vendor: Example Print\n      Seattle, WA 98109,\n"
+        + HEADER
+        + "\n"
+        + transaction()
+        + "\n   Total reimbursement for Example Person    10.00    0.00    0.00    10.00\n"
+        + totals()
+    )
+    result = read(monkeypatch, detail, address_format_version=version)
+    assert result["status"] == "checked", result["errors"]
+    row = result["rows"][0]
+    assert row["payee"]["name"] == "Example Person"
+    assert row["underlying_vendor"]["name"] == "Example Print"
+    assert row["relationship"] == (
+        "reimbursement" if prefix == "Reimbursement:" else "credit_card"
+    )
+    assert row["payee"]["address"]["geography_status"] == status
+    assert row["underlying_vendor"]["address"]["geography_status"] == status
+    assert row["payee"]["address"]["lines"] == ["Saint Paul, MN 55101 0800"]
+    assert row["underlying_vendor"]["address"]["lines"] == ["Seattle, WA 98109,"]

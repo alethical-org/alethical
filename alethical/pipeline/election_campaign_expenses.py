@@ -68,8 +68,10 @@ def _locator(page: int, line: int, text: str, sha256: str) -> dict:
     return {"source_sha256": sha256, "page": page, "line": line, "text": text}
 
 
-def _address(lines: list[str]) -> dict:
+def _address(lines: list[str], *, address_format_version: int = 2) -> dict:
     """Read only the printed locality. Unrecognised text is retained, not guessed."""
+    if type(address_format_version) is not int or address_format_version not in (1, 2):
+        raise ValueError("Unsupported address format version")
     result = {
         "lines": lines,
         "street": None,
@@ -80,19 +82,32 @@ def _address(lines: list[str]) -> dict:
     }
     if not lines:
         return result
-    match = re.fullmatch(r"(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-?\d{4})?)", lines[-1])
+    pattern = (
+        r"(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-?\d{4})?)"
+        if address_format_version == 1
+        else r"(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-?\d{4}| \d{4}|,)?)"
+    )
+    match = re.fullmatch(pattern, lines[-1])
     if match:
+        city, state, postal_code = match.groups()
+        if (" " in postal_code or postal_code.endswith(",")) and state not in _STATES:
+            return result
+        # The two filed formatting variants keep their literal source lines.
+        # Only the parsed ZIP changes to the existing hyphenated ZIP+4 form.
+        postal_code = postal_code.removesuffix(",").replace(" ", "-")
         result.update(
-            city=match[1].strip(),
-            state=match[2],
-            postal_code=match[3],
-            geography_status="filed_us" if match[2] in _STATES else "unknown_state",
+            city=city.strip(),
+            state=state,
+            postal_code=postal_code,
+            geography_status="filed_us" if state in _STATES else "unknown_state",
         )
         result["street"] = "\n".join(lines[:-1]) or None
     return result
 
 
-def _identity(lines: list[dict], prefix: str = "") -> dict | None:
+def _identity(
+    lines: list[dict], prefix: str = "", *, address_format_version: int = 2
+) -> dict | None:
     if not lines:
         return None
     # Name lines align to the left edge; filed address lines are indented. A
@@ -116,7 +131,7 @@ def _identity(lines: list[dict], prefix: str = "") -> dict | None:
         return None
     return {
         "name": "\n".join(names),
-        "address": _address(addresses),
+        "address": _address(addresses, address_format_version=address_format_version),
         "source": lines.copy(),
     }
 
@@ -135,6 +150,7 @@ def extract_campaign_expenses(
     period_start: str,
     period_end: str,
     expected_totals: dict | None = None,
+    address_format_version: int = 2,
 ) -> dict:
     """Return source-backed rows only when identity, dates and all totals check.
 
@@ -142,6 +158,8 @@ def extract_campaign_expenses(
     It is an additional comparison, never a replacement for PDF summary evidence.
     Outside-period dates and missing addresses are explicit row uncertainties; their
     presence does not invalidate an otherwise exact reading of the filed figures.
+    Address format 1 replays the original grammar; 2 accepts the two additional
+    filed ZIP formats without changing the record schema or literal source lines.
     """
     sha = hashlib.sha256(body).hexdigest()
     result = {
@@ -161,6 +179,9 @@ def extract_campaign_expenses(
         "layout": None,
     }
     errors = result["errors"]
+    if type(address_format_version) is not int or address_format_version not in (1, 2):
+        errors.append("unsupported_address_format_version")
+        return result
     try:
         start, end = date.fromisoformat(period_start), date.fromisoformat(period_end)
         if start > end:
@@ -172,7 +193,13 @@ def extract_campaign_expenses(
         errors.append("unreadable_or_oversized_pdf")
         return result
     try:
-        _read_pages(_pdf_pages(body), result, start, end)
+        _read_pages(
+            _pdf_pages(body),
+            result,
+            start,
+            end,
+            address_format_version=address_format_version,
+        )
     except (
         PyPdfError,
         ValueError,
@@ -206,7 +233,9 @@ def extract_campaign_expenses(
     return result
 
 
-def _read_pages(pages, result: dict, start: date, end: date) -> None:
+def _read_pages(
+    pages, result: dict, start: date, end: date, *, address_format_version: int = 2
+) -> None:
     sha, errors = result["source_sha256"], result["errors"]
     rows = result["proposals"]
     active = False
@@ -336,9 +365,17 @@ def _read_pages(pages, result: dict, start: date, end: date) -> None:
                                 f"unclosed_reimbursement:{page_num}:{line_num}"
                             )
                         cut = vendor_at[0] if len(vendor_at) == 1 else len(pending)
-                        payee = _identity(pending[:cut], prefix)
+                        payee = _identity(
+                            pending[:cut],
+                            prefix,
+                            address_format_version=address_format_version,
+                        )
                         vendor = (
-                            _identity(pending[cut:], "Vendor:")
+                            _identity(
+                                pending[cut:],
+                                "Vendor:",
+                                address_format_version=address_format_version,
+                            )
                             if cut < len(pending)
                             else None
                         )
@@ -355,7 +392,11 @@ def _read_pages(pages, result: dict, start: date, end: date) -> None:
                             )
                     elif first.startswith("Vendor:"):
                         payee = reimbursement_payee
-                        vendor = _identity(pending, "Vendor:")
+                        vendor = _identity(
+                            pending,
+                            "Vendor:",
+                            address_format_version=address_format_version,
+                        )
                         if payee is None or vendor is None:
                             errors.append(
                                 f"vendor_without_grouped_payee:{page_num}:{line_num}"
@@ -365,7 +406,12 @@ def _read_pages(pages, result: dict, start: date, end: date) -> None:
                             errors.append(
                                 f"unclosed_reimbursement:{page_num}:{line_num}"
                             )
-                        payee, vendor = _identity(pending), None
+                        payee, vendor = (
+                            _identity(
+                                pending, address_format_version=address_format_version
+                            ),
+                            None,
+                        )
                         relationship = "direct"
                     if payee is None:
                         errors.append(f"ambiguous_payee_header:{page_num}:{line_num}")

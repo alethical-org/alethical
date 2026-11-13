@@ -123,6 +123,17 @@ Check that both commands produce the same collection ID and detail counts. Omitt
 the flag retains the legacy preparation behavior. An output JSON file is not proof
 of successful staging; retain the separate post-commit receipt.
 
+Expense extraction versions keep older generations reproducible. Version
+`b1-ce-2026-v1` uses its original address grammar; new preparation uses
+`b1-ce-2026-v2`, which also reads a ZIP+4 separated by one ASCII space and a
+5-digit ZIP followed by one comma when the filed state is recognized. Literal
+address lines remain unchanged. No state, city or missing address is inferred.
+Retention, staging, publication and restoration replay the version saved in each
+report; unknown versions fail. Re-preparing an existing collection creates a new
+fingerprint and never edits the published generation. Check the exact money,
+source and identity equality, address changes and remaining gaps before publishing
+the new generation through the usual guarded path.
+
 Account review requests are separate private JSON files, passed to
 `scripts/review_election_account.py --request PATH`. The default validates request
 shape offline; it does **not** validate retained evidence. `--target production
