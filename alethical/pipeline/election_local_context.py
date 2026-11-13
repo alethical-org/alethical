@@ -114,6 +114,8 @@ class _Node:
     text: list = field(default_factory=list)
     content: list = field(default_factory=list)
     document: _HTML | None = None
+    source_closed: bool = False
+    ancestry_uncertain: bool = False
 
 
 class _HTML(HTMLParser):
@@ -134,9 +136,15 @@ class _HTML(HTMLParser):
         self.css_rules = []
         self.css_uncertain = False
         self.local_visibility = {}
+        self.formatting_ancestry_uncertain = False
+        self.ancestry_uncertain_after_repair = False
         try:
             self.feed(body.decode("utf-8-sig"))
             self.close()
+            # A frameset changes the browser's document mode: later body/link
+            # tokens need not become elements. This source tree cannot prove
+            # offered links or controls in that unsupported structure.
+            require(not self.all("frameset"), "Frameset HTML is unsupported")
             self._styles()
         except UnicodeError as exc:
             raise ComparisonImportError("Local HTML encoding unsupported") from exc
@@ -156,6 +164,84 @@ class _HTML(HTMLParser):
             parent,
         )
         node.document = self
+        node.ancestry_uncertain = self.ancestry_uncertain_after_repair or bool(
+            parent and parent.ancestry_uncertain
+        )
+        # These source constructs can produce a different browser ancestry.
+        # Do not simulate error recovery, foster parenting or formatting repair.
+        table_children = {
+            "table": {
+                "caption",
+                "colgroup",
+                "thead",
+                "tbody",
+                "tfoot",
+                "style",
+                "script",
+            },
+            "thead": {"tr", "style", "script"},
+            "tbody": {"tr", "style", "script"},
+            "tfoot": {"tr", "style", "script"},
+            "tr": {"td", "th", "style", "script"},
+        }
+        if (
+            parent
+            and parent.tag in table_children
+            and tag not in table_children[parent.tag]
+        ):
+            node.ancestry_uncertain = True
+        table_parents = {
+            "caption": {"table"},
+            "colgroup": {"table"},
+            "thead": {"table"},
+            "tbody": {"table"},
+            "tfoot": {"table"},
+            "tr": {"thead", "tbody", "tfoot"},
+            "td": {"tr"},
+            "th": {"tr"},
+        }
+        if tag in table_parents and (
+            parent is None or parent.tag not in table_parents[tag]
+        ):
+            node.ancestry_uncertain = True
+        if tag == "a" and any(n.tag == "a" for n in self.stack):
+            self.formatting_ancestry_uncertain = True
+        paragraphs = [n for n in self.stack if n.tag == "p"]
+        # Only this closed phrasing subset preserves an open paragraph.
+        # A block/unknown start may implicitly close it in a browser, including
+        # for later siblings after that element closes in the retained tree.
+        if paragraphs and tag not in {
+            "a",
+            "abbr",
+            "b",
+            "bdi",
+            "bdo",
+            "br",
+            "cite",
+            "code",
+            "data",
+            "dfn",
+            "em",
+            "i",
+            "img",
+            "kbd",
+            "mark",
+            "q",
+            "s",
+            "samp",
+            "small",
+            "span",
+            "strong",
+            "sub",
+            "sup",
+            "time",
+            "u",
+            "var",
+            "wbr",
+        }:
+            node.ancestry_uncertain = True
+            for paragraph in paragraphs:
+                paragraph.ancestry_uncertain = True
         if parent is not None:
             parent.children.append(node)
             parent.content.append(node)
@@ -166,13 +252,50 @@ class _HTML(HTMLParser):
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
         if tag not in _VOID:
+            # HTML ignores a self-closing slash on ordinary containers.
+            # Foreign SVG/MathML elements have different, supported closure
+            # syntax, but never supply the ordinary ancestry proof themselves.
+            foreign = any(n.tag in {"svg", "math"} for n in self.stack)
+            integration = any(
+                n.tag in {"foreignobject", "annotation-xml"} for n in self.stack
+            )
+            if not foreign or integration:
+                self.stack[-1].ancestry_uncertain = True
+                self.ancestry_uncertain_after_repair = True
             self.handle_endtag(tag)
 
     def handle_endtag(self, tag):
         for index in range(len(self.stack) - 1, -1, -1):
             if self.stack[index].tag == tag:
+                exact_close = index == len(self.stack) - 1
+                self.stack[index].source_closed = exact_close
+                if not exact_close:
+                    self.ancestry_uncertain_after_repair = True
+                if not exact_close and any(
+                    n.tag
+                    in {
+                        "a",
+                        "b",
+                        "big",
+                        "code",
+                        "em",
+                        "font",
+                        "i",
+                        "nobr",
+                        "s",
+                        "small",
+                        "strike",
+                        "strong",
+                        "tt",
+                        "u",
+                    }
+                    for n in self.stack[index:]
+                ):
+                    self.formatting_ancestry_uncertain = True
                 del self.stack[index:]
                 return
+        if tag not in _VOID:
+            self.ancestry_uncertain_after_repair = True
 
     def handle_data(self, data):
         if self.stack:
@@ -398,21 +521,164 @@ def _selector_parts(selector, *, comma=False):
     return parts or [""]
 
 
-def _selector_might_match(node, selector):
-    # Ignore ancestor and pseudo/attribute conditions: that over-approximation
-    # can refuse an offered link, but cannot establish an obscured one. Only
-    # the literal prefix of the rightmost compound can prove a non-match.
-    tail = _selector_parts(selector)[-1]
-    tag = re.match(r"^[a-zA-Z][a-zA-Z0-9_-]*|^\*", tail)
-    if tag and tag[0] != "*" and tag[0].lower() != node.tag:
+def _selector_chain(selector):
+    """Closed descendant/child syntax; everything else remains uncertain."""
+    if any(char in selector for char in "\\+~|{};@"):
+        return None
+    if len(_selector_parts(selector, comma=True)) != 1:
+        return None
+    parts = _selector_parts(selector)
+    if not all(parts) or len(parts) > 32:
+        return None
+    # Check top-level separators without treating function/attribute contents
+    # as relations. Unsupported or repeated combinators never become ancestry.
+    separators, position = [], 0
+    for part in parts:
+        offset = selector.find(part, position)
+        if offset < 0:
+            return None
+        gap = selector[position:offset]
+        if position == 0:
+            if gap.strip():
+                return None
+        elif gap.strip() not in {"", ">"} or not gap:
+            return None
+        else:
+            separators.append(">" if gap.strip() == ">" else " ")
+        position = offset + len(part)
+    if selector[position:].strip():
+        return None
+    return parts, separators
+
+
+def _compound_might_match(node, compound):
+    """Use only mandatory positive literals, never the contents of :not."""
+    if compound.startswith(":where(") and compound.endswith(")"):
+        inner = compound[7:-1]
+        chain = _selector_chain(inner)
+        if chain is None or len(chain[0]) != 1 or inner.startswith(":where("):
+            return True
+        return _compound_might_match(node, inner)
+    rest, conditions = compound, []
+    tag = re.match(r"^[a-zA-Z][a-zA-Z0-9_-]*|^\*", rest)
+    if tag:
+        conditions.append(tag[0] == "*" or tag[0].lower() == node.tag)
+        rest = rest[tag.end() :]
+    while rest:
+        literal = re.match(r"([.#])([a-zA-Z0-9_-]+)", rest)
+        attribute = re.match(r"\[([a-zA-Z_][a-zA-Z0-9_-]*)\]", rest)
+        if literal:
+            # Case folding over-approximates standards mode and preserves
+            # possible class/ID matches in quirks-mode HTML.
+            conditions.append(
+                literal[2].casefold() in {value.casefold() for value in _classes(node)}
+                if literal[1] == "."
+                else literal[2].casefold() == node.attrs.get("id", "").casefold()
+            )
+            rest = rest[literal.end() :]
+        elif attribute:
+            conditions.append(attribute[1].lower() in node.attrs)
+            rest = rest[attribute.end() :]
+        elif rest.startswith(":"):
+            # Balanced unknown pseudo conditions can only narrow a known
+            # positive prefix. No state, negation or alternative is evaluated.
+            if _selector_parts(rest) == [""] or not re.fullmatch(
+                r"(?:(?::){1,2}[a-zA-Z-]+(?:\([^{}]*\))?)+", rest
+            ):
+                return True
+            break
+        else:
+            return True
+    return all(conditions)
+
+
+def _selector_ancestry_known(node):
+    """Only explicitly closed ordinary containers can prove a relation absent.
+
+    This is deliberately narrower than HTML parsing. Foreign content, omitted
+    table containers, active-formatting repair and malformed closures stay held.
+    """
+    doc = node.document
+    if doc is None or doc.formatting_ancestry_uncertain:
         return False
-    rest = tail[tag.end() :] if tag else tail
-    while match := re.match(r"([.#])([a-zA-Z0-9_-]+)", rest):
-        if match[1] == "." and match[2] not in _classes(node):
+    roots, bodies = doc.all("html"), doc.all("body")
+    if (
+        len(roots) != 1
+        or len(bodies) != 1
+        or len(doc.all("head")) > 1
+        or roots[0].parent is not None
+        or bodies[0].parent is not roots[0]
+    ):
+        return False
+    path = [node, *_ancestors(node)]
+    if bodies[0] not in path and node is not roots[0]:
+        return False
+    safe = {
+        "html",
+        "body",
+        "div",
+        "main",
+        "article",
+        "aside",
+        "header",
+        "footer",
+        "section",
+        "nav",
+        "figure",
+        "figcaption",
+        "table",
+        "thead",
+        "tbody",
+        "tfoot",
+        "tr",
+        "td",
+        "th",
+        "p",
+        "span",
+        "a",
+    }
+    return all(
+        n.tag in safe
+        and n.source_closed
+        and not n.ancestry_uncertain
+        and not n.duplicate
+        for n in path
+    )
+
+
+def _selector_might_match(node, selector):
+    # Python whitespace/identifier rules are broader than CSS. Unknown
+    # non-ASCII or control syntax cannot provide a negative match proof.
+    if any(
+        ord(char) >= 127 or (ord(char) < 32 and char not in "\t\n\r\f")
+        for char in selector
+    ):
+        return True
+    chain = _selector_chain(selector)
+    if chain is None:
+        # Retain the old safe rightmost-literal exclusion; unsupported
+        # relations never supply an ancestor proof.
+        return _compound_might_match(node, _selector_parts(selector)[-1])
+    compounds, _relations = chain
+    if not _compound_might_match(node, compounds[-1]):
+        return False
+    if len(compounds) == 1 or not _selector_ancestry_known(node):
+        return True
+    possible = {node}
+    # A child selector necessarily requires an ancestor, too. Deliberately
+    # over-approximate `>` as descendant: source/parser repair may remove an
+    # intervening container, so an exact-parent exclusion is not justified.
+    for compound in reversed(compounds[:-1]):
+        parents = set()
+        for current in possible:
+            parents.update(
+                ancestor
+                for ancestor in _ancestors(current)
+                if _compound_might_match(ancestor, compound)
+            )
+        if not parents:
             return False
-        if match[1] == "#" and match[2] != node.attrs.get("id"):
-            return False
-        rest = rest[match.end() :]
+        possible = parents
     return True
 
 

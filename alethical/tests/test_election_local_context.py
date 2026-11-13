@@ -2124,8 +2124,8 @@ def test_unrelated_obscuring_styles_do_not_hide_visible_literal_text():
     body = b'<html><style>.private {display:none} aside a {visibility:hidden}</style><h2>City of <span class="private">Other</span>Roseville</h2><a href="/r.pdf">Report</a></html>'
     doc = c._HTML(body)
     assert c._text(doc.all("h2")[0]) == "City of Roseville"
-    # The fixed conservative rule cannot establish whether an ancestor-only
-    # condition applies; it holds a possibly affected anchor, not unrelated text.
+    # This fragment lacks an explicit body, so it cannot provide the new
+    # structural nonmatch proof. Hidden child text is still omitted.
     assert not c._rendered(doc.all("a")[0])
 
 
@@ -2426,3 +2426,213 @@ def test_multiple_checked_radio_defaults_are_held_until_an_exact_choice():
     edge["choices"] = {"jurisdiction": "ramsey"}
     edge["target_url"] = c.urljoin(PAGE, "/reports?jurisdiction=ramsey")
     assert c.replay_offered_get_form(body, PAGE, edge) == edge["target_url"]
+
+
+@pytest.mark.parametrize(
+    ("selector", "markup", "visible"),
+    [
+        ("[data-lazy-src]", '<a href="/r.pdf">Report</a>', True),
+        ("aside a", '<a href="/r.pdf">Report</a>', True),
+        (".unrelated::after", '<a href="/r.pdf">Report</a>', True),
+        (".present::after", '<a class="present" href="/r.pdf">Report</a>', False),
+        (".panel > a", '<div><a href="/r.pdf">Report</a></div>', True),
+        (".panel a", '<div class="panel"></div><a href="/r.pdf">Report</a>', True),
+        (
+            ":where(p.has-text-color:not(.has-link-color)) a",
+            '<a href="/r.pdf">Report</a>',
+            True,
+        ),
+        (
+            ".is-layout-constrained > :where(:not(.alignleft):not(.alignright):not(.alignfull))",
+            '<a href="/r.pdf">Report</a>',
+            True,
+        ),
+        (
+            ".builder a.uabb-button:hover *",
+            '<div class="builder"><a class="uabb-button">Button</a></div><a href="/r.pdf">Report</a>',
+            True,
+        ),
+        ("[data-lazy-src]", '<a data-lazy-src="x" href="/r.pdf">Report</a>', False),
+        ("aside a", '<aside><a href="/r.pdf">Report</a></aside>', False),
+        (".panel > a", '<div class="panel"><a href="/r.pdf">Report</a></div>', False),
+        (
+            ":where(p.has-text-color:not(.has-link-color)) a",
+            '<p class="has-text-color"><a href="/r.pdf">Report</a></p>',
+            False,
+        ),
+        (
+            ".panel > :where(:not(.other))",
+            '<div class="panel"><a href="/r.pdf">Report</a></div>',
+            False,
+        ),
+        (".panel + a", '<div class="panel"></div><a href="/r.pdf">Report</a>', False),
+        (
+            ".panel ~ a",
+            '<div class="panel"></div><p>Gap</p><a href="/r.pdf">Report</a>',
+            False,
+        ),
+        (":not(.missing) a", '<div><a href="/r.pdf">Report</a></div>', False),
+        (":where(.missing,a)", '<a href="/r.pdf">Report</a>', False),
+        (".missing, a", '<a href="/r.pdf">Report</a>', False),
+        (r"[data\2d lazy-src]", '<a data-lazy-src="x" href="/r.pdf">Report</a>', False),
+        ("[data-lazy-src", '<a href="/r.pdf">Report</a>', False),
+        (":where(.missing", '<a href="/r.pdf">Report</a>', False),
+        (
+            "[data-lazy-src]",
+            '<a href="/r.pdf" data-lazy-src="x" data-lazy-src="">Report</a>',
+            False,
+        ),
+        (".panel a", '<b class="panel"><p></b><a href="/r.pdf">Report</a></p>', False),
+        (
+            ".panel a",
+            '<table><div class="panel"></div><a href="/r.pdf">Report</a></table>',
+            False,
+        ),
+        (
+            ".panel a",
+            '<p><div class="panel"></p><a href="/r.pdf">Report</a></div>',
+            False,
+        ),
+        (
+            ".panel a",
+            '<div class="panel"><span></div><a href="/r.pdf">Report</a>',
+            False,
+        ),
+        (
+            "tbody a",
+            '<table><tr><td><a href="/r.pdf">Report</a></td></tr></table>',
+            False,
+        ),
+        (
+            ".panel a",
+            '<svg><g class="panel"></g><a href="/r.pdf">Report</a></svg>',
+            False,
+        ),
+        (".panel a", '<a class="panel"><a href="/r.pdf">Report</a></a>', False),
+        (".missing a", '<dialog><a href="/r.pdf">Report</a></dialog>', False),
+        ("@media screen { a", '<a href="/r.pdf">Report</a>', False),
+        (":future(a)", '<a href="/r.pdf">Report</a>', False),
+    ],
+)
+def test_selector_negative_proof_keeps_unknown_and_repaired_paths_held(
+    selector, markup, visible
+):
+    body = f"<html><head><style>{selector}{{display:none}}</style></head><body>{markup}</body></html>".encode()
+    doc = c._HTML(body)
+    matches = [
+        (i, a) for i, a in enumerate(doc.all("a"), 1) if a.attrs.get("href") == "/r.pdf"
+    ]
+    assert len(matches) == 1
+    index, anchor = matches[0]
+    edge = {
+        "anchor_index": index,
+        "line": anchor.line,
+        "href": "/r.pdf",
+        "label": "Report",
+        "base_href": None,
+        "target_url": c.urljoin(PAGE, "/r.pdf"),
+    }
+    if visible:
+        assert c.replay_html_anchor(body, PAGE, edge) == edge["target_url"]
+    else:
+        with pytest.raises(ComparisonImportError):
+            c.replay_html_anchor(body, PAGE, edge)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        '<html><style>body a{display:none}</style><a href="/r.pdf">Report</a></html>',
+        '<html><head><style>.panel a{display:none}</style></head><body><div class="panel"/><a href="/r.pdf">Report</a></body></html>',
+        '<html><head><style>.panel a{display:none}</style></head><body><a href="/r.pdf">Report</a></body><body class="panel"></body></html>',
+        '<html><head><style>.PANEL a{display:none}</style></head><body><div class="panel"><a href="/r.pdf">Report</a></div></body></html>',
+        '<html><head><style>#PANEL a{display:none}</style></head><body><div id="panel"><a href="/r.pdf">Report</a></div></body></html>',
+    ],
+)
+def test_selector_negative_proof_refuses_implicit_merged_or_quirks_ancestry(body):
+    doc = c._HTML(body.encode())
+    assert not c._rendered(doc.all("a")[0])
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        "<hr>",
+        "<div></div>",
+        "<form></form>",
+        "<fieldset></fieldset>",
+        "<pre></pre>",
+        "<blockquote></blockquote>",
+        "<h1></h1>",
+        "<address></address>",
+    ],
+)
+def test_selector_negative_proof_holds_after_paragraph_closing_content(block):
+    body = f'<html><head><style>body > a{{display:none}}</style></head><body><p>{block}<a href="/filing.pdf">Report</a></p></body></html>'.encode()
+    doc = c._HTML(body)
+    assert not c._rendered(doc.all("a")[0])
+
+
+@pytest.mark.parametrize(
+    "markup",
+    [
+        '<ul><li class="panel">First<li><div><a href="/filing.pdf">Report</a></div></ul>',
+        '<h1 class="panel">First<h2>Second</h2><div><a href="/filing.pdf">Report</a></div></h1>',
+        '<form class="panel"><form></form><div><a href="/filing.pdf">Report</a></div></form>',
+        '<form><form class="panel"><div><a href="/filing.pdf">Report</a></div></form></form>',
+    ],
+)
+def test_selector_negative_proof_holds_list_heading_and_form_repairs(markup):
+    body = f"<html><head><style>.panel a{{display:none}}</style></head><body>{markup}</body></html>".encode()
+    doc = c._HTML(body)
+    assert not c._rendered(doc.all("a")[0])
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        '<html><head><style>.x\u00a0a{display:none}</style></head><body><a class="x\u00a0a" href="/r.pdf">Report</a></body></html>',
+        '<html><head><style>tr > td > a{display:none}</style></head><body><table><tbody><tr><td><td><a href="/r.pdf">Report</a></td></td></tr></tbody></table></body></html>',
+        '<html><head><style>.panel > a{display:none}</style></head><body><div class="panel"><div><a href="/r.pdf">Report</a></div></div></body></html>',
+        '<html><head><style>.panel a{display:none}</style></head><body><table><tbody class="panel"><tbody><tr><td><a href="/r.pdf">Report</a></td></tr></tbody></tbody></table></body></html>',
+        '<html><head><style>.panel a{display:none}</style></head><body><table><tbody><tr class="panel"><tr><td><a href="/r.pdf">Report</a></td></tr></tr></tbody></table></body></html>',
+        '<html><head><style>.panel a{display:none}</style></head><body><table><caption class="panel"><caption><a href="/r.pdf">Report</a></caption></caption></table></body></html>',
+    ],
+)
+def test_selector_negative_proof_keeps_non_ascii_and_table_repair_uncertain(body):
+    doc = c._HTML(body.encode())
+    assert not c._rendered(doc.all("a")[0])
+
+
+@pytest.mark.parametrize("style", ["", "<style>.panel a{display:none}</style>"])
+def test_anchor_replay_refuses_unsupported_frameset_document(style):
+    body = (
+        f"<html><head>{style}</head><frameset></frameset>"
+        '<body><a href="/r.pdf">Report</a></body></html>'
+    ).encode()
+    edge = {
+        "anchor_index": 1,
+        "line": 1,
+        "href": "/r.pdf",
+        "label": "Report",
+        "base_href": None,
+        "target_url": c.urljoin(PAGE, "/r.pdf"),
+    }
+    with pytest.raises(ComparisonImportError, match="Frameset"):
+        c.replay_html_anchor(body, PAGE, edge)
+
+
+def test_frameset_text_does_not_refuse_an_ordinary_offered_link():
+    body = (
+        "<html><body><!-- <frameset> --><p>&lt;frameset&gt;</p>"
+        '<a href="/r.pdf">Report</a></body></html>'
+    ).encode()
+    edge = {
+        "anchor_index": 1,
+        "line": 1,
+        "href": "/r.pdf",
+        "label": "Report",
+        "base_href": None,
+        "target_url": c.urljoin(PAGE, "/r.pdf"),
+    }
+    assert c.replay_html_anchor(body, PAGE, edge) == edge["target_url"]

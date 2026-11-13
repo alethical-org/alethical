@@ -318,6 +318,13 @@ catalogue and PDF. Fixed parsers replay observed navigation without executing sc
 An unissued physical section has a document-and-section key, not an invented
 publisher account number. Existing Crow Wing context receipts remain supported.
 
+Retained HTML visibility checks can exclude a hiding rule only when a mandatory
+literal tag, class, ID, attribute or ancestor cannot match. Unknown selectors,
+conditional styles and repaired or uncertain ancestry remain possible matches.
+Frameset documents are unsupported because the source tree cannot establish their
+offered body links or controls. These checks do not compute browser styles, fetch
+external assets or approve a filing's identity or contents.
+
 Public reads label these physical accounts as report sections and retain the
 original hash and section opening page. A figure's checked page takes precedence
 over that opening page; an opening-page fallback requires the same original.
