@@ -21,6 +21,7 @@ import { useBand } from '../../ui/band';
 import { FieldMenu } from '../MoneyByRace';
 import { RetainedEvidence, type ElectionEvidence } from './Evidence';
 import { CoverageNotice } from './CoverageNotice';
+import { electionSourcePath, electionSourceLinesPath } from './data';
 import {
   count,
   dateLabel,
@@ -69,6 +70,8 @@ const paymentSourceKey = (payment: d.Payment, data: d.ExpenseAnswer) =>
   `payment:${data.version}:${payment.report_key}:${payment.record_id}`;
 const payeeSourceKey = (payee: d.Payee, data: d.ExpenseAnswer) =>
   `payee:${data.version}:${payee.payee_id ?? payee.report_keys.join(',')}`;
+const partySourceKey = (account: d.AccountReport, claim: d.Claim, source: d.PartySource) =>
+  `party:${account.report_key}:${d.claimKey(claim)}:${source.source_sha256}:${source.row_number ?? ''}`;
 const EvidenceRestore = createContext<{
   sourceKey: string;
   rememberPayee: (payee: d.Payee, data: d.ExpenseAnswer) => void;
@@ -474,17 +477,28 @@ export function ExpenseReport({
   const externalSource = baseline?.authority_reports?.find((account) =>
     sourceKey.startsWith(`external-report:${account.report_key}:`),
   );
+  const partySource = baseline?.account_reports
+    .flatMap((account) =>
+      account.claims.flatMap((claim) =>
+        (claim.party_sources ?? []).map((source) => ({ account, claim, source })),
+      ),
+    )
+    .find(({ account, claim, source }) => sourceKey === partySourceKey(account, claim, source));
   const selection =
     current && baseline
       ? sourceAccount
-        ? reportEvidence(baseline, sourceAccount)
-        : externalSource
-          ? authorityEvidence(baseline, externalSource, sourceKey)
-          : paymentSource?.key === sourceKey
-            ? paymentEvidence(paymentSource.data, paymentSource.payment)
-            : payeeSource?.key === sourceKey
-              ? payeeSource.evidence
-              : null
+        ? reportEvidence(baseline, sourceAccount, (claim, source) =>
+            setAddress({ expenseSource: partySourceKey(sourceAccount, claim, source) }),
+          )
+        : partySource
+          ? partyEvidence(baseline, partySource.claim, partySource.source)
+          : externalSource
+            ? authorityEvidence(baseline, externalSource, sourceKey)
+            : paymentSource?.key === sourceKey
+              ? paymentEvidence(paymentSource.data, paymentSource.payment)
+              : payeeSource?.key === sourceKey
+                ? payeeSource.evidence
+                : null
       : null;
   const reload = useCallback(() => {
     setRevision((value) => value + 1);
@@ -682,7 +696,11 @@ export function ExpenseReport({
           <Notice read={report} message="Couldn’t load party comparison" reload={reload} />
           {baseline && (
             <>
-              <PartyComparison data={baseline} />
+              <PartyComparison
+                data={baseline}
+                enabled={current}
+                showReport={(key) => setAddress({ expenseSource: `report:${key}` })}
+              />
               <section className="ec-section ex-locations">
                 <h2>Payee locations</h2>
                 <Exclusions
@@ -894,7 +912,15 @@ export function ExpenseReport({
   );
 }
 
-function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
+function PartyComparison({
+  data,
+  enabled,
+  showReport,
+}: {
+  data: d.ExpenseAnswer;
+  enabled: boolean;
+  showReport: (key: string) => void;
+}) {
   const band = useBand();
   const categories: Array<{
     key: string;
@@ -987,6 +1013,9 @@ function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
     ];
   };
   const periods = new Set(data.summary.periods.map((period) => `${period.start}:${period.end}`));
+  const omitted = data.account_reports.filter(
+    (account) => account.campaign_expenses !== null && d.adjustedReportTotal(account) === null,
+  );
   return (
     <section className="ec-section">
       <h2>Party comparison</h2>
@@ -1034,6 +1063,27 @@ function PartyComparison({ data }: { data: d.ExpenseAnswer }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {omitted.length > 0 && (
+        <div className="ec-muted">
+          <p>After exclusions omits reports with unavailable expense details</p>
+          <ul>
+            {omitted.map((account) => (
+              <li key={account.report_key}>
+                <button
+                  className="ec-link"
+                  disabled={!enabled}
+                  onClick={() => showReport(account.report_key)}
+                >
+                  {account.display_claims.map((claim) => claim.name).join(' / ')}
+                  {' · '}
+                  {moneyLabel(account.campaign_expenses?.total)}
+                  {' · View report'}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {mixed.map((account) => (
@@ -1992,7 +2042,11 @@ function payeeEvidence(data: d.ExpenseAnswer, payee: d.Payee): ElectionEvidence 
   };
 }
 
-function reportEvidence(data: d.ExpenseAnswer, account: d.AccountReport): ElectionEvidence {
+function reportEvidence(
+  data: d.ExpenseAnswer,
+  account: d.AccountReport,
+  showPartySource: (claim: d.Claim, source: d.PartySource) => void,
+): ElectionEvidence {
   const document = account.source.document;
   const location = (page: number | undefined, lines: number[] | undefined) =>
     page
@@ -2047,13 +2101,13 @@ function reportEvidence(data: d.ExpenseAnswer, account: d.AccountReport): Electi
             : 'Unavailable',
         },
         ...account.claims.map((claim) => ({
-          label: 'Account membership · Party from official election record',
-          value: `${claim.name} · ${d.partyLabel(claim.filed_party)}${claim.filed_party ? ` (${claim.filed_party})` : ''}`,
+          label: `Ballot party · ${claim.name}`,
+          value: `${d.partyLabel(claim.filed_party)}${claim.filed_party ? ` (${claim.filed_party})` : ''}`,
         })),
         ...account.claims.flatMap((claim) =>
           (claim.party_sources ?? []).map((source) => ({
             label: `Official party source · ${claim.name}`,
-            value: `${source.kind === 'official_result' ? 'Official result' : 'Candidate record'}, row ${source.row_number} · Literal ${source.party_value} · ${source.availability === 'available' ? 'Source held' : 'Source unavailable'} · ${source.source_sha256}`,
+            value: `${source.kind === 'official_result' ? 'Official result' : 'Candidate record'}${source.row_number == null ? '' : `, row ${source.row_number}`} · ${source.party_value}${source.availability === 'available' ? '' : source.availability === 'not_checked' ? ' · Source not checked' : ' · Source unavailable'}`,
           })),
         ),
         { label: 'Source version', value: account.source.sha256 },
@@ -2061,6 +2115,62 @@ function reportEvidence(data: d.ExpenseAnswer, account: d.AccountReport): Electi
     },
     attachment: retainedReportPath(data, account.source.sha256),
     pdfPage: account.campaign_expenses ? account.expense_source.page : undefined,
+    children: (
+      <div className="ex-source-reports">
+        {account.claims.flatMap((claim) =>
+          (claim.party_sources ?? []).map((source) => (
+            <button
+              key={partySourceKey(account, claim, source)}
+              className="ec-link"
+              disabled={source.availability !== 'available'}
+              onClick={() => showPartySource(claim, source)}
+            >
+              View party source · {claim.name}
+            </button>
+          )),
+        )}
+      </div>
+    ),
+  };
+}
+
+function partyEvidence(
+  data: d.ExpenseAnswer,
+  claim: d.Claim,
+  source: d.PartySource,
+): ElectionEvidence {
+  const row = source.row_number;
+  const available = source.availability === 'available';
+  return {
+    evidence: {
+      title: `Party · ${claim.name}`,
+      authority: SOS,
+      checked: null,
+      rows: [
+        { label: 'Candidate', value: claim.name },
+        { label: 'Party as filed', value: source.party_value },
+        { label: 'Candidate ID', value: source.candidate_id },
+        { label: 'Source row', value: row == null ? 'Unavailable' : String(row) },
+        ...(!available
+          ? [
+              {
+                label: 'Original source',
+                value: source.availability === 'not_checked' ? 'Not checked' : 'Unavailable',
+              },
+            ]
+          : []),
+      ],
+    },
+    attachment: available
+      ? electionSourcePath(data.election_key, source.source_sha256, data.snapshot_id)
+      : null,
+    lines:
+      available && row != null
+        ? electionSourceLinesPath(data.election_key, source.source_sha256, data.snapshot_id, {
+            start: row,
+            limit: 1,
+          })
+        : null,
   };
 }
 function paymentEvidence(data: d.ExpenseAnswer, payment: d.Payment): ElectionEvidence {

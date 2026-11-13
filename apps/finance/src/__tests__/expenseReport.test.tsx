@@ -714,6 +714,160 @@ it('opens exact retained report bytes with separate figure locators and no inven
   ).toBe(collection);
 });
 
+it('explains and opens reports omitted from the adjusted subtotal without treating them as payee exclusions', async () => {
+  const report = data.account_reports[1];
+  report.detail_status = 'unavailable';
+  report.detail_gap = 'expense_rows_do_not_reconcile';
+  report.checked_detail_after_exclusions = null;
+  await render();
+  const section = [...container.querySelectorAll('section')].find(
+    (node) => node.querySelector('h2')?.textContent === 'Party comparison',
+  )!;
+  expect(section.textContent).toContain(
+    'After exclusions omits reports with unavailable expense details',
+  );
+  const source = section.querySelector<HTMLButtonElement>('button')!;
+  expect(source.textContent).toContain('Example Pat');
+  expect(section.textContent).toContain('$50');
+  await click(source);
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Example Pat');
+  expect(window.location.search).toContain(`expenseSource=report%3A${second}`);
+});
+
+it('opens a retained party source without inventing a missing roster row', async () => {
+  data.account_reports[0].claims[0] = {
+    ...dana,
+    party_sources: [
+      {
+        kind: 'candidate_roster',
+        source_sha256: '2'.repeat(64),
+        row_number: null,
+        candidate_id: dana.candidate_id,
+        party_value: dana.filed_party!,
+        availability: 'available',
+      },
+    ],
+  };
+  handler = (url) =>
+    url.pathname.endsWith(`/sources/${'2'.repeat(64)}`)
+      ? new Response('official candidate record', {
+          headers: { 'Content-Type': 'application/octet-stream' },
+        })
+      : undefined;
+  await render();
+  await click(buttons('View report')[0]);
+  expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('row null');
+  await click(buttons('View party source')[0]);
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Minnesota Secretary of State');
+  expect(panel.textContent).toContain(dana.candidate_id);
+  expect(panel.textContent).not.toContain('row null');
+  expect(panel.querySelector('a')?.getAttribute('href')).toBe('blob:report');
+  expect(
+    requests
+      .find((url) => url.pathname.endsWith(`/sources/${'2'.repeat(64)}`))
+      ?.searchParams.get('snapshot_id'),
+  ).toBe(snapshot);
+  expect(requests.some((url) => url.pathname.endsWith('/lines'))).toBe(false);
+});
+
+it('shows the exact held party source row and retries a failed original download', async () => {
+  data.account_reports[0].claims[0] = {
+    ...dana,
+    party_sources: [
+      {
+        kind: 'official_result',
+        source_sha256: '2'.repeat(64),
+        row_number: 27,
+        candidate_id: dana.candidate_id,
+        party_value: dana.filed_party!,
+        availability: 'available',
+      },
+    ],
+  };
+  let failSource = true;
+  handler = (url) => {
+    if (url.pathname.endsWith(`/sources/${'2'.repeat(64)}/lines`))
+      return json({ lines: [{ number: 27, text: 'Example Dana;DFL;17' }] });
+    if (url.pathname.endsWith(`/sources/${'2'.repeat(64)}`))
+      return failSource
+        ? new Response('unavailable', { status: 503 })
+        : new Response('official result', {
+            headers: { 'Content-Type': 'application/octet-stream' },
+          });
+    return undefined;
+  };
+  await render();
+  await click(buttons('View report')[0]);
+  await click(buttons('View party source')[0]);
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('27  Example Dana;DFL;17');
+  expect(panel.textContent).toContain('Couldn’t load source');
+  expect(panel.querySelector('a')).toBeNull();
+  const lineRequest = requests.find((url) => url.pathname.endsWith('/lines'))!;
+  expect(lineRequest.searchParams.get('snapshot_id')).toBe(snapshot);
+  expect(lineRequest.searchParams.get('start')).toBe('27');
+  failSource = false;
+  await click(
+    [...panel.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Try again'),
+    )!,
+  );
+  expect(panel.querySelector('a')?.getAttribute('href')).toBe('blob:report');
+});
+
+it('keeps unavailable party sources disabled without fetching a substitute', async () => {
+  data.account_reports[0].claims[0] = {
+    ...dana,
+    party_sources: [
+      {
+        kind: 'candidate_roster',
+        source_sha256: '2'.repeat(64),
+        row_number: null,
+        candidate_id: dana.candidate_id,
+        party_value: dana.filed_party!,
+        availability: 'unavailable',
+      },
+    ],
+  };
+  await render();
+  await click(buttons('View report')[0]);
+  const button = buttons('View party source')[0];
+  expect(button.disabled).toBe(true);
+  await click(button);
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Source unavailable');
+  expect(requests.some((url) => url.pathname.includes(`/sources/${'2'.repeat(64)}`))).toBe(false);
+});
+
+it.each([
+  ['unavailable', 'Unavailable'],
+  ['not_checked', 'Not checked'],
+])(
+  'preserves %s party-source status when restoring a copied panel address',
+  async (availability, label) => {
+    const hash = '2'.repeat(64);
+    data.account_reports[0].claims[0] = {
+      ...dana,
+      party_sources: [
+        {
+          kind: 'candidate_roster',
+          source_sha256: hash,
+          row_number: null,
+          candidate_id: dana.candidate_id,
+          party_value: dana.filed_party!,
+          availability,
+        },
+      ],
+    };
+    const key = `party:${latest}:${d.claimKey(dana)}:${hash}:`;
+    await render(`&expenseSource=${encodeURIComponent(key)}`);
+    const panel = document.querySelector('[role="dialog"]')!;
+    expect(panel.textContent).toContain(`Original source${label}`);
+    expect(panel.querySelector('a')).toBeNull();
+    expect(requests.some((url) => url.pathname.includes(`/sources/${hash}`))).toBe(false);
+  },
+);
+
 it('adds exact decimal amounts and credits without binary float or missing-as-zero', () => {
   expect(d.sumMoney(['9007199254740993.01', '-0.02', '0.0099'])).toBe('9007199254740992.9999');
   expect(d.sumMoney(['0.10', '0.20'])).toBe('0.30');
