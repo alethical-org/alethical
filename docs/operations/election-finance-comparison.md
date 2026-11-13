@@ -215,6 +215,11 @@ Unknown amendments are never labelled superseded; they stay excluded with the
 reason “Amendments not established”. A checked source-version relationship is
 needed to remove that hold. This hold does not finish recoverable filing coverage.
 
+A primary exact-document report with checked name and ordered dates may retain
+a missing report type or its literal Amended type. Neither establishes the latest
+version. Missing dates and unsupported supplement relationships still prevent
+report and figure extraction; the checked source reading can retain those gaps.
+
 Each request includes its actual source-proof outcomes in its version. A later
 failed proof cannot change the returned figures under an unchanged version.
 Ordinary reads isolate unavailable proofs so unrelated healthy records remain

@@ -14,13 +14,18 @@ from alethical.tests.test_election_comparison_storage import db, MemoryStore
 from alethical.tests.test_election_local_financial_form import native_pdf
 
 
-def packet(office="Synthetic School Board", blank_inkind=False, checked_rows=False):
+def packet(
+    office="Synthetic School Board",
+    blank_inkind=False,
+    checked_rows=False,
+    report_type="Pre-general",
+):
     body = native_pdf(
         {
             "office": office,
             "inkind": None if blank_inkind else "0",
-            "report_mark": (330, 155, 10, "X"),
-            "report_type": (345, 155, 10, "Pre-general"),
+            "report_mark": (330, 155, 10, "X") if report_type else None,
+            "report_type": (345, 155, 10, report_type or "Pre-general"),
             "candidate_mark": (30, 157, 10, "X Candidate"),
         }
     )
@@ -50,7 +55,7 @@ def packet(office="Synthetic School Board", blank_inkind=False, checked_rows=Fal
             candidate_mark="cover.candidate_mark",
             period_start="cover.period_start",
             period_end="cover.period_end",
-            report_type=["cover.type"],
+            report_type=["cover.type"] if report_type else [],
         ),
     )
     specs = [
@@ -71,7 +76,13 @@ def packet(office="Synthetic School Board", blank_inkind=False, checked_rows=Fal
         ),
         ("period_start", "From", "08/29/26", "date", [420, 170, 470, 188]),
         ("period_end", "To", "10/19/26", "date", [500, 170, 585, 188]),
-        ("type", "Pre-general", "X", "mark", [320, 145, 340, 165]),
+        (
+            "type",
+            report_type or "Pre-general",
+            "X" if report_type else "",
+            "mark",
+            [320, 145, 340, 165],
+        ),
         (
             "total_received",
             "TOTAL AMOUNT RECEIVED",
@@ -87,6 +98,7 @@ def packet(office="Synthetic School Board", blank_inkind=False, checked_rows=Fal
             bounds=bounds,
             label=label,
             literal=literal,
+            state="blank" if key == "type" and not report_type else "value",
             value_type=kind,
             currency="USD" if kind == "money" else None,
         )
@@ -151,9 +163,22 @@ def packet(office="Synthetic School Board", blank_inkind=False, checked_rows=Fal
 
 @pytest.fixture
 def held(db, request):
-    body, bodies, receipt, source = packet(
-        checked_rows=getattr(request, "param", False)
-    )
+    return checked_packet(db, checked_rows=getattr(request, "param", False))
+
+
+def checked_packet(db, *, context_gap=None, **packet_args):
+    body, bodies, receipt, source = packet(**packet_args)
+    if context_gap == "supplement":
+        receipt["document_kind"] = "supplement"
+        context = receipt["source_context"]
+        context.update(
+            document_role="supplement",
+            parent_document_url=context["document_url"],
+            document_url="https://www.crowwing.gov/DocumentCenter/View/2/Addition",
+        )
+        source["url"] = context["document_url"]
+    elif context_gap:
+        receipt["source_context"]["fields"][context_gap] = None
     store = MemoryStore()
     for value in bodies.values():
         archive_source(db, store, value)
@@ -170,6 +195,68 @@ def held(db, request):
         db, store, [row.receipt_sha256], allowed_source_hashes=set(bodies)
     )
     return body, bodies, receipt, source, row, proof, store
+
+
+@pytest.mark.parametrize("report_type", [None, "Amended pre-primary"])
+def test_checked_primary_report_type_does_not_infer_an_effective_version(
+    db, report_type
+):
+    from alethical.api.services.election_comparison_export import _latest_external
+
+    body, _, receipt, source, row, proof, _ = checked_packet(
+        db, report_type=report_type
+    )
+    report = local.extract_local_reading(
+        body,
+        source,
+        {"kind": "report", "receipt_sha256": row.receipt_sha256},
+        context=proof,
+    )
+    assert report.facts["report_type"] == report_type
+    assert report.facts["period_start"] == "2026-08-29"
+    assert report.facts["period_end"] == "2026-10-19"
+    assert report.facts["effective"] is None
+    assert report.facts["predecessor_report_key"] is None
+    assert report.facts["version_scope"] == "exact_document"
+    assert report.facts["amendment_status"] == "not_established"
+    assert _latest_external([report.facts]) is None
+    type_field = next(f for f in receipt["fields"] if f["field_id"] == "cover.type")
+    assert type_field["literal"] == ("X" if report_type else "")
+    assert type_field["state"] == ("value" if report_type else "blank")
+    figure = local.extract_local_reading(
+        body,
+        source,
+        {
+            "kind": "figure",
+            "receipt_sha256": row.receipt_sha256,
+            "field_id": "cover.total_received",
+        },
+        context=proof,
+    )
+    native = local.extract_local_native(
+        body,
+        source,
+        {
+            "kind": "figure",
+            "receipt_sha256": row.receipt_sha256,
+            "field": "total_received",
+        },
+        context=proof,
+    )
+    assert figure.facts["value"] == native.facts["value"] == "1482.11"
+
+
+@pytest.mark.parametrize("gap", ["name", "period_start", "period_end", "supplement"])
+def test_exact_document_still_requires_primary_name_and_complete_period(db, gap):
+    body, _, _, source, row, proof, _ = checked_packet(
+        db, report_type=None, context_gap=gap
+    )
+    for kind in ("report", "figure"):
+        locator = {"kind": kind, "receipt_sha256": row.receipt_sha256}
+        if kind == "figure":
+            locator["field_id"] = "cover.total_received"
+        with pytest.raises(ComparisonImportError):
+            local.extract_local_reading(body, source, locator, context=proof)
 
 
 def test_checked_context_derives_nonissued_group_and_keeps_literal_identity(held):

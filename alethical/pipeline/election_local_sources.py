@@ -18,7 +18,10 @@ from typing import TypedDict
 from urllib.parse import urljoin, urlsplit
 
 from alethical.pipeline.election_comparison import ComparisonImportError, digest
-from alethical.pipeline.election_external_finance import CheckedExtraction
+from alethical.pipeline.election_external_finance import (
+    CheckedExtraction,
+    ordered_period,
+)
 from alethical.pipeline.election_local_financial_form import read_native_local_report
 from alethical.pipeline import election_source_readings as readings
 
@@ -510,12 +513,17 @@ def _entity(context, locator, *, report=True):
         r = value["report"]
         require(
             value["document_role"] == "primary"
-            and r["report_type"]
             and r["period_start"]
             and r["period_end"]
-            and "amend" not in r["report_type"].lower(),
-            "Local report identity/type/period remains a gap",
+            and r["effective"] is None
+            and r["version_scope"] == "exact_document"
+            and r["amendment_status"] == "not_established"
+            and r["predecessor_report_key"] is None,
+            "Local report identity/period/version remains a gap",
         )
+        # A missing type or checked Amended label describes this document only;
+        # neither determines which filing is effective in an amendment series.
+        ordered_period(r)
     return value
 
 
