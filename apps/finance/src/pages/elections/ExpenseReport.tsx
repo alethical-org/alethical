@@ -10,7 +10,7 @@ import {
 } from 'react';
 
 import { useRead, type Read } from '../../api/read';
-import { REQUEST_TIMEOUT_MS } from '../../api/client';
+import { requestTimeoutMs } from '../../api/client';
 import { useFinanceSession } from '../../auth/session';
 import { useLocation } from '../../router';
 import { useLiveSearch } from '../../search/useLiveSearch';
@@ -20,6 +20,7 @@ import { BackLink, LoadingLine } from '../../ui/parts';
 import { useBand } from '../../ui/band';
 import { FieldMenu } from '../MoneyByRace';
 import { RetainedEvidence, type ElectionEvidence } from './Evidence';
+import { CoverageNotice } from './CoverageNotice';
 import {
   count,
   dateLabel,
@@ -542,6 +543,7 @@ export function ExpenseReport({
             <h1>Campaign expense report</h1>
             <p>Compare candidate spending, public subsidies and reported payee locations</p>
           </header>
+          <CoverageNotice detailsId="ex-about" />
           <div className="ec-finder ex-finder">
             {elections && onElectionChange ? (
               <FieldMenu
@@ -821,7 +823,7 @@ export function ExpenseReport({
             </section>
           )}
           <section className="ec-section ex-about">
-            <h2>About these records</h2>
+            <h2 id="ex-about">About these records</h2>
             <p>Payee locations use addresses in the filings, not where work took place.</p>
             <p>
               Public subsidy received and campaign spending are separate figures. These records do
@@ -2189,7 +2191,7 @@ function useCsvDownload(path: string | null) {
     controller.current?.abort();
     const requestController = new AbortController();
     controller.current = requestController;
-    const timer = setTimeout(() => requestController.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => requestController.abort(), requestTimeoutMs(path));
     setState({ key, pending: true });
     try {
       const response = await fetch(`${session.apiBaseUrl.replace(/\/+$/, '')}/api/v1/${path}`, {

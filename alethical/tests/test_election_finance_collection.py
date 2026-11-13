@@ -566,6 +566,57 @@ def test_prepare_rejects_replaced_pdf(recovery_bundle):
         s.prepare_collection(directory, **kwargs)
 
 
+@pytest.mark.parametrize("command", ["prepare", "stage"])
+def test_cli_expenses_rebuild_originals_without_changing_legacy_default(
+    recovery_bundle, tmp_path, capsys, command
+):
+    from scripts import stage_election_finance as cli
+
+    directory, kwargs = recovery_bundle
+    inputs = [command, "--directory", str(directory)]
+    for key, value in kwargs.items():
+        inputs.extend(["--" + key.replace("_", "-"), str(value)])
+    legacy, _, _ = s.prepare_collection(directory, **kwargs)
+    values = []
+    for enabled in (False, True):
+        output = tmp_path / f"{command}-{enabled}.json"
+        args = [*inputs, "--output", str(output)]
+        if enabled:
+            args.append("--include-campaign-expenses")
+        assert cli.main(args) == 0
+        receipt = json.loads(capsys.readouterr().out)
+        assert receipt["executed"] is False
+        value = json.loads(output.read_text())
+        assert receipt["collection_id"] == value["id"]
+        payload = value["reports"][0]["payload"]
+        # The recovery JSON contains forged money; the original PDF governs.
+        assert payload["figures"]["contributions_received"]["total"] == "225.00"
+        assert payload["identity_confirmation"] is False
+        values.append(value)
+    assert values[0] == legacy
+    assert values[1]["id"] != legacy["id"]
+    payload = values[1]["reports"][0]["payload"]
+    assert payload["campaign_expenses"]["status"] == "unavailable"
+    assert payload["campaign_expenses"]["rows"] == []
+    assert values[1]["sources"] == legacy["sources"]
+    payload_without_detail = dict(payload)
+    payload_without_detail.pop("campaign_expenses")
+    assert payload_without_detail == legacy["reports"][0]["payload"]
+
+
+@pytest.mark.parametrize("command", ["prepare", "stage"])
+def test_cli_expense_opt_in_still_refuses_changed_original(recovery_bundle, command):
+    from scripts import stage_election_finance as cli
+
+    directory, kwargs = recovery_bundle
+    (directory / "19399-2026-E-0.pdf").write_bytes(pdf(summary=SUMMARY + ["changed"]))
+    args = [command, "--directory", str(directory), "--include-campaign-expenses"]
+    for key, value in kwargs.items():
+        args.extend(["--" + key.replace("_", "-"), str(value)])
+    with pytest.raises(s.FinanceCollectionError, match="fingerprint"):
+        cli.main(args)
+
+
 def test_non_january_report_start_is_preserved(prepared):
     collection = prepared[0]
     payload = collection["reports"][0]["payload"]

@@ -8,6 +8,20 @@ type Fetch = typeof fetch;
 /** A hung connection becomes "unavailable" with Try again, never an endless wait. */
 export const REQUEST_TIMEOUT_MS = 10_000;
 
+/** Whole-election reports verify many retained originals before answering. */
+export const ELECTION_REPORT_TIMEOUT_MS = 90_000;
+
+/** Only the canonical whole-election report routes get the longer budget. */
+export function requestTimeoutMs(path: string): number {
+  const route = path.split('?', 1)[0];
+  return !path.includes('#') &&
+    /^finance\/elections\/mn-\d{4}-\d{2}-\d{2}-(?:general|primary|special)\/analytics\/(?:funders|candidates|records|export|sources\/(?:contributions|expenditures|independent_expenditures)|expenses(?:\/(?:payees|payments|export))?)$/.test(
+      route,
+    )
+    ? ELECTION_REPORT_TIMEOUT_MS
+    : REQUEST_TIMEOUT_MS;
+}
+
 function timeout(): AbortSignal | undefined {
   return typeof AbortSignal.timeout === 'function'
     ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)

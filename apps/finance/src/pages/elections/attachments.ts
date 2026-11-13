@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { REQUEST_TIMEOUT_MS } from '../../api/client';
+import { requestTimeoutMs } from '../../api/client';
 import { useFinanceSession } from '../../auth/session';
 
 export interface ElectionAttachment {
@@ -95,7 +95,7 @@ export function useElectionAttachment(path: string | null): ElectionAttachment {
     let objectUrl: string | null = null;
     let accessDenied = false;
     let changed = false;
-    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timer = window.setTimeout(() => controller.abort(), requestTimeoutMs(path));
     void fetch(`${apiBaseUrl.replace(/\/+$/, '')}/api/v1/${path}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: 'no-store',

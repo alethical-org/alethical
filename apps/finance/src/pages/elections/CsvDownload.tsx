@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFinanceSession } from '../../auth/session';
-import { REQUEST_TIMEOUT_MS } from '../../api/client';
+import { requestTimeoutMs } from '../../api/client';
 
 export function CsvDownload({
   path,
@@ -36,7 +36,7 @@ export function CsvDownload({
     const active = new AbortController();
     controller.current = active;
     setState('busy');
-    const timer = window.setTimeout(() => active.abort(), REQUEST_TIMEOUT_MS);
+    const timer = window.setTimeout(() => active.abort(), requestTimeoutMs(path));
     let objectUrl: string | null = null;
     try {
       const response = await fetch(`${session.apiBaseUrl.replace(/\/+$/, '')}/api/v1/${path}`, {

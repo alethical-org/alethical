@@ -1,4 +1,5 @@
 import { CsvDownload } from './CsvDownload';
+import { CoverageNotice } from './CoverageNotice';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useRead, type Read } from '../../api/read';
 import { Link, useLocation } from '../../router';
@@ -352,6 +353,7 @@ export function Funders({
           </h1>
           <p className="mr-dek">Compare reported support, opposition and candidate outcomes</p>
         </header>
+        <CoverageNotice detailsId="ef-about" />
         <div className="ec-finder">
           <FieldMenu
             name="Election"
@@ -586,7 +588,7 @@ export function Funders({
           )}
         </section>
         <section className="ec-section">
-          <h2>About these records</h2>
+          <h2 id="ef-about">About these records</h2>
           <p>
             Direct contributions and independent spending stay separate. For and Against preserve
             the position in the filing.

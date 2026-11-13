@@ -116,6 +116,13 @@ and stage the checked collection. Originals may remain retained after a later
 staging failure; retry from the same verified files. Do not remove retained
 objects to force a retry. Check the resulting collection fingerprint and counts.
 
+For campaign expense reports, pass `--include-campaign-expenses` on both `prepare`
+and `stage` with the same retained inputs. It rebuilds expense detail from original
+filings through the normal source checks; it does not trust an edited JSON report.
+Check that both commands produce the same collection ID and detail counts. Omitting
+the flag retains the legacy preparation behavior. An output JSON file is not proof
+of successful staging; retain the separate post-commit receipt.
+
 Account review requests are separate private JSON files, passed to
 `scripts/review_election_account.py --request PATH`. The default validates request
 shape offline; it does **not** validate retained evidence. `--target production

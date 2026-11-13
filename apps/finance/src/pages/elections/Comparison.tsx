@@ -18,6 +18,7 @@ import { ExpenseReport } from './ExpenseReport';
 import { Funders } from './Funders';
 import { reportHref, funderReturnHref, changeElection } from './navigation';
 import { CsvDownload } from './CsvDownload';
+import { CoverageNotice } from './CoverageNotice';
 import { ExternalCandidate, type ExternalStatus } from './ExternalCandidate';
 import './comparison.css';
 
@@ -320,6 +321,7 @@ export function ElectionComparison() {
             View campaign money by year →
           </Link>
         </header>
+        <CoverageNotice />
         {selected && (
           <nav className="ec-actions" aria-label="Election reports">
             <Link className="ec-link" to={reportHref(location, 'funders')}>

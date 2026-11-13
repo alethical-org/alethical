@@ -1254,3 +1254,30 @@ it.each([
   expect(panel.textContent).toContain('page 2');
   expect(panel.querySelector('blockquote')).toBeNull();
 });
+
+it('keeps the expense download alive for a healthy 20-second response', async () => {
+  const downloads = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  await render();
+  vi.useFakeTimers();
+  try {
+    handler = (url) =>
+      url.pathname.endsWith('/export')
+        ? new Promise<Response>((resolve) =>
+            setTimeout(
+              () =>
+                resolve(new Response('exact,25.75', { headers: { 'Content-Type': 'text/csv' } })),
+              20_000,
+            ),
+          )
+        : undefined;
+    await act(async () => buttons('Download CSV')[0].click());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    expect(downloads).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('Download started');
+  } finally {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
+});

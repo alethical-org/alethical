@@ -186,6 +186,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('keeps the data coverage notice visible without a broken link on the race list', async () => {
+  await render(`/money/races?election=${key}`);
+  const notice = container.querySelector('[aria-label="Data coverage"]')!;
+  expect(notice.textContent).toContain('Data coverage is incomplete');
+  for (const link of notice.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')) {
+    expect(document.getElementById(link.hash.slice(1))).not.toBeNull();
+  }
+});
+
 it('shows whole dollars, write-ins in the vote denominator and precinct candidates aligned by source code', async () => {
   await render();
   expect(container.textContent).toContain('$4,327,206');
