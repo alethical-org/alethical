@@ -483,6 +483,50 @@ it('scoped expansion keeps nonmatching shared members and its own pin', async ()
   expect(requests.filter((url) => url.pathname.endsWith('/payments'))).toHaveLength(1);
 });
 
+it('uses a pinned fallback when the API ignores the first payee view', async () => {
+  let finish!: (response: Response) => void;
+  handler = (url) => {
+    if (url.searchParams.get('view') === 'payees') {
+      const answer = structuredClone(data);
+      answer.version = '2'.repeat(16);
+      delete answer.payees;
+      return json(answer);
+    }
+    if (url.pathname.endsWith('/payees'))
+      return new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    return undefined;
+  };
+  await render('&expenseCandidate=' + encodeURIComponent('race-1:robin'));
+  const fallback = requests.find((url) => url.pathname.endsWith('/payees'));
+  expect(fallback?.searchParams.get('version')).toBe('2'.repeat(16));
+  expect(fallback?.searchParams.get('snapshot_id')).toBe(data.snapshot_id);
+  expect(container.querySelector('.ex-payees')?.textContent).toContain('Loading');
+  expect(container.querySelector('.ex-payees')?.textContent).not.toContain('No matching payees');
+  const answer = structuredClone(data);
+  answer.version = '2'.repeat(16);
+  answer.payees = [payee()];
+  await act(async () => finish(json(answer)));
+  await settle();
+  expect(container.querySelector('.ex-payee-main')).not.toBeNull();
+  await click(buttons('View payments')[0]);
+  expect(
+    requests.find((url) => url.pathname.endsWith('/payments'))?.searchParams.get('version'),
+  ).toBe('2'.repeat(16));
+});
+
+it('accepts an empty initial payee array without a fallback request', async () => {
+  handler = (url) => {
+    if (url.searchParams.get('view') !== 'payees') return undefined;
+    return json({ ...data, payees: [], page: { limit: 50, offset: 0, total: 0 } });
+  };
+  await render('&expenseCandidate=' + encodeURIComponent('race-1:robin'));
+  expect(container.querySelector('.ex-payees')?.textContent).toContain('No matching payees');
+  expect(requests.filter((url) => url.searchParams.get('view') === 'payees')).toHaveLength(1);
+  expect(requests.filter((url) => url.pathname.endsWith('/payees'))).toHaveLength(0);
+});
+
 it('keeps the candidate payee version across search, paging and clearing', async () => {
   await render('&expenseCandidate=' + encodeURIComponent('race-1:robin'));
   const initial = requests.filter((url) => url.searchParams.get('view') === 'payees');

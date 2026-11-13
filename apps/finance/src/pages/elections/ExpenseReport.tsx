@@ -1522,18 +1522,27 @@ function CandidatePayees({
           currentScope.pins,
           offset,
         );
-  const payees = useRead<d.ExpenseAnswer>(path, { keepPrevious: true, revision });
+  const read = useRead<d.ExpenseAnswer>(path, { keepPrevious: true, revision });
   // Reset before committing a view of a changed query/page. Late or retained
-  // answers cannot establish the next scope's pin.
+  // answers cannot establish the next scope's pin. An older API ignores view
+  // and returns candidates: use its scoped pin for the existing payees route.
   if (
     !currentScope.pins &&
-    payees.data &&
-    payees.dataPath === initialPath &&
-    !payees.failed &&
-    !payees.updating
+    read.data &&
+    read.dataPath === initialPath &&
+    !read.failed &&
+    !read.updating
   ) {
-    setScope({ ...currentScope, pins: pins(payees.data) });
+    setScope({
+      ...currentScope,
+      pins: pins(read.data),
+      initialActive: Array.isArray(read.data.payees),
+    });
   }
+  const payees =
+    read.data && !Array.isArray(read.data.payees)
+      ? { ...read, data: null, loading: read.loading || read.updating, updating: false }
+      : read;
   const payeePrefix = `candidate:${d.claimKey(candidate)}:`;
   return (
     <section className="ex-payees">
