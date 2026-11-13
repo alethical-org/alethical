@@ -85,6 +85,19 @@ when nearby words, values or the visual structure already make its meaning clear
 and removing it loses no needed information. Do not keep a mark merely because
 charts conventionally include it.
 
+Use the shortest grammatical, literal wording that preserves meaning across the
+product. Let nearby labels supply context, while keeping enough context for
+standalone items and accessible reading. Prefer clear words to ambiguous shorthand.
+Review copy and spacing together: shortening text does not fix a crowded layout
+by itself. Give neighboring meanings a clear gap and put a shared note once at
+the scope it describes. Apply each correction to similar cases, not just one string.
+Include errors, statuses, empty states, labels, instructions and help text. Drop
+implied subjects and repeated words where context supplies them: **Couldn’t update
+results** instead of **We couldn’t update these results**. Keep what failed and
+the useful recovery action clear. Preserve the distinction between an initial-load
+failure and a failed update with earlier results still shown; do not remove
+pronouns mechanically or alter exact source quotations.
+
 Check the entire connected group before adding shared context. Units, currencies,
 periods, scope and labels belong where they make the values unambiguous, not in
 both a shared heading and every value. When every displayed amount includes its
@@ -177,20 +190,43 @@ shown back to the reader keeps its source wording, state included. Approved on
 
 ### Display dollar amounts without cents
 
-In every post draft, display dollar amounts as whole dollars by dropping the
-cents, never rounding. For example, $26,837,090.78 becomes $26,837,090 and
-$13,904,932.99 becomes $13,904,932. Apply this to prose, tables, charts, labels
-and supporting text. Keep currency signs, grouping separators and negative signs.
+Across Alethical, including Finance, display dollar amounts as whole dollars by
+dropping the cents, never rounding. This covers screens, reports, drawings, prose,
+tables, charts, tooltips, cards, payment details, source-evidence summaries and
+accessible equivalents. Both $1,500.00 and $1,500.99 display as $1,500;
+−$1,500.99 displays as −$1,500. Keep currency signs, grouping separators and
+negative signs. Apply the same rule to every layout band and interaction state.
 
 Retain full precision in source records and calculation inputs. Calculate totals,
 percentages and comparisons from those exact values, then drop cents only for
 display. Do not total already-truncated display values: the displayed parts can
 differ from the displayed total by a dollar because their cents were omitted.
-Check generated chart and table text before the first review so rendering cannot
-restore decimal places. This is a post-drafting rule, not a request to alter
-underlying records or bulk-edit unrelated published pages.
+Keep original documents, exact source quotations, stored values and downloadable
+analysis data intact. Dollar display does not change percentage precision, counts,
+dates or identifiers. An amount below $1 can display as $0; never use that formatted
+value to infer zero activity, a checked zero or missing data.
 
-Approved on 26 September 2026.
+Before the first drawing review and before build acceptance, inspect generated
+amounts as well as literal text. Include .00, .01 and .99, a negative amount,
+zero, a large amount and a total whose omitted cents carry into another dollar.
+Verify totals use exact inputs and each final display drops its own cents. A
+no-decimal formatter that rounds fails this rule. Check evidence panels and
+accessible text as well as the main tables. Rule updates do not lift explicit
+drawing-review or release holds.
+
+### Short labels for unavailable values
+
+Use the fewest words that preserve the reader's meaning. When a column, row or
+field label already identifies the value, use **Unavailable**, not **Amount not
+available**, **Amount N/A** or **N/A**. Apply this across Alethical, including
+Finance, in tables, cards, charts, source-evidence summaries and accessible
+equivalents. Keep the field identity in the accessible context and in standalone
+messages; do not remove words needed to tell the reader what is unavailable.
+
+Unavailable means the value is not available to the reader. Keep **Not applicable**,
+**Not reported**, **No records**, pending, loading, failed-load and zero states
+distinct when their evidence supports those meanings. Never replace an exact source
+quotation or silently convert these different states to one generic label.
 
 ### Draft every post for meaning, without repeated explanations
 

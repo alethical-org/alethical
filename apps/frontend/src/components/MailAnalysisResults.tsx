@@ -372,7 +372,7 @@ function RecordBlock({
       </p>
       {!block || block.state === 'unavailable' ? (
         <>
-          <Failure>We couldn’t load these results</Failure>
+          <Failure>Couldn’t load results</Failure>
           {retry}
         </>
       ) : (
@@ -498,7 +498,7 @@ function Registration({ record, retry }: { record: MailRegistration; retry?: Rea
         </div>
         {records?.refresh_failed && (
           <>
-            <Failure>We couldn’t refresh these records</Failure>
+            <Failure>Couldn’t refresh records</Failure>
             {retry}
           </>
         )}
@@ -559,7 +559,7 @@ function Registration({ record, retry }: { record: MailRegistration; retry?: Rea
           </div>
         ) : (
           <>
-            <Failure>We couldn’t load these results</Failure>
+            <Failure>Couldn’t load results</Failure>
             {retry}
           </>
         )}
@@ -640,7 +640,7 @@ export function MailAnalysisResults({
           <Failure>
             {analysis.error === 'expired'
               ? 'This upload session is no longer available'
-              : 'We couldn’t load these results'}
+              : 'Couldn’t load results'}
           </Failure>
           {analysis.error === 'expired' ? (
             <button type="button" className="results-retry session-recovery" onClick={onStartAgain}>
@@ -653,7 +653,7 @@ export function MailAnalysisResults({
       )}
       {result?.status === 'failed' && !retained && !analysis.error && (
         <section>
-          <Failure>We couldn’t load these results</Failure>
+          <Failure>Couldn’t load results</Failure>
           {retry}
         </section>
       )}
@@ -824,7 +824,7 @@ export function MailAnalysisResults({
                     )}
                     <PhotoButton side={side} open={setPhotoSide} />
                   </div>
-                  {read?.status === 'unreadable' && <Failure>We couldn’t read this photo</Failure>}
+                  {read?.status === 'unreadable' && <Failure>Couldn’t read this photo</Failure>}
                   {displayText && (
                     <div id={`mail-text-${side}`} className="text-content" hidden={!expanded[side]}>
                       {displayText}

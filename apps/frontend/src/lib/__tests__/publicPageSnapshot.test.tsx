@@ -113,7 +113,7 @@ describe('public first-response copy matches the actual screens', () => {
         certification: { authority: record.source.authority, url: record.source.url, date },
       };
       const profile = { ...record, result };
-      const expected = date ? 'Certified November 12, 2024' : 'Certified';
+      const expected = date ? 'Certified Nov 12, 2024' : 'Certified';
       const person = personPageSnapshot({
         id: '00000000-0000-4000-8000-000000000084',
         name: record.candidate.name,

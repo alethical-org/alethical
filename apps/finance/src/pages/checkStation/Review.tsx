@@ -137,7 +137,7 @@ export function Review({
       <div className="ck-detail">
         {read.failed ? (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this TV station file
+            Couldn’t load TV station file
           </Refused>
         ) : (
           <div className="ck-detail-loading" role="status" aria-busy="true" aria-label="Loading" />
@@ -409,7 +409,10 @@ function Workbench({
   }
   function setConn(patch: Partial<ConnectionEntries>, clear?: string) {
     touch();
-    setDraft((was) => ({ ...was, connection: { ...was.connection, ...patch } }));
+    setDraft((was) => ({
+      ...was,
+      connection: { ...was.connection, ...patch },
+    }));
     if (clear) setErrors((was) => ({ ...was, [clear]: '' }));
   }
   function cancelPreview() {
@@ -498,7 +501,12 @@ function Workbench({
         item.status === 'checked'
           ? [
               ...(isFact
-                ? [{ label: 'Correct fact', onClick: () => startCorrection(item as Fact) }]
+                ? [
+                    {
+                      label: 'Correct fact',
+                      onClick: () => startCorrection(item as Fact),
+                    },
+                  ]
                 : []),
               { label: 'Withdraw check', onClick: () => openWithdraw(item.id) },
             ]
@@ -624,7 +632,10 @@ function Workbench({
   function runSearch() {
     if (busy) return;
     if (!conn.type) {
-      setErrors((was) => ({ ...was, type: 'Choose the connection this page shows' }));
+      setErrors((was) => ({
+        ...was,
+        type: 'Choose the connection this page shows',
+      }));
       focusSoon('conn-btn');
       return;
     }
@@ -900,7 +911,10 @@ function Workbench({
                 version={version}
                 page={page}
                 alt={`Page ${page} of ${file.page_count} of the original TV station file ${file.name}`}
-                failure={{ text: 'We couldn’t load this page image', retry: 'Retry image' }}
+                failure={{
+                  text: 'Couldn’t load page image',
+                  retry: 'Retry image',
+                }}
               />
             ) : (
               <p className="mb-no-pages">Page images are unavailable</p>
@@ -1068,7 +1082,10 @@ function Workbench({
                   className="f-btn f-btn-secondary"
                   onClick={() => {
                     setStale(false);
-                    setDraft((was) => ({ ...was, fact: blankFact(String(page)) }));
+                    setDraft((was) => ({
+                      ...was,
+                      fact: blankFact(String(page)),
+                    }));
                     refresh();
                     focusSoon('fact-btn');
                   }}
@@ -1078,7 +1095,9 @@ function Workbench({
               </div>
             )}
             <div className="ck-grid">
-              {field('', 'f-version', 'Source version', versionText, () => {}, { readOnly: true })}
+              {field('', 'f-version', 'Source version', versionText, () => {}, {
+                readOnly: true,
+              })}
               <div className="ck-field">
                 <span id="fact-label" className="ck-label">
                   Fact
@@ -1090,7 +1109,10 @@ function Workbench({
                   wide
                   disabled={busy || !!correcting}
                   className={`ck-select${err('kind') ? ' ck-select-error' : ''}`}
-                  options={FACT_FIELDS.map(([value, label]) => ({ value, label }))}
+                  options={FACT_FIELDS.map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
                   onChange={(value) => setFact({ field: value }, 'kind')}
                 >
                   <span className={fact.field ? undefined : 'ck-placeholder'}>
@@ -1181,7 +1203,9 @@ function Workbench({
             {discard}
             {failedBanner}
             <div className="ck-grid">
-              {field('', 'c-version', 'Source version', versionText, () => {}, { readOnly: true })}
+              {field('', 'c-version', 'Source version', versionText, () => {}, {
+                readOnly: true,
+              })}
               <div className="ck-field">
                 <span id="conn-label" className="ck-label">
                   Connection
@@ -1263,7 +1287,7 @@ function Workbench({
               </div>
             )}
             {!conn.target && lookupFailed && (
-              <Refused onRetry={runSearch}>We couldn’t load these records</Refused>
+              <Refused onRetry={runSearch}>Couldn’t load records</Refused>
             )}
             {!conn.target && lookupStale && (lookupRows?.length ?? 0) > 0 && (
               <p className="ck-note" role="status">
@@ -1324,7 +1348,7 @@ function Workbench({
                 {previewing === 'busy' && <LoadingLine>Loading…</LoadingLine>}
                 {previewing === 'failed' && (
                   <Refused onRetry={() => conn.target && void preview(conn.target)}>
-                    We couldn’t load this record
+                    Couldn’t load record
                   </Refused>
                 )}
                 {previewOk && conn.preview && (
@@ -1446,8 +1470,8 @@ function Workbench({
                     <div className="ck-withdraw">
                       {open.status === 'failed' && (
                         <Refused>
-                          We couldn’t withdraw this check. This is a problem on our side; your
-                          reason is kept.
+                          Couldn’t withdraw this check. This is a problem on our side; your reason
+                          is kept.
                         </Refused>
                       )}
                       <label className="ck-field">
@@ -1459,7 +1483,11 @@ function Workbench({
                           readOnly={open.status === 'busy'}
                           data-error={open.error ? true : undefined}
                           onChange={(event) =>
-                            setWithdrawal({ ...open, reason: event.target.value, error: '' })
+                            setWithdrawal({
+                              ...open,
+                              reason: event.target.value,
+                              error: '',
+                            })
                           }
                         />
                         {open.error && <Warning>{open.error}</Warning>}

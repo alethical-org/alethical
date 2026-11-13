@@ -44,7 +44,7 @@ const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 const CONTRIBUTION_FILE_PAGE =
   'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
 const FAILED =
-  'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.';
+  'Couldn’t load the Board’s lobbying record. This says nothing about what was reported.';
 const ORGS_HEADING = 'Organizations represented';
 const ORGS_SCOPE =
   'The lobbyist list shows which organizations this lobbyist represented on the copy date';
@@ -94,7 +94,7 @@ export function contributionsReturn(pathname: string, search: string, year: numb
   return `${pathname}${query ? `?${query}` : ''}#contributions`;
 }
 const DONATIONS_FAILED =
-  'We couldn’t load the state’s campaign contribution file. This does not mean no donation was filed under this registration number.';
+  'Couldn’t load the state’s campaign contribution file. This does not mean no donation was filed under this registration number.';
 const DATE_MISSING = 'Date not given in the public file';
 const AMOUNT_MISSING = 'Amount not given';
 const NAME_MISSING = 'Committee name not reported';

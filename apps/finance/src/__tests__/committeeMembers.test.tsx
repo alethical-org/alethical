@@ -288,7 +288,7 @@ describe('Committee members’ campaign accounts', () => {
       return loaded(url);
     });
     const alert = card('Ben Davis').querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain('We couldn’t load the report information');
+    expect(alert?.textContent).toContain('Couldn’t load the report information');
     expect(card('Casey Two').querySelector('[role="alert"]')).toBeNull();
     await act(async () => alert!.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
@@ -342,7 +342,7 @@ describe('Committee members’ campaign accounts', () => {
       return loaded(url);
     });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load these accounts. This is a problem on our side and says nothing about the members.',
+      'Couldn’t load accounts. This is a problem on our side and says nothing about the members.',
     );
     await act(async () =>
       container.querySelector<HTMLButtonElement>('[role="alert"] button')!.click(),
@@ -369,7 +369,7 @@ describe('Committee members’ campaign accounts', () => {
     );
     const ben = card('Ben Davis');
     expect(ben.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load the report information',
+      'Couldn’t load the report information',
     );
     expect(ben.textContent).not.toContain(`No ${YEAR} report held`);
   });

@@ -58,10 +58,8 @@ for (const [date, outcome] of [
     await expect(page.getByTestId('candidate-record-status')).toHaveText(
       outcome === 'elected' ? 'Elected' : 'Not elected',
     );
-    await expect(
-      page.getByText('Ballot record saved October 8, 2026', { exact: true }),
-    ).toBeVisible();
-    await expect(page.getByText('Checked October 8, 2026', { exact: true })).toBeVisible();
+    await expect(page.getByText('Ballot record saved Oct 8, 2026', { exact: true })).toBeVisible();
+    await expect(page.getByText('Checked Oct 8, 2026', { exact: true })).toBeVisible();
     await expect(page.getByText(/Both checked/)).toHaveCount(0);
   });
 }
@@ -127,8 +125,8 @@ for (const width of [1280, 900, 390]) {
     await expect(status).toHaveText('Not elected');
     await expect(page.getByText('Election results', { exact: true })).toHaveCount(1);
     await expect(page.getByText('Certified', { exact: true })).toBeVisible();
-    await expect(page.getByText('Both checked October 8, 2026', { exact: true })).toBeVisible();
-    await expect(page.getByText('Checked October 8, 2026', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Both checked Oct 8, 2026', { exact: true })).toBeVisible();
+    await expect(page.getByText('Checked Oct 8, 2026', { exact: true })).toHaveCount(0);
     const box = await status.boundingBox();
     const office = await page.getByText(baseRecord.office, { exact: true }).boundingBox();
     const area = await page.getByText(baseRecord.votingArea, { exact: true }).boundingBox();
@@ -184,11 +182,9 @@ test('retained ballot and different source dates stay separate', async ({ page }
     },
     { ...source, retained: true } as typeof source,
   );
-  await expect(
-    page.getByText('Ballot record saved October 8, 2026', { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText('Checked October 7, 2026', { exact: true })).toBeVisible();
-  await expect(page.getByText('Certified November 12, 2024', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ballot record saved Oct 8, 2026', { exact: true })).toBeVisible();
+  await expect(page.getByText('Checked Oct 7, 2026', { exact: true })).toBeVisible();
+  await expect(page.getByText('Certified Nov 12, 2024', { exact: true })).toBeVisible();
   await expect(page.getByText(/Both checked/)).toHaveCount(0);
 });
 test('withdrawal is distinct from a profile claim', async ({ page }) => {
@@ -199,7 +195,7 @@ test('withdrawal is distinct from a profile claim', async ({ page }) => {
 test('no result leaves only the ballot source', async ({ page }) => {
   await fixture(page);
   await expect(page.getByTestId('candidate-record-status')).toHaveCount(0);
-  await expect(page.getByText('Checked October 8, 2026', { exact: true })).toBeVisible();
+  await expect(page.getByText('Checked Oct 8, 2026', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /Results from/ })).toHaveCount(0);
 });
 

@@ -136,13 +136,13 @@ describe('rev 9 shared sign-in components', () => {
       <FormError id="field-error" message="Passwords do not match." />,
     );
     const banner = renderToStaticMarkup(
-      <FormError variant="banner" message="We couldn’t complete that request." />,
+      <FormError variant="banner" message="Couldn’t complete that request." />,
     );
 
     expect(field).toContain('id="field-error"');
     expect(field).toContain('aria-live="polite"');
     expect(banner).toContain('role="alert"');
-    expect(banner).toContain('We couldn’t complete that request.');
+    expect(banner).toContain('Couldn’t complete that request.');
   });
 
   it('keeps a busy action focusable, named, and locked before its request starts', () => {

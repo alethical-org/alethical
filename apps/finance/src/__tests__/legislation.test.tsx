@@ -539,7 +539,7 @@ describe('Legislation', () => {
       return calls === 1 ? broken() : json([LIST_ROW], 200, { total: 1 });
     });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load these results. This is a problem on our side.',
+      'Couldn’t load results. This is a problem on our side.',
     );
     const retry = [...container.querySelectorAll('button')].find(
       (button) => button.textContent === 'Try again',
@@ -724,7 +724,7 @@ describe('Bill', () => {
   it('keeps the bill when the authors’ accounts fail, with Try again', async () => {
     await renderBill('/bills/94-2025-SF334', billAnswer({ authors: broken }));
     expect(container.querySelector('.bl-accounts [role="alert"]')?.textContent).toContain(
-      'We couldn’t load the authors’ campaign accounts. This is a problem on our side.',
+      'Couldn’t load the authors’ campaign accounts. This is a problem on our side.',
     );
     expect(container.querySelector('h1')?.textContent).toContain('New Council');
   });
@@ -841,13 +841,13 @@ describe('Bill', () => {
   it('says plainly when the votes or the full text fail, with Try again', async () => {
     await renderBill('/bills/94-2025-SF334?tab=votes', billAnswer({ votes: broken }));
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      'We couldn’t load this bill’s votesTry again',
+      'Couldn’t load bill’s votesTry again',
     );
     act(() => root.unmount());
     root = createRoot(container);
     await renderBill('/bills/94-2025-SF334?tab=text', billAnswer({ text: broken }));
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      'We couldn’t load the full textTry again',
+      'Couldn’t load the full textTry again',
     );
   });
 
@@ -1075,9 +1075,7 @@ describe('Bill', () => {
 
   it('offers Try again when the bill fails to load', async () => {
     await renderBill('/bills/94-2025-SF334', broken);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load this bill',
-    );
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Couldn’t load bill');
   });
 });
 
@@ -1349,7 +1347,7 @@ describe('Roll call', () => {
       }),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load this roll call',
+      'Couldn’t load this roll call',
     );
     const retry = [...container.querySelectorAll('button')].find(
       (button) => button.textContent === 'Try again',

@@ -7,7 +7,7 @@ import hashlib
 from pathlib import Path
 
 import pytest
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, event, func, select, update
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
@@ -247,3 +247,80 @@ def test_insert_failure_rolls_back_whole_generation_but_keeps_callers_work(
     assert db.get(m.ElectionComparisonSnapshot, malformed["id"]) is None
     assert db.scalar(select(func.count()).select_from(m.ElectionComparisonRace)) == 0
     assert db.scalar(select(func.count()).select_from(m.ElectionResultSource)) == 7
+
+
+def test_publication_streams_only_exact_columns_in_bounded_server_cursors(db, prepared):
+    archive(db, prepared)
+    snapshot_id = storage.stage_generation(db, prepared[0])
+    db.commit()
+    observed = {}
+
+    def inspect_cursor(connection, cursor, statement, parameters, context, many):
+        compiled = context.compiled
+        if compiled is None or not getattr(compiled.statement, "is_select", False):
+            return
+        columns = list(compiled.statement.selected_columns)
+        for model in (m.ElectionComparisonRace, m.ElectionComparisonPrecinct):
+            if any(
+                getattr(column, "table", None) is model.__table__ for column in columns
+            ):
+                # Count queries are scalar functions, not selected row columns.
+                observed[model.__tablename__] = {
+                    "columns": tuple(column.key for column in columns),
+                    "yield_per": context.execution_options.get("yield_per"),
+                    "server_cursor": bool(getattr(cursor, "name", None)),
+                }
+
+    connection = db.connection()
+    event.listen(connection, "after_cursor_execute", inspect_cursor)
+    try:
+        storage.publish_generation(db, snapshot_id, expected_previous=None)
+    finally:
+        event.remove(connection, "after_cursor_execute", inspect_cursor)
+    assert observed == {
+        "election_comparison_race": {
+            "columns": (
+                "id",
+                "label",
+                "office_id",
+                "jurisdiction",
+                "result_status",
+                "payload",
+            ),
+            "yield_per": 250,
+            "server_cursor": True,
+        },
+        "election_comparison_precinct": {
+            "columns": ("race_id", "key", "name", "county", "payload"),
+            "yield_per": 250,
+            "server_cursor": True,
+        },
+    }
+
+
+def test_publication_closes_both_cursors_on_encoding_failure(db, prepared, monkeypatch):
+    archive(db, prepared)
+    snapshot_id = storage.stage_generation(db, prepared[0])
+    db.commit()
+    results = []
+    execute = db.execute
+    encode = storage._hash_json
+
+    def tracked_execute(statement, *args, **kwargs):
+        result = execute(statement, *args, **kwargs)
+        if statement.get_execution_options().get("yield_per") == 250:
+            results.append(result)
+        return result
+
+    def failed_encode(hasher, value):
+        if isinstance(value, dict) and "payload" in value:
+            raise ValueError("Synthetic payload encoder failure")
+        return encode(hasher, value)
+
+    monkeypatch.setattr(db, "execute", tracked_execute)
+    monkeypatch.setattr(storage, "_hash_json", failed_encode)
+    with pytest.raises(ValueError, match="Synthetic payload"):
+        storage.publish_generation(db, snapshot_id, expected_previous=None)
+    assert len(results) == 2 and all(result.closed for result in results)
+    assert db.get(m.ElectionComparisonCurrent, prepared[0]["election_key"]) is None
+    assert db.get(m.ElectionComparisonSnapshot, snapshot_id).first_published_at is None

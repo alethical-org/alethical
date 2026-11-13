@@ -416,7 +416,7 @@ test('nonadministrator cannot enter reader or private guide', async ({ page }) =
   await fixture(page, false);
   for (const path of ['/money/ads', '/money/ads/guide']) {
     await page.goto(path);
-    await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Couldn’t find that page' })).toBeVisible();
     await expect(page.getByText('Admins only', { exact: true })).toHaveCount(0);
     await expect(page).toHaveTitle('Page not found | Alethical');
   }
@@ -818,7 +818,7 @@ for (const width of [390, 900, 1280]) {
     await expect(page.getByRole('status')).toHaveText('Loading this folder’s files');
     await page.screenshot({ path: resolve(output, `loading-${width}.png`) });
     release();
-    await expect(page.getByRole('alert')).toContainText('We couldn’t load this folder right now');
+    await expect(page.getByRole('alert')).toContainText('Couldn’t load folder right now');
     const retry = page.getByRole('button', { name: 'Try again', exact: true });
     await page.keyboard.press('Tab');
     await retry.focus();
@@ -907,7 +907,7 @@ for (const [surface, data, expected] of [
       await expect(page.getByRole('alert')).toBeVisible();
       if (surface !== 'agencies') {
         await expect(page.getByRole('alert')).toContainText(
-          `We couldn’t load this ${surface === 'stations' ? 'station' : 'file'} right now`,
+          `Couldn’t load this ${surface === 'stations' ? 'station' : 'file'} right now`,
         );
         await expect(page.getByRole('alert')).toContainText('This is a problem on our side');
       }
@@ -979,7 +979,7 @@ test('a revoked administrator cannot enter another TV record through app navigat
     .getByRole('link', { name: /Synthetic station invoice/ })
     .first()
     .click();
-  await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Couldn’t find that page' })).toBeVisible();
   await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toHaveCount(0);
   await expect(page).toHaveTitle('Page not found | Alethical');
 });

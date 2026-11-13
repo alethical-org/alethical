@@ -153,7 +153,7 @@ export function UnsubscribeScreen({ navigation }: RootScreenProps<'Unsubscribe'>
             ) : null}
             {phase === 'invalid' || phase === 'load-error' ? (
               <View style={styles.failure}>
-                <EmailNotice kind="error">We couldn’t open your unsubscribe request</EmailNotice>
+                <EmailNotice kind="error">Couldn’t open your unsubscribe request</EmailNotice>
                 <Text style={styles.body}>
                   {phase === 'invalid'
                     ? 'The link may be damaged. Try opening it from the email again, or contact us.'
@@ -166,7 +166,7 @@ export function UnsubscribeScreen({ navigation }: RootScreenProps<'Unsubscribe'>
             {phase === 'uncertain' ? (
               <View style={styles.failure}>
                 <EmailNotice kind="uncertain">
-                  We couldn’t confirm whether you were unsubscribed
+                  Couldn’t confirm whether you were unsubscribed
                 </EmailNotice>
                 <Text style={styles.body}>Try again, or contact us.</Text>
                 <EmailButton

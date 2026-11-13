@@ -204,7 +204,7 @@ export function ReadState<T>({ read, noun = 'results' }: { read: Read<T>; noun?:
             ? read.data
               ? RECORDS_CHANGED
               : 'These records changed. Reload the list.'
-            : `We couldn’t load these ${noun}${noun === 'results' ? '. This is a problem on our side.' : read.data ? '.' : ''}${read.data ? ' Previous results are shown.' : ''}`}
+            : `Couldn’t load these ${noun}${noun === 'results' ? '. This is a problem on our side.' : read.data ? '.' : ''}${read.data ? ' Previous results are shown.' : ''}`}
         </Refused>
       )}
       {read.notFound && <Empty title="This record is no longer available" />}

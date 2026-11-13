@@ -57,7 +57,7 @@ import { SignInContainer } from './SignInContainer';
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
 const menuRowDataSet = { accountMenuRow: 'true' } as const;
-const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
+const SIGN_OUT_FAILURE = 'Couldn’t sign you out. Check your connection and try again.';
 
 function useFineHover() {
   const [hovered, setHovered] = useState(false);

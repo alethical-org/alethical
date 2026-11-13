@@ -378,7 +378,7 @@ describe('Money by race directory and focused group', () => {
   it('recovers from an unknown group without showing a different group', () => {
     render({ group: 'house-999', year: '2025' });
     expect(host.textContent).toContain(
-      'We couldn’t find this office, district or court seat in our records',
+      'Couldn’t find this office, district or court seat in our records',
     );
     expect(committees()).toHaveLength(0);
     expect(host.textContent).not.toContain('$100');
@@ -601,7 +601,7 @@ describe('Money by race figures and unavailable records', () => {
       ),
     ).toHaveLength(2);
     expect(host.textContent).toContain('No usable official total in our records for 2025');
-    expect(host.textContent).toContain('We couldn’t load this figure');
+    expect(host.textContent).toContain('Couldn’t load this figure');
     expect(host.textContent).not.toContain('No itemized contributions in our records');
   });
   it('never borrows dates for undated totals or attaches dates to missing figures', () => {
@@ -672,7 +672,7 @@ describe('Money by race figures and unavailable records', () => {
         'Committee records unavailable',
       );
       expect(host.textContent).toContain(
-        'We couldn’t load the committee list. This does not tell us who is running.',
+        'Couldn’t load the committee list. This does not tell us who is running.',
       );
       expect(host.textContent).not.toContain('No candidate committees');
       expect(committees()).toHaveLength(0);

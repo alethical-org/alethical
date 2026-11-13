@@ -7,7 +7,7 @@ export const REV9_AUTH_MESSAGES = {
   passwordMismatch: 'Passwords do not match',
   passwordTooLong: 'This password is too long. Use a shorter one.',
   tooManyAttempts: 'Too many attempts. Wait a while, then try again.',
-  requestFailure: 'We couldn’t complete that request. Check your connection and try again.',
+  requestFailure: 'Couldn’t complete that request. Check your connection and try again.',
   expiredOrUsedLink: 'This link has expired or has already been used',
   unverifiedGoogle:
     'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
@@ -175,7 +175,7 @@ export function mapProviderAuthError(
  */
 /** The uncertain-save banner. Wording pinned by the rev 17 bundle — never add a retry. */
 export function uncertainPasswordSaveMessage(email: string): string {
-  return `We couldn’t confirm whether the password for ${email} was saved. If you sign in with email, try the password you entered. If it doesn’t work, reset your password.`;
+  return `Couldn’t confirm whether the password for ${email} was saved. If you sign in with email, try the password you entered. If it doesn’t work, reset your password.`;
 }
 
 export function isUncertainPasswordSave(error: unknown): boolean {

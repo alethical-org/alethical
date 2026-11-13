@@ -9,6 +9,12 @@ Before each review, reconcile the latest user-approved Design decisions through
 For Finance, check the [Finance visual decisions](design-principles.md#finance-visual-decisions)
 against the affected rendered pages and states. Record drift and verify its correction;
 neither saved rules nor Design's completion claim proves that the screen follows them.
+Check [whole-dollar display](ui-copy-guide.md#display-dollar-amounts-without-cents)
+and [short unavailable labels](ui-copy-guide.md#short-labels-for-unavailable-values)
+across every affected amount and missing state, including details, evidence panels,
+tooltips and accessible text. Exercise the owner's decimal and total cases; a value
+without cents may still be wrongly rounded. Preserve the different reasons for missing
+values and retain enough label context to make Unavailable clear.
 Include the **Optical centering for icon + label buttons** review in
 [design principles, the green visual system](design-principles.md#2-the-green-visual-system)
 for every affected control and state; record rendered coverage, not only coordinate checks.

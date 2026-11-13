@@ -101,7 +101,7 @@ describe('the first race response follows the directory or selected-group addres
   it('provides recovery for an unknown shared group, not an unrelated group', () => {
     const snapshot = moneyByRacePageSnapshot(page, { group: 'unknown' });
     expect(snapshot.body).toContain(
-      'We couldn’t find this office, district or court seat in our records',
+      'Couldn’t find this office, district or court seat in our records',
     );
     expect(snapshot.records).toBeUndefined();
     expect(snapshot.links[0].label).toBe('Choose another office, district or court seat');

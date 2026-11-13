@@ -1,4 +1,5 @@
 import { paymentSourceCopyLines } from '../../lib/paymentCopyDates';
+import { formatMoney } from '../../lib/moneyFormat';
 import { useReturnPageName, forgetReturnPageName } from '../../navigation/returnDestination';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -392,7 +393,7 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
                 value={
                   costs.valueMicrousd === null
                     ? 'Unavailable'
-                    : `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(costs.valueMicrousd / 1000000)}${costs.status === 'partial' ? ' · Partial records' : ''}`
+                    : `${formatMoney(costs.valueMicrousd / 1000000)}${costs.status === 'partial' ? ' · Partial records' : ''}`
                 }
                 note={costs.meaning}
               />
@@ -473,7 +474,7 @@ export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSit
       ) : access.state === 'restricted' ? (
         <Message>Restricted access. This account cannot view Admin metrics.</Message>
       ) : access.state === 'error' ? (
-        <Message retry={access.retry}>We couldn’t check access. Try again.</Message>
+        <Message retry={access.retry}>Couldn’t check access. Try again.</Message>
       ) : access.state === 'allowed' && isSignedIn && user && accessToken ? (
         <PrivateMetrics key={`${user.id}:${accessToken}`} accessToken={accessToken} />
       ) : null}

@@ -21,7 +21,7 @@ export function Unavailable() {
   const failedAgain = asked && !retrying;
   return (
     <main id="main" className="access">
-      <h1 tabIndex={-1}>We couldn’t check your access</h1>
+      <h1 tabIndex={-1}>Couldn’t check your access</h1>
       <p>This is a problem on our side. Try again in a moment.</p>
       {/* aria-disabled keeps keyboard focus on the button while it works. */}
       <button
@@ -46,7 +46,7 @@ export function NotFound() {
     return (
       <main id="main" className="f-page">
         <h1 tabIndex={-1} className="f-page-title">
-          We couldn’t find that page
+          Couldn’t find that page
         </h1>
         <p>
           <Link to="/home" className="f-dest">
@@ -58,7 +58,7 @@ export function NotFound() {
   }
   return (
     <main id="main" className="page">
-      <h1 tabIndex={-1}>We couldn’t find that page</h1>
+      <h1 tabIndex={-1}>Couldn’t find that page</h1>
       <Link to="/" className="text-link">
         Go to Finance home
       </Link>

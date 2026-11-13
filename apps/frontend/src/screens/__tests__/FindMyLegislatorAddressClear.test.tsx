@@ -355,7 +355,7 @@ it.each([
 it.each([
   [
     new ApiError(404, 'disagree', 'representative-lookup-ambiguous-location'),
-    'We couldn’t safely identify your districts from this address',
+    'Couldn’t safely identify your districts from this address',
     'Check your full street address, or choose where you live on the map',
   ],
   [

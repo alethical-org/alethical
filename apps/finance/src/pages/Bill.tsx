@@ -64,7 +64,10 @@ interface CampaignAccount {
 }
 
 export interface AuthorWithAccounts extends Sponsor {
-  campaign_accounts?: { link_state: string; confirmed: CampaignAccount[] } | null;
+  campaign_accounts?: {
+    link_state: string;
+    confirmed: CampaignAccount[];
+  } | null;
 }
 
 export interface AuthorsAnswer {
@@ -93,7 +96,10 @@ export function Bill({ match }: { match: RouteMatch }) {
   const back =
     returnTarget(location.search) ??
     (isBuilt('legislation') ? { to: hrefFor('legislation'), name: 'Legislation' } : null);
-  const [address, setAddress] = useAddressState({ tab: 'summary', version: '' });
+  const [address, setAddress] = useAddressState({
+    tab: 'summary',
+    version: '',
+  });
   const tab = tabFromParam(address.tab);
   const record = useRead<BillDetail>(billPath(id));
   const votes = useRead<ServedVote[]>(votesPath(id));
@@ -120,7 +126,10 @@ export function Bill({ match }: { match: RouteMatch }) {
 
   function openText(version: VersionRow | null, anchor: SectionAnchor | null) {
     setTarget(anchor);
-    setAddress({ tab: 'text', version: version && !version.isCurrent ? version.code : '' });
+    setAddress({
+      tab: 'text',
+      version: version && !version.isCurrent ? version.code : '',
+    });
     if (!anchor) window.scrollTo?.({ top: 0 });
   }
 
@@ -152,7 +161,7 @@ export function Bill({ match }: { match: RouteMatch }) {
     return (
       <Frame back={back}>
         <Refused onRetry={record.retry} retrying={record.pending}>
-          We couldn’t load this bill
+          Couldn’t load bill
         </Refused>
       </Frame>
     );
@@ -197,7 +206,11 @@ export function Bill({ match }: { match: RouteMatch }) {
   const tabs: Tab<BillTab>[] = [
     { value: 'summary', label: 'Summary' },
     { value: 'actions', label: 'Actions', count: String(actions.length) },
-    { value: 'votes', label: 'Votes', count: votes.data ? String(voteList.length) : null },
+    {
+      value: 'votes',
+      label: 'Votes',
+      count: votes.data ? String(voteList.length) : null,
+    },
     { value: 'text', label: 'Bill Text' },
     { value: 'versions', label: 'Versions', count: String(versions.length) },
   ];
@@ -381,7 +394,7 @@ export function Bill({ match }: { match: RouteMatch }) {
               {votes.loading && <LoadingRows />}
               {votes.failed && (
                 <Refused onRetry={votes.retry} retrying={votes.pending}>
-                  We couldn’t load this bill’s votes
+                  Couldn’t load bill’s votes
                 </Refused>
               )}
               {votes.data && voteList.length === 0 && (
@@ -722,7 +735,7 @@ function BillText({
   if (read.failed) {
     return (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load the full text
+        Couldn’t load the full text
       </Refused>
     );
   }
@@ -787,9 +800,7 @@ function AuthorsAccounts({
       {read.loading && <LoadingRows />}
       {read.failed && (
         <div role="alert" className="bl-accounts-failed">
-          <span>
-            We couldn’t load the authors’ campaign accounts. This is a problem on our side.
-          </span>
+          <span>Couldn’t load the authors’ campaign accounts. This is a problem on our side.</span>
           <button
             type="button"
             className="f-btn f-btn-secondary f-btn-small"
@@ -822,7 +833,9 @@ function AuthorsAccounts({
                       <Link
                         key={account.registration_number}
                         to={withFrom(
-                          hrefFor('committee', { id: account.registration_number }),
+                          hrefFor('committee', {
+                            id: account.registration_number,
+                          }),
                           here,
                         )}
                         className="f-dest bl-account-link"

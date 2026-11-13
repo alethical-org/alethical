@@ -197,7 +197,7 @@ describe('mail photo confirmation', () => {
   });
 
   it.each([
-    [422, 'We couldn’t open this photo'],
+    [422, 'Couldn’t open this photo'],
     [413, 'Choose a photo smaller than 15 MB'],
   ])('photo recovery: rejected %s replacement requires another file', async (status, message) => {
     await mount();

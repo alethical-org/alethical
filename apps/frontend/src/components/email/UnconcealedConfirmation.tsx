@@ -190,7 +190,7 @@ export function UnconcealedConfirmation({
         ) : null}
         {phase === 'load-error' ? (
           <View style={styles.choiceSlot}>
-            <EmailNotice kind="error">We couldn’t load your email preferences</EmailNotice>
+            <EmailNotice kind="error">Couldn’t load your email preferences</EmailNotice>
           </View>
         ) : null}
         {phase === 'ready' || phase === 'saving' || phase === 'uncertain' ? (

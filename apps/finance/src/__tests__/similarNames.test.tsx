@@ -190,7 +190,7 @@ it('keeps prior-year names labelled on ordinary failure, but clears them on revo
 });
 it('reports first-load failure as retryable, never as no similar names', async () => {
   await render('/money/names/Example', () => new Response(null, { status: 503 }));
-  expect(card()?.textContent).toContain('We couldn’t load similar names');
+  expect(card()?.textContent).toContain('Couldn’t load similar names');
   expect(card().textContent).not.toContain('None found');
   expect(button('Try again')).toBeTruthy();
 });

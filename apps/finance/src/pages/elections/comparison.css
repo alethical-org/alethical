@@ -179,6 +179,11 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+.ec-filed-address {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .ec-number {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -351,8 +356,8 @@
 }
 .ec-measures {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 20px;
+  grid-template-columns: repeat(2, minmax(min-content, 1fr));
+  gap: 16px 32px;
   margin-top: 14px;
 }
 .ec-measures > div {
@@ -719,4 +724,72 @@
 }
 .ec-precinct-table .ec-link {
   white-space: nowrap;
+}
+
+.ec-filing-choice {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-inline-end: 18px;
+  cursor: pointer;
+}
+.ec-filing-choice input {
+  margin-top: 4px;
+  accent-color: var(--fill);
+}
+.ec-filing-period {
+  display: block;
+  margin-top: 4px;
+}
+
+.ec-candidate-outcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin-block: 6px;
+}
+
+.ec-download {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.ec-download > .ec-button {
+  min-width: 172px;
+}
+.ec-download > [role='status'] {
+  max-width: 260px;
+}
+
+.ec-external-figures {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+.ec-external-figures > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+.ec-external-figures dt {
+  min-width: 0;
+}
+.ec-external-figures dd {
+  margin: 0;
+  flex-shrink: 0;
+}
+.ec-external-payments {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.ec-external-payments > li {
+  display: block;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.ec-external-payments p {
+  margin: 6px 0;
 }

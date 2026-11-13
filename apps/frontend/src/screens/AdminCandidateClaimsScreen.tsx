@@ -689,9 +689,7 @@ function ClaimDetail({
     return (
       <View style={{ gap: 14 }}>
         <Text role={failure ? 'alert' : 'status'} style={candidateText.body}>
-          {failure
-            ? 'We couldn’t load this profile claim request'
-            : 'Loading profile claim request…'}
+          {failure ? 'Couldn’t load this profile claim request' : 'Loading profile claim request…'}
         </Text>
         {failure ? <ProfileClaimButton label="Try again" onPress={() => void load()} /> : null}
       </View>
@@ -702,7 +700,7 @@ function ClaimDetail({
   const answers = savedProfileClaimRequest(claim.request_note);
   const blockMessage = block
     ? recheckFailed && ['official_record_stale', 'official_record_mismatch'].includes(block.reason)
-      ? 'We couldn’t refresh the official candidate record. Approval remains unavailable; try again.'
+      ? 'Couldn’t refresh the official candidate record. Approval remains unavailable; try again.'
       : (blocks[block.reason] ?? block.message)
     : '';
   const approvalBlock =
@@ -858,7 +856,7 @@ function ClaimDetail({
                     ? copy.changed
                     : failure === 'unknown'
                       ? copy.decisionUnknown
-                      : 'We couldn’t load this profile claim request'}
+                      : 'Couldn’t load this profile claim request'}
                 </Text>
                 <View style={{ marginTop: 12 }}>
                   <ProfileClaimButton
@@ -1658,7 +1656,7 @@ export function AdminCandidateClaimsScreen({
               </Text>
             ) : state === 'error' ? (
               <CandidateNotice error>
-                <Text style={candidateText.strong}>We couldn’t check administrator access</Text>
+                <Text style={candidateText.strong}>Couldn’t check administrator access</Text>
                 <ProfileClaimButton label="Try again" onPress={admin.retry} />
               </CandidateNotice>
             ) : (

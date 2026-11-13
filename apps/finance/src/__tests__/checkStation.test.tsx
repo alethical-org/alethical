@@ -430,7 +430,7 @@ describe('Check TV station files', () => {
       body: { reason: 'The gross line belongs to the earlier order' },
     });
     expect(text()).toContain(
-      'We couldn’t withdraw this check. This is a problem on our side; your reason is kept.',
+      'Couldn’t withdraw this check. This is a problem on our side; your reason is kept.',
     );
     expect((document.getElementById('wr-fact-1') as HTMLTextAreaElement).value).toBe(
       'The gross line belongs to the earlier order',
@@ -540,7 +540,7 @@ describe('Check TV station files', () => {
     expect(text()).toContain('Registration number 90001');
     expect(text()).toContain('Previous results');
     await act(async () => requests[0].resolve(json({}, 500)));
-    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).toContain('Couldn’t load records');
     expect(text()).toContain('Registration number 90001');
     expect(text()).not.toContain('No held records match');
 
@@ -549,7 +549,7 @@ describe('Check TV station files', () => {
     await type('c-query', '');
     expect(requests[1].signal?.aborted).toBe(true);
     await act(async () => requests[1].resolve(json({}, 500)));
-    expect(text()).not.toContain('We couldn’t load these records');
+    expect(text()).not.toContain('Couldn’t load records');
     expect(text()).not.toContain('Registration number 90001');
 
     await type('c-query', 'A third');
@@ -562,7 +562,7 @@ describe('Check TV station files', () => {
     expect(document.querySelector('[aria-label="Records found"]')?.textContent).toContain(
       'A third',
     );
-    expect(text()).not.toContain('We couldn’t load these records');
+    expect(text()).not.toContain('Couldn’t load records');
   });
 
   it('shows the minimum for a short record search instead of reporting no matches', async () => {
@@ -609,7 +609,7 @@ describe('Check TV station files', () => {
       });
     await type('c-query', 'Another');
     await press('Search');
-    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).toContain('Couldn’t load records');
     expect(text()).toContain('Previous results for “Example”');
     expect(text()).toContain('Registration number 90001');
     expect(text()).not.toContain('No held records match');
@@ -631,7 +631,7 @@ describe('Check TV station files', () => {
       });
     await press('Try again');
     expect(text()).toContain('No held records match');
-    expect(text()).not.toContain('We couldn’t load these records');
+    expect(text()).not.toContain('Couldn’t load records');
     expect(text()).not.toContain('Registration number 90001');
 
     const unexpectedRead = vi.fn(async () => json({}, 500));
@@ -640,7 +640,7 @@ describe('Check TV station files', () => {
     await press('Lobbying principal');
     await press('Search');
     expect(unexpectedRead).not.toHaveBeenCalled();
-    expect(text()).toContain('We couldn’t load these records');
+    expect(text()).toContain('Couldn’t load records');
     expect(text()).not.toContain('No held records match');
   });
 
@@ -699,7 +699,7 @@ describe('Check TV station files', () => {
     await act(async () => finish(json({}, 500)));
     await flush();
     expect(text()).not.toContain('Registration number 90001');
-    expect(text()).not.toContain('We couldn’t load these records');
+    expect(text()).not.toContain('Couldn’t load records');
     expect(document.querySelector('[aria-label="Records found"]')).toBeNull();
   });
 });

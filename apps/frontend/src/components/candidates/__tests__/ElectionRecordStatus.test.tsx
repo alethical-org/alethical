@@ -163,7 +163,7 @@ it('has no outcome or results area before an election when no result is supplied
   await render(<CandidateProfileContent record={profile} onBack={() => {}} />);
   expect(status()).toBeNull();
   expect(host.textContent).toContain('Running for');
-  expect(host.textContent).toContain('Checked October 8, 2026');
+  expect(host.textContent).toContain('Checked Oct 8, 2026');
   expect(host.querySelector('a[href="https://example.org/results"]')).toBeNull();
 });
 
@@ -175,9 +175,9 @@ it('shares only equal checked dates, preserves retained ballot meaning, and keep
     certification: { authority: source.authority, url: resultsSource.url, date: '2026-11-16' },
   };
   await render(<CandidateProfileContent record={{ ...profile, result }} onBack={() => {}} />);
-  expect(exactText('Both checked October 8, 2026')).toHaveLength(1);
-  expect(exactText('Checked October 8, 2026')).toHaveLength(0);
-  expect(host.textContent).toContain('Certified November 16, 2026');
+  expect(exactText('Both checked Oct 8, 2026')).toHaveLength(1);
+  expect(exactText('Checked Oct 8, 2026')).toHaveLength(0);
+  expect(host.textContent).toContain('Certified Nov 16, 2026');
   for (const url of [source.url, resultsSource.url]) {
     const link = host.querySelector<HTMLAnchorElement>(`a[href="${url}"]`)!;
     expect(link.target).toBe('_blank');
@@ -189,8 +189,8 @@ it('shares only equal checked dates, preserves retained ballot meaning, and keep
       onBack={() => {}}
     />,
   );
-  expect(host.textContent).toContain('Ballot record saved October 8, 2026');
-  expect(exactText('Checked October 8, 2026')).toHaveLength(1);
+  expect(host.textContent).toContain('Ballot record saved Oct 8, 2026');
+  expect(exactText('Checked Oct 8, 2026')).toHaveLength(1);
   expect(host.textContent).not.toContain('Both checked');
   await render(
     <CandidateProfileContent
@@ -201,8 +201,8 @@ it('shares only equal checked dates, preserves retained ballot meaning, and keep
       onBack={() => {}}
     />,
   );
-  expect(exactText('Checked October 8, 2026')).toHaveLength(1);
-  expect(exactText('Checked October 9, 2026')).toHaveLength(1);
+  expect(exactText('Checked Oct 8, 2026')).toHaveLength(1);
+  expect(exactText('Checked Oct 9, 2026')).toHaveLength(1);
   expect(host.textContent).not.toContain('Both checked');
   expect(host.textContent).not.toContain('Updated');
 });

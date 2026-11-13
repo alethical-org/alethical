@@ -327,7 +327,7 @@ export function SearchLegislatorsScreen() {
         ) : rosterQuery.isError ? (
           <View style={styles.stateBox}>
             <Text style={styles.stateText}>
-              We couldn’t load legislators right now. Please try again in a moment.
+              Couldn’t load legislators right now. Please try again in a moment.
             </Text>
           </View>
         ) : filtered.length === 0 && !emptyState ? (

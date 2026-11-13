@@ -266,7 +266,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
           ) : list.isError && rows.length === 0 ? (
             <View style={styles.card}>
               <Text accessibilityRole="alert" style={styles.h3}>
-                We couldn’t load the register just now
+                Couldn’t load the register just now
               </Text>
               <Text style={styles.explain}>This is a problem on our side. Please try again.</Text>
               <RetryRegister onRetry={() => void list.refetch()} busy={list.isFetching} />
@@ -301,8 +301,8 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
               {list.isError ? (
                 <View role="alert" style={styles.heldNote}>
                   <Text style={styles.explain}>
-                    We couldn’t refresh the register. The last records loaded for this search are
-                    still shown.
+                    Couldn’t refresh the register. The last records loaded for this search are still
+                    shown.
                   </Text>
                   <RetryRegister onRetry={() => void list.refetch()} busy={list.isFetching} />
                 </View>

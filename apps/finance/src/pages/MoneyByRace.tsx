@@ -674,13 +674,13 @@ export function FieldMenu({
 // --- The page ---------------------------------------------------------------------
 
 const FAILED =
-  'We couldn’t load this race. This is a problem on our side and says nothing about what was filed.';
+  'Couldn’t load race. This is a problem on our side and says nothing about what was filed.';
 /** Not in the drawing: the outside-spending read failing on its own. */
 const OUTSIDE_FAILED =
-  'We couldn’t load spending by outside groups. This is a problem on our side and says nothing about what was filed.';
+  'Couldn’t load spending by outside groups. This is a problem on our side and says nothing about what was filed.';
 /** The design system's refused-attempt words for a filter whose next answer
  * failed while the last figures stay (RULE Design system, Refused attempt). */
-const RETAINED_FAILED = 'We couldn’t update these results';
+const RETAINED_FAILED = 'Couldn’t update results';
 /** The drawing's "not held" wording for a choice the records do not hold. */
 const NOT_HELD = 'Not held';
 

@@ -236,3 +236,88 @@ it('distinguishes a replaced publication from an ordinary source failure', async
   expect(latest.changed).toBe(true);
   expect(latest.objectUrl).toBeNull();
 });
+
+const analyticsCsvPath = `finance/elections/mn-2026-11-03-general/analytics/sources/expenditures?snapshot_id=${snapshot}&version=0123456789abcdef`;
+function delayedSource(ms: number) {
+  fetcher.mockImplementation(
+    (_url, options) =>
+      new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          options?.signal?.removeEventListener('abort', abort);
+          resolve(response('exact,12.50'));
+        }, ms);
+        const abort = () => {
+          clearTimeout(timer);
+          reject(new DOMException('Aborted', 'AbortError'));
+        };
+        options?.signal?.addEventListener('abort', abort, { once: true });
+      }),
+  );
+}
+it('keeps a healthy 20-second whole-election source CSV alive', async () => {
+  vi.useFakeTimers();
+  try {
+    delayedSource(20_000);
+    await render(analyticsCsvPath);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    expect(latest.state).toBe('ready');
+    expect(createUrl).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
+});
+
+it('still ends an unfinished analytics source body at 90 seconds', async () => {
+  vi.useFakeTimers();
+  try {
+    fetcher.mockImplementation(async (_url, options) => {
+      const reply = response();
+      vi.spyOn(reply, 'blob').mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError')),
+            );
+          }),
+      );
+      return reply;
+    });
+    await render(analyticsCsvPath);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(90_000);
+    });
+    expect((fetcher.mock.calls[0][1]?.signal as AbortSignal).aborted).toBe(true);
+    expect(latest.state).toBe('failed');
+    expect(createUrl).not.toHaveBeenCalled();
+  } finally {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
+});
+it('cancels a long source CSV on sign-out without exposing the old body', async () => {
+  vi.useFakeTimers();
+  try {
+    delayedSource(20_000);
+    await render(analyticsCsvPath);
+    expect(fetcher.mock.calls[0][1]?.headers).toEqual({ Authorization: 'Bearer token' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    session.accessToken = null;
+    session.status = 'signed-out';
+    await render(analyticsCsvPath);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect((fetcher.mock.calls[0][1]?.signal as AbortSignal).aborted).toBe(true);
+    expect(latest.state).toBe('idle');
+    expect(createUrl).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
+});

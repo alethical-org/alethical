@@ -1263,7 +1263,7 @@ describe('filed reports keep their source and recover without losing rows', () =
     expect(host.textContent).toContain('Report 1');
     expect(host.textContent).toContain('catalogue copied Aug 12, 2026');
     expect(host.querySelector('[role="alert"]')?.textContent).toBe(
-      'We couldn’t load more reports. The reports already shown are still available.',
+      'Couldn’t load more reports. The reports already shown are still available.',
     );
     click(button('Try again'));
     expect(filingsFetchNextPage).toHaveBeenCalledTimes(1);

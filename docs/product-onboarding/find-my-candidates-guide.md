@@ -41,7 +41,7 @@ The remaining city words still must match the election source exactly. This keep
 Minnesota's **SAINT PAUL** map addresses usable with the election source's **ST PAUL**
 records without relaxing house number, street, ZIP, unit or election-range checks.
 
-A failed official match says **We couldn’t match that address to election records**,
+A failed official match says **Couldn’t match that address to election records**,
 on `/candidates` and the homepage candidate search. A mapped street address can
 still lack a matching election street range; this message does not assert that
 the reader mistyped it. Missing-input and outside-Minnesota messages remain distinct.
@@ -184,7 +184,7 @@ The answer is used for that search only and is not cached.
 - The address resolves only when exactly 1 ballot range contains the unit and no
   listed range at that house, including one with no street-table row, leaves it
   unproven. A unit outside every range, between 2 ranges or in
-  2 overlapping ranges returns **We couldn’t match that address to election
+  2 overlapping ranges returns **Couldn’t match that address to election
   records**. So does an address with no unit at a house the source says needs one:
   no other range stands in for the missing unit.
 - A failed or unexpected unit-list request, or a flagged range with no unit list, is
@@ -217,7 +217,7 @@ election when none is upcoming, using Minnesota's date.
 
 Historical address matching requires that election's own geography. The retained
 2024 source cannot establish those boundaries, so a 2024 address search says
-**We couldn’t confirm the races for this address and election** and links to the
+**Couldn’t confirm the races for this address and election** and links to the
 official results. It never borrows 2026 geography. Adding another election or
 source capability requires reviewed evidence; elapsed time alone does not add it.
 
@@ -710,7 +710,7 @@ removal comes before it. For an older statement saved before its history was kep
 edit is never dated as a first publication; **Edited** still appears once a second edit
 is recorded, and otherwise no date is shown rather than a guess. One quiet line beside **Report this statement** says
 "Alethical verified this account’s authority to represent the campaign, not the
-statement’s accuracy". A failed statement load shows "We couldn’t load the campaign
+statement’s accuracy". A failed statement load shows "Couldn’t load the campaign
 statement" with **Try again**, which reloads only the statement and keeps its box steady;
 a successful response with no statement shows nothing.
 
@@ -791,7 +791,7 @@ under **Reason**. If the statement changed, the reason stays and "The campaign s
 changed. Review the updated statement before submitting your report." appears with
 **Reload statement**. Reloading opens an **Updated statement** panel above **Reason**
 with its date, moves focus to it, and never submits; **Submit report** needs its own
-press, and a further change shows the warning again. A failed reload says "We couldn’t
+press, and a further change shows the warning again. A failed reload says "Couldn’t
 load the campaign statement" and keeps **Reload statement**. A removed statement cannot be reported. Rate-limit recovery uses the
 server's actual wait and restores submission without a page reload.
 

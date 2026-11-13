@@ -23,6 +23,7 @@ def source_body(
     election_snapshot_id: str = Query(pattern=HASH),
     version: str = Query(pattern=VERSION),
     release_id: UUID = Query(),
+    source_hash: str | None = Query(None, pattern=HASH),
     db: Session = Depends(get_db),
 ):
     body = reads.source_body(
@@ -31,6 +32,7 @@ def source_body(
         election_snapshot_id=election_snapshot_id,
         version=version,
         release_id=release_id,
+        source_hash=source_hash,
     )
     return Response(
         content=body,

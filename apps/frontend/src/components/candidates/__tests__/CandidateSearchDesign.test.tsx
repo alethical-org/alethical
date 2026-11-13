@@ -149,8 +149,8 @@ it('prints each joint ticket once with 1 destination, alphabetizes full names, a
     host.textContent!.indexOf('Zara Able and'),
   );
   expect(host.querySelectorAll('a[href="https://example.org/records"]')).toHaveLength(2);
-  expect(host.textContent).toContain('October 1, 2030');
-  expect(host.textContent).toContain('September 30, 2030');
+  expect(host.textContent).toContain('Oct 1, 2030');
+  expect(host.textContent).toContain('Sep 30, 2030');
   expect(host.textContent?.match(/1 seat to fill/g)).toHaveLength(1);
 });
 
@@ -276,16 +276,15 @@ it('keeps retained address results steady through desktop edits and failed repla
   await flush();
   expect(field.value).toBe('200 New Street Unit 2');
   expect(host.textContent).toContain('Showing results for 100 Original Street, MN 55415');
-  expect(host.textContent).toContain('We couldn’t update the results');
+  expect(host.textContent).toContain('Couldn’t update the results');
   // The desktop caption remains visible beside the old races. Its hidden copy
   // keeps the separate error announcement meaningful to screen-reader users.
   const captions = [...host.querySelectorAll<HTMLElement>('div')].filter(
-    (element) =>
-      element.textContent === 'Showing results for State general election · November 5, 2030',
+    (element) => element.textContent === 'Showing results for State general election · Nov 5, 2030',
   );
   expect(captions.filter((element) => getComputedStyle(element).opacity !== '0')).toHaveLength(1);
   expect(host.querySelector('[role="alert"]')?.textContent).toContain(
-    'Showing results for State general election · November 5, 2030',
+    'Showing results for State general election · Nov 5, 2030',
   );
   expect(host.querySelector('[role="region"]')?.textContent).toContain('About these results');
   expect(
@@ -442,7 +441,7 @@ it('keeps the retry control mounted and unavailable while replacement results lo
   expect(host.textContent?.match(/Updating candidates…/g)).toHaveLength(1);
   expect(host.querySelector('a[href="/candidates/old-person"]')).toBeTruthy();
   expect(host.querySelector('[aria-hidden="true"][style*="opacity: 0"]')?.textContent).toBe(
-    'We couldn’t update the results',
+    'Couldn’t update the results',
   );
   await act(async () => finish({ ...result, electionId: other.id }));
   expect(button('Try again')).toBeUndefined();

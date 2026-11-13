@@ -31,6 +31,13 @@ from alethical.api.routers.election_finance_reads import (
 from alethical.api.routers.election_outside_spending import (
     router as election_spending_router,
 )
+from alethical.api.routers.election_analytics import router as election_analytics_router
+from alethical.api.routers.election_expense_analytics import (
+    router as election_expense_router,
+)
+from alethical.api.routers.election_external_finance import (
+    router as external_election_finance_router,
+)
 from alethical.api.problems import problem_exception, problem_payload
 from alethical.api.serializers import companion_payload, sponsor_payloads
 from alethical.api.services import (
@@ -50,6 +57,9 @@ router.include_router(money_router)
 router.include_router(election_router)
 router.include_router(election_finance_router)
 router.include_router(election_spending_router)
+router.include_router(election_analytics_router)
+router.include_router(election_expense_router)
+router.include_router(external_election_finance_router)
 router.include_router(name_discovery_router)
 
 

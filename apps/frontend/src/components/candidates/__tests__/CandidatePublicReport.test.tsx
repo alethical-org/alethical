@@ -173,7 +173,7 @@ it('reloads and displays a changed statement before sending its new version, kee
   const panel = document.querySelector<HTMLElement>('section[aria-labelledby]')!;
   expect(document.activeElement).toBe(panel);
   expect(panel.textContent).toContain('Updated statement');
-  expect(panel.textContent).toContain('Edited October 3, 2026');
+  expect(panel.textContent).toContain('Edited Oct 3, 2026');
   expect(panel.textContent).toContain('New statement');
   expect(panel.compareDocumentPosition(document.querySelector('textarea')!)).toBe(
     Node.DOCUMENT_POSITION_FOLLOWING,
@@ -194,7 +194,7 @@ it('keeps reload available after failure and prevents reports after removal', as
   await input('Saved reason');
   await click('Submit report');
   await click('Reload statement');
-  expect(document.body.textContent).toContain('We couldn’t load the campaign statement');
+  expect(document.body.textContent).toContain('Couldn’t load the campaign statement');
   expect(report).toHaveBeenCalledTimes(1);
   await click('Reload statement');
   expect(document.body.textContent).toContain('The campaign statement is no longer available');
@@ -205,7 +205,7 @@ it('retains the reason after submission failure and retries explicitly', async (
   await mount();
   await input('Saved reason');
   await click('Submit report');
-  expect(document.body.textContent).toContain('We couldn’t submit your report');
+  expect(document.body.textContent).toContain('Couldn’t submit your report');
   expect(document.querySelector('textarea')!.value).toBe('Saved reason');
   await click('Try again');
   expect(report).toHaveBeenCalledTimes(2);
@@ -233,7 +233,7 @@ it('keeps campaign text and reporting together and isolates preview account serv
     ),
   );
   expect(services.getClaims).not.toHaveBeenCalled();
-  expect(host.textContent).toContain('Published October 1, 2026');
+  expect(host.textContent).toContain('Published Oct 1, 2026');
   expect(host.textContent).not.toContain('Candidate name · Campaign');
   expect(host.textContent).toContain(statement.body);
   expect(host.textContent).toContain(
@@ -257,7 +257,7 @@ it('renders approved, pending, loading and error account actions without live re
     ['approved', 'Manage this profile'],
     ['pending', 'View profile claim status'],
     ['loading', 'Loading profile claim status…'],
-    ['error', 'We couldn’t load your profile claim status'],
+    ['error', 'Couldn’t load your profile claim status'],
   ] as const) {
     await act(async () =>
       root.render(

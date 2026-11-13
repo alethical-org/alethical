@@ -683,10 +683,10 @@ export function ReaderComments({ articleId }: { articleId: string }) {
         notice:
           kind === 'edit'
             ? unknown
-              ? 'We couldn’t confirm whether your changes were saved'
+              ? 'Couldn’t confirm whether your changes were saved'
               : 'Couldn’t save your changes. Try again.'
             : unknown
-              ? `We couldn’t confirm whether your ${noun} was posted`
+              ? `Couldn’t confirm whether your ${noun} was posted`
               : `Couldn’t post your ${noun}. Try again.`,
       });
       if (!unknown) void loadSettings();
@@ -770,7 +770,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       store.patch(articleId, {
         nameBusy: false,
         nameNotice: unknown
-          ? 'We couldn’t confirm whether your name was saved. Try again.'
+          ? 'Couldn’t confirm whether your name was saved. Try again.'
           : 'Couldn’t save your name. Try again.',
       });
       if (!unknown) void loadSettings();
@@ -823,7 +823,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
         preferencesBusy: false,
         preferencesStatus: '',
         preferencesError: unknown
-          ? 'We couldn’t confirm whether your email choices were saved. Try again.'
+          ? 'Couldn’t confirm whether your email choices were saved. Try again.'
           : 'Couldn’t save your email choices. Try again.',
       });
       if (!unknown) void loadSettings();
@@ -881,7 +881,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       const noun = item.root_id ? 'reply' : 'comment';
       const removing = captured.action === 'remove';
       const message = commentOutcomeUnknown(error)
-        ? `We couldn’t confirm whether ${removing ? 'this' : 'your'} ${noun} was ${removing ? 'removed' : 'deleted'}. Try again.`
+        ? `Couldn’t confirm whether ${removing ? 'this' : 'your'} ${noun} was ${removing ? 'removed' : 'deleted'}. Try again.`
         : `Couldn’t ${removing ? 'remove this' : 'delete your'} ${noun}. Try again.`;
       if (isVisible() && dialogRef.current?.key === captured.key) {
         const failed = { ...captured, busy: false, error: message };

@@ -374,6 +374,8 @@ export function Empty({ title, next }: { title: string; next?: string }) {
 export interface EvidenceRow {
   label: string;
   value: string;
+  /** Preserve spacing and line breaks in an exact source value, such as an address. */
+  preserveWhitespace?: boolean;
   /** A Finance page the value opens (an employer as filed opens its spelling). */
   href?: string;
 }
@@ -385,8 +387,9 @@ export interface Evidence {
   quote?: string;
   quoteLabel?: string;
   page?: string;
-  /** "Checked on {date}" or "Not checked": whether, never who. */
-  checked?: string;
+  /** "Checked on {date}" or "Not checked": whether, never who.
+   * null omits a decision status for a source-only attachment. */
+  checked?: string | null;
   sourceHref?: string;
   sourceLabel?: string;
 }
@@ -437,7 +440,7 @@ export function EvidencePanel({
   }, [open, onClose]);
 
   if (!evidence) return null;
-  const checked = evidence.checked ?? 'Not checked';
+  const checked = evidence.checked === undefined ? 'Not checked' : evidence.checked;
   const trap = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Tab' || !panel.current) return;
     const focusable = [
@@ -495,7 +498,7 @@ export function EvidencePanel({
             {evidence.rows.map((row) => (
               <div key={row.label} className="f-sources-row">
                 <dt>{row.label}</dt>
-                <dd>
+                <dd style={row.preserveWhitespace ? { whiteSpace: 'pre-wrap' } : undefined}>
                   {row.href ? (
                     <Link to={row.href} className="f-evidence-link">
                       {row.value}
@@ -524,21 +527,23 @@ export function EvidencePanel({
             </figure>
           )}
           {children}
-          <div className="f-evidence-checked">
-            {checked !== 'Not checked' && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" stroke="#0E6A82" strokeWidth="2" />
-                <path
-                  d="M8 12.5 L10.8 15.2 L16 9.5"
-                  stroke="#0E6A82"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-            <span>{checked}</span>
-          </div>
+          {checked !== null && (
+            <div className="f-evidence-checked">
+              {checked !== 'Not checked' && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="#0E6A82" strokeWidth="2" />
+                  <path
+                    d="M8 12.5 L10.8 15.2 L16 9.5"
+                    stroke="#0E6A82"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+              <span>{checked}</span>
+            </div>
+          )}
           {evidence.sourceHref && (
             <a
               href={evidence.sourceHref}

@@ -148,7 +148,7 @@ it.each(['expired', 'failed'] as const)(
       outcome === 'failed' ? { ...result, status: 'failed', sides: [], payers: [] } : null;
     await render();
     expect(document.activeElement?.textContent).toBe(
-      outcome === 'expired' ? 'Start again' : 'We couldn’t load these results',
+      outcome === 'expired' ? 'Start again' : 'Couldn’t load results',
     );
   },
 );
@@ -310,7 +310,7 @@ it('keeps old rows and source dates visible when their refresh failed', async ()
     },
   };
   await render();
-  expect(container.textContent).toContain('We couldn’t refresh these records');
+  expect(container.textContent).toContain('Couldn’t refresh records');
   expect(container.textContent).toContain('Earlier contributor');
   expect(container.textContent).toContain('Retrieved Oct 20, 2026');
   current.result!.can_retry = false;
@@ -326,7 +326,7 @@ it('claims no payer only after both sides were read, never claims an exhaustive 
   current.result!.sides[1].text = '';
   await render();
   expect(container.textContent).not.toContain('No payer found');
-  expect(container.textContent).toContain('We couldn’t read this photo');
+  expect(container.textContent).toContain('Couldn’t read this photo');
   expect(container.querySelector('[aria-controls="mail-text-back"]')).toBeNull();
   current.result!.sides[1].status = 'read';
   await render();
@@ -597,7 +597,7 @@ it('keeps derived text and local recovery, with one notice and no legacy gap mar
   current.result!.sides[1].display_text = '';
   await render();
   const failure = [...container.querySelectorAll('.results-failure')].find(
-    (node) => node.textContent === 'We couldn’t read this photo',
+    (node) => node.textContent === 'Couldn’t read this photo',
   )!;
   expect(failure.closest('.text-side')?.querySelector('button.results-retry')).not.toBeNull();
   expect(container.querySelector('#mail-text-front')?.textContent).toBe('Front machine words');
@@ -666,7 +666,7 @@ it('shows records loading without reporting a failure and preserves an open text
   toggle.focus();
   expect(container.textContent).toContain('Reading the back');
   expect(container.textContent).toContain('Finding public records');
-  expect(container.textContent).not.toContain('We couldn’t load these results');
+  expect(container.textContent).not.toContain('Couldn’t load results');
   expect(container.textContent).not.toContain('No payer found');
   current.result!.payers[0].candidates[0].records = {
     state: 'available',

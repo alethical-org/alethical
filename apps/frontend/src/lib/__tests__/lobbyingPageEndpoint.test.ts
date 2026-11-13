@@ -259,7 +259,7 @@ describe('every lobbying address works before the app loads', () => {
     expect(result.headers.has('X-Robots-Tag')).toBe(false);
     expect(snapshot(result.body)).toContain(
       escapeHtml(
-        "We couldn't load the state's campaign contribution file. This does not mean no donation was filed under this registration number.",
+        "Couldn't load the state's campaign contribution file. This does not mean no donation was filed under this registration number.",
       ),
     );
     expect(snapshot(result.body)).not.toContain('names no donation');

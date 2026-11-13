@@ -176,7 +176,10 @@ export function CommitteeMembers({ match }: { match: RouteMatch }) {
   );
   // Each member's own read reports the date its report totals were copied, so
   // the page states 1 copy date without reading every member's figures itself.
-  const [copied, setCopied] = useState<{ year: string; dates: Record<string, string> }>({
+  const [copied, setCopied] = useState<{
+    year: string;
+    dates: Record<string, string>;
+  }>({
     year,
     dates: {},
   });
@@ -257,8 +260,8 @@ export function CommitteeMembers({ match }: { match: RouteMatch }) {
           {read.failed && (
             <div className="cmm-state">
               <Refused onRetry={read.retry} retrying={read.pending}>
-                We couldn’t load these accounts. This is a problem on our side and says nothing
-                about the members.
+                Couldn’t load accounts. This is a problem on our side and says nothing about the
+                members.
               </Refused>
             </div>
           )}
@@ -341,8 +344,8 @@ function MemberCard({
           {figures.loading && <LoadingLine>Loading…</LoadingLine>}
           {figures.failed && (
             <Refused onRetry={figures.retry} retrying={figures.pending}>
-              We couldn’t load these accounts. This is a problem on our side and says nothing about
-              the members.
+              Couldn’t load accounts. This is a problem on our side and says nothing about the
+              members.
             </Refused>
           )}
           {figures.data &&

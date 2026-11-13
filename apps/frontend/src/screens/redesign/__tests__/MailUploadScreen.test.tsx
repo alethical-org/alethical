@@ -183,7 +183,7 @@ it('retries the retained failed replacement without reopening the picker', async
   expect(button('Replace photo')).toBeTruthy();
 });
 
-it.each(['We couldn’t open this photo', 'Choose a photo smaller than 15 MB'])(
+it.each(['Couldn’t open this photo', 'Choose a photo smaller than 15 MB'])(
   'photo recovery: %s offers a focused chooser, never retries rejected bytes',
   async (error) => {
     form.photos.front = { busy: false, receipt, confirmedFile: photo, error };
@@ -206,7 +206,7 @@ it.each(['We couldn’t open this photo', 'Choose a photo smaller than 15 MB'])(
 
 it('locks edits during an uncertain save while leaving its safe retry available', async () => {
   form.status = 'retry';
-  form.failure = 'We couldn’t confirm your upload';
+  form.failure = 'Couldn’t confirm your upload';
   form.comment = 'Preserved comment';
   await render();
   expect(container.querySelector('fieldset')?.disabled).toBe(true);

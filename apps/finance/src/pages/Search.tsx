@@ -539,7 +539,7 @@ function Family({
             />
           </svg>
           <div>
-            We couldn’t load these results
+            Couldn’t load results
             <div className="f-alert-action">
               <button
                 type="button"

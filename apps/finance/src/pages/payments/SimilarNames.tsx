@@ -252,7 +252,7 @@ export function SimilarNames({
             ? shown
               ? RECORDS_CHANGED
               : 'These records changed. Reload the list.'
-            : `We couldn’t load similar names${year === null ? '' : ` for ${year}`}${shown ? '. Previous results are shown.' : ''}`}
+            : `Couldn’t load similar names${year === null ? '' : ` for ${year}`}${shown ? '. Previous results are shown.' : ''}`}
         </Refused>
       )}
       {shown && (

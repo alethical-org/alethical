@@ -66,7 +66,7 @@ export function renderEventReplay(
     : turns(0, r.duration ?? 0);
   const date = (value: string) =>
     new Date(`${value}T12:00:00Z`).toLocaleDateString('en-US', {
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       year: 'numeric',
       timeZone: 'UTC',

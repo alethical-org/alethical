@@ -26,7 +26,7 @@ export const profileClaimCopy = {
   disclosure:
     'Alethical verified this account’s authority to represent the campaign, not the statement’s accuracy',
   loading: 'Loading profile claim status…',
-  failed: 'We couldn’t load your profile claim status',
+  failed: 'Couldn’t load your profile claim status',
   intro:
     'Help voters understand what you stand for, the experience you bring and your plans for the community. Give them one place to find answers, follow your campaign and make an informed choice.',
   featuresLink: 'Explore candidate profile features',
@@ -68,11 +68,11 @@ export const profileClaimCopy = {
   sourceBlocked:
     'The official candidate record could not be confirmed, so new profile claim requests are unavailable',
   submitUnknown:
-    'We couldn’t confirm whether your profile claim request was submitted. Reload its status before trying again.',
+    'Couldn’t confirm whether your profile claim request was submitted. Reload its status before trying again.',
   withdrawUnknown:
-    'We couldn’t confirm whether your profile claim request was withdrawn. Reload its status before trying again.',
+    'Couldn’t confirm whether your profile claim request was withdrawn. Reload its status before trying again.',
   giveUnknown:
-    'We couldn’t confirm whether your profile claim was given up. Reload its status before trying again.',
+    'Couldn’t confirm whether your profile claim was given up. Reload its status before trying again.',
   givenUp:
     'You gave up your profile claim. You can no longer manage your campaign’s information on this candidate profile.',
   givenUpRemoved: ' Your published campaign statement was removed.',
@@ -94,7 +94,7 @@ export const profileClaimCopy = {
     'You’ll lose access to manage campaign information. The public profile and official records will remain.',
   giveUpUnsaved: 'Your unsaved changes will also be discarded.',
   removeBody: 'Voters will no longer see your statement. You keep access to manage this profile.',
-  writeFailed: 'We couldn’t complete this request',
+  writeFailed: 'Couldn’t complete this request',
   changedElsewhere:
     'The published statement changed elsewhere. Your changes are still here and have not been saved.',
   currentStatement: 'Current public statement',
@@ -102,7 +102,7 @@ export const profileClaimCopy = {
   checking: 'Checking whether your changes were saved…',
   changed: 'This profile claim request changed. Review the latest status before continuing.',
   decisionUnknown:
-    'We couldn’t confirm whether this profile claim decision was saved. Reload the request before trying again.',
+    'Couldn’t confirm whether this profile claim decision was saved. Reload the request before trying again.',
   noteGuidance:
     'Before approving, confirm the applicant’s identity and campaign authority using contact details you find independently',
   noteHelp:
@@ -196,7 +196,7 @@ export function profileClaimTime(value?: string) {
     : new Intl.DateTimeFormat('en-US', {
         timeZone: 'America/Chicago',
         year: 'numeric',
-        month: 'long',
+        month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',

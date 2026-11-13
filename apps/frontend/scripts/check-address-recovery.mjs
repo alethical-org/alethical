@@ -670,7 +670,7 @@ try {
       await expect(field).toHaveValue(changedAddress);
       await answer(state.pending[0], { detail: 'Local fixture failure' }, 503);
       await expect(
-        state.page.getByText('We couldn’t update the results', { exact: true }),
+        state.page.getByText('Couldn’t update the results', { exact: true }),
       ).toBeVisible();
       await expect(
         state.page.getByText('Illustrative Browser Candidate', { exact: true }),
@@ -750,7 +750,7 @@ try {
         await silentFill(field, countryAddress);
         await field.press('Enter');
         await state.page
-          .getByText('We couldn’t match that address to election records', { exact: true })
+          .getByText('Couldn’t match that address to election records', { exact: true })
           .waitFor();
         await field.fill(publicAddress);
         await field.press('Enter');

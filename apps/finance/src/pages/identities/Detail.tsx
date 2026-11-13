@@ -168,7 +168,13 @@ export function Detail({
   // Page 1 reads the current copy; later pages stay on the copy page 1 showed, and a
   // changed copy is refused (409) rather than mixed in.
   const records = useRecords(
-    { kind, key: name, page, pageSize: PAGE_SIZE, snapshotId: page > 1 ? snapshot : null },
+    {
+      kind,
+      key: name,
+      page,
+      pageSize: PAGE_SIZE,
+      snapshotId: page > 1 ? snapshot : null,
+    },
     version,
   );
   const data = records.data;
@@ -256,7 +262,11 @@ export function Detail({
   const [pickPage, setPickPage] = useState(1);
   const entities = useVersionedRead<EntityPage>(
     form?.mode === 'merge' && conf
-      ? apiPath(['finance', 'identities'], { kind: conf.kind, page: pickPage, page_size: 20 })
+      ? apiPath(['finance', 'identities'], {
+          kind: conf.kind,
+          page: pickPage,
+          page_size: 20,
+        })
       : null,
     { page: pickPage, onRestart: () => setPickPage(1), refresh: version },
   );
@@ -448,7 +458,9 @@ export function Detail({
         ? { ok: true, data: null }
         : { ok: false, reason: 'failed' };
     for (const group of pending) {
-      last = await post(['confirmations', group.id, 'withdraw'], { reason: current.note.trim() });
+      last = await post(['confirmations', group.id, 'withdraw'], {
+        reason: current.note.trim(),
+      });
       if (!last.ok) return last;
       withdrawn.current.add(group.id);
     }
@@ -518,7 +530,12 @@ export function Detail({
       (result.reason === 'refused' &&
         /already confirmed|not in the Board's current file|merged or split/i.test(result.message))
     ) {
-      setUi({ ...READY, tried: true, stale: spec.recs !== null, planError: REVISION });
+      setUi({
+        ...READY,
+        tried: true,
+        stale: spec.recs !== null,
+        planError: REVISION,
+      });
       onLive('Not saved');
     } else if (result.reason === 'refused') {
       setUi({ ...READY, tried: true, planError: result.message });
@@ -580,7 +597,11 @@ export function Detail({
     checked: boolean;
     toggle: () => void;
   }> = [];
-  let periodChips: Array<{ label: string; selected: boolean; pick: () => void }> = [];
+  let periodChips: Array<{
+    label: string;
+    selected: boolean;
+    pick: () => void;
+  }> = [];
   let recsCount = '';
   let roleOptions: typeof recOptions = [];
   if (form && spec?.recs === 'name' && data) {
@@ -592,7 +613,12 @@ export function Detail({
     ].map((chip) => ({
       label: chip.label,
       selected: !!form.quick && form.quick.year === chip.year,
-      pick: () => update({ quick: { year: chip.year }, picked: {}, snapshot: data.snapshot_id }),
+      pick: () =>
+        update({
+          quick: { year: chip.year },
+          picked: {},
+          snapshot: data.snapshot_id,
+        }),
     }));
     recOptions = unconfirmed.map((record) => {
       const checked = inQuick(record) || !!form.picked[record.fingerprint];
@@ -705,7 +731,7 @@ export function Detail({
           <Refused onRetry={entities.retry} retrying={entities.pending}>
             {entities.changed
               ? RECORDS_CHANGED
-              : `We couldn’t load the records to merge in.${entities.data ? ' Previous results are shown.' : ''}`}
+              : `Couldn’t load the records to merge in.${entities.data ? ' Previous results are shown.' : ''}`}
           </Refused>
         )}
         {entities.data && entities.data.pages > 1 && (
@@ -725,7 +751,7 @@ export function Detail({
     else if (pickRead.failed)
       mergePreview = (
         <Refused onRetry={pickRead.retry} retrying={pickRead.pending}>
-          We couldn’t load the links that will move
+          Couldn’t load the links that will move
         </Refused>
       );
     else if (pickRead.data) {
@@ -798,7 +824,7 @@ export function Detail({
           staleNotice
         ) : (
           <Refused onRetry={records.retry} retrying={records.pending}>
-            We couldn’t load the records
+            Couldn’t load the records
           </Refused>
         )}
       </section>
@@ -930,7 +956,7 @@ export function Detail({
       )}
       {ui.refused && (
         <Refused>
-          We couldn’t save this change, so nothing was changed. Your note is kept below; try again.
+          Couldn’t save this change, so nothing was changed. Your note is kept below; try again.
         </Refused>
       )}
 
@@ -959,9 +985,7 @@ export function Detail({
               </Link>
             )}
           </div>
-          {reads.failed && (
-            <Refused onRetry={reads.retry}>We couldn’t load the confirmations</Refused>
-          )}
+          {reads.failed && <Refused onRetry={reads.retry}>Couldn’t load the confirmations</Refused>}
           {groups.length > 1 && (
             <dl className="ci-dl">
               <dt>Records covered</dt>
@@ -1120,7 +1144,7 @@ export function Detail({
         {records.updating && <Updating />}
         {records.failed && (
           <Refused onRetry={records.retry} retrying={records.pending}>
-            We couldn’t load the records
+            Couldn’t load the records
           </Refused>
         )}
         {(!form || spec?.recs !== 'name') && staleNotice}
@@ -1155,7 +1179,7 @@ export function Detail({
 
       <section aria-labelledby="hist-h" className="ci-history-section">
         <h3 id="hist-h">History</h3>
-        {reads.failed && <Refused onRetry={reads.retry}>We couldn’t load the history</Refused>}
+        {reads.failed && <Refused onRetry={reads.retry}>Couldn’t load the history</Refused>}
         {history.length === 0 && !reads.settled && !reads.failed && <LoadingRows />}
         {(history.length > 0 || reads.settled) && (
           <ol className="ci-card ci-history">
@@ -1181,7 +1205,10 @@ export function Detail({
                         className="f-btn f-btn-secondary ci-btn-s"
                         aria-expanded={!!histOpen[row.key]}
                         onClick={() =>
-                          setHistOpen((value) => ({ ...value, [row.key]: !value[row.key] }))
+                          setHistOpen((value) => ({
+                            ...value,
+                            [row.key]: !value[row.key],
+                          }))
                         }
                       >
                         View evidence
@@ -1231,7 +1258,11 @@ function RecordRow({
           hrefFor(
             'committee',
             { id: registration },
-            { year: year ? String(year) : null, tab: committeeTab(kind), q: name },
+            {
+              year: year ? String(year) : null,
+              tab: committeeTab(kind),
+              q: name,
+            },
           ),
           here,
         )

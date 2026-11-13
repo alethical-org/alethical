@@ -110,7 +110,7 @@ it('reads a Finance person independently of a public candidate profile', async (
 });
 it('never turns a failed lookup into an empty or missing profile', async () => {
   await render(() => new Response(null, { status: 503 }));
-  expect(container.textContent).toContain('We couldn’t load this record');
+  expect(container.textContent).toContain('Couldn’t load record');
   expect(container.textContent).not.toContain('This record is no longer available');
 });
 it('does not infer current service from an election', () => {

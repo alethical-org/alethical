@@ -305,7 +305,7 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
                 ? 'Updating the queue; previous results remain below'
                 : 'Loading review queue…'
               : queueError
-                ? 'We couldn’t update the queue. Previous results remain below.'
+                ? 'Couldn’t update the queue. Previous results remain below.'
                 : ''}
           </Text>
         </View>

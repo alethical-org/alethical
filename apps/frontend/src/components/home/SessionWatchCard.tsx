@@ -209,7 +209,7 @@ function CouldNotCheckFrame({
         </Svg>
       </View>
       <Text accessibilityRole="header" aria-level={3} style={styles.emptyHeading}>
-        We couldn’t check your tracked bills
+        Couldn’t check your tracked bills
       </Text>
       <Text style={styles.emptyBody}>
         Your bills are still tracked and nothing has been lost. The list of what moved is what we

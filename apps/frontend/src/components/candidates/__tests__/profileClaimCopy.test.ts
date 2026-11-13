@@ -28,17 +28,17 @@ it('reads a role only from an exact role prefix followed by 2 newlines', () => {
 });
 it('dates a statement from server evidence only, latest edit first', () => {
   expect(statementDateLine({ published_at: '2026-09-18T15:00:00Z', edited_at: null })).toBe(
-    'Published September 18, 2026',
+    'Published Sep 18, 2026',
   );
   expect(
     statementDateLine({ published_at: '2026-09-18T15:00:00Z', edited_at: '2026-11-12T15:00:00Z' }),
-  ).toBe('Edited November 12, 2026');
+  ).toBe('Edited Nov 12, 2026');
   // A missing field (an older cached response) prints nothing rather than a borrowed date.
   expect(statementDateLine({} as never)).toBe('');
   expect(statementDateLine({ published_at: 'not a date', edited_at: null })).toBe('');
 });
 it('uses the Minnesota calendar day for a late-evening time', () => {
-  expect(profileClaimDate('2026-10-09T03:30:00+00:00')).toBe('October 8, 2026');
+  expect(profileClaimDate('2026-10-09T03:30:00+00:00')).toBe('Oct 8, 2026');
   expect(profileClaimDate(null)).toBe('');
 });
 it('gives each explanation length its own message', () => {

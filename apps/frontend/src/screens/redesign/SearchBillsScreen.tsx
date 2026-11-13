@@ -560,7 +560,7 @@ export function SearchBillsScreen() {
         ) : billsQuery.isError ? (
           <View style={styles.stateBox}>
             <Text style={styles.stateText}>
-              We couldn’t load bills right now. Please try again in a moment.
+              Couldn’t load bills right now. Please try again in a moment.
             </Text>
           </View>
         ) : bills.length === 0 ? (

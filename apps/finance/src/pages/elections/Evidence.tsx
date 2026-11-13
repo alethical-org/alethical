@@ -63,12 +63,12 @@ export function RetainedEvidence({
         </div>
       )}
       {selection.attachment && attachment.state === 'failed' && !attachment.changed && (
-        <Refused onRetry={attachment.retry}>We couldn’t load this source</Refused>
+        <Refused onRetry={attachment.retry}>Couldn’t load source</Refused>
       )}
       {selection.lines && lines.loading && <LoadingLine>Loading source lines…</LoadingLine>}
       {selection.lines && lines.failed && (
         <Refused onRetry={lines.retry} retrying={lines.pending}>
-          We couldn’t load source lines
+          Couldn’t load source lines
         </Refused>
       )}
       {selection.lines && lines.notFound && <p>This source is not held</p>}

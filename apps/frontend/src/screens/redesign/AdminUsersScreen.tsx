@@ -229,7 +229,7 @@ function PrivateUsers({
         <StateMessage message="Loading accounts…" loading />
       ) : current.state === 'error' ? (
         <StateMessage
-          message="We couldn’t load accounts. Try again."
+          message="Couldn’t load accounts. Try again."
           action="Retry"
           onPress={() => setAttempt((value) => value + 1)}
         />
@@ -423,7 +423,7 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
         <StateMessage message="Restricted access. This account does not have access to Users." />
       ) : access.state === 'error' ? (
         <StateMessage
-          message="We couldn’t check access. Try again."
+          message="Couldn’t check access. Try again."
           action="Retry"
           onPress={access.retry}
         />

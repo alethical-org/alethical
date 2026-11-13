@@ -370,7 +370,7 @@ it('removes a statement only after the safe confirmation and the server reply', 
     expect.any(AbortSignal),
   );
   expect(host.textContent).toContain('Statement removed');
-  expect(host.textContent).not.toContain('Published September 30, 2026');
+  expect(host.textContent).not.toContain('Published Sep 30, 2026');
 });
 it.each([null, { body: '', updated_at: '2026-09-30', version: 2 }])(
   'does not invent a publication date for an unpublished preview (%j)',
@@ -1073,7 +1073,7 @@ it('prints the saved role only from an exact prefix and keeps the explanation as
   expect(list.querySelectorAll('dd')[0].textContent).toBe('Authorized campaign representative');
   expect(list.querySelectorAll('dd')[2].textContent).toBe('Line one\n\n\n\nLine two');
   // Minnesota time: 10:30 p.m. on October 8.
-  expect(host.textContent).toContain('Submitted October 8, 2026');
+  expect(host.textContent).toContain('Submitted Oct 8, 2026');
   expect(host.textContent).toContain(
     'You can leave this page and return to check your request’s status',
   );
@@ -1290,7 +1290,7 @@ it('shows Save changes only after an edit and dates the statement under the edit
   manage();
   await flush();
   expect(button('Save changes')).toBeUndefined();
-  expect(host.textContent).toContain('Edited October 2, 2026');
+  expect(host.textContent).toContain('Edited Oct 2, 2026');
   expect(host.textContent).not.toContain('Unsaved changes');
   expect(host.querySelector('#campaign-statement-label')?.textContent).toBe('Campaign statement');
   edit('Campaign statement', 'Current campaign words, edited');
@@ -1334,7 +1334,7 @@ it('retries a failed removal as a removal after reading what is saved, never as 
   )!;
   act(() => risky.click());
   await flush();
-  expect(host.textContent).toContain('We couldn’t complete this request');
+  expect(host.textContent).toContain('Couldn’t complete this request');
   mocks.privateStatement
     .mockResolvedValueOnce({
       account_id: 'account-a',
@@ -1395,7 +1395,7 @@ it('asks again before Try again saves an emptied statement, and sends nothing', 
   edit('Campaign statement', 'My edited campaign words');
   act(() => button('Save changes').click());
   await flush();
-  expect(host.textContent).toContain('We couldn’t complete this request');
+  expect(host.textContent).toContain('Couldn’t complete this request');
   edit('Campaign statement', '');
   act(() => button('Try again').click());
   await flush();
@@ -1421,7 +1421,7 @@ it('never lets Try again overwrite or remove a statement saved somewhere else', 
   act(() => button('Try again').click());
   await flush();
   expect(mocks.save).toHaveBeenCalledTimes(1);
-  expect(host.textContent).not.toContain('We couldn’t complete this request');
+  expect(host.textContent).not.toContain('Couldn’t complete this request');
   expect(host.textContent).not.toContain('Changes saved');
   expect(host.querySelector<HTMLTextAreaElement>('[aria-label="Campaign statement"]')!.value).toBe(
     'My edited campaign words',
@@ -1466,8 +1466,8 @@ it('dates statement history in Minnesota time, like the line under the editor', 
   });
   manage();
   await flush();
-  expect(host.textContent).toContain('Statement saved · October 2, 2026');
-  expect(host.textContent).not.toContain('October 3, 2026');
+  expect(host.textContent).toContain('Statement saved · Oct 2, 2026');
+  expect(host.textContent).not.toContain('Oct 3, 2026');
 });
 it('ignores a slower earlier eligibility read that finishes after a submit', async () => {
   const eligible = {
@@ -1546,7 +1546,7 @@ it('rechecks access before Try again: a revoked owner sees the revoked state, no
   )!;
   act(() => risky.click());
   await flush();
-  expect(host.textContent).toContain('We couldn’t complete this request');
+  expect(host.textContent).toContain('Couldn’t complete this request');
   // Revocation removed the statement; the former owner can still read the empty history.
   mocks.mine.mockResolvedValue({
     account_id: 'account-a',
@@ -1604,7 +1604,7 @@ it('shows the current access state when a write is refused for lost access, with
   await flush();
   expect(host.textContent).toContain('Profile claim revoked');
   expect(document.activeElement?.textContent).toContain('Profile claim revoked');
-  expect(host.textContent).not.toContain('We couldn’t complete this request');
+  expect(host.textContent).not.toContain('Couldn’t complete this request');
   expect(button('Try again')).toBeUndefined();
   expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
   expect(mocks.save).toHaveBeenCalledTimes(1);
@@ -1762,8 +1762,8 @@ it('keeps the editor date hidden while the changed-elsewhere group shows', async
   await flush();
   const group = host.querySelector('[role="group"][aria-labelledby="statement-changed-message"]')!;
   // The group carries the current statement's own date; the line under the editor is empty.
-  expect(group.textContent).toContain('Edited October 3, 2026');
-  expect(host.textContent!.split('Edited October 3, 2026')).toHaveLength(2);
+  expect(group.textContent).toContain('Edited Oct 3, 2026');
+  expect(host.textContent!.split('Edited Oct 3, 2026')).toHaveLength(2);
 });
 it('fills the opened tab with over-long answers and their messages exactly as typed', async () => {
   const long = {

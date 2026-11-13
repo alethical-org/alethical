@@ -752,7 +752,7 @@ describe('Committee page', () => {
         '/finance/committees/90001/report-figures': { status: 500 },
       }),
     );
-    expect(text()).toContain('We couldn’t load the report information');
+    expect(text()).toContain('Couldn’t load the report information');
     expect(text()).toContain('Example, Jordan A');
   });
 
@@ -780,7 +780,7 @@ describe('Committee page', () => {
       '/money/committees/90001',
       loadedAnswers({ '/committees/90001/finance': { status: 500 } }),
     );
-    expect(text()).toContain('We couldn’t load this committee');
+    expect(text()).toContain('Couldn’t load committee');
     expect(text()).not.toContain('problem on our side');
     expect(button('Try again')).toBeDefined();
   });
@@ -800,7 +800,7 @@ describe('Committee page', () => {
         '/committees/90001/payments?direction=received': { status: 500 },
       }),
     );
-    expect(text()).toContain('We couldn’t load these payments right now.');
+    expect(text()).toContain('Couldn’t load payments right now.');
     expect(text()).not.toContain('contribution records are held');
   });
 });
@@ -890,7 +890,7 @@ describe('Committee page, Media buys card', () => {
 
   it('says the files could not be loaded, with Try again', async () => {
     await render('/money/committees/90001', loadedAnswers({ [CONNECTIONS]: { status: 500 } }));
-    expect(card()?.textContent).toContain('We couldn’t load these TV station files');
+    expect(card()?.textContent).toContain('Couldn’t load TV station files');
     expect(card()?.textContent).toContain('Try again');
     expect(card()?.textContent).not.toContain('problem on our side');
   });

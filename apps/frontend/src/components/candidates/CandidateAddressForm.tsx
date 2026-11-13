@@ -26,8 +26,8 @@ import type {
 } from './types';
 
 const errors = {
-  'historical-match-unavailable': 'We couldn’t confirm the races for this address and election',
-  'no-match': 'We couldn’t match that address to election records',
+  'historical-match-unavailable': 'Couldn’t confirm the races for this address and election',
+  'no-match': 'Couldn’t match that address to election records',
   'outside-minnesota': 'This search covers Minnesota addresses',
   'rate-limited': 'Too many searches: try again shortly',
 };

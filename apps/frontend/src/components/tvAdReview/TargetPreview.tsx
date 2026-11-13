@@ -134,7 +134,7 @@ export function TargetPreview({
         </View>
       ) : current?.error ? (
         <Text style={s.body}>
-          We couldn’t load this target. Check its exact identity and try again.
+          Couldn’t load this target. Check its exact identity and try again.
         </Text>
       ) : current ? (
         <Text style={s.body}>Loading the exact target…</Text>

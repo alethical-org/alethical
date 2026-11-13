@@ -689,7 +689,7 @@ describe('Money connections page', () => {
     await act(async () => root.render(<MoneyConnections />));
     await flush();
     expect(container.querySelector('[role="alert"]')!.textContent).toContain(
-      'We couldn’t load these connections',
+      'Couldn’t load connections',
     );
     expect(container.textContent).not.toContain('No connections held');
   });
@@ -698,7 +698,7 @@ describe('Money connections page', () => {
     serve(() => answer(page({ state: 'unavailable', edges: [], nodes: [], total: 0 })));
     await act(async () => root.render(<MoneyConnections />));
     await flush();
-    expect(container.textContent).toContain('We couldn’t load these connections');
+    expect(container.textContent).toContain('Couldn’t load connections');
   });
 
   it('says an unknown focus is not held, and an empty selection is empty', async () => {
@@ -726,7 +726,7 @@ describe('Money connections page', () => {
     await act(async () => node.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     await flush();
     expect(new URL(window.location.href).searchParams.get('focus')).toBeTruthy();
-    expect(container.textContent).toContain('We couldn’t update these results');
+    expect(container.textContent).toContain('Couldn’t update results');
     expect(container.textContent).toContain('Example Printing');
   });
 

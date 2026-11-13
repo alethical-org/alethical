@@ -491,7 +491,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       : {
           eyebrow: 'NO BILL MATCHED',
           muted: true,
-          body: 'We couldn’t match this to a single Minnesota bill’s text. Try naming the bill, or browse bills by issue in Search.',
+          body: 'Couldn’t match this to a single Minnesota bill’s text. Try naming the bill, or browse bills by issue in Search.',
           cta: 'Browse bills in Search',
         };
 

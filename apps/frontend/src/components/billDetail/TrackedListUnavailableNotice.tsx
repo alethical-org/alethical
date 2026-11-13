@@ -38,8 +38,8 @@ export function TrackedListUnavailableNotice() {
     >
       <Text style={styles.text}>
         {writeUnavailable
-          ? 'We couldn’t save that Track change. Everything about the bills themselves loaded normally.'
-          : 'We couldn’t check which bills you’re tracking. Everything about the bills themselves loaded normally — only your saved list is missing.'}
+          ? 'Couldn’t save that Track change. Everything about the bills themselves loaded normally.'
+          : 'Couldn’t check which bills you’re tracking. Everything about the bills themselves loaded normally — only your saved list is missing.'}
       </Text>
       <Pressable
         accessibilityRole="button"

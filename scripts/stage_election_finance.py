@@ -33,6 +33,7 @@ def prepare(args):
         directory_file=args.directory_file,
         directory_metadata=args.directory_metadata,
         identity_manifest=args.identity_manifest,
+        include_campaign_expenses=args.include_campaign_expenses,
     )
 
 
@@ -63,6 +64,11 @@ def main(argv=None):
         command.add_argument("--directory-file", type=Path, required=True)
         command.add_argument("--directory-metadata", type=Path, required=True)
         command.add_argument("--identity-manifest", type=Path)
+        command.add_argument(
+            "--include-campaign-expenses",
+            action="store_true",
+            help="Rebuild checked campaign expense detail from retained originals",
+        )
         command.add_argument("--output", type=Path)
         if name == "stage":
             command.add_argument("--execute", action="store_true")

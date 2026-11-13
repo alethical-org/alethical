@@ -177,8 +177,8 @@ it.each<
     expect(input.value).toBe(address);
     expect(host.textContent).toContain(
       kind === 'no-match' || kind === 'outside-minnesota'
-        ? 'We couldn’t match that address'
-        : 'We couldn’t complete your search',
+        ? 'Couldn’t match that address'
+        : 'Couldn’t complete your search',
     );
     expect(host.textContent).not.toContain('no candidates');
   },
@@ -376,7 +376,7 @@ it('keeps a service failure after clearing and hides clear during lookup', async
   expect(clear.style.visibility).not.toBe('hidden');
   act(() => clear.click());
   expect(input.value).toBe('');
-  expect(host.textContent).toContain('We couldn’t complete your search');
+  expect(host.textContent).toContain('Couldn’t complete your search');
   expect(host.querySelector<HTMLButtonElement>('button[type=submit]')?.textContent).toContain(
     'Try again',
   );

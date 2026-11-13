@@ -232,10 +232,10 @@ it('keeps old results and election attached while changing selection by keyboard
   expect(lookup.mock.calls[1][0].electionId).toBe(primary.id);
   expect(host.textContent).toContain('Updating candidates…');
   expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
-  expect(host.textContent).toContain('General election · November 5, 2030');
+  expect(host.textContent).toContain('General election · Nov 5, 2030');
   await act(async () => reject(new Error('failure')));
   await flush();
-  expect(host.textContent).toContain('We couldn’t update the results');
+  expect(host.textContent).toContain('Couldn’t update the results');
   click(button('Try again'));
   await flush();
   expect(host.querySelector('a[href="/candidates/primary-a"]')).toBeTruthy();
@@ -261,7 +261,7 @@ it('uses the most recent supported past election when none is upcoming', async (
     expect.objectContaining({ electionId: general.id }),
     expect.any(AbortSignal),
   );
-  expect(host.textContent).toContain('November 7, 2000');
+  expect(host.textContent).toContain('Nov 7, 2000');
 });
 it('requires a keyboard-confirmed ambiguous address and passes its choice to the service', async () => {
   const choice = {
@@ -804,7 +804,7 @@ it('shows source-provided election dates and matching office districts once', ()
       />,
     ),
   );
-  expect(host.textContent!.match(/November 3, 2026/g)).toHaveLength(1);
+  expect(host.textContent!.match(/Nov 3, 2026/g)).toHaveLength(1);
   expect(host.textContent).toContain('General election');
   expect(host.textContent).not.toContain('State Representative District 60B');
   expect(host.textContent!.match(/State Representative/g)).toHaveLength(1);

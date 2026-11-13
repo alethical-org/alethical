@@ -22,7 +22,7 @@ async function show(page = 2, inside = true, savedVersion = version) {
         page={page}
         alt={`Page ${page}`}
         failure={{
-          text: 'We couldn’t load this page image',
+          text: 'Couldn’t load page image',
           retry: 'Retry image',
           inside,
         }}
@@ -58,7 +58,7 @@ it.each([true, false])(
   async (inside) => {
     await show(2, inside);
     await act(async () => host.querySelector('img')!.dispatchEvent(new Event('error')));
-    expect(host.textContent).toContain('We couldn’t load this page image');
+    expect(host.textContent).toContain('Couldn’t load page image');
     expect(host.querySelector('img')).toBeNull();
     const retry = host.querySelector('button')!;
     expect(retry.textContent).toContain(inside ? 'Try again' : 'Retry image');
@@ -93,7 +93,7 @@ it('does not carry a failed image into another page, version context or account'
 it.each([403, 500])('uses retry for a failed request (%s)', async (status) => {
   fetcher.mockResolvedValueOnce(new Response('Unavailable', { status }));
   await show();
-  expect(host.textContent).toContain('We couldn’t load this page image');
+  expect(host.textContent).toContain('Couldn’t load page image');
   expect(host.querySelector('img')).toBeNull();
 });
 it('replaces an image when the saved version or API source changes', async () => {

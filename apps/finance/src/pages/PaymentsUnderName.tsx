@@ -826,8 +826,8 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                   onRetry={() => reads.forEach((read) => read.retry())}
                   retrying={reads.some((read) => read.pending)}
                 >
-                  We couldn’t load these results. This is a problem on our side and says nothing
-                  about what was filed under this name.
+                  Couldn’t load results. This is a problem on our side and says nothing about what
+                  was filed under this name.
                 </Refused>
               </div>
             )}
@@ -904,7 +904,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                     {(spellings.failed || spellings.notFound) && (
                       <div className="pn-variant-status">
                         <Refused onRetry={refreshSource} retrying={spellings.pending}>
-                          We couldn’t load payments for similar spellings
+                          Couldn’t load payments for similar spellings
                         </Refused>
                       </div>
                     )}
@@ -1091,8 +1091,8 @@ function Section({
         <div className="pn-gap pn-narrow">
           <Refused onRetry={read.retry} retrying={read.pending}>
             {variant
-              ? 'We couldn’t load payments for similar spellings'
-              : 'We couldn’t load these results. This is a problem on our side and says nothing about what was filed under this name.'}
+              ? 'Couldn’t load payments for similar spellings'
+              : 'Couldn’t load results. This is a problem on our side and says nothing about what was filed under this name.'}
           </Refused>
         </div>
       )}
@@ -1207,7 +1207,7 @@ function Section({
         <div className="pn-more">
           {read.moreFailed ? (
             <Refused onRetry={read.more} retrying={read.loadingMore}>
-              We couldn’t load more payments
+              Couldn’t load more payments
             </Refused>
           ) : (
             <button

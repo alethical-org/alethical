@@ -163,7 +163,7 @@ it('keeps prior rows after a failed next page and clears them after access is re
 });
 it('keeps unavailable reads distinct from no matches', async () => {
   await render(() => new Response(null, { status: 503 }));
-  expect(card()?.textContent).toContain('We couldn’t load similar agency names');
+  expect(card()?.textContent).toContain('Couldn’t load similar agency names');
   expect(card().textContent).not.toContain('None found');
 });
 

@@ -67,18 +67,14 @@ it('opens the exact local original in a modal and releases its URL when closed',
 
 it('keeps Close available when the local original is missing or the browser cannot read it', async () => {
   await act(async () => root.render(createElement(MailPhotoDialog, { side: 'back', onClose })));
-  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-    'We couldn’t open this photo',
-  );
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe('Couldn’t open this photo');
   expect(container.querySelector('img')).toBeNull();
   expect(URL.createObjectURL).not.toHaveBeenCalled();
   await act(async () =>
     root.render(createElement(MailPhotoDialog, { file, side: 'back', onClose })),
   );
   await act(async () => container.querySelector('img')?.dispatchEvent(new Event('error')));
-  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-    'We couldn’t open this photo',
-  );
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe('Couldn’t open this photo');
   expect(container.querySelector('button[aria-label="Close"]')).not.toBeNull();
 });
 

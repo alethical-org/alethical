@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useFinanceSession } from '../auth/session';
-import { REQUEST_TIMEOUT_MS } from './client';
+import { requestTimeoutMs } from './client';
 
 /** What a read answered: its data, a record the server does not hold, or a
  * failure the reader can retry. A failure is never shown as an empty result. */
@@ -117,7 +117,7 @@ export async function apiGet<T>(
     const response = await slot(async () => {
       const timeout =
         typeof AbortSignal.timeout === 'function'
-          ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+          ? AbortSignal.timeout(requestTimeoutMs(route))
           : undefined;
       const signals = [signal, timeout].filter(Boolean) as AbortSignal[];
       try {

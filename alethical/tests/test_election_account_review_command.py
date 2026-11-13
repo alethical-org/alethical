@@ -14,14 +14,12 @@ from sqlalchemy.orm import Session
 
 from alethical.db import models as m
 from alethical.pipeline.election_comparison import ComparisonImportError
-from alethical.pipeline.election_comparison import archive_source
 from alethical.pipeline import campaign_finance_filings as filings
 from alethical.tests.test_election_account_reviews import review_context
 from alethical.tests.test_election_comparison_storage import (
     db,
     prepared,
     source_set,
-    MemoryStore,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -160,6 +158,41 @@ def test_invalid_json_and_text_have_no_traceback(tmp_path, capsys, body):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"page": None},
+        {"page": True},
+        {"collection_id": None},
+        {"collection_id": "short"},
+    ],
+)
+def test_report_excerpt_dry_run_requires_exact_page_and_collection(
+    tmp_path, monkeypatch, change
+):
+    value = request_value()
+    value["evidence"].append(
+        {
+            "kind": "report_excerpt",
+            "sha256": "d" * 64,
+            "page": 6,
+            "collection_id": "e" * 64,
+            "locator": {"type": "native_pdf_lines"},
+            "literal_fields": {
+                "lines": [{"line_number": 1, "text": "Synthetic expense"}]
+            },
+            **change,
+        }
+    )
+    monkeypatch.setattr(
+        command, "execute_request", lambda *a: pytest.fail("Malformed excerpt executed")
+    )
+    assert (
+        command.main(["--request", str(write_request(tmp_path, value)), "--execute"])
+        == 2
+    )
 
 
 def test_missing_request_file_is_a_plain_error(tmp_path, capsys):
@@ -365,28 +398,41 @@ def test_offline_candidate_identity_citation_does_not_replace_register(
     assert "committee-register" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("source_registration, expected", [("19399", 0), ("99999", 2)])
+@pytest.mark.parametrize(
+    "source_registration,expected,review_context",
+    [
+        (
+            registration,
+            expected,
+            {
+                "body": b'{"synthetic":"candidate identity"}',
+                "metadata": {
+                    "kind": "candidate_identity",
+                    "registration_number": registration,
+                    "url": filings.viewer_url(filings.FilerKind.candidate_committee),
+                    "request_method": "POST",
+                    "request_form": {"id": registration, "tabname": "information"},
+                },
+            },
+        )
+        for registration, expected in [("19399", 2), ("99999", 2)]
+    ],
+    indirect=["review_context"],
+    ids=["19399-unquoted", "99999-wrong-account"],
+)
 def test_execute_candidate_identity_citation_checks_exact_retained_account(
-    db, local_execution, tmp_path, capsys, source_registration, expected
+    db, local_execution, tmp_path, capsys, monkeypatch, source_registration, expected
 ):
+    from alethical.pipeline import election_account_reviews as reviews
+    from alethical.tests.test_election_comparison_storage import MemoryStore
+
+    monkeypatch.setattr(reviews, "raw_file_store_from_env", MemoryStore)
     args = deepcopy(local_execution["args"])
-    source_hash = archive_source(
-        db, MemoryStore(), b'{"synthetic":"candidate identity"}'
-    )
     collection_id = args["evidence"][1]["collection_id"]
     collection = db.get(m.ElectionFinanceCollection, collection_id)
-    collection.sources = [
-        *collection.sources,
-        {
-            "sha256": source_hash,
-            "kind": "candidate_identity",
-            "registration_number": source_registration,
-            "url": filings.viewer_url(filings.FilerKind.candidate_committee),
-            "request_method": "POST",
-            "request_form": {"id": source_registration, "tabname": "information"},
-        },
-    ]
-    db.flush()
+    source = next(s for s in collection.sources if s["kind"] == "candidate_identity")
+    assert source["registration_number"] == source_registration
+    source_hash = source["sha256"]
     args["evidence"].append(
         {
             "kind": "candidate_identity",
@@ -397,13 +443,10 @@ def test_execute_candidate_identity_citation_checks_exact_retained_account(
     path = write_request(tmp_path, args)
     assert command.main(["--request", str(path), "--execute"]) == expected
     captured = capsys.readouterr()
-    if expected == 0:
-        assert (
-            json.loads(captured.out)["source_validation"]
-            == "retained_source_references_and_supplied_quotes_checked"
-        )
-        assert count_decisions(db) == 1
-    else:
-        assert captured.out == ""
-        assert "Candidate identity evidence" in captured.err
-        assert count_decisions(db) == 0
+    assert captured.out == ""
+    assert (
+        "typed literal fields"
+        if source_registration == "19399"
+        else "Candidate identity evidence"
+    ) in captured.err
+    assert count_decisions(db) == 0

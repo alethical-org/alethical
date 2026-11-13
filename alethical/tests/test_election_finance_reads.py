@@ -135,9 +135,7 @@ def _report(
     return row
 
 
-@pytest.fixture()
-def comparison(finance_db, spending):
-    race = _race(finance_db)
+def _comparison_race_payload(race):
     payload = deepcopy(race.payload)
     payload["office_name"] = "Attorney General"
     payload["candidate_source_sha256"] = SOURCE
@@ -148,48 +146,167 @@ def comparison(finance_db, spending):
             if candidate["is_write_in_aggregate"]
             else f"state:201:2026-11-03:general:88:0335:{candidate['candidate_id']}"
         )
+    return payload
+
+
+def _comparison_collection_data(payload):
+    return {
+        "sources": [
+            {
+                "sha256": SOURCE,
+                "url": "https://cfb.mn.gov/reports/api/",
+                "kind": "candidate_directory",
+                "private_path": "/secret",
+            }
+        ],
+        "coverage": {
+            "reports": 2,
+            "candidates": [
+                {
+                    "candidate_id": c["candidate_id"],
+                    "stable_id": c["candidate_stable_id"],
+                    "name": c["name"],
+                    "party": c["party"],
+                    "office_id": "0335",
+                    "office": "Attorney General",
+                    "county_id": "88",
+                    "source_sha256": SOURCE,
+                    "source_row": 1,
+                    "authority": "board",
+                    "authority_scope": "candidate_own_campaign_reports",
+                    "outside_support_scope": "available itemized sources",
+                    "link_state": "not_confirmed_by_collection",
+                    "gap": "Candidate-to-committee confirmation is separate",
+                }
+                for c in payload["candidates"]
+                if not c["is_write_in_aggregate"]
+            ],
+        },
+    }
+
+
+def _comparison_fixture_digest():
+    from types import SimpleNamespace
+    from alethical.pipeline.election_finance_collection import collection_digest
+
+    stub = SimpleNamespace(add=lambda row: None, flush=lambda: None)
+    payload = _comparison_race_payload(_race(stub))
+    current = _document(stub, "E")[0]
+    prior = _document(stub, "P")[0]
+    reports = [
+        _report(stub, "1" * 64, "E", "2026-10-19", document_hash=current),
+        _report(
+            stub, "2" * 64, "P", "2026-08-01", document_hash=prior, amount="500.00"
+        ),
+    ]
+    return collection_digest(
+        {
+            "format": 1,
+            "election_key": KEY,
+            "copied_at": WHEN.isoformat(),
+            **_comparison_collection_data(payload),
+            "reports": [
+                {
+                    "registration_number": r.registration_number,
+                    "report_key": r.report_key,
+                    "document_hash": r.document_hash,
+                    "payload": r.payload,
+                }
+                for r in reports
+            ],
+        }
+    )
+
+
+COLLECTION = _comparison_fixture_digest()
+
+
+def _fixture_reports(db):
+    return [
+        {
+            "registration_number": r.registration_number,
+            "report_key": r.report_key,
+            "document_hash": r.document_hash,
+            "payload": deepcopy(r.payload),
+        }
+        for r in db.query(m.ElectionFinanceReport).filter(
+            m.ElectionFinanceReport.collection_id == COLLECTION
+        )
+    ]
+
+
+def _publish_fixture_variant(
+    db,
+    *,
+    coverage=None,
+    sources=None,
+    reports=None,
+    election_key=KEY,
+    make_current=True,
+    published=True,
+):
+    from alethical.pipeline.election_finance_collection import collection_digest
+
+    old = db.get(m.ElectionFinanceCollection, COLLECTION)
+    rows = _fixture_reports(db) if reports is None else reports
+    coverage = deepcopy(old.coverage) if coverage is None else coverage
+    value = {
+        "format": 1,
+        "election_key": election_key,
+        "copied_at": WHEN.isoformat(),
+        "coverage": coverage,
+        "sources": old.sources if sources is None else sources,
+        "reports": rows,
+    }
+    identifier = collection_digest(value)
+    parent = m.ElectionFinanceCollection(
+        id=identifier,
+        election_key=election_key,
+        copied_at=WHEN,
+        sources=value["sources"],
+        coverage=coverage,
+    )
+    db.add(parent)
+    db.flush()
+    for row in rows:
+        db.add(m.ElectionFinanceReport(collection_id=identifier, **row))
+    db.flush()
+    parent.report_index = db.scalar(
+        text("SELECT board_finance_report_index(:id)"), {"id": identifier}
+    )
+    parent.sealed_at = WHEN
+    db.flush()
+    if published:
+        parent.first_published_at = WHEN
+        db.flush()
+    if make_current:
+        current = db.get(m.ElectionFinanceCurrent, election_key)
+        if current:
+            current.collection_id = identifier
+        else:
+            db.add(
+                m.ElectionFinanceCurrent(
+                    election_key=election_key, collection_id=identifier
+                )
+            )
+        db.flush()
+    return parent
+
+
+@pytest.fixture()
+def comparison(finance_db, spending):
+    race = _race(finance_db)
+    payload = _comparison_race_payload(race)
     race.payload = payload
     finance_db.add(
         m.ElectionFinanceCollection(
             id=COLLECTION,
             election_key=KEY,
             copied_at=WHEN,
-            first_published_at=WHEN,
-            sources=[
-                {
-                    "sha256": SOURCE,
-                    "url": "https://cfb.mn.gov/reports/api/",
-                    "kind": "candidate_directory",
-                    "private_path": "/secret",
-                }
-            ],
-            coverage={
-                "reports": 2,
-                "candidates": [
-                    {
-                        "candidate_id": c["candidate_id"],
-                        "stable_id": c["candidate_stable_id"],
-                        "name": c["name"],
-                        "party": c["party"],
-                        "office_id": "0335",
-                        "office": "Attorney General",
-                        "county_id": "88",
-                        "source_sha256": SOURCE,
-                        "source_row": 1,
-                        "authority": "board",
-                        "authority_scope": "candidate_own_campaign_reports",
-                        "outside_support_scope": "available itemized sources",
-                        "link_state": "not_confirmed_by_collection",
-                        "gap": "Candidate-to-committee confirmation is separate",
-                    }
-                    for c in payload["candidates"]
-                    if not c["is_write_in_aggregate"]
-                ],
-            },
+            **_comparison_collection_data(payload),
         )
     )
     finance_db.flush()
-    finance_db.add(m.ElectionFinanceCurrent(election_key=KEY, collection_id=COLLECTION))
     current_doc = _document(finance_db, "E")
     prior_doc = _document(finance_db, "P")
     _report(finance_db, "1" * 64, "E", "2026-10-19", document_hash=current_doc[0])
@@ -202,6 +319,15 @@ def comparison(finance_db, spending):
         amount="500.00",
     )
     finance_db.flush()
+    parent = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    parent.report_index = finance_db.scalar(
+        text("SELECT board_finance_report_index(:id)"), {"id": COLLECTION}
+    )
+    parent.sealed_at = WHEN
+    finance_db.flush()
+    parent.first_published_at = WHEN
+    finance_db.flush()
+    finance_db.add(m.ElectionFinanceCurrent(election_key=KEY, collection_id=COLLECTION))
     args = dict(
         snapshot_id="a" * 64,
         race_id=RACE,
@@ -454,9 +580,19 @@ def test_report_outside_review_period_is_not_prorated(
 def test_newer_missing_pdf_does_not_fall_back_to_older_totals(
     finance_api, finance_db, comparison
 ):
-    _report(finance_db, "3" * 64, "G", "2026-11-04", status="unavailable")
-    collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
-    collection.coverage = {"reports": 3}
+    from types import SimpleNamespace
+
+    stub = SimpleNamespace(add=lambda row: None, flush=lambda: None)
+    extra = _report(stub, "3" * 64, "G", "2026-11-04", status="unavailable")
+    rows = _fixture_reports(finance_db) + [
+        {
+            "registration_number": extra.registration_number,
+            "report_key": extra.report_key,
+            "document_hash": extra.document_hash,
+            "payload": extra.payload,
+        }
+    ]
+    _publish_fixture_variant(finance_db, coverage={"reports": 3}, reports=rows)
     finance_db.commit()
     latest = _data(finance_api)["candidates"][0]["accounts"][0]["latest_report"]
     assert latest["state"] == "unavailable"
@@ -467,9 +603,7 @@ def test_newer_missing_pdf_does_not_fall_back_to_older_totals(
 def test_checked_account_with_no_report_is_distinct(
     finance_api, finance_db, comparison
 ):
-    for row in list(finance_db.query(m.ElectionFinanceReport)):
-        finance_db.delete(row)
-    finance_db.get(m.ElectionFinanceCollection, COLLECTION).coverage = {"reports": 0}
+    _publish_fixture_variant(finance_db, coverage={"reports": 0}, reports=[])
     finance_db.commit()
     candidate = _data(finance_api)["candidates"][0]
     assert candidate["account_state"] == "checked"
@@ -479,11 +613,29 @@ def test_checked_account_with_no_report_is_distinct(
 def test_amendment_numbers_do_not_rank_different_report_types(
     finance_api, finance_db, comparison
 ):
-    report = _report(finance_db, "3" * 64, "G", "2026-10-19", status="unavailable")
-    payload = deepcopy(report.payload)
-    payload["filing"]["effective_amendment_index"] = 8
-    report.payload = payload
-    finance_db.get(m.ElectionFinanceCollection, COLLECTION).coverage = {"reports": 3}
+    from types import SimpleNamespace
+
+    report = _report(
+        SimpleNamespace(add=lambda row: None, flush=lambda: None),
+        "3" * 64,
+        "G",
+        "2026-10-19",
+        status="unavailable",
+    )
+    report.payload["filing"]["effective_amendment_index"] = 8
+    _publish_fixture_variant(
+        finance_db,
+        coverage={"reports": 3},
+        reports=_fixture_reports(finance_db)
+        + [
+            {
+                "registration_number": report.registration_number,
+                "report_key": report.report_key,
+                "document_hash": None,
+                "payload": report.payload,
+            }
+        ],
+    )
     finance_db.commit()
     latest = _data(finance_api)["candidates"][0]["accounts"][0]["latest_report"]
     assert latest["state"] == "ambiguous_latest_report"
@@ -491,14 +643,15 @@ def test_amendment_numbers_do_not_rank_different_report_types(
 
 
 def test_partial_collection_loss_is_unavailable(finance_api, finance_db, comparison):
-    finance_db.delete(
-        finance_db.get(m.ElectionFinanceReport, (COLLECTION, "-101", "2" * 64))
-    )
-    finance_db.commit()
-    data = _data(finance_api)
-    assert data["report_availability"]["state"] == "unavailable"
-    assert data["candidates"][0]["accounts"][0]["reports"] is None
-    assert data["candidates"][0]["outside_spending"]["total"]["record_count"] == 4
+    from sqlalchemy.exc import SQLAlchemyError
+
+    with pytest.raises(SQLAlchemyError):
+        with finance_db.begin_nested():
+            finance_db.delete(
+                finance_db.get(m.ElectionFinanceReport, (COLLECTION, "-101", "2" * 64))
+            )
+            finance_db.flush()
+    assert _data(finance_api)["report_availability"]["state"] == "available"
 
 
 @pytest.mark.parametrize("changed", ["results", "reports", "payments"])
@@ -522,29 +675,14 @@ def test_each_source_version_change_requires_restart(
         )
         _current(finance_db, "d" * 64)
     elif changed == "reports":
-        previous = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
-        finance_db.add(
-            m.ElectionFinanceCollection(
-                id="f" * 64,
-                election_key=KEY,
-                copied_at=WHEN,
-                first_published_at=WHEN,
-                sources=previous.sources,
-                coverage=previous.coverage,
-            )
+        old_collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+        _publish_fixture_variant(
+            finance_db,
+            coverage={
+                **old_collection.coverage,
+                "scope_note": "New source collection fixture",
+            },
         )
-        finance_db.flush()
-        for report in list(finance_db.query(m.ElectionFinanceReport)):
-            finance_db.add(
-                m.ElectionFinanceReport(
-                    collection_id="f" * 64,
-                    registration_number=report.registration_number,
-                    report_key=report.report_key,
-                    document_hash=report.document_hash,
-                    payload=report.payload,
-                )
-            )
-        finance_db.get(m.ElectionFinanceCurrent, KEY).collection_id = "f" * 64
     else:
         Published(finance_db)
     finance_db.commit()
@@ -561,7 +699,14 @@ def test_missing_catalogue_source_is_unavailable(finance_api, finance_db, compar
 
 
 def test_unpublished_collection_is_hidden(finance_api, finance_db, comparison):
-    finance_db.get(m.ElectionFinanceCollection, COLLECTION).first_published_at = None
+    original = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
+    unpublished = _publish_fixture_variant(
+        finance_db,
+        coverage={**original.coverage, "scope_note": "Unpublished fixture"},
+        make_current=False,
+        published=False,
+    )
+    finance_db.delete(finance_db.get(m.ElectionFinanceCurrent, KEY))
     finance_db.commit()
     data = _data(finance_api)
     assert data["collection_id"] is None
@@ -570,7 +715,7 @@ def test_unpublished_collection_is_hidden(finance_api, finance_db, comparison):
     assert (
         finance_api.get(
             f"{BASE}/finance/sources/{comparison['doc'][0]}",
-            params={"collection_id": COLLECTION},
+            params={"collection_id": unpublished.id},
         ).status_code
         == 404
     )
@@ -766,7 +911,7 @@ def test_missing_report_only_source_preserves_account_evidence(
     finance_api, finance_db, comparison
 ):
     collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
-    collection.sources = [
+    source_values = [
         *collection.sources,
         {
             "sha256": "0" * 64,
@@ -774,6 +919,7 @@ def test_missing_report_only_source_preserves_account_evidence(
             "url": "https://cfb.mn.gov/reports/api/",
         },
     ]
+    _publish_fixture_variant(finance_db, sources=source_values)
     finance_db.commit()
     data = _data(finance_api)
     assert data["report_availability"]["state"] == "unavailable"
@@ -807,7 +953,7 @@ def test_coverage_never_joins_on_name_or_raw_id_alone(
     collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
     coverage = deepcopy(collection.coverage)
     coverage["candidates"][0].update(change)
-    collection.coverage = coverage
+    _publish_fixture_variant(finance_db, coverage=coverage)
     finance_db.commit()
     assert _data(finance_api)["candidates"][0]["finance_coverage"]["state"] == state
 
@@ -816,7 +962,7 @@ def test_duplicate_coverage_key_is_ambiguous(finance_api, finance_db, comparison
     collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
     coverage = deepcopy(collection.coverage)
     coverage["candidates"].append(coverage["candidates"][0])
-    collection.coverage = coverage
+    _publish_fixture_variant(finance_db, coverage=coverage)
     finance_db.commit()
     assert (
         _data(finance_api)["candidates"][0]["finance_coverage"]["state"]
@@ -834,7 +980,7 @@ def test_exact_coverage_preserves_foreign_or_local_collection_gap(
         "Finance sources for this authority have not been recovered in this collection"
     )
     coverage["candidates"][1].update(authority=authority, gap=gap)
-    collection.coverage = coverage
+    _publish_fixture_variant(finance_db, coverage=coverage)
     finance_db.commit()
     candidate = _data(finance_api)["candidates"][1]
     assert candidate["account_state"] == "no_confirmed_link"
@@ -881,7 +1027,7 @@ def test_local_roster_without_party_keeps_result_nonpartisan_designation(
     coverage["candidates"][1].update(
         stable_id=stable, party=source_party, authority="county_local"
     )
-    collection.coverage = coverage
+    _publish_fixture_variant(finance_db, coverage=coverage)
     finance_db.commit()
     actual = _data(finance_api)["candidates"][1]
     assert actual["finance_coverage"]["state"] == expected
@@ -956,25 +1102,23 @@ def test_published_historical_raw_sources_lines_auth_and_corruption(
     body = b'{"name":"<script>"}\n{"amount":"0.00"}\n'
     fingerprint = archive_source(finance_db, store, body)
     historical = "7" * 64
-    finance_db.add(
-        m.ElectionFinanceCollection(
-            id=historical,
-            election_key=KEY,
-            copied_at=WHEN,
-            first_published_at=WHEN,
-            sources=[
-                {
-                    "sha256": fingerprint,
-                    "url": "https://cfb.mn.gov/reports/api/",
-                    "kind": "catalogue",
-                    "request_method": "POST",
-                    "request_form": {"id": "-101", "tabname": "reports_data"},
-                    "private_path": "/not-public",
-                }
-            ],
-            coverage={"reports": 0},
-        )
-    )
+    historical = _publish_fixture_variant(
+        finance_db,
+        sources=[
+            {
+                "sha256": fingerprint,
+                "url": "https://cfb.mn.gov/reports/api/",
+                "kind": "catalogue",
+                "request_method": "POST",
+                "request_form": {"id": "-101", "tabname": "reports_data"},
+                "private_path": "/not-public",
+            }
+        ],
+        coverage={"reports": 0},
+        reports=[],
+        make_current=False,
+        election_key=KEY,
+    ).id
     finance_db.commit()
     monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
     base = f"{BASE}/finance/sources/{fingerprint}"
@@ -1016,9 +1160,14 @@ def test_published_historical_raw_sources_lines_auth_and_corruption(
     row = finance_db.get(m.ElectionResultSource, fingerprint)
     store.objects[row.object_key] = b"corrupt"
     assert finance_api.get(f"{base}/raw", params=params).status_code == 503
-    finance_db.get(m.ElectionFinanceCollection, historical).first_published_at = None
-    finance_db.commit()
-    assert finance_api.get(f"{base}/raw", params=params).status_code == 404
+    from sqlalchemy.exc import SQLAlchemyError
+
+    with pytest.raises(SQLAlchemyError):
+        with finance_db.begin_nested():
+            finance_db.get(
+                m.ElectionFinanceCollection, historical
+            ).first_published_at = None
+            finance_db.flush()
 
 
 def test_account_evidence_keeps_original_collection_locator(finance_api, comparison):
@@ -1034,22 +1183,20 @@ def test_review_source_from_another_published_election_keeps_its_address(
     body = b'{"committee":"retained directory"}\n'
     fingerprint = archive_source(finance_db, store, body)
     historical, other_election = "8" * 64, "mn-2024-11-05-general"
-    finance_db.add(
-        m.ElectionFinanceCollection(
-            id=historical,
-            election_key=other_election,
-            copied_at=WHEN,
-            first_published_at=WHEN,
-            sources=[
-                {
-                    "sha256": fingerprint,
-                    "kind": "candidate_directory",
-                    "url": "https://cfb.mn.gov/reports/api/",
-                }
-            ],
-            coverage={"reports": 0},
-        )
-    )
+    historical = _publish_fixture_variant(
+        finance_db,
+        sources=[
+            {
+                "sha256": fingerprint,
+                "kind": "candidate_directory",
+                "url": "https://cfb.mn.gov/reports/api/",
+            }
+        ],
+        coverage={"reports": 0},
+        reports=[],
+        make_current=False,
+        election_key=other_election,
+    ).id
     finance_db.flush()
     evidence = deepcopy(comparison["args"]["evidence"])
     evidence[1].update(collection_id=historical, sha256=fingerprint)
@@ -1083,25 +1230,16 @@ def test_review_source_from_another_published_election_keeps_its_address(
     assert (
         finance_api.get(wrong, params={"collection_id": historical}).status_code == 404
     )
-    finance_db.get(m.ElectionFinanceCollection, historical).first_published_at = None
-    finance_db.commit()
-    account = _data(finance_api)["candidates"][0]["accounts"][0]
-    register = next(
-        item for item in account["evidence"] if item["kind"] == "committee_register"
-    )
-    assert register["source_state"] == "unavailable"
-    assert "retained_source_url" not in register
-    assert "source_election_key" not in register
+    from sqlalchemy.exc import SQLAlchemyError
+
+    with pytest.raises(SQLAlchemyError):
+        with finance_db.begin_nested():
+            finance_db.get(
+                m.ElectionFinanceCollection, historical
+            ).first_published_at = None
+            finance_db.flush()
     assert (
-        finance_api.get(
-            URL,
-            params={"version": before["version"], "snapshot_id": before["snapshot_id"]},
-        ).status_code
-        == 409
-    )
-    assert (
-        finance_api.get(correct, params={"collection_id": historical}).status_code
-        == 404
+        finance_api.get(correct, params={"collection_id": historical}).content == body
     )
 
 
@@ -1124,7 +1262,9 @@ def test_received_date_is_report_cover_fact_not_cutoff(
     report = finance_db.query(m.ElectionFinanceReport).first()
     payload = deepcopy(report.payload)
     payload["cover"] = {"received_date": "2026-10-26"}
-    report.payload = payload
+    rows = _fixture_reports(finance_db)
+    next(r for r in rows if r["report_key"] == report.report_key)["payload"] = payload
+    _publish_fixture_variant(finance_db, reports=rows)
     finance_db.commit()
     reports = _data(finance_api)["candidates"][0]["accounts"][0]["reports"]
     found = next(item for item in reports if item["report_key"] == report.report_key)
@@ -1140,12 +1280,13 @@ def test_both_official_rosters_keep_windows_1252_source_lines(
     original = "Candidate;Renée\r\n".encode("cp1252")
     fingerprint = archive_source(finance_db, store, original)
     collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
-    collection.sources = [*collection.sources, {"sha256": fingerprint, "kind": kind}]
+    source_values = [*collection.sources, {"sha256": fingerprint, "kind": kind}]
+    variant = _publish_fixture_variant(finance_db, sources=source_values)
     finance_db.commit()
     monkeypatch.setattr(reads, "raw_file_store_from_env", lambda: store)
     response = finance_api.get(
         f"{BASE}/finance/sources/{fingerprint}/lines",
-        params={"collection_id": COLLECTION, "start": 1, "limit": 1},
+        params={"collection_id": variant.id, "start": 1, "limit": 1},
     )
     assert response.status_code == 200
     assert response.json()["data"]["encoding"] == "windows-1252"
@@ -1288,7 +1429,7 @@ def test_register_quotes_are_checked_against_exact_retained_bytes(
     ).encode()
     fingerprint = archive_source(finance_db, store, body)
     collection = finance_db.get(m.ElectionFinanceCollection, COLLECTION)
-    collection.sources = [
+    source_values = [
         *collection.sources,
         {
             "sha256": fingerprint,
@@ -1296,10 +1437,12 @@ def test_register_quotes_are_checked_against_exact_retained_bytes(
             "url": "https://cfb.mn.gov/reports/api/",
         },
     ]
+    variant = _publish_fixture_variant(finance_db, sources=source_values)
     evidence = deepcopy(comparison["args"]["evidence"])
     register = next(item for item in evidence if item["kind"] == "committee_register")
     register.update(
         sha256=fingerprint,
+        collection_id=variant.id,
         column_names=columns,
         literal_fields=fields,
         locator="/data/-101/0",
@@ -1371,3 +1514,21 @@ def test_release_audit_partitions_each_source_row_once_with_nulls_and_duplicates
     }
     assert {row["row_number"] for row in receipt["rows"]} == {1, 2, 3, 4, 7, 8, 9, 10}
     assert receipt["decision_ids"] == [comparison["decision"].id]
+
+
+def test_published_expense_payload_cannot_change_without_generation_id(
+    finance_db, comparison
+):
+    report = finance_db.get(m.ElectionFinanceReport, (COLLECTION, "-101", "1" * 64))
+    from sqlalchemy.exc import SQLAlchemyError
+
+    with pytest.raises(SQLAlchemyError):
+        with finance_db.begin_nested():
+            report.payload = {
+                **report.payload,
+                "campaign_expenses": {
+                    "status": "checked",
+                    "rows": [{"payee": "typed change"}],
+                },
+            }
+            finance_db.flush()

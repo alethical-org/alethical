@@ -45,10 +45,10 @@ describe('disclosure statement words', () => {
     expect(STATEMENT_NOT_READ).toBe('We have this statement, but have not yet read its details');
     expect(STATEMENT_LOADING).toBe('Loading statement details…');
     expect(STATEMENT_FAILED).toBe(
-      'We couldn’t load this statement’s details. You can still open its PDF.',
+      'Couldn’t load this statement’s details. You can still open its PDF.',
     );
     expect(STATEMENT_REFRESH_FAILED).toBe(
-      'We couldn’t refresh this statement’s details. The details below were loaded earlier.',
+      'Couldn’t refresh this statement’s details. The details below were loaded earlier.',
     );
     expect(UNLINKED_HEADING).toBe('Statements not linked to a payment');
     expect(UNLINKED_LEAD).toBe(

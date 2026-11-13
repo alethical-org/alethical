@@ -22,7 +22,7 @@ describe('accessible event announcement', () => {
       'CEO and Founder of Alethical',
       'Alethical.com',
       'The Forward Debate',
-      'Updated October 22, 2026',
+      'Updated Oct 22, 2026',
       '195 River Ave S',
       '6–8 PM CDT',
       'Free admission',
@@ -121,7 +121,7 @@ describe('accessible event announcement', () => {
       [...document.querySelectorAll('.event-published > .event-keep')].map(
         (node) => node.textContent,
       ),
-    ).toEqual(['Published October 7, 2026 ·', 'Updated October 22, 2026']);
+    ).toEqual(['Published Oct 7, 2026 ·', 'Updated Oct 22, 2026']);
   });
   it('keeps an expired announcement readable without inviting a late RSVP', () => {
     const document = new JSDOM(renderEventArticle(event, Date.parse(event.endDate))).window

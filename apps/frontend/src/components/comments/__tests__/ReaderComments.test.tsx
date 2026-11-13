@@ -367,7 +367,7 @@ describe('reader comments', () => {
     await render();
     await type(host.querySelector('textarea')!, 'Original');
     await click('Post comment');
-    expect(host.textContent).toContain('We couldn’t confirm whether your comment was posted');
+    expect(host.textContent).toContain('Couldn’t confirm whether your comment was posted');
     await type(host.querySelector('textarea')!, 'Newer draft');
     await click('Check submission');
     await click('Check submission');
@@ -726,7 +726,7 @@ describe('reader comments', () => {
       host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0].click(),
     );
     expect(host.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t confirm whether your email choices were saved. Try again.',
+      'Couldn’t confirm whether your email choices were saved. Try again.',
     );
     const originalKey = mocks.preferences.mock.calls[0][1].request_key;
     await act(async () =>

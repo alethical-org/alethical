@@ -453,8 +453,8 @@ export function Recipients(_props: { match: RouteMatch }) {
                 {read.changed
                   ? RECORDS_CHANGED
                   : data
-                    ? 'We couldn’t update these results. Previous results are shown.'
-                    : 'We couldn’t load these results'}
+                    ? 'Couldn’t update results. Previous results are shown.'
+                    : 'Couldn’t load results'}
               </Refused>
             </div>
           )}

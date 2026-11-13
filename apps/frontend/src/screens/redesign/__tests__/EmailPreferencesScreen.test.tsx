@@ -128,7 +128,7 @@ it('changes a focused email choice with Space without changing it twice', async 
 it('offers no controls until the saved choices load', async () => {
   mocks.read.mockRejectedValue(new Error('connection lost'));
   await mount();
-  expect(host.textContent).toContain('We couldn’t load your email preferences');
+  expect(host.textContent).toContain('Couldn’t load your email preferences');
   expect(host.querySelector('[role="checkbox"]')).toBeNull();
   expect(host.textContent).not.toContain('Save email preferences');
 });

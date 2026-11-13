@@ -131,8 +131,16 @@ function registerRequests() {
 }
 
 const SEARCH_MATCHES = [
-  { kind: 'candidate_committee', name: 'Example candidate committee', id: '18135' },
-  { kind: 'political_committee_or_fund', name: 'Example education fund', id: '30004' },
+  {
+    kind: 'candidate_committee',
+    name: 'Example candidate committee',
+    id: '18135',
+  },
+  {
+    kind: 'political_committee_or_fund',
+    name: 'Example education fund',
+    id: '30004',
+  },
   { kind: 'party_unit', name: 'Example party unit', id: '40001' },
 ] as const;
 
@@ -194,7 +202,10 @@ describe('Campaign money search across browsing categories', () => {
   it('moves keyboard focus to results after view transitions and to the input on clear', async () => {
     await render('/money?q=Example', (url) => {
       const data = matchingRegister(url);
-      return json({ ...data, page: { limit: 50, offset: 0, has_more: false, total: 8 } });
+      return json({
+        ...data,
+        page: { limit: 50, offset: 0, has_more: false, total: 8 },
+      });
     });
     const full = [...container.querySelectorAll<HTMLAnchorElement>('a')].find(
       (link) => link.textContent?.trim() === 'View all matching candidate committees',
@@ -858,7 +869,7 @@ describe('Campaign money directory', () => {
     let fail = true;
     await render('/money', () => (fail ? new Response('', { status: 500 }) : json(register())));
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load these results. This is a problem on our side and says nothing about who is registered.',
+      'Couldn’t load results. This is a problem on our side and says nothing about who is registered.',
     );
     fail = false;
     const retry = [...container.querySelectorAll('button')].find(
@@ -929,9 +940,7 @@ describe('Campaign money directory', () => {
     expect(container.querySelector('.cm-count')?.textContent).toBe('1 candidate committee');
     await act(async () => release(new Response('', { status: 503 })));
     await settle();
-    expect(container.textContent).toContain(
-      'We couldn’t update these results. Previous results are shown.',
-    );
+    expect(container.textContent).toContain('Couldn’t update results. Previous results are shown.');
     expect(container.textContent).toContain('Hortman (Melissa) Campaign Committee');
   });
 

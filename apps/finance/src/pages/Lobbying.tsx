@@ -154,9 +154,9 @@ function isPrincipals(page: Page | null): page is PrincipalsPage {
 const COUNT = (value: number) => value.toLocaleString('en-US');
 
 const FAILED: Record<DirectoryTab, string> = {
-  lobbyists: 'We couldn’t load the Board’s lobbyist list. This says nothing about who was listed.',
+  lobbyists: 'Couldn’t load the Board’s lobbyist list. This says nothing about who was listed.',
   principals:
-    'We couldn’t load the Board’s principal records. This says nothing about what was reported or registered.',
+    'Couldn’t load the Board’s principal records. This says nothing about what was reported or registered.',
 };
 const LABELS: Record<DirectoryTab, string> = {
   lobbyists: 'Lobbyists',
@@ -281,9 +281,7 @@ function DirectoryGroup({
       {(read.failed || read.notFound) && (
         <div className="lb-notice">
           <Refused onRetry={read.retry} retrying={read.pending}>
-            {reported
-              ? 'We couldn’t update these results. Previous results are shown.'
-              : FAILED[tab]}
+            {reported ? 'Couldn’t update results. Previous results are shown.' : FAILED[tab]}
           </Refused>
         </div>
       )}
@@ -298,7 +296,10 @@ function DirectoryGroup({
             <Dropdown
               name={tab === 'lobbyists' ? 'Contribution year' : 'Spending year'}
               value={shownYear}
-              options={yearOptions.map((value) => ({ value: String(value), label: String(value) }))}
+              options={yearOptions.map((value) => ({
+                value: String(value),
+                label: String(value),
+              }))}
               onChange={(next) => onChange({ year: next === defaultYear ? '' : next, page: 1 })}
             />
           )}

@@ -386,7 +386,7 @@ export function CandidateClaimPanel({
               Platform.OS === 'web' ? ({ textWrap: 'pretty' } as TextStyle) : null,
             ]}
           >
-            We couldn’t load the campaign statement
+            Couldn’t load the campaign statement
           </Text>
           <ProfileClaimButton
             label="Try again"
@@ -423,7 +423,7 @@ export function CandidateClaimPanel({
             <AccessLoading />
           ) : previewAccount === 'error' ? (
             <View role="alert" style={styles.accessRow}>
-              <Text style={candidateText.strong}>We couldn’t load your profile claim status</Text>
+              <Text style={candidateText.strong}>Couldn’t load your profile claim status</Text>
               <CandidateButton
                 kind="outline"
                 icon="none"

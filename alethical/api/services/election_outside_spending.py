@@ -193,7 +193,13 @@ def _context(
 
 
 def source_body(
-    db: Session, *, election_key, election_snapshot_id, version, release_id
+    db: Session,
+    *,
+    election_key,
+    election_snapshot_id,
+    version,
+    release_id,
+    source_hash=None,
 ):
     """Return the exact published CSV, not a newly ordered vendor download."""
     context, release = _context(
@@ -208,6 +214,8 @@ def source_body(
     )
     if original is None:
         _unavailable()
+    if source_hash is not None and source_hash != original.content_hash:
+        _changed()
     retained = db.get(m.CampaignFinanceSnapshotBody, original.id)
     if retained is None or retained.compression != "gzip":
         _unavailable()

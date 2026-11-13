@@ -120,11 +120,11 @@ export const STATEMENT_LOADING = 'Loading statement details…';
 
 /** S8, when nothing has loaded yet. */
 export const STATEMENT_FAILED =
-  'We couldn’t load this statement’s details. You can still open its PDF.';
+  'Couldn’t load this statement’s details. You can still open its PDF.';
 
 /** R1, when a refresh fails and the details loaded earlier stay on screen. */
 export const STATEMENT_REFRESH_FAILED =
-  'We couldn’t refresh this statement’s details. The details below were loaded earlier.';
+  'Couldn’t refresh this statement’s details. The details below were loaded earlier.';
 
 export const STATEMENT_SCHEDULE = 'Schedule A1';
 export const STATEMENT_COLUMNS = ['Name', 'City, state', 'Amount'] as const;
@@ -227,9 +227,9 @@ export const UNLINKED_LEAD =
 export const UNLINKED_LOADING = 'Loading these statements…';
 /** When a refresh fails and the list loaded earlier stays on screen. */
 export const UNLINKED_REFRESH_FAILED =
-  'We couldn’t refresh these statements. The statements below were loaded earlier.';
+  'Couldn’t refresh statements. The statements below were loaded earlier.';
 export const UNLINKED_FAILED =
-  'We couldn’t load these statements. This is a problem on our side and says nothing about the committee.';
+  'Couldn’t load statements. This is a problem on our side and says nothing about the committee.';
 export const UNLINKED_FIELD_LABELS = {
   donor: 'Donor',
   recipient: 'Recipient',

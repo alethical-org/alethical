@@ -303,7 +303,7 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
           ) : group && !selected ? (
             <View style={styles.card}>
               <Text style={styles.h3}>
-                We couldn’t find this office, district or court seat in our records
+                Couldn’t find this office, district or court seat in our records
               </Text>
               <Pressable
                 {...linkProps(directoryHref, () => navigation.setParams(directoryParams))}

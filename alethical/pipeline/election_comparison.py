@@ -12,6 +12,7 @@ import json
 import re
 import tempfile
 from collections import defaultdict
+from contextlib import ExitStack
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -27,26 +28,71 @@ class ComparisonImportError(ValueError):
     """A failed validation must not replace the last published returns."""
 
 
+def _hash_json(hasher, value):
+    encoder = json.JSONEncoder(
+        sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    for chunk in encoder.iterencode(value):
+        hasher.update(chunk.encode())
+
+
 def digest(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(
-            value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-        ).encode()
-    ).hexdigest()
+    """Hash the old canonical bytes without a complete encoded copy."""
+    hasher = hashlib.sha256()
+    _hash_json(hasher, value)
+    return hasher.hexdigest()
 
 
-def generation_digest(generation: dict) -> str:
-    """Hash data, not observation time or incidental iteration order."""
-    content = {k: v for k, v in generation.items() if k not in {"id", "fetched_at"}}
+def _ordered_generation_digest(generation, *, races, precincts, strict=False):
+    """Shared canonical writer for Python-sorted rows and ordered DB cursors.
+
+    Only the two row arrays are streamed. Other top fields, including unknown
+    legacy fields, retain their exact old canonical encoding and exclusions.
+    """
+    content = {
+        k: v
+        for k, v in generation.items()
+        if k not in {"id", "fetched_at", "races", "precincts"}
+    }
     content["sources"] = sorted(
         ({k: v for k, v in s.items() if k != "fetched_at"} for s in content["sources"]),
         key=lambda s: (s["sha256"], s.get("url", "")),
     )
-    content["races"] = sorted(content["races"], key=lambda r: r["id"])
-    content["precincts"] = sorted(
-        content["precincts"], key=lambda r: (r["race_id"], r["key"])
+    content.update(races=races, precincts=precincts)
+    hasher = hashlib.sha256()
+    hasher.update(b"{")
+    for index, field in enumerate(sorted(content)):
+        if index:
+            hasher.update(b",")
+        _hash_json(hasher, field)
+        hasher.update(b":")
+        if field not in {"races", "precincts"}:
+            _hash_json(hasher, content[field])
+            continue
+        hasher.update(b"[")
+        previous = None
+        for row_index, row in enumerate(content[field]):
+            key = row["id"] if field == "races" else (row["race_id"], row["key"])
+            if strict and previous is not None and key <= previous:
+                raise ComparisonImportError("Staged records are not uniquely ordered")
+            previous = key
+            if row_index:
+                hasher.update(b",")
+            _hash_json(hasher, row)
+        hasher.update(b"]")
+    hasher.update(b"}")
+    return hasher.hexdigest()
+
+
+def generation_digest(generation: dict) -> str:
+    """Hash data, not observation time or incidental iteration order."""
+    return _ordered_generation_digest(
+        generation,
+        races=sorted(generation["races"], key=lambda r: r["id"]),
+        precincts=sorted(
+            generation["precincts"], key=lambda r: (r["race_id"], r["key"])
+        ),
     )
-    return digest(content)
 
 
 def archive_source(db: Session, store, body: bytes) -> str:
@@ -270,9 +316,15 @@ def _stage_generation(db: Session, generation: dict) -> str:
         (m.ElectionComparisonRace, "races"),
         (m.ElectionComparisonPrecinct, "precincts"),
     ):
-        rows = [{"snapshot_id": snapshot_id, **r} for r in generation[key]]
+        rows = generation[key]
         for offset in range(0, len(rows), 250):
-            db.execute(insert(table), rows[offset : offset + 250])
+            db.execute(
+                insert(table),
+                [
+                    {"snapshot_id": snapshot_id, **r}
+                    for r in rows[offset : offset + 250]
+                ],
+            )
     return snapshot_id
 
 
@@ -330,16 +382,6 @@ def publish_generation(
 
     # Counts alone cannot detect a changed vote. Re-read staged data before
     # exposing its fingerprint, including during a restore or repeat publish.
-    def stored_rows(model, fields):
-        return [
-            {field: getattr(row, field) for field in fields}
-            for row in db.scalars(
-                select(model)
-                .where(model.snapshot_id == snapshot_id)
-                .execution_options(populate_existing=True)
-            )
-        ]
-
     restored = {
         "format": 1,
         "election_key": candidate.election_key,
@@ -347,29 +389,42 @@ def publish_generation(
         "stage": candidate.stage,
         "sources": candidate.sources,
         "coverage": candidate.coverage,
-        "races": stored_rows(
-            m.ElectionComparisonRace,
-            (
-                "id",
-                "label",
-                "office_id",
-                "jurisdiction",
-                "result_status",
-                "payload",
-            ),
-        ),
-        "precincts": stored_rows(
-            m.ElectionComparisonPrecinct,
-            (
-                "race_id",
-                "key",
-                "name",
-                "county",
-                "payload",
-            ),
-        ),
     }
-    if generation_digest(restored) != snapshot_id:
+    with ExitStack() as cursors:
+
+        def stored_rows(model, fields, order):
+            result = cursors.enter_context(
+                db.execute(
+                    select(*(getattr(model, field) for field in fields))
+                    .where(model.snapshot_id == snapshot_id)
+                    .order_by(*(getattr(model, field).collate("C") for field in order))
+                    .execution_options(yield_per=250)
+                )
+            )
+            return (dict(row) for row in result.mappings())
+
+        actual = _ordered_generation_digest(
+            restored,
+            races=stored_rows(
+                m.ElectionComparisonRace,
+                (
+                    "id",
+                    "label",
+                    "office_id",
+                    "jurisdiction",
+                    "result_status",
+                    "payload",
+                ),
+                ("id",),
+            ),
+            precincts=stored_rows(
+                m.ElectionComparisonPrecinct,
+                ("race_id", "key", "name", "county", "payload"),
+                ("race_id", "key"),
+            ),
+            strict=True,
+        )
+    if actual != snapshot_id:
         raise ComparisonImportError("Staged content fingerprint changed")
     if previous and not restore:
         old = db.get(m.ElectionComparisonSnapshot, previous, populate_existing=True)

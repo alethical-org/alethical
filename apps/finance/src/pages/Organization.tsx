@@ -507,7 +507,7 @@ export function Organization({ match }: { match: RouteMatch }) {
   } else if (read.failed)
     content = (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load this record
+        Couldn’t load record
       </Refused>
     );
   else content = <LoadingLine>Loading…</LoadingLine>;

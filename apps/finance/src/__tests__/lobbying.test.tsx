@@ -834,7 +834,7 @@ describe('Lobbying directory', () => {
       ),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load the Board’s lobbyist list. This says nothing about who was listed.',
+      'Couldn’t load the Board’s lobbyist list. This says nothing about who was listed.',
     );
     expect(text()).not.toContain('just now');
     expect(text()).not.toContain('1,673 registered lobbyists');
@@ -861,7 +861,7 @@ describe('Lobbying directory', () => {
       ),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      'We couldn’t load the Board’s principal records. This says nothing about what was reported or registered.Try again',
+      'Couldn’t load the Board’s principal records. This says nothing about what was reported or registered.Try again',
     );
     expect(text()).not.toContain('No principal matches');
   });
@@ -1470,7 +1470,7 @@ describe('Lobbyist record', () => {
     };
     await render('/lobbying/lobbyists/141', (match) => <Lobbyist match={match} />, ANSWER(failed));
     expect(text()).toContain(
-      'We couldn’t load the state’s campaign contribution file. This does not mean no donation was filed under this registration number.',
+      'Couldn’t load the state’s campaign contribution file. This does not mean no donation was filed under this registration number.',
     );
     expect(text()).not.toContain('No contribution records match');
     expect(text()).not.toContain('Campaign contribution file copied');
@@ -1554,7 +1554,7 @@ describe('Lobbyist record', () => {
       ANSWER(null, 500),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.',
+      'Couldn’t load the Board’s lobbying record. This says nothing about what was reported.',
     );
     expect(text()).not.toContain('just now');
     expect(button('Try again')).toBeDefined();
@@ -1759,10 +1759,10 @@ describe('Principal record', () => {
       ),
     );
     expect(text()).toContain(
-      'We couldn’t load this principal’s spending rows. This says nothing about what was reported.',
+      'Couldn’t load this principal’s spending rows. This says nothing about what was reported.',
     );
     expect(text()).toContain(
-      'We couldn’t load the Board’s lobbyist list. This does not mean nobody was listed for this principal.',
+      'Couldn’t load the Board’s lobbyist list. This does not mean nobody was listed for this principal.',
     );
     expect(text()).not.toContain('names no lobbyist');
     expect(container.querySelector('table')).toBeNull();
@@ -1804,7 +1804,7 @@ describe('Principal record', () => {
       ANSWER(null, 500),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.',
+      'Couldn’t load the Board’s lobbying record. This says nothing about what was reported.',
     );
   });
 
@@ -1888,7 +1888,7 @@ describe('Principal record', () => {
         (match) => <Principal match={match} />,
         connections(() => new Response('', { status: 500 })),
       );
-      expect(card()?.textContent).toContain('We couldn’t load these TV station files');
+      expect(card()?.textContent).toContain('Couldn’t load TV station files');
       expect(card()?.textContent).toContain('Try again');
       expect(card()?.textContent).not.toContain('problem on our side');
     });

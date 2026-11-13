@@ -13,6 +13,10 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
+from alethical.pipeline.election_account_quote_evidence import (
+    QUOTE_KINDS,
+    validate_quote,
+)
 from alethical.pipeline.election_comparison import (
     ComparisonImportError,
     digest,
@@ -41,9 +45,21 @@ def _candidate(race: m.ElectionComparisonRace, candidate_id: str) -> dict:
     return found[0]
 
 
-def _validate_quotes(db: Session, item: dict, registration_number: str) -> None:
+def _validate_quotes(
+    db: Session, item: dict, registration_number: str, *, store=None
+) -> None:
     """Check supplied literal claims against retained source data, not typed notes."""
     kind = item.get("kind")
+    if kind in QUOTE_KINDS:
+        if store is None:
+            try:
+                store = raw_file_store_from_env()
+            except Exception as error:
+                raise ComparisonImportError(
+                    "Quoted original store is unavailable"
+                ) from error
+        validate_quote(db, store, item, registration_number)
+        return
     fields = item.get("literal_fields")
     literal_row = item.get("literal_row")
     if fields is None and literal_row is None:
@@ -78,7 +94,9 @@ def _validate_quotes(db: Session, item: dict, registration_number: str) -> None:
     if source is None:
         raise ComparisonImportError("Quoted source is not retained")
     try:
-        body = read_source(raw_file_store_from_env(), source)
+        body = read_source(
+            store if store is not None else raw_file_store_from_env(), source
+        )
         if kind == "ballot":
             try:
                 content = body.decode("utf-8-sig")
@@ -148,10 +166,7 @@ def record_decision(
     race = db.get(m.ElectionComparisonRace, (snapshot_id, race_id))
     if snapshot is None or race is None:
         raise ComparisonImportError("Review needs a retained election and race")
-    if authority != "mn_cfb":
-        raise ComparisonImportError(
-            "This review adapter supports Minnesota Board accounts"
-        )
+    external = authority != "mn_cfb"
     compatible = sorted(set(compatible_decision_ids or []))
     if any(type(value) is not int or value < 1 for value in compatible):
         raise ComparisonImportError(
@@ -164,15 +179,16 @@ def record_decision(
         raise ComparisonImportError("A proposal is not a review decision")
     if (
         not registration_number
-        or len(registration_number) > 20
+        or len(registration_number) > (160 if external else 20)
         or registration_number.strip() != registration_number
     ):
         raise ComparisonImportError("An exact source registration number is required")
     if not reason.strip() or not reviewed_by.strip():
         raise ComparisonImportError("Record the review reason and accountable reviewer")
-    if not period_start <= period_end or {period_start.year, period_end.year} != {
-        snapshot.election_date.year
-    }:
+    if not period_start <= period_end or (
+        not external
+        and {period_start.year, period_end.year} != {snapshot.election_date.year}
+    ):
         raise ComparisonImportError(
             "Attribution dates must describe the selected calendar year"
         )
@@ -188,9 +204,29 @@ def record_decision(
         raise ComparisonImportError(
             "Confirmation needs ballot, register and report-cover evidence"
         )
-    for item in evidence:
+    if external:
+        from alethical.pipeline.election_external_finance import (
+            review_generation_id,
+            validate_account_review,
+        )
+
+        review_generation_id(evidence)
+        validate_account_review(
+            db,
+            raw_file_store_from_env(),
+            snapshot=snapshot,
+            race=race,
+            candidate=candidate,
+            registration_number=registration_number,
+            authority=authority,
+            period_start=period_start,
+            period_end=period_end,
+            evidence=evidence,
+            decision=decision,
+        )
+    for item in [] if external else evidence:
         fingerprint = item.get("sha256")
-        if item.get("kind") == "report_cover":
+        if item.get("kind") in {"report_cover", "report_excerpt"}:
             document = db.get(m.CampaignFinanceReportDocument, fingerprint)
             if document is None or document.registration_number != registration_number:
                 raise ComparisonImportError(
@@ -393,16 +429,32 @@ def applicable_accounts(
                     "state": "identity_changed",
                 }
             )
-        elif any(
+        elif authority != "mn_cfb" and not _external_available(
+            db, row, race, candidate
+        ):
+            gaps.append(
+                {
+                    "registration_number": row.registration_number,
+                    "state": "sources_unavailable",
+                }
+            )
+        elif authority == "mn_cfb" and any(
             db.get(
                 m.CampaignFinanceReportDocument
-                if item.get("kind") == "report_cover"
+                if item.get("kind") in {"report_cover", "report_excerpt"}
                 else m.ElectionResultSource,
                 item.get("sha256"),
             )
             is None
             for item in row.evidence
         ):
+            gaps.append(
+                {
+                    "registration_number": row.registration_number,
+                    "state": "sources_unavailable",
+                }
+            )
+        elif authority == "mn_cfb" and not _quotes_available(db, row):
             gaps.append(
                 {
                     "registration_number": row.registration_number,
@@ -445,3 +497,19 @@ def applicable_accounts(
         "accounts": accounts,
         "gaps": gaps,
     }
+
+
+def _quotes_available(db, row):
+    try:
+        for item in row.evidence:
+            if item.get("kind") in QUOTE_KINDS:
+                _validate_quotes(db, item, row.registration_number)
+        return True
+    except ComparisonImportError:
+        return False
+
+
+def _external_available(db, row, race, candidate):
+    from alethical.pipeline.election_external_finance import account_review_available
+
+    return account_review_available(db, row, race, candidate)

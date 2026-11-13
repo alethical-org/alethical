@@ -391,7 +391,7 @@ export function Person({ match }: { match: RouteMatch }) {
             }}
             retrying={loading}
           >
-            We couldn’t load this record
+            Couldn’t load record
           </Refused>
         )}
         {notFound && (

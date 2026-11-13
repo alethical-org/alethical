@@ -197,7 +197,7 @@ function formatNumber(value: number) {
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('en-US', {
-    month: 'long',
+    month: 'short',
     day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC',
@@ -1537,7 +1537,7 @@ function PrivateTrafficScreen({ accessToken }: { accessToken: string }) {
             <Text accessibilityLiveRegion="polite" style={styles.privateState}>
               {accessIssue === 'denied'
                 ? 'Access to Site Metrics has ended. Sign in again if you need access.'
-                : 'We couldn’t confirm access to Site Metrics. Refresh to try again.'}
+                : 'Couldn’t confirm access to Site Metrics. Refresh to try again.'}
             </Text>
           </Container>
           <Footer
@@ -1749,7 +1749,7 @@ export function TrafficScreen() {
       : access.state === 'restricted'
         ? 'Restricted access. This account cannot view Site Metrics.'
         : access.state === 'error'
-          ? 'We couldn’t check access. Try again.'
+          ? 'Couldn’t check access. Try again.'
           : 'Checking access…';
   return (
     <PageBackground>

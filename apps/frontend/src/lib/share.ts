@@ -223,7 +223,7 @@ export function homePageMetadata(): PageMetadata {
   });
 }
 
-export const NOT_FOUND_HEADING = 'We couldn’t find that page';
+export const NOT_FOUND_HEADING = 'Couldn’t find that page';
 export const NOT_FOUND_DESCRIPTION = 'The address may be mistyped, or the page may have moved.';
 
 export function notFoundPageMetadata(): PageMetadata {

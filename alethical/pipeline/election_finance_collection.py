@@ -15,6 +15,7 @@ import json
 import re
 import tempfile
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -36,7 +37,9 @@ from alethical.pipeline.candidate_catalogue import (
     parse_candidate_catalogue,
     parse_local_candidate_catalogue,
 )
-from alethical.pipeline.election_comparison import archive_source, digest
+from alethical.pipeline.election_comparison import archive_source, digest, read_source
+from alethical.pipeline.raw_file_store import raw_file_store_from_env
+from alethical.pipeline.election_campaign_expenses import extract_campaign_expenses
 
 
 class FinanceCollectionError(ValueError):
@@ -56,6 +59,25 @@ def json_value(value):
     return json.loads(json.dumps(value, default=str))
 
 
+def catalogue_report_key(report):
+    """Exact effective version, independent of whether its PDF is collected yet.
+
+    This is the existing report fingerprint with a null document hash. Cutoff and
+    other catalogue metadata are checked separately against the retained source.
+    Amendment numbers only rank versions inside this request's own report series.
+    """
+    return digest(
+        [
+            report.registration_number,
+            report.filing_year,
+            report.report_type,
+            report.effective_amendment_index,
+            report.special_election,
+            None,
+        ]
+    )
+
+
 def collection_digest(collection):
     value = {k: v for k, v in collection.items() if k not in {"id", "copied_at"}}
     value["sources"] = sorted(
@@ -67,7 +89,9 @@ def collection_digest(collection):
     return digest(value)
 
 
-def extract_report_evidence(body, reg, latest, parsed, financial):
+def extract_report_evidence(
+    body, reg, latest, parsed, financial, *, include_public_subsidy=False
+):
     from pypdf import PdfReader
     from pypdf.errors import PyPdfError
 
@@ -193,7 +217,12 @@ def extract_report_evidence(body, reg, latest, parsed, financial):
                 errors.append(f"{code} schedule differs from summary")
     cashcheck = {"status": "not_same_period"}
     year = financial.years.get(2026)
-    if year and str(year.reported_through) == fields.get("period_end"):
+    same_overview_period = bool(
+        year
+        and fields.get("period_start") == f"{year.year}-01-01"
+        and str(year.reported_through) == fields.get("period_end")
+    )
+    if year and same_overview_period:
         cashcheck = {"status": "same_period", "results": {}}
         for key in ("campaign_expenditures", "total_expenditures"):
             if key in figures and key in year.amounts:
@@ -204,6 +233,44 @@ def extract_report_evidence(body, reg, latest, parsed, financial):
                 cashcheck["results"][key] = same
                 if not same:
                     errors.append(f"Official financial tab cash differs for {key}")
+    subsidy_gap = None
+    if include_public_subsidy:
+        # The subsidy receipt has cash and total cells, with blank unpaid/in-kind
+        # columns. It must never enter contributions or campaign expenditure.
+        subsidy_gap = "Public subsidy figure could not be read from the report"
+        if len(summary) == 2:
+            rows = re.findall(
+                r"^\s*7\s+(.+?)(?=^\s*\d{1,2}\s+|\Z)",
+                summary[1].split("Loans and Unpaid Obligations Summary")[0],
+                re.M | re.S,
+            )
+            if len(rows) == 1 and re.search(r"public\s+subsidy", rows[0], re.I):
+                cells = re.findall(
+                    r"(?<![\w./])(?:\(?-?\$?\d[\d,]*\.\d{2}\)?)(?!\w)",
+                    rows[0],
+                )
+                amounts = [d.parse_money(cell) for cell in cells]
+                if len(amounts) == 2 and amounts[0] is not None:
+                    if amounts[0] == amounts[1]:
+                        subsidy_gap = None
+                        if (
+                            year
+                            and same_overview_period
+                            and "public_subsidy_payments" in year.amounts
+                            and year.amounts["public_subsidy_payments"] != amounts[0]
+                        ):
+                            subsidy_gap = (
+                                "Public subsidy sources disagree for this period"
+                            )
+                        else:
+                            figures["public_subsidy_payments"] = {
+                                "cash": str(amounts[0]),
+                                "total": str(amounts[1]),
+                                "source_page": 2,
+                                "source_lines": [7],
+                            }
+                    else:
+                        subsidy_gap = "Public subsidy cash and total cells disagree"
     return {
         "status": "requires_review"
         if errors or parsed.errors
@@ -217,6 +284,7 @@ def extract_report_evidence(body, reg, latest, parsed, financial):
         "page_count": pages,
         "complete_election_spending": False,
         "identity_confirmation": False,
+        **({"public_subsidy_gap": subsidy_gap} if include_public_subsidy else {}),
     }
 
 
@@ -456,11 +524,15 @@ def prepare_collection(
     directory_file: Path,
     directory_metadata: Path,
     identity_manifest: Path | None = None,
+    include_campaign_expenses: bool = False,
 ):
     """Read a bounded recovery bundle and independently reconstruct its figures.
 
     Returns (collection, source bodies by hash, PDF bodies by hash). No database
-    or network access. Earlier catalogue entries retain explicit unavailable figures.
+    or network access. Each exact effective report can carry its own document in
+    ``documents``, keyed by catalogue_report_key and carrying its source ``filing``.
+    The legacy singular ``document`` still means the unique latest regular report.
+    Cumulative reporting periods are retained separately, never added together.
     """
     manifest = json.loads((directory / "recovery-manifest.json").read_text())
     recovery = json.loads((directory / "recovered-evidence.json").read_text())
@@ -633,7 +705,27 @@ def prepare_collection(
             ]
             ambiguous_latest = len(newest_reports) != 1
         latest = newest_reports[0] if newest_reports and not ambiguous_latest else None
+        exact_documents = item.get("documents", {})
+        require(isinstance(exact_documents, dict), "Expected exact report documents")
+        selected_by_key = {catalogue_report_key(r): r for r in selected}
+        require(
+            len(selected_by_key) == len(selected), "Duplicate catalogue report identity"
+        )
+        for key, document in exact_documents.items():
+            exact_report = selected_by_key.get(key)
+            require(
+                exact_report is not None
+                and isinstance(document, dict)
+                and document.get("filing") == json_value(asdict(exact_report))
+                and exact_report.cut_off_date is not None
+                and exact_report.cut_off_date <= copied.date()
+                and exact_report.effective_amendment_index is not None,
+                "Document does not identify an available effective catalogue report",
+            )
         for report in selected:
+            doc = exact_documents.get(catalogue_report_key(report))
+            if doc is None and report == latest:
+                doc = item.get("document")
             document_hash = None
             summary_year = financial.years.get(report.filing_year)
             data = {
@@ -646,10 +738,7 @@ def prepare_collection(
                     "reported_through": str(summary_year.reported_through)
                     if summary_year and summary_year.reported_through
                     else None,
-                    "matches_report_period": bool(
-                        summary_year
-                        and summary_year.reported_through == report.cut_off_date
-                    ),
+                    "matches_report_period": False,
                     "amounts": json_value(summary_year.amounts)
                     if summary_year
                     else None,
@@ -662,15 +751,14 @@ def prepare_collection(
                 "identity_confirmation": False,
                 "complete_election_spending": False,
             }
-            if report == latest and item.get("document", {}).get("outcome") == "served":
+            if doc and doc.get("outcome") == "served":
                 if (
                     report.effective_amendment_index is None
                     or report.cut_off_date is None
                 ):
                     raise FinanceCollectionError(
-                        "Latest report lacks an exact series or cutoff"
+                        "Report lacks an exact series or cutoff"
                     )
-                doc = item["document"]
                 filename = doc["local_file"]
                 require(
                     Path(filename).name == filename,
@@ -693,9 +781,26 @@ def prepare_collection(
                     )
                     require(
                         original is not None
+                        and original["what"] == "report_document"
+                        and original["url"] == d.document_url()
+                        and original["status"] == 200
                         and original["sha256"] == doc["sha256"]
                         and original["form"] == expected,
                         "PDF request identity changed",
+                    )
+                    require(
+                        all(
+                            doc.get(key, value) == value
+                            for key, value in {
+                                "url": original["url"],
+                                "request_method": "POST",
+                                "request_form": original["form"],
+                                "status": original["status"],
+                                "bytes": original["bytes"],
+                                "copied_at": original["completed_at"],
+                            }.items()
+                        ),
+                        "PDF response metadata changed",
                     )
                 else:
                     require(
@@ -705,7 +810,12 @@ def prepare_collection(
                     )
                 parsed = d.parse_report_document(pdf)
                 extraction = json_value(
-                    extract_report_evidence(pdf, reg, report, parsed, financial)
+                    extract_report_evidence(
+                        pdf, reg, report, parsed, financial, include_public_subsidy=True
+                    )
+                )
+                data["official_summary"]["matches_report_period"] = (
+                    extraction["summary_cash_check"]["status"] == "same_period"
                 )
                 document_hash = doc["sha256"]
                 documents[document_hash] = pdf
@@ -737,7 +847,7 @@ def prepare_collection(
                     extraction["status"] == "parsed_with_arithmetic_checks"
                     and valid_period
                     and set(extraction["figures"])
-                    == {
+                    >= {
                         "contributions_received",
                         "campaign_expenditures",
                         "total_expenditures",
@@ -747,12 +857,19 @@ def prepare_collection(
                         figures=extraction["figures"],
                         figure_status="source_verified",
                         unavailable_reason=None,
+                        public_subsidy_gap=extraction.get("public_subsidy_gap"),
                     )
                 else:
                     data["unavailable_reason"] = (
                         "; ".join(extraction["errors"] + extraction["parser_errors"])
                         or "Report period or required summary figures could not be verified"
                     )
+            elif doc is not None:
+                data["unavailable_reason"] = (
+                    doc.get("note")
+                    or doc.get("error")
+                    or f"Report document request outcome: {doc.get('outcome', 'unknown')}"
+                )
             elif ambiguous_latest and report.cut_off_date == newest:
                 data["unavailable_reason"] = "ambiguous_latest_report"
             elif report == latest:
@@ -790,7 +907,7 @@ def prepare_collection(
             "report_status_counts": dict(
                 Counter(r["payload"]["figure_status"] for r in reports)
             ),
-            "scope_note": "Latest recovered report figures per committee; earlier catalogue periods remain listed. Candidate attribution requires a separate confirmed decision.",
+            "scope_note": "Effective report figures by actual reporting period; overlapping cumulative reports must not be summed. Candidate attribution requires a separate confirmed decision.",
         }
     )
     source_hashes = {s["sha256"] for s in sources}
@@ -805,7 +922,183 @@ def prepare_collection(
     }
     collection["id"] = collection_digest(collection)
     validate_collection(collection)
+    if include_campaign_expenses:
+        collection = add_campaign_expenses(collection, originals, documents)
     return collection, originals, documents
+
+
+EXPENSE_EXTRACTION_VERSION = "b1-ce-2026-v1"
+
+
+def _campaign_expense_payload(body, payload):
+    if payload["figure_status"] != "source_verified":
+        return {
+            "schema_version": 1,
+            "extraction_version": EXPENSE_EXTRACTION_VERSION,
+            "source_sha256": file_hash(body),
+            "status": "unavailable",
+            "rows": [],
+            "proposals": [],
+            "errors": ["report_figures_unavailable"],
+            "gaps": ["report_figures_unavailable"],
+        }
+    result = extract_campaign_expenses(
+        body,
+        period_start=payload["period_start"],
+        period_end=payload["period_end"],
+        expected_totals=payload["figures"]["campaign_expenditures"],
+    )
+    return {**result, "extraction_version": EXPENSE_EXTRACTION_VERSION}
+
+
+def reproduce_campaign_expenses(row, body, financial_body):
+    """Reproduce parent checks and detail from original bytes, never typed JSON.
+
+    Used at preparation, retention, staging and publication. Public reads use the
+    immutable generation after current source integrity checks; they do not parse.
+    """
+    payload = row["payload"]
+    require(file_hash(body) == row["document_hash"], "Expense PDF fingerprint changed")
+    filing = dict(payload["filing"])
+    for key in ("cut_off_date", "termination_date"):
+        if filing.get(key):
+            filing[key] = date.fromisoformat(filing[key])
+    report = f.CatalogueReport(**filing)
+    financial = f.FinancialTab()
+    if payload.get("financial_source"):
+        require(
+            financial_body is not None
+            and file_hash(financial_body) == payload["financial_source"]["sha256"],
+            "Expense financial original missing or changed",
+        )
+        financial = f.parse_financial_tab(
+            json.loads(financial_body),
+            f.FilerKind.candidate_committee,
+            [report.filing_year, report.filing_year + 1],
+        )
+    reproduced = json_value(
+        extract_report_evidence(
+            body,
+            row["registration_number"],
+            report,
+            d.parse_report_document(body),
+            financial,
+            include_public_subsidy="public_subsidy_gap"
+            in payload.get("extraction", {}),
+        )
+    )
+    require(
+        reproduced == payload.get("extraction"),
+        "Expense parent evidence does not reproduce from originals",
+    )
+    valid = (
+        reproduced["status"] == "parsed_with_arithmetic_checks"
+        and reproduced["cover"].get("period_start") == payload.get("period_start")
+        and date.fromisoformat(payload["period_start"]).year == report.filing_year
+        and payload.get("period_end") == str(report.cut_off_date)
+        and reproduced["cover"].get("period_end") == payload.get("period_end")
+        and {"contributions_received", "campaign_expenditures", "total_expenditures"}
+        <= set(reproduced["figures"])
+    )
+    require(
+        (payload.get("figure_status") == "source_verified") == valid,
+        "Expense parent availability changed",
+    )
+    require(
+        payload.get("figures") == (reproduced["figures"] if valid else None),
+        "Expense parent figures changed",
+    )
+    return _campaign_expense_payload(body, payload)
+
+
+def _reproduce_expense_job(job):
+    row, body, financial = job
+    return reproduce_campaign_expenses(row, body, financial)
+
+
+def _require_expense_reproduction(rows, originals, documents, message):
+    jobs = [
+        (
+            row,
+            documents[row["document_hash"]],
+            originals.get(row["payload"]["financial_source"]["sha256"])
+            if row["payload"].get("financial_source")
+            else None,
+        )
+        for row in rows
+        if "campaign_expenses" in row["payload"]
+    ]
+    if not jobs:
+        return
+
+    def compare(results):
+        for job, result in zip(jobs, results):
+            require(result == job[0]["payload"]["campaign_expenses"], message)
+
+    if len(jobs) >= 16:
+        with ProcessPoolExecutor(max_workers=4) as pool:
+            compare(pool.map(_reproduce_expense_job, jobs, chunksize=1))
+    else:
+        compare(map(_reproduce_expense_job, jobs))
+
+
+def add_campaign_expenses(collection, originals, documents):
+    """Return a new immutable generation; leave legacy collections/IDs untouched."""
+    validate_collection(collection)
+    value = json_value(collection)
+    for row in value["reports"]:
+        if not row["document_hash"]:
+            continue
+        payload = row["payload"]
+        source = payload.get("financial_source")
+        body = documents.get(row["document_hash"])
+        require(body is not None, "Expense PDF original missing")
+        payload["campaign_expenses"] = reproduce_campaign_expenses(
+            row, body, originals.get(source["sha256"]) if source else None
+        )
+    value["id"] = collection_digest(value)
+    validate_collection(value)
+    return value
+
+
+def _validate_expense_payload(row):
+    value = row["payload"].get("campaign_expenses")
+    if value is None:
+        return
+    require(
+        isinstance(value, dict)
+        and value.get("schema_version") == 1
+        and value.get("extraction_version") == EXPENSE_EXTRACTION_VERSION,
+        "Unknown expense evidence version",
+    )
+    require(
+        value.get("source_sha256") == row["document_hash"]
+        and bool(row["document_hash"]),
+        "Expense source changed",
+    )
+    require(
+        value.get("status") in {"checked", "unavailable"}
+        and isinstance(value.get("rows"), list)
+        and isinstance(value.get("proposals"), list),
+        "Unknown expense evidence state",
+    )
+    if value["status"] == "checked":
+        require(
+            row["payload"]["figure_status"] == "source_verified"
+            and not value.get("errors")
+            and not value["proposals"],
+            "Unchecked parent cannot supply expense rows",
+        )
+    else:
+        require(
+            not value["rows"] and bool(value.get("errors")),
+            "Unchecked expense rows cannot be exposed",
+        )
+
+
+def verify_retained_campaign_expenses(db, collection, *, store=None):
+    """Public verification boundary reuses the complete retained-source proof."""
+    _require_retained(db, collection, store=store)
 
 
 def validate_collection(collection):
@@ -899,6 +1192,7 @@ def validate_collection(collection):
             "Report status counts changed",
         )
         for row in reports:
+            _validate_expense_payload(row)
             p, filing = row["payload"], row["payload"]["filing"]
             require(
                 p["registration_number"]
@@ -966,17 +1260,25 @@ def validate_collection(collection):
                 "Invalid report dates",
             )
             require(
-                set(p["figures"])
-                == {
+                {
                     "contributions_received",
                     "campaign_expenditures",
                     "total_expenditures",
+                }
+                <= set(p["figures"])
+                <= {
+                    "contributions_received",
+                    "campaign_expenditures",
+                    "total_expenditures",
+                    "public_subsidy_payments",
                 },
                 "Required figures missing",
             )
             for name, figure in p["figures"].items():
                 parts = (
-                    ("cash", "in_kind")
+                    ("cash",)
+                    if name == "public_subsidy_payments"
+                    else ("cash", "in_kind")
                     if name == "contributions_received"
                     else ("cash", "in_kind", "unpaid")
                 )
@@ -999,6 +1301,7 @@ def validate_collection(collection):
                         "contributions_received": [2, 3, 4, 5, 6],
                         "campaign_expenditures": [11],
                         "total_expenditures": [19],
+                        "public_subsidy_payments": [7],
                     }[name],
                     "Figure source changed",
                 )
@@ -1022,6 +1325,12 @@ def retain_collection_sources(db: Session, store, collection, originals, documen
     require(
         all(file_hash(b) == h for h, b in {**originals, **documents}.items()),
         "Retention body fingerprint changed",
+    )
+    _require_expense_reproduction(
+        collection["reports"],
+        originals,
+        documents,
+        "Expense extraction does not reproduce before retention",
     )
     with tempfile.TemporaryDirectory(prefix="election-finance-retain-") as directory:
         keeper = DocumentKeeper(db=db, store=store, directory=directory)
@@ -1074,7 +1383,7 @@ def _document_matches(document, row):
     )
 
 
-def _require_retained(db, collection):
+def _require_retained(db, collection, *, store=None, reproduce=True):
     hashes = {s["sha256"] for s in collection["sources"]}
     held = set(
         db.scalars(
@@ -1084,13 +1393,69 @@ def _require_retained(db, collection):
         )
     )
     require(held == hashes, "Retain every source before staging figures")
+    doc_hashes = {
+        row["document_hash"] for row in collection["reports"] if row["document_hash"]
+    }
+    docs = {
+        row.document_hash: row
+        for row in db.scalars(
+            select(m.CampaignFinanceReportDocument).where(
+                m.CampaignFinanceReportDocument.document_hash.in_(doc_hashes)
+            )
+        )
+    }
     for row in collection["reports"]:
         if row["document_hash"]:
-            _document_matches(
-                db.get(m.CampaignFinanceReportDocument, row["document_hash"]), row
-            )
+            _document_matches(docs.get(row["document_hash"]), row)
         else:
             require(row["payload"]["figures"] is None, "Figures have no retained PDF")
+
+    if reproduce:
+        store = store if store is not None else raw_file_store_from_env()
+        require(store is not None, "Retained original store unavailable")
+        sources = list(
+            db.scalars(
+                select(m.ElectionResultSource).where(
+                    m.ElectionResultSource.content_hash.in_(hashes)
+                )
+            )
+        )
+
+        def read_original(job):
+            kind, row = job
+            if kind == "source":
+                return kind, row.content_hash, read_source(store, row)
+            with tempfile.TemporaryDirectory(
+                prefix="board-seal-original-"
+            ) as directory:
+                body = read_document(store, row, directory)
+            require(
+                len(body) == row.byte_size
+                and file_hash(body) == row.document_hash
+                and body.startswith(b"%PDF"),
+                "Retained original PDF changed",
+            )
+            return kind, row.document_hash, body
+
+        originals, documents = {}, {}
+        try:
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                for kind, fingerprint, body in pool.map(
+                    read_original,
+                    [("source", row) for row in sources]
+                    + [("document", row) for row in docs.values()],
+                ):
+                    (originals if kind == "source" else documents)[fingerprint] = body
+        except Exception as error:
+            raise FinanceCollectionError(
+                "Retained original unavailable or changed"
+            ) from error
+        _require_expense_reproduction(
+            collection["reports"],
+            originals,
+            documents,
+            "Expense extraction does not reproduce from original PDF",
+        )
 
 
 def _stored_collection(db, identifier):
@@ -1120,13 +1485,58 @@ def _stored_collection(db, identifier):
     }
 
 
-def stage_collection(db: Session, collection):
-    """Stage all report/coverage rows atomically; caller commits. Pointer is untouched."""
+def seal_collection(db, identifier, *, store=None):
+    """Validate legacy or staged content under the parent lock, then seal once.
+
+    Seal/index metadata is outside the old digest. Existing genuine IDs and first
+    publication receipts survive adoption. No existing generation is trusted by age.
+    """
+    parent = db.scalar(
+        select(m.ElectionFinanceCollection)
+        .where(m.ElectionFinanceCollection.id == identifier)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    require(parent is not None, "Collection is not staged")
+    collection = _stored_collection(db, identifier)
     validate_collection(collection)
-    _require_retained(db, collection)
+    _require_retained(db, collection, store=store)
+    expected = db.scalar(
+        text("SELECT board_finance_report_index(:identifier)"),
+        {"identifier": identifier},
+    )
+    if parent.sealed_at is None:
+        require(parent.report_index is None, "Unsealed report index changed")
+        parent.report_index = expected
+        parent.sealed_at = datetime.now(UTC)
+        db.flush()
+    else:
+        require(parent.report_index == expected, "Sealed report index changed")
+    return parent
+
+
+def stage_collection(db: Session, collection, *, store=None):
+    """Append verified children and seal atomically; caller owns the transaction."""
+    validate_collection(collection)
+    _require_retained(db, collection, store=store, reproduce=False)
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": "board-finance-stage:" + collection["id"]},
+    )
     with db.begin_nested():
-        if db.get(m.ElectionFinanceCollection, collection["id"]):
-            validate_collection(_stored_collection(db, collection["id"]))
+        existing = db.scalar(
+            select(m.ElectionFinanceCollection)
+            .where(m.ElectionFinanceCollection.id == collection["id"])
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if existing is not None:
+            # copied_at is intentionally outside legacy IDs but cannot drift on retry.
+            require(
+                existing.copied_at == datetime.fromisoformat(collection["copied_at"]),
+                "Stored collection copy date changed",
+            )
+            seal_collection(db, collection["id"], store=store)
             return collection["id"]
         db.add(
             m.ElectionFinanceCollection(
@@ -1141,27 +1551,43 @@ def stage_collection(db: Session, collection):
         for row in collection["reports"]:
             db.add(m.ElectionFinanceReport(collection_id=collection["id"], **row))
         db.flush()
-        validate_collection(_stored_collection(db, collection["id"]))
+        seal_collection(db, collection["id"], store=store)
     return collection["id"]
 
 
-def publish_collection(db: Session, identifier, *, expected_previous, restore=False):
+def publish_collection(
+    db: Session, identifier, *, expected_previous, restore=False, store=None
+):
     """Explicit CAS publication/restore; never replaces global filing/payment state."""
-    collection = _stored_collection(db, identifier)
+    header = db.get(m.ElectionFinanceCollection, identifier)
+    require(header is not None, "Collection is not staged")
     db.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
-        {"key": f"election-finance:{collection['election_key']}"},
+        {"key": f"election-finance:{header.election_key}"},
     )
+    # The parent lock precedes every reload/proof and serializes late child INSERT.
+    candidate = seal_collection(db, identifier, store=store)
+    collection = _stored_collection(db, identifier)
     current = db.get(
         m.ElectionFinanceCurrent, collection["election_key"], populate_existing=True
     )
     previous = current.collection_id if current else None
     require(
-        previous == expected_previous,
+        previous == expected_previous or previous == identifier,
         "Published collection changed; recheck the current pointer",
     )
-    validate_collection(collection)
-    _require_retained(db, collection)
+    if restore:
+        require(
+            candidate.first_published_at is not None,
+            "Restore requires a prior publication",
+        )
+    if previous == identifier:
+        return {
+            "election_key": collection["election_key"],
+            "previous": previous,
+            "current": identifier,
+            "already_current": True,
+        }
     if previous and not restore:
         older = db.get(m.ElectionFinanceCollection, previous)
         if older is None:

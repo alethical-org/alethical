@@ -203,13 +203,13 @@ it('keeps the prior answer visible when an update fails', async () => {
   )!;
   await act(async () => tab.click());
   await settle();
-  expect(container.textContent).toContain('We couldn’t update these results');
+  expect(container.textContent).toContain('Couldn’t update results');
   expect(container.querySelectorAll('a.vp-name-link')).toHaveLength(2);
   expect(button('Try again')).toBeTruthy();
 });
 it('shows a failed read as failure, not no matches', async () => {
   await render('/money/recipients', () => new Response(null, { status: 500 }));
-  expect(container.textContent).toContain('We couldn’t load these results');
+  expect(container.textContent).toContain('Couldn’t load results');
   expect(container.textContent).not.toContain('No matching records');
 });
 it('links only the covered confirmed identity and withholds incomplete totals', () => {
@@ -271,7 +271,7 @@ it('treats an unavailable source as a failure rather than zero recipients', asyn
   await render('/money/recipients', () =>
     json({ ...data, state: 'unavailable', rows: [], total: null, payment_count: null }),
   );
-  expect(container.textContent).toContain('We couldn’t load these results');
+  expect(container.textContent).toContain('Couldn’t load results');
   expect(container.textContent).not.toContain('0 recipients');
 });
 
@@ -289,7 +289,7 @@ it('keeps the previous rows when the source returns unavailable', async () => {
   await act(async () => tab.click());
   await settle();
   expect(container.querySelectorAll('a.vp-name-link')).toHaveLength(2);
-  expect(container.textContent).toContain('We couldn’t update these results');
+  expect(container.textContent).toContain('Couldn’t update results');
 });
 
 it('shows a whole year span or withholds a total whose period is incomplete', () => {

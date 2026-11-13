@@ -225,7 +225,7 @@ describe('the Finance shell', () => {
 
   it('answers an unknown address with the not-found page', async () => {
     await renderAt('/money/nothing-here', fakeSupabase(SIGNED_IN));
-    expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
+    expect(container.querySelector('h1')?.textContent).toBe('Couldn’t find that page');
     expect(document.title).toBe('Page not found · Alethical Finance');
   });
 
@@ -234,7 +234,7 @@ describe('the Finance shell', () => {
       '/money/identities?name=Example&role=donor',
       fakeSupabase(SIGNED_IN),
     );
-    expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
+    expect(container.querySelector('h1')?.textContent).toBe('Couldn’t find that page');
     expect(document.title).toBe('Page not found · Alethical Finance');
     expect(fetcher.mock.calls.some(([url]) => url.includes('/finance/identities'))).toBe(false);
     expect(container.textContent).not.toContain('Confirm identities');
@@ -258,13 +258,13 @@ describe('the Finance shell', () => {
 
   it('offers a retry when access cannot be checked, never the no-access state', async () => {
     await renderAt('/money', fakeSupabase(SIGNED_IN), 503);
-    expect(container.textContent).toContain('We couldn’t check your access');
+    expect(container.textContent).toContain('Couldn’t check your access');
     expect(container.textContent).not.toContain('doesn’t have access');
   });
 
   it('answers an unknown address inside the shell', async () => {
     await renderAt('/no-such-page', fakeSupabase(SIGNED_IN));
-    expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
+    expect(container.querySelector('h1')?.textContent).toBe('Couldn’t find that page');
   });
 });
 

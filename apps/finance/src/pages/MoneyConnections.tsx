@@ -342,7 +342,7 @@ export function MoneyConnections() {
           )}
           {failedFirst && (
             <Refused onRetry={read.retry} retrying={read.pending}>
-              We couldn’t load these connections
+              Couldn’t load connections
             </Refused>
           )}
           {safeHeld && !current && read.updating && <Updating />}
@@ -350,7 +350,7 @@ export function MoneyConnections() {
             <Refused onRetry={read.retry} retrying={read.pending}>
               {read.changed
                 ? RECORDS_CHANGED
-                : 'We couldn’t update these results. Previous results are shown.'}
+                : 'Couldn’t update results. Previous results are shown.'}
             </Refused>
           )}
           {safeHeld && !current && read.busy && (

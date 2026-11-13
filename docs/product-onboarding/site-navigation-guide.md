@@ -81,7 +81,7 @@ Phone password and Email preferences rows keep their right-pointing arrows.
 While signing out, the button says **Signing out…**, keeps its picture and size, and accepts
 no second request. Its text and picture become muted, and screen readers hear the busy state.
 If signing out fails, plain red text appears above the same button, now labelled
-**Try again**: “We couldn’t sign you out. Check your connection and try again.”
+**Try again**: “Couldn’t sign you out. Check your connection and try again.”
 The message remains visible while retrying. Each failed attempt is announced again without
 moving keyboard focus or briefly hiding the message. Closing and reopening clears the old
 failure. A successful sign-out removes the signed-in controls.

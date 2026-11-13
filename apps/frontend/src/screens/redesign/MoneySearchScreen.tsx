@@ -238,7 +238,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                   : waitingForThisQuery
                     ? NAME_SEARCH_WAITING
                     : search.isError && !answer
-                      ? 'We couldn’t search these records just now'
+                      ? 'Couldn’t search these records just now'
                       : tooShort
                         ? tooShortTitle(answer?.minQueryLength ?? null)
                         : anyResult
@@ -283,7 +283,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
             ) : search.isError && !answer ? (
               <View style={styles.card}>
                 <Text accessibilityRole="alert" style={styles.h3}>
-                  We couldn’t search these records just now
+                  Couldn’t search these records just now
                 </Text>
                 <Text style={styles.explain}>This is a problem on our side. Please try again.</Text>
                 <RetrySearch onRetry={() => void search.refetch()} busy={search.isFetching} />

@@ -560,7 +560,7 @@ export function LegislatorProfileMobileScreen() {
             </View>
           ) : legQuery.isError || !leg ? (
             <View style={styles.stateBox}>
-              <Text style={styles.stateText}>We couldn’t load this legislator.</Text>
+              <Text style={styles.stateText}>Couldn’t load this legislator.</Text>
               <GoBackLink
                 destinationName="Search legislators"
                 href={routePath.legislators()}

@@ -417,7 +417,9 @@ describe('Media buys', () => {
       if (tab === 'agencies' && url.searchParams.get('page') === '2') {
         restarted = true;
         return new Response(
-          JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+          JSON.stringify({
+            type: 'https://api.alethical.com/problems/records-changed',
+          }),
           { status: 409, headers: { 'content-type': 'application/json' } },
         );
       }
@@ -472,7 +474,9 @@ describe('Media buys', () => {
         const version = (tab === 'agencies' ? (changed ? 'c' : 'a') : 'b').repeat(16);
         if (url.searchParams.has('version') && url.searchParams.get('version') !== version)
           return new Response(
-            JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+            JSON.stringify({
+              type: 'https://api.alethical.com/problems/records-changed',
+            }),
             { status: 409, headers: { 'content-type': 'application/json' } },
           );
         return json({
@@ -486,7 +490,13 @@ describe('Media buys', () => {
           categories: [],
           rows:
             tab === 'agencies'
-              ? [{ key: 'agency', label: changed ? 'New agency' : 'Old agency', file_count: 1 }]
+              ? [
+                  {
+                    key: 'agency',
+                    label: changed ? 'New agency' : 'Old agency',
+                    file_count: 1,
+                  },
+                ]
               : [],
         });
       });
@@ -1236,9 +1246,7 @@ describe('TV station folder, station and printed agency name', () => {
     await render('/media-buys/folders/kare-folder', () => (
       <StationFolder match={matchRoute('/media-buys/folders/kare-folder')!} />
     ));
-    expect(container.textContent).toContain(
-      'We couldn’t load this folder. This is a problem on our side.',
-    );
+    expect(container.textContent).toContain('Couldn’t load folder. This is a problem on our side.');
     expect(container.textContent).toContain('Try again');
     expect(container.textContent).not.toContain('no longer available');
   });
@@ -1667,7 +1675,7 @@ describe('Media buys card', () => {
         <MediaBuysCard kind={kind} target="other" name="Other" />
       ));
       expect(container.querySelectorAll('.mb-buys-card a')).toHaveLength(0);
-      expect(text()).toContain('We couldn’t load these TV station files');
+      expect(text()).toContain('Couldn’t load TV station files');
       expect(text()).not.toContain('No TV station files have a checked connection');
       response = json({ files: [], groups: [], total: 0 });
       await click('Try again');
@@ -1742,7 +1750,7 @@ describe('Media buys card', () => {
     await render('/money/committees/90001', () => (
       <MediaBuysCard kind="committee" target="90001" name="X" />
     ));
-    expect(text()).toContain('We couldn’t load these TV station files');
+    expect(text()).toContain('Couldn’t load TV station files');
     expect(text()).not.toContain('problem on our side');
     expect(text()).not.toContain('No TV station files have a checked connection');
     fail = false;
@@ -1750,7 +1758,7 @@ describe('Media buys card', () => {
     await click('Try again');
     expect(fetcher.mock.calls.length).toBeGreaterThan(before);
     expect(text()).toContain('KARE invoice');
-    expect(text()).not.toContain('We couldn’t load these TV station files');
+    expect(text()).not.toContain('Couldn’t load TV station files');
   });
 
   it('treats an answer without its lists as a failed read', async () => {
@@ -1760,7 +1768,7 @@ describe('Media buys card', () => {
     await render('/money/committees/90001', () => (
       <MediaBuysCard kind="committee" target="90001" name="X" />
     ));
-    expect(text()).toContain('We couldn’t load these TV station files');
+    expect(text()).toContain('Couldn’t load TV station files');
     expect(text()).not.toContain('No TV station files have a checked connection');
   });
 

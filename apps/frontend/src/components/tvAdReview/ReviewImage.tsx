@@ -78,7 +78,7 @@ export function ReviewImage({
         </div>
       ) : failed ? (
         <>
-          <Text style={s.body}>We couldn’t load this page image</Text>
+          <Text style={s.body}>Couldn’t load page image</Text>
           <ReviewAction label="Retry image" onPress={() => setAttempt((value) => value + 1)} />
         </>
       ) : (

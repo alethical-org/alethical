@@ -10,6 +10,7 @@
 export type RouteName =
   | 'landing'
   | 'home'
+  | 'election-source'
   | 'sign-in'
   | 'investor-access'
   | 'auth-return'
@@ -58,7 +59,12 @@ export interface RouteDefinition {
 }
 
 export const ROUTES: readonly RouteDefinition[] = [
-  { name: 'landing', pattern: '/', title: 'Alethical Finance', signedOut: true },
+  {
+    name: 'landing',
+    pattern: '/',
+    title: 'Alethical Finance',
+    signedOut: true,
+  },
   {
     name: 'home',
     pattern: '/home',
@@ -72,16 +78,35 @@ export const ROUTES: readonly RouteDefinition[] = [
     signedOut: true,
   },
   { name: 'sign-in', pattern: '/sign-in', title: 'Sign in', signedOut: true },
-  { name: 'auth-return', pattern: '/auth/return', title: 'Signing in', signedOut: true },
+  {
+    name: 'auth-return',
+    pattern: '/auth/return',
+    title: 'Signing in',
+    signedOut: true,
+  },
   { name: 'search', pattern: '/search', title: 'Search results' },
-  { name: 'organization', pattern: '/organizations/:id', title: 'Organization profile' },
+  {
+    name: 'election-source',
+    pattern: '/elections/:election/sources/:source',
+    title: 'Original source',
+    section: 'money',
+  },
+  {
+    name: 'organization',
+    pattern: '/organizations/:id',
+    title: 'Organization profile',
+  },
   {
     name: 'recipients',
     pattern: '/money/recipients',
     title: 'Vendors and payees',
     section: 'money',
   },
-  { name: 'money-connections', pattern: '/money/connections', title: 'Money connections' },
+  {
+    name: 'money-connections',
+    pattern: '/money/connections',
+    title: 'Money connections',
+  },
   {
     name: 'identities',
     pattern: '/money/identities',
@@ -100,8 +125,18 @@ export const ROUTES: readonly RouteDefinition[] = [
     title: 'Donors by employer',
     section: 'money',
   },
-  { name: 'campaign-money', pattern: '/money', title: 'Campaign money', section: 'money' },
-  { name: 'committee', pattern: '/money/committees/:id', title: 'Committee', section: 'money' },
+  {
+    name: 'campaign-money',
+    pattern: '/money',
+    title: 'Campaign money',
+    section: 'money',
+  },
+  {
+    name: 'committee',
+    pattern: '/money/committees/:id',
+    title: 'Committee',
+    section: 'money',
+  },
   {
     name: 'payments-under-name',
     pattern: '/money/names/:query',
@@ -126,15 +161,30 @@ export const ROUTES: readonly RouteDefinition[] = [
     title: 'Committee members’ campaign accounts',
     section: 'people',
   },
-  { name: 'lobbying', pattern: '/lobbying', title: 'Lobbying', section: 'lobbying' },
-  { name: 'lobbyist', pattern: '/lobbying/lobbyists/:id', title: 'Lobbyist', section: 'lobbying' },
+  {
+    name: 'lobbying',
+    pattern: '/lobbying',
+    title: 'Lobbying',
+    section: 'lobbying',
+  },
+  {
+    name: 'lobbyist',
+    pattern: '/lobbying/lobbyists/:id',
+    title: 'Lobbyist',
+    section: 'lobbying',
+  },
   {
     name: 'principal',
     pattern: '/lobbying/principals/:id',
     title: 'Principal',
     section: 'lobbying',
   },
-  { name: 'media-buys', pattern: '/media-buys', title: 'Media buys', section: 'media-buys' },
+  {
+    name: 'media-buys',
+    pattern: '/media-buys',
+    title: 'Media buys',
+    section: 'media-buys',
+  },
   {
     name: 'station-folder',
     pattern: '/media-buys/folders/:id',
@@ -166,17 +216,42 @@ export const ROUTES: readonly RouteDefinition[] = [
     section: 'media-buys',
   },
   { name: 'people', pattern: '/people', title: 'People', section: 'people' },
-  { name: 'person', pattern: '/people/:id', title: 'Person profile', section: 'people' },
-  { name: 'candidate', pattern: '/candidates/:id', title: 'Candidate profile', section: 'people' },
+  {
+    name: 'person',
+    pattern: '/people/:id',
+    title: 'Person profile',
+    section: 'people',
+  },
+  {
+    name: 'candidate',
+    pattern: '/candidates/:id',
+    title: 'Candidate profile',
+    section: 'people',
+  },
   {
     name: 'legislator',
     pattern: '/legislators/:id',
     title: 'Legislator profile',
     section: 'people',
   },
-  { name: 'legislation', pattern: '/bills', title: 'Legislation', section: 'legislation' },
-  { name: 'bill', pattern: '/bills/:id', title: 'Bill', section: 'legislation' },
-  { name: 'roll-call', pattern: '/votes/:id', title: 'Roll call', section: 'legislation' },
+  {
+    name: 'legislation',
+    pattern: '/bills',
+    title: 'Legislation',
+    section: 'legislation',
+  },
+  {
+    name: 'bill',
+    pattern: '/bills/:id',
+    title: 'Bill',
+    section: 'legislation',
+  },
+  {
+    name: 'roll-call',
+    pattern: '/votes/:id',
+    title: 'Roll call',
+    section: 'legislation',
+  },
 ];
 
 /** The signed-in screens that are built. Every other route answers not found
@@ -186,6 +261,7 @@ export const ROUTES: readonly RouteDefinition[] = [
 export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'landing',
   'home',
+  'election-source',
   'sign-in',
   'investor-access',
   'auth-return',

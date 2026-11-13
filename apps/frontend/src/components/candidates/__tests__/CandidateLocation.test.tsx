@@ -350,7 +350,7 @@ it('returns other official outcomes to the form holding the searched address', a
   await flush();
   expect(host.textContent).not.toContain('Is this your home address?');
   expect(textarea().value).toBe('4821 Sample Ave S Apt 3, Sample Lake, MN 55999');
-  expect(host.textContent).toContain('We couldn’t match that address to election records');
+  expect(host.textContent).toContain('Couldn’t match that address to election records');
   expect(document.activeElement).toBe(textarea());
   expect(current.flow.getState().requested?.address).toBe(
     '4821 Sample Ave S Apt 3, Sample Lake, MN 55999',
@@ -548,7 +548,7 @@ it('clears an earlier address error when location starts', async () => {
   expect(textarea().getAttribute('aria-invalid')).toBe('true');
   click(button('Use my location')!);
   expect(textarea().getAttribute('aria-invalid')).toBeNull();
-  expect(host.textContent).not.toContain('We couldn’t match that address to election records');
+  expect(host.textContent).not.toContain('Couldn’t match that address to election records');
 });
 
 it('lets an empty Find press end a location attempt', async () => {

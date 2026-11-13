@@ -46,7 +46,7 @@ describe('the fixed words', () => {
     expect(KIND_LABEL_COMMITTEE).toBe('COMMITTEE');
     expect(LOADING_TRACKED).toBe('Loading what you are following');
     expect(TRACKED_UNAVAILABLE).toBe(
-      'We couldn’t load your tracked list right now. Please try again in a moment.',
+      'Couldn’t load your tracked list right now. Please try again in a moment.',
     );
   });
 

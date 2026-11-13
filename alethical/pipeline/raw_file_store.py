@@ -194,7 +194,9 @@ class RawFileStore:
             body.close()
 
 
-def raw_file_store_from_env(bucket: str = BUCKET) -> RawFileStore:
+def raw_file_store_from_env(
+    bucket: str = BUCKET, *, client_config=None
+) -> RawFileStore:
     """Build the store from the 4 Storage-scoped credentials in the environment.
 
     Raises with all the missing names at once rather than one per attempt, because
@@ -212,6 +214,9 @@ def raw_file_store_from_env(bucket: str = BUCKET) -> RawFileStore:
             "Supabase dashboard, and they live in the gitignored .env at the "
             "repository root."
         )
+    config = Config(signature_version="s3v4", s3={"addressing_style": "path"})
+    if client_config is not None:
+        config = config.merge(client_config)
     client = boto3.client(
         "s3",
         endpoint_url=os.environ["SUPABASE_STORAGE_S3_ENDPOINT"],
@@ -221,7 +226,7 @@ def raw_file_store_from_env(bucket: str = BUCKET) -> RawFileStore:
         # Supabase serves every bucket from one endpoint, so the virtual-host
         # style boto3 defaults to would resolve <bucket>.<host>, which does not
         # exist.
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+        config=config,
     )
     return RawFileStore(client, bucket=bucket)
 

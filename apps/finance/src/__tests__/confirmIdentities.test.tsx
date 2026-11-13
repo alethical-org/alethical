@@ -22,7 +22,10 @@ import { hasDraft } from '../ui/drafts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => ({
+    apiBaseUrl: 'https://api.example.test',
+    accessToken: 'token',
+  }),
 }));
 
 // The page's route turns on with the lead's change to BUILT; until then, treat it as on
@@ -192,7 +195,11 @@ function confirmation(
 function notHeld(c: ReturnType<typeof confirmation>) {
   return {
     ...c,
-    records: c.records!.map((record) => ({ ...record, rows: null, in_board_file: null })),
+    records: c.records!.map((record) => ({
+      ...record,
+      rows: null,
+      in_board_file: null,
+    })),
   };
 }
 
@@ -284,7 +291,10 @@ beforeEach(() => {
   clearReadCache();
   const storage = new MemoryStorage();
   vi.stubGlobal('localStorage', storage);
-  Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
+  Object.defineProperty(window, 'localStorage', {
+    value: storage,
+    configurable: true,
+  });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -303,7 +313,11 @@ describe('word and money rules', () => {
     );
     expect(
       queueAmount(
-        queueRow({ amount_state: 'incomplete_period', period_basis: null, amount: null }),
+        queueRow({
+          amount_state: 'incomplete_period',
+          period_basis: null,
+          amount: null,
+        }),
       ),
     ).toBe('Reporting period incomplete');
     expect(
@@ -341,7 +355,10 @@ describe('word and money rules', () => {
     expect(sourceLine(page)).toBe(
       'Printed names: Minnesota Campaign Finance and Public Disclosure Board contribution and expenditure files, copied Sep 1, 2026. Confirmations, merges and splits are Alethical’s, each with its own evidence and date.',
     );
-    page.sources.payee_name = { ...page.sources.payee_name, copied_at: '2026-10-27T12:00:00Z' };
+    page.sources.payee_name = {
+      ...page.sources.payee_name,
+      copied_at: '2026-10-27T12:00:00Z',
+    };
     expect(sourceLine(page)).toContain(
       'contribution file, copied Sep 1, 2026; expenditure file, copied Oct 27, 2026.',
     );
@@ -357,7 +374,12 @@ describe('history', () => {
         return json(
           recordsPage({
             history_identities: [
-              { id: ORG, reference: 'ORG-0002', kind: 'organization', name: 'Example Media LLC' },
+              {
+                id: ORG,
+                reference: 'ORG-0002',
+                kind: 'organization',
+                name: 'Example Media LLC',
+              },
             ],
           }),
         );
@@ -399,13 +421,24 @@ describe('history', () => {
             {
               action: 'merged',
               at: '2026-10-20T12:00:00Z',
-              detail: { from: DULUTH, into: ORG, reason: 'Same registration', source: 'SOS 1' },
+              detail: {
+                from: DULUTH,
+                into: ORG,
+                reason: 'Same registration',
+                source: 'SOS 1',
+              },
               references: { [DULUTH]: 'ORG-0043', [ORG]: 'ORG-0002' },
             },
           ],
         ),
       ],
-      [DULUTH, { ...identity(DULUTH, 'Example Media LLC of Duluth', []), status: 'merged' }],
+      [
+        DULUTH,
+        {
+          ...identity(DULUTH, 'Example Media LLC of Duluth', []),
+          status: 'merged',
+        },
+      ],
     ]);
     const rows = historyRows(reads, 'payee_name', NAME, 4);
     expect(rows.map((row) => row.text)).toEqual([
@@ -492,7 +525,10 @@ describe('history of a split', () => {
       [OLD, old],
       [
         STAY,
-        { ...identity(STAY, 'Example Media LLC', [], []), reference: SPLIT_REFS[STAY] } as Identity,
+        {
+          ...identity(STAY, 'Example Media LLC', [], []),
+          reference: SPLIT_REFS[STAY],
+        } as Identity,
       ],
       [MOVED, part],
     ]);
@@ -596,7 +632,9 @@ describe('history of a split', () => {
   it('never prints a count for a part later merged; the merge names where it opens', () => {
     // The survivor's read carries the merged part's confirmations, each a replacement
     // made by the split.
-    const fromSplit = confirmation('c-moved', STAY, [1, 2], { replaces: 'c-before-split' });
+    const fromSplit = confirmation('c-moved', STAY, [1, 2], {
+      replaces: 'c-before-split',
+    });
     const reads = splitReads(
       [
         merged(STAY, 'Example Media LLC', MOVED),
@@ -606,7 +644,11 @@ describe('history of a split', () => {
         {
           action: 'merged',
           at: '2026-10-25T12:00:00Z',
-          detail: { from: STAY, into: MOVED, reason: 'Same registration after all' },
+          detail: {
+            from: STAY,
+            into: MOVED,
+            reason: 'Same registration after all',
+          },
           references: { [STAY]: 'ORG-0091', [MOVED]: 'ORG-0092' },
         },
       ],
@@ -724,7 +766,10 @@ describe('counts whose file is not held', () => {
     };
     expect(coveredRows(mixed as never)).toBeNull();
     // A record no longer in the Board's file is a held 0, not a missing count.
-    const gone = { ...held, records: [{ ...held.records[0], rows: 0, in_board_file: false }] };
+    const gone = {
+      ...held,
+      records: [{ ...held.records[0], rows: 0, in_board_file: false }],
+    };
     expect(coveredRows(gone as never)).toBe(0);
     expect(sumCounts([1, 2])).toBe(3);
     expect(sumCounts([1, null])).toBeNull();
@@ -756,7 +801,11 @@ describe('counts whose file is not held', () => {
               {
                 action: 'merged',
                 at: '2026-10-20T12:00:00Z',
-                detail: { from: DULUTH, into: ORG, reason: 'Same registration' },
+                detail: {
+                  from: DULUTH,
+                  into: ORG,
+                  reason: 'Same registration',
+                },
                 references: { [DULUTH]: 'ORG-0043', [ORG]: 'ORG-0002' },
               },
             ],
@@ -815,7 +864,12 @@ describe('counts whose file is not held', () => {
       if (url.pathname.endsWith('/identities'))
         return json({
           rows: [
-            { id: other, reference: 'ORG-0042', kind: 'organization', name: 'Example Media Group' },
+            {
+              id: other,
+              reference: 'ORG-0042',
+              kind: 'organization',
+              name: 'Example Media Group',
+            },
           ],
           total: 1,
           page: 1,
@@ -929,9 +983,7 @@ describe('Confirm identities page', () => {
         return fail ? new Response('{}', { status: 500 }) : json(queuePage([]));
     });
     await render('/money/identities');
-    expect(text()).toContain(
-      'We couldn’t load the names to review. This is a problem on our side.',
-    );
+    expect(text()).toContain('Couldn’t load the names to review. This is a problem on our side.');
     expect(text()).not.toContain('No names match these choices');
     fail = false;
     await click(button('Try again'));
@@ -1041,7 +1093,11 @@ describe('Confirm identities page', () => {
               fingerprint(3, {
                 confirmation: {
                   id: 'c-1',
-                  identity: { id: ORG, kind: 'organization', name: 'Example Media LLC' },
+                  identity: {
+                    id: ORG,
+                    kind: 'organization',
+                    name: 'Example Media LLC',
+                  },
                 },
               }),
             ] as RecordsPage['fingerprints'],
@@ -1112,7 +1168,10 @@ describe('Confirm identities page', () => {
     await type(noteField(), 'Registration number 1234567 on both filings');
     await type(sourceField(), 'SOS 1234567');
     await click(button('Confirm identity'));
-    expect(posts[0].body.record_selection).toEqual({ snapshot_id: SNAP, year: 2026 });
+    expect(posts[0].body.record_selection).toEqual({
+      snapshot_id: SNAP,
+      year: 2026,
+    });
     expect(posts[0].body.fingerprints).toBeUndefined();
   });
 
@@ -1186,7 +1245,12 @@ describe('Confirm identities page', () => {
     serve((url) => {
       if (url.pathname.endsWith('/queue')) return json(queuePage([]));
       if (url.pathname.endsWith('/records'))
-        return json(recordsPage({ pages: 2, page: Number(url.searchParams.get('page') ?? 1) }));
+        return json(
+          recordsPage({
+            pages: 2,
+            page: Number(url.searchParams.get('page') ?? 1),
+          }),
+        );
     });
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
     await click(button('Create a new organization'));
@@ -1281,7 +1345,12 @@ describe('Confirm identities page', () => {
       if (url.pathname.endsWith('/identities'))
         return json({
           rows: [
-            { id: OTHER, reference: 'ORG-0042', kind: 'organization', name: 'Example Media Group' },
+            {
+              id: OTHER,
+              reference: 'ORG-0042',
+              kind: 'organization',
+              name: 'Example Media Group',
+            },
           ],
           total: 1,
           page: 1,
@@ -1321,7 +1390,7 @@ describe('Confirm identities page', () => {
     await act(async () => root.unmount());
     root = createRoot(container);
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
-    expect(text()).toContain('We couldn’t load the history');
+    expect(text()).toContain('Couldn’t load the history');
     expect(text()).not.toContain('No confirmations or suggestions yet');
 
     answer = 'ok';
@@ -1331,7 +1400,7 @@ describe('Confirm identities page', () => {
         (b) => b.textContent === 'Try again',
       )!,
     );
-    expect(text()).not.toContain('We couldn’t load the history');
+    expect(text()).not.toContain('Couldn’t load the history');
     expect(text()).toContain('Confirmed as Example Media LLC (ORG-0002) for 2 of 2 records');
   });
 
@@ -1347,12 +1416,18 @@ describe('Confirm identities page', () => {
             ORG,
             'Example Media LLC',
             [confirmation('c-1', ORG, [1, 2], { replaces: 'c-was' })],
-            [{ action: 'created', at: '2026-10-22T12:00:00Z', detail: { split_from: SOURCE } }],
+            [
+              {
+                action: 'created',
+                at: '2026-10-22T12:00:00Z',
+                detail: { split_from: SOURCE },
+              },
+            ],
           ),
         );
     });
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
-    expect(text()).toContain('We couldn’t load the history');
+    expect(text()).toContain('Couldn’t load the history');
     expect(text()).not.toContain('No confirmations or suggestions yet');
   });
 
@@ -1384,8 +1459,14 @@ describe('Confirm identities page', () => {
         return json(
           identity(ORG, 'Example Media LLC', [
             confirmation('c-1', ORG, [1], state('c-1')),
-            confirmation('c-2', ORG, [2], { checked_at: '2026-09-04T15:00:00Z', ...state('c-2') }),
-            confirmation('c-3', ORG, [3], { checked_at: '2026-09-05T15:00:00Z', ...state('c-3') }),
+            confirmation('c-2', ORG, [2], {
+              checked_at: '2026-09-04T15:00:00Z',
+              ...state('c-2'),
+            }),
+            confirmation('c-3', ORG, [3], {
+              checked_at: '2026-09-05T15:00:00Z',
+              ...state('c-3'),
+            }),
           ]),
         );
       }
@@ -1463,7 +1544,10 @@ describe('Confirm identities page', () => {
       if (url.pathname.endsWith(other))
         return json(
           identity(other, 'Example Media Group', [
-            { ...confirmation('c-9', other, [4, 5]), record_key: 'EXAMPLE MEDIA GROUP INC' },
+            {
+              ...confirmation('c-9', other, [4, 5]),
+              record_key: 'EXAMPLE MEDIA GROUP INC',
+            },
           ]),
         );
       if (url.pathname.endsWith(ORG))
@@ -1471,8 +1555,18 @@ describe('Confirm identities page', () => {
       if (url.pathname.endsWith('/identities'))
         return json({
           rows: [
-            { id: ORG, reference: 'ORG-0002', kind: 'organization', name: 'Example Media LLC' },
-            { id: other, reference: 'ORG-0042', kind: 'organization', name: 'Example Media Group' },
+            {
+              id: ORG,
+              reference: 'ORG-0002',
+              kind: 'organization',
+              name: 'Example Media LLC',
+            },
+            {
+              id: other,
+              reference: 'ORG-0042',
+              kind: 'organization',
+              name: 'Example Media Group',
+            },
           ],
           total: 2,
           page: 1,
@@ -1524,7 +1618,10 @@ describe('Confirm identities page', () => {
         return json(
           identity(ORG, 'Example Media LLC', [
             confirmation('c-1', ORG, [1]),
-            { ...confirmation('c-2', ORG, [2]), record_key: 'Example Media LLC' },
+            {
+              ...confirmation('c-2', ORG, [2]),
+              record_key: 'Example Media LLC',
+            },
             {
               ...confirmation('c-3', ORG, []),
               record_kind: 'committee',

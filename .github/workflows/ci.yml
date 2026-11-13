@@ -245,6 +245,7 @@ jobs:
             ci_database_image=pgvector/pgvector:pg17
             docker pull "$ci_database_image"
           fi
+          docker tag "$ci_database_image" pgvector/pgvector:pg17
           docker run --detach --rm --name alethical-ci-postgres \
             -e POSTGRES_DB=alethical -e POSTGRES_USER=alethical \
             -e POSTGRES_PASSWORD=alethical -p 5432:5432 \

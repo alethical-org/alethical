@@ -285,9 +285,7 @@ describe('Search results', () => {
       );
     });
     const orgs = family('Organizations');
-    expect(orgs.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load these results',
-    );
+    expect(orgs.querySelector('[role="alert"]')?.textContent).toContain('Couldn’t load results');
     expect(family('People').querySelectorAll('li')).toHaveLength(3);
     await act(async () => orgs.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
@@ -416,7 +414,7 @@ it('retains each family under its answered query through a failed live update', 
   const people = family('People');
   expect(people.querySelectorAll('li')).toHaveLength(3);
   expect(people.textContent).toContain('Results for “davis”');
-  expect(people.textContent).toContain('We couldn’t load these results');
+  expect(people.textContent).toContain('Couldn’t load results');
   expect(people.textContent).toContain('Try again');
   vi.stubGlobal(
     'fetch',

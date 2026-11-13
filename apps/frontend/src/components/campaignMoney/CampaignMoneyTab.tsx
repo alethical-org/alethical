@@ -262,8 +262,8 @@ export function CampaignMoneyTab({
         // must not read as a named person having filed nothing.
         <View style={styles.card}>
           <Text accessibilityRole="alert" style={styles.body}>
-            We couldn’t load {legislatorName}’s campaign money right now. This is a problem on our
-            side and says nothing about what they raised or spent. Please try again in a moment.
+            Couldn’t load {legislatorName}’s campaign money right now. This is a problem on our side
+            and says nothing about what they raised or spent. Please try again in a moment.
           </Text>
         </View>
       ) : isLoading || !money ? (

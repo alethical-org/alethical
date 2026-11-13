@@ -125,8 +125,8 @@ it('keeps election and identity links exact and uses the server cutoff and saved
     ),
   );
   expect(host.textContent).toContain('Candidate for');
-  expect(host.textContent).toContain('Ballot record saved October 8, 2026');
-  expect(host.textContent).toContain('Certified November 12, 2024');
+  expect(host.textContent).toContain('Ballot record saved Oct 8, 2026');
+  expect(host.textContent).toContain('Certified Nov 12, 2024');
   const link = host.querySelector<HTMLAnchorElement>('a[href*="?candidate="]')!;
   expect(link.href).toContain(profile.candidate.id);
   expect(document.getElementById(link.getAttribute('aria-describedby')!)?.textContent).toBe(
@@ -154,15 +154,15 @@ it('never turns a passed expected month into actual service and preserves each r
   expect(back.textContent).toBe(`Back to ${profile.candidate.name}’s candidate profile`);
   expect(back.getAttribute('href')).toBe(`/candidates/${profile.candidate.id}`);
   expect(host.textContent).not.toContain('Back to election record');
-  expect(host.textContent).toContain('Expected start January 2025');
+  expect(host.textContent).toContain('Expected start Jan 2025');
   expect(host.textContent).toContain('Current service not confirmed');
-  expect(host.textContent).not.toContain('Started January');
-  expect(host.textContent).not.toContain('January 1,');
+  expect(host.textContent).not.toContain('Started Jan');
+  expect(host.textContent).not.toContain('Jan 1,');
   expect(host.querySelector('a[href="https://example.org/source"]')?.getAttribute('target')).toBe(
     '_blank',
   );
   click('Source details');
-  expect(host.textContent).toContain('Checked October 8, 2026');
+  expect(host.textContent).toContain('Checked Oct 8, 2026');
 });
 it('retains research and open details while more records load, fail, and retry', async () => {
   let reject!: (reason: Error) => void;
@@ -187,7 +187,7 @@ it('retains research and open details while more records load, fail, and retry',
   click('Show more records');
   expect(host.textContent).toContain('Updating research records…');
   expect(host.textContent).toContain('Example public meeting minutes');
-  expect(host.textContent).toContain('Checked October 8, 2026');
+  expect(host.textContent).toContain('Checked Oct 8, 2026');
   await act(async () => reject(new Error('unavailable')));
   expect(host.textContent).toContain('Research records are unavailable');
   click('Try again');
@@ -195,7 +195,7 @@ it('retains research and open details while more records load, fail, and retry',
     await Promise.resolve();
   });
   expect(host.textContent).toContain('Example public meeting minutes');
-  expect(host.textContent).toContain('Checked October 8, 2026');
+  expect(host.textContent).toContain('Checked Oct 8, 2026');
   expect(host.textContent).not.toContain('Show more records');
 });
 it('preserves current results when historical address matching is unavailable', async () => {
@@ -238,9 +238,9 @@ it('preserves current results when historical address matching is unavailable', 
   await act(async () =>
     flow.search({ address: '100 Example Street', electionId: election.id }, election),
   );
-  expect(host.textContent).toContain('We couldn’t confirm the races for this address and election');
+  expect(host.textContent).toContain('Couldn’t confirm the races for this address and election');
   expect(host.textContent).toContain('Example Person');
-  expect(host.textContent).toContain('November 5, 2030');
+  expect(host.textContent).toContain('Nov 5, 2030');
   expect(host.querySelector('a[href="https://example.org/official-results"]')).toBeTruthy();
 });
 it('chooses nearest upcoming then most recent past and preserves month precision', () => {
@@ -251,5 +251,5 @@ it('chooses nearest upcoming then most recent past and preserves month precision
   expect(defaultCandidateElection([election, next], new Date('2030-10-08T12:00:00Z'))?.id).toBe(
     'next',
   );
-  expect(preciseDate({ value: '2025-01', precision: 'month' })).toBe('January 2025');
+  expect(preciseDate({ value: '2025-01', precision: 'month' })).toBe('Jan 2025');
 });

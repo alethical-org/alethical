@@ -184,12 +184,16 @@ def read_request(path: Path) -> dict:
             _text(item.get("kind")) and _hash(item.get("sha256")),
             "Each evidence source needs a kind and complete lowercase SHA256",
         )
-        if item["kind"] == "report_cover":
+        if item["kind"] in {"report_cover", "report_excerpt"}:
             require(
                 _positive(item.get("page")),
                 "Report-cover evidence needs a positive page number",
             )
-        if item["kind"] in {"committee_register", "candidate_identity"}:
+        if item["kind"] in {
+            "committee_register",
+            "candidate_identity",
+            "report_excerpt",
+        }:
             require(
                 _hash(item.get("collection_id")),
                 f"{item['kind']} evidence needs a collection SHA256",

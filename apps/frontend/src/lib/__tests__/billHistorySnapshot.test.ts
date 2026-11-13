@@ -105,7 +105,7 @@ describe('bill first-response history', () => {
       'No recorded roll-call votes',
     );
     const failed = JSON.stringify(billHistorySnapshot(bill, null));
-    expect(failed).toContain('We couldn’t load this bill’s votes');
+    expect(failed).toContain('Couldn’t load bill’s votes');
     expect(failed).not.toContain('No recorded');
     expect(failed).not.toContain('Taxes');
   });

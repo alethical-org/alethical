@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import { useRead, type Read } from '../../api/read';
-import { Link, useLocation } from '../../router';
+import { Link, navigate, useLocation } from '../../router';
 import { returnTarget } from '../../returnContext';
 import { hrefFor } from '../../routes';
 import { useLiveSearch } from '../../search/useLiveSearch';
@@ -13,7 +13,13 @@ import { useView, ViewSwitch } from '../../ui/view';
 import { FieldMenu } from '../MoneyByRace';
 import * as d from './data';
 import { RetainedEvidence, type ElectionEvidence } from './Evidence';
-import { count, dateLabel, exactMoney, lineLabel, pageNumber, periodLabel } from './format';
+import { count, dateLabel, moneyLabel, lineLabel, pageNumber, periodLabel } from './format';
+import { ExpenseReport } from './ExpenseReport';
+import { Funders } from './Funders';
+import { reportHref, funderReturnHref, changeElection } from './navigation';
+import { CsvDownload } from './CsvDownload';
+import { CoverageNotice } from './CoverageNotice';
+import { ExternalCandidate, type ExternalStatus } from './ExternalCandidate';
 import './comparison.css';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
@@ -21,6 +27,10 @@ const SOS = 'Minnesota Secretary of State';
 const SIZE = 50;
 const defaults = {
   election: '',
+  report: '',
+  reports: '',
+  externalReports: '',
+  freturn: '',
   race: '',
   q: '',
   list: '',
@@ -47,11 +57,41 @@ const raceName = (race: d.Race) =>
 const electionLabel = (election: d.ElectionSummary) =>
   `${election.election_date.slice(0, 4)} ${election.stage} election · ${dateLabel(election.election_date)}`;
 const statusLabel = (status: string) =>
-  status === 'unofficial'
-    ? 'Unofficial results'
-    : status === 'certified'
-      ? 'Certified results'
-      : 'Result status not available';
+  ({
+    unofficial: 'Unofficial results',
+    certified: 'Certified results',
+    recount: 'Recount',
+    tie: 'Tie',
+  })[status] ?? 'Result status unavailable';
+const outcomeLabel = (candidate: d.ResultCandidate) =>
+  candidate.outcome_status === 'certified' && candidate.evidence?.length
+    ? candidate.outcome === 'elected'
+      ? 'Elected'
+      : candidate.outcome === 'not_elected'
+        ? 'Not elected'
+        : 'Pending'
+    : 'Pending';
+function CandidateOutcome({
+  candidate,
+  onSource,
+}: {
+  candidate: d.ResultCandidate;
+  onSource: (value: string) => void;
+}) {
+  if (candidate.is_write_in_aggregate) return null;
+  const label = outcomeLabel(candidate);
+  return (
+    <span className="ec-candidate-outcome">
+      {label}
+      {label !== 'Pending' && (
+        <button className="ec-link" onClick={() => onSource(`outcome:${candidate.candidate_id}`)}>
+          View outcome source
+          <span className="ec-sr-only"> for {candidate.name}</span>
+        </button>
+      )}
+    </span>
+  );
+}
 
 function Notice<T>({
   read,
@@ -77,7 +117,7 @@ function Notice<T>({
       {read.updating && <Updating />}
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          {read.data ? 'We couldn’t update these results' : message}
+          {read.busy ? 'Records are busy' : read.data ? 'Couldn’t update results' : message}
         </Refused>
       )}
       {read.notFound && <p className="ec-empty">This record is not held</p>}
@@ -186,14 +226,91 @@ export function ElectionComparison() {
     to: hrefFor('campaign-money'),
     name: 'Campaign money',
   };
+  const funderBack = funderReturnHref(location);
+  const reportRace = useRead<d.RaceAnswer>(
+    selected && address.report === 'expenses' && address.race
+      ? d.electionRacePath(selected.election_key, address.race, selected.snapshot_id)
+      : null,
+  );
+  const comparisonHref = reportHref(location, 'comparison');
+  const selectElection = (value: string) => navigate(changeElection(location, value));
+  const removeRace = () => {
+    const next = new URL(location);
+    next.searchParams.delete('race');
+    for (const key of [
+      'fpage',
+      'fcpage',
+      'fdpage',
+      'ffpage',
+      'fapage',
+      'fupage',
+      'fopage',
+      'expenseCandidatePage',
+      'expensePayeePage',
+      'expensePaymentsPage',
+      'expenseSearchPage',
+    ])
+      next.searchParams.delete(key);
+    for (const key of ['expenseCandidate', 'expensePayee', 'expenseSource'])
+      next.searchParams.delete(key);
+    navigate(next.pathname + next.search);
+  };
   const yearParams = new URLSearchParams(location.search);
   for (const key of [...Object.keys(defaults), 'votesView', 'outView']) yearParams.delete(key);
+  for (const key of [...yearParams.keys()])
+    if (
+      key.startsWith('expense') ||
+      [
+        'fq',
+        'start',
+        'end',
+        'fpage',
+        'funder',
+        'panel',
+        'fcpage',
+        'fdpage',
+        'ffpage',
+        'fapage',
+        'fupage',
+        'fopage',
+      ].includes(key)
+    )
+      yearParams.delete(key);
   const yearHref = `${location.pathname}${yearParams.size ? `?${yearParams}` : ''}`;
+  if (selected && address.report === 'funders')
+    return (
+      <Funders
+        election={selected}
+        elections={elections.data!.elections}
+        raceId={address.race || undefined}
+        backHref={comparisonHref}
+        onElectionChange={selectElection}
+        onRemoveRace={removeRace}
+      />
+    );
+  if (selected && address.report === 'expenses')
+    return (
+      <ExpenseReport
+        electionKey={selected.election_key}
+        raceId={address.race || undefined}
+        raceLabel={reportRace.data?.race.label}
+        backHref={comparisonHref}
+        elections={elections.data!.elections.map((item) => ({
+          value: item.election_key,
+          label: electionLabel(item),
+        }))}
+        onElectionChange={selectElection}
+        onRemoveRace={removeRace}
+      />
+    );
   return (
     <main id="main" className="f-page ec-page">
       <div className="f-content">
         <div className="mr-back">
-          <BackLink to={back.to} name={back.name} />
+          <BackLink
+            to={funderBack ?? back.to}
+            name={funderBack ? 'Funders and election outcomes' : back.name}
+          />
         </div>
         <header className="mr-header">
           <h1 tabIndex={-1} className="f-page-title">
@@ -204,7 +321,18 @@ export function ElectionComparison() {
             View campaign money by year →
           </Link>
         </header>
-        <Notice read={elections} message="We couldn’t load elections" />
+        <CoverageNotice />
+        {selected && (
+          <nav className="ec-actions" aria-label="Election reports">
+            <Link className="ec-link" to={reportHref(location, 'funders')}>
+              Compare funders
+            </Link>
+            <Link className="ec-link" to={reportHref(location, 'expenses')}>
+              Campaign expense report
+            </Link>
+          </nav>
+        )}
+        <Notice read={elections} message="Couldn’t load elections" />
         {elections.data && (
           <>
             <div className="ec-finder">
@@ -216,22 +344,7 @@ export function ElectionComparison() {
                   value: item.election_key,
                   label: electionLabel(item),
                 }))}
-                onChange={(election) =>
-                  setAddress(
-                    {
-                      election,
-                      race: '',
-                      page: '1',
-                      pq: '',
-                      ppage: '1',
-                      pay: '',
-                      paypage: '1',
-                      source: '',
-                      list: '1',
-                    },
-                    { replace: false },
-                  )
-                }
+                onChange={selectElection}
               />
               <SearchField
                 label="Search races"
@@ -295,13 +408,23 @@ function ElectionBody({
   function raceHref(id: string) {
     const params = new URLSearchParams(location.search);
     params.set('race', id);
-    for (const key of ['list', 'pq', 'ppage', 'pay', 'paypage', 'source']) params.delete(key);
+    for (const key of [
+      'list',
+      'reports',
+      'externalReports',
+      'pq',
+      'ppage',
+      'pay',
+      'paypage',
+      'source',
+    ])
+      params.delete(key);
     return `${location.pathname}?${params}`;
   }
   const list = showList && (
     <section className="ec-section" aria-labelledby="ec-races-heading">
       <h2 id="ec-races-heading">Races{races.data ? ` (${count(races.data.page.total)})` : ''}</h2>
-      <Notice read={races} message="We couldn’t load races" reload={reloadResults} />
+      <Notice read={races} message="Couldn’t load races" reload={reloadResults} />
       {races.data && (
         <>
           {races.data.query !== address.q && (
@@ -338,7 +461,7 @@ function ElectionBody({
       {address.race && (
         <Notice
           read={selectedRead}
-          message="We couldn’t load election results"
+          message="Couldn’t load election results"
           reload={reloadResults}
         />
       )}
@@ -411,17 +534,59 @@ function RaceComparison({
     },
     [data],
   );
+  const [external, setExternal] = useState<Record<string, ExternalStatus>>({});
+  const onExternalStatus = useCallback((candidate: string, value: ExternalStatus) => {
+    setExternal((previous) =>
+      JSON.stringify(previous[candidate]) === JSON.stringify(value)
+        ? previous
+        : { ...previous, [candidate]: value },
+    );
+  }, []);
+  const externalCandidates = race.candidates.filter(
+    (candidate): candidate is d.ResultCandidate & { candidate_id: string } => {
+      if (!candidate.candidate_id || !named(candidate)) return false;
+      const board = data?.candidates.find((c) => c.candidate_id === candidate.candidate_id);
+      // Only exact published coverage or confirmed Board accounts settle its authority.
+      return !board?.accounts.length && board?.finance_coverage.authority !== 'board';
+    },
+  );
+  const externalStates = externalCandidates.map((c) => external[c.candidate_id]);
+  const generations = [
+    ...new Set(
+      externalStates.flatMap((s) => (s?.state === 'ready' && s.generation ? [s.generation] : [])),
+    ),
+  ];
+  const externalReady =
+    externalStates.every((s) => s && (s.state === 'ready' || s.state === 'missing')) &&
+    generations.length <= 1;
   const campaignOK = data?.report_availability.state === 'available';
   const outsideOK = data?.outside_spending_availability.state === 'available';
   const candidates = data?.candidates.filter(named).sort(byVotes) ?? [];
-  const latestReports = candidates
-    .flatMap((c) =>
-      c.accounts.map((a) => a.reports?.find((r) => r.report_key === a.latest_report.report_key)),
-    )
-    .filter((r): r is d.FinancialReport => !!r);
-  const periodLines = new Set(latestReports.map(reportPeriod));
-  const sharedPeriod =
-    latestReports.length > 0 && periodLines.size === 1 ? [...periodLines][0] : null;
+  const boardCandidates = candidates.filter(
+    (c) => !externalCandidates.some((x) => x.candidate_id === c.candidate_id),
+  );
+  const boardReportChoices = reportChoices(address.reports);
+  const boardReportKeys = candidates.flatMap((c) =>
+    c.accounts.flatMap((account) => {
+      const chosen =
+        boardReportChoices?.get(account.registration_number) ?? account.latest_report.report_key;
+      return chosen ? [chosen] : [];
+    }),
+  );
+  const csvPath =
+    externalReady && !finance.pending && !finance.changed && boardReportChoices !== null
+      ? d.raceCsvPath(detail, {
+          version: data?.version,
+          query: address.pq,
+          reports: [...boardReportKeys, ...externalStates.flatMap((s) => s?.selectedReports ?? [])],
+          externalGeneration: generations[0],
+          externalVersions: externalCandidates.flatMap((c) =>
+            external[c.candidate_id]?.state === 'ready' && external[c.candidate_id].version
+              ? [[c.candidate_id, external[c.candidate_id].version!] as [string, string]]
+              : [],
+          ),
+        })
+      : null;
   const voteTotal = race.total_votes;
   const sortedCandidates = [...race.candidates].sort(byVotes);
   const selectSource = (source: string) => setAddress({ source });
@@ -457,16 +622,23 @@ function RaceComparison({
           </p>
           <strong>{statusLabel(race.result_status)}</strong>
         </div>
-        <div className="ec-copy">
-          <button className="ec-button" onClick={() => void copyLink()}>
-            {copy === 'done' ? 'Link copied' : copy === 'failed' ? 'Try again' : 'Copy link'}
-          </button>
-          <span
-            className={copy === 'done' ? 'ec-sr-only' : undefined}
-            role={copy === 'failed' ? 'alert' : 'status'}
-          >
-            {copy === 'failed' ? 'Couldn’t copy link' : copy === 'done' ? 'Link copied' : ''}
-          </span>
+        <div className="ec-actions">
+          <div className="ec-copy">
+            <button className="ec-button" onClick={() => void copyLink()}>
+              {copy === 'done' ? 'Link copied' : copy === 'failed' ? 'Try again' : 'Copy link'}
+            </button>
+            <span
+              className={copy === 'done' ? 'ec-sr-only' : undefined}
+              role={copy === 'failed' ? 'alert' : 'status'}
+            >
+              {copy === 'failed' ? 'Couldn’t copy link' : copy === 'done' ? 'Link copied' : ''}
+            </span>
+          </div>
+          <CsvDownload
+            path={csvPath}
+            onChanged={reload}
+            filename="Election results and campaign money.csv"
+          />
         </div>
       </div>
       <section className="ec-section" aria-labelledby="ec-votes">
@@ -501,6 +673,7 @@ function RaceComparison({
                       )}
                     </span>
                   </div>
+                  <CandidateOutcome candidate={c} onSource={selectSource} />
                   <div className="ec-vote-track" aria-hidden="true">
                     <span
                       style={{
@@ -525,6 +698,7 @@ function RaceComparison({
                   <th>Party</th>
                   <th>Votes</th>
                   <th>Share of votes</th>
+                  <th>Outcome</th>
                 </tr>
               </thead>
               <tbody>
@@ -536,7 +710,10 @@ function RaceComparison({
                     <td className="ec-number">
                       {c.votes != null && voteTotal != null && voteTotal > 0
                         ? `${((100 * c.votes) / voteTotal).toFixed(2)}%`
-                        : 'Not available'}
+                        : 'Unavailable'}
+                    </td>
+                    <td>
+                      <CandidateOutcome candidate={c} onSource={selectSource} />
                     </td>
                   </tr>
                 ))}
@@ -547,6 +724,7 @@ function RaceComparison({
                     Total
                   </th>
                   <td className="ec-number">{count(voteTotal)}</td>
+                  <td />
                   <td />
                 </tr>
               </tfoot>
@@ -570,27 +748,20 @@ function RaceComparison({
       <section className="ec-section" aria-labelledby="ec-campaign">
         <div className="ec-section-heading">
           <h3 id="ec-campaign">Campaign money</h3>
-          {sharedPeriod && <span className="ec-muted ec-period">{sharedPeriod}</span>}
         </div>
-        <Notice read={finance} message="We couldn’t load campaign money" reload={reload} />
+        <Notice read={finance} message="Couldn’t load campaign money" reload={reload} />
         {data && !campaignOK && (
           <Refused onRetry={finance.retry} retrying={finance.pending}>
-            We couldn’t load campaign money
+            Couldn’t load campaign money
           </Refused>
         )}
         {campaignOK && (
           <div className="ec-candidates">
-            {candidates.map((candidate) => (
+            {boardCandidates.map((candidate) => (
               <article className="ec-card" key={candidate.candidate_id}>
                 <h4>{candidate.name}</h4>
                 {!candidate.accounts.length && (
-                  <p className="ec-muted">
-                    {candidate.report_state === 'not_collected'
-                      ? candidate.finance_coverage.authority === 'federal'
-                        ? 'Federal campaign reports have not been collected'
-                        : 'Local campaign reports have not been collected'
-                      : 'No confirmed campaign account for this candidacy'}
-                  </p>
+                  <p className="ec-muted">No confirmed campaign account for this candidacy</p>
                 )}
                 {candidate.account_gaps.length > 0 && (
                   <p className="ec-muted">
@@ -603,11 +774,43 @@ function RaceComparison({
                   <AccountCard
                     key={account.decision_id}
                     account={account}
-                    sharedPeriod={sharedPeriod}
+                    selectedKey={selectedReport(address.reports, account.registration_number)}
+                    onSelect={(report) =>
+                      setAddress({
+                        reports: chooseReport(address.reports, account.registration_number, report),
+                        source: '',
+                      })
+                    }
                     onSource={selectSource}
                   />
                 ))}
               </article>
+            ))}
+          </div>
+        )}
+        {externalCandidates.length > 0 && (
+          <div className="ec-candidates">
+            {generations.length > 1 && (
+              <div className="ec-notice" role="status">
+                These records changed{' '}
+                <button className="ec-button" onClick={reload}>
+                  Reload comparison
+                </button>
+              </div>
+            )}
+            {externalCandidates.map((candidate) => (
+              <ExternalCandidate
+                key={candidate.candidate_id}
+                detail={detail}
+                candidate={candidate}
+                revision={revision}
+                selected={address.externalReports}
+                source={address.source}
+                onSelect={(value) => setAddress({ externalReports: value, source: '' })}
+                onSource={selectSource}
+                onStatus={onExternalStatus}
+                reload={reload}
+              />
             ))}
           </div>
         )}
@@ -623,12 +826,12 @@ function RaceComparison({
         {finance.loading && <LoadingLine>Loading…</LoadingLine>}
         {(finance.failed || (data && !outsideOK)) && (
           <Refused onRetry={finance.retry} retrying={finance.pending}>
-            We couldn’t load outside spending
+            Couldn’t load outside spending
           </Refused>
         )}
         {outsideOK && data && (
           <>
-            {candidates
+            {boardCandidates
               .filter((c) => !c.accounts.length)
               .map((c) => (
                 <p key={c.candidate_id} className="ec-empty">
@@ -636,7 +839,7 @@ function RaceComparison({
                   this candidacy
                 </p>
               ))}
-            {candidates.map((c) => {
+            {boardCandidates.map((c) => {
               const missingDate = c.outside_spending.excluded_missing_date?.record_count ?? 0;
               const missingYear = c.outside_spending.excluded_missing_year?.record_count ?? 0;
               return missingDate || missingYear ? (
@@ -747,7 +950,7 @@ function RaceComparison({
           here={location.pathname + location.search}
           commit={(pq) => setAddress({ pq, ppage: '1' })}
         />
-        <Notice read={precincts} message="We couldn’t load precinct results" reload={reload} />
+        <Notice read={precincts} message="Couldn’t load precinct results" reload={reload} />
         {precincts.data && (
           <>
             {precincts.data.query !== address.pq && (
@@ -782,9 +985,8 @@ function RaceComparison({
           spending changed an outcome.
         </p>
         <p>
-          Outside spending shown here comes from itemized reports to the Minnesota Campaign Finance
-          and Public Disclosure Board. Candidate campaign reports may be filed with a different
-          authority.
+          Board outside spending and each other authority’s spending and support records keep their
+          own filing types and sources. No amounts are allocated to precincts.
         </p>
       </section>
       <section className="ec-sources">
@@ -827,7 +1029,7 @@ function RaceComparison({
           </button>
         )}
       </section>
-      {address.source && (
+      {address.source && !address.source.startsWith('external:') && (
         <RetainedEvidence
           key={`${address.source}:${data?.version ?? ''}`}
           selection={
@@ -847,7 +1049,7 @@ function RaceComparison({
                             paymentSourceState.state === 'loading'
                             ? 'Loading payment evidence…'
                             : paymentSourceState.state === 'failed'
-                              ? 'We couldn’t load this payment source'
+                              ? 'Couldn’t load payment source'
                               : paymentSourceState.state === 'changed'
                                 ? 'These records changed'
                                 : 'This payment is not held on the selected page'
@@ -873,6 +1075,28 @@ function RaceComparison({
       )}
     </>
   );
+}
+
+function reportChoices(value: string): Map<string, string> | null {
+  if (!value) return new Map();
+  const rows = value.split(',');
+  if (rows.length > 500) return null;
+  const chosen = new Map<string, string>();
+  for (const row of rows) {
+    const match = /^(\d+):([a-f0-9]{64})$/.exec(row);
+    if (!match || chosen.has(match[1])) return null;
+    chosen.set(match[1], match[2]);
+  }
+  return chosen;
+}
+function selectedReport(value: string, registration: string): string | null {
+  const choices = reportChoices(value);
+  return choices ? (choices.get(registration) ?? null) : 'invalid';
+}
+function chooseReport(value: string, registration: string, report: string) {
+  const choices = reportChoices(value) ?? new Map<string, string>();
+  choices.set(registration, report);
+  return [...choices].map(([key, hash]) => `${key}:${hash}`).join(',');
 }
 
 function reportPeriod(report: d.FinancialReport) {
@@ -1011,19 +1235,24 @@ function PrecinctResults({
 }
 function AccountCard({
   account,
-  sharedPeriod,
+  selectedKey,
+  onSelect,
   onSource,
 }: {
   account: d.CheckedAccount;
-  sharedPeriod: string | null;
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
   onSource: (source: string) => void;
 }) {
   const [filingsOpen, setFilingsOpen] = useState(false);
   const filingsId = useId();
   const report = account.reports?.find(
-    (item) => item.report_key === account.latest_report.report_key,
+    (item) => item.report_key === (selectedKey ?? account.latest_report.report_key),
   );
-  const figures = account.latest_report.figures;
+  const figures =
+    report?.attribution === 'checked' && report.figure_status === 'source_verified'
+      ? report.figures
+      : null;
   return (
     <div className="ec-account">
       <strong>{account.committee_name ?? 'Campaign account'}</strong>
@@ -1036,12 +1265,14 @@ function AccountCard({
       >
         View account sources
       </button>
-      {report && !sharedPeriod && <p className="ec-period ec-muted">{reportPeriod(report)}</p>}
+      {report && <p className="ec-period ec-muted">{reportPeriod(report)}</p>}
       {!figures && (
         <p className="ec-empty">
-          {account.latest_report.state === 'ambiguous_latest_report'
-            ? 'The latest report is not resolved'
-            : 'No report figures held for this account and period'}
+          {selectedKey && !report
+            ? 'Selected report is unavailable'
+            : !selectedKey && account.latest_report.state === 'ambiguous_latest_report'
+              ? 'The latest report is not resolved'
+              : 'Report figures not held'}
         </p>
       )}
       {figures && report && (
@@ -1056,17 +1287,17 @@ function AccountCard({
               <h5>{label}</h5>
               <dl className="ec-amounts">
                 <dt>Cash</dt>
-                <dd>{exactMoney(measure.cash)}</dd>
+                <dd>{moneyLabel(measure.cash)}</dd>
                 <dt>In-kind</dt>
-                <dd>{exactMoney(measure.in_kind)}</dd>
+                <dd>{moneyLabel(measure.in_kind)}</dd>
                 {'unpaid' in measure && (
                   <>
                     <dt>Unpaid</dt>
-                    <dd>{exactMoney(measure.unpaid)}</dd>
+                    <dd>{moneyLabel(measure.unpaid)}</dd>
                   </>
                 )}
                 <dt className="ec-sum">Total</dt>
-                <dd className="ec-sum">{exactMoney(measure.total)}</dd>
+                <dd className="ec-sum">{moneyLabel(measure.total)}</dd>
               </dl>
               <button
                 className="ec-link"
@@ -1094,11 +1325,33 @@ function AccountCard({
           <ul id={filingsId} hidden={!filingsOpen}>
             {account.reports!.map((r) => (
               <li key={r.report_key}>
+                <label className="ec-filing-choice">
+                  <input
+                    type="radio"
+                    name={filingsId}
+                    value={r.report_key}
+                    checked={report?.report_key === r.report_key}
+                    onChange={() => onSelect(r.report_key)}
+                  />
+                  <span>
+                    {r.filing.report_name}
+                    {r.report_key === account.latest_report.report_key && (
+                      <span className="ec-muted"> · Latest available</span>
+                    )}
+                    <span className="ec-filing-period">
+                      {periodLabel(r.period_start, r.period_end)}
+                    </span>
+                    <span className="ec-filing-period ec-muted">
+                      Received {r.received_date ? dateLabel(r.received_date) : 'date unavailable'}
+                    </span>
+                  </span>
+                </label>
                 <button
                   className="ec-link"
                   onClick={() => onSource(`report:${account.registration_number}:${r.report_key}`)}
                 >
-                  {r.filing.report_name} · Through {dateLabel(r.filing.cut_off_date)}
+                  View report
+                  <span className="ec-sr-only"> {r.filing.report_name}</span>
                 </button>
                 <p className="ec-muted">
                   {r.figures ? 'Report figures available' : 'Report figures not held'}
@@ -1190,7 +1443,7 @@ function OutsideGroup({
                 {amount == null
                   ? group.state === 'no_records'
                     ? 'No payments within the checked account dates'
-                    : 'Amount not available'
+                    : 'Unavailable'
                   : formatMoney(amount)}
               </span>
               {amount != null && Number(amount) < 0 && (
@@ -1387,7 +1640,7 @@ function Payments({
   return (
     <div className="ec-payments">
       <h5>Payments</h5>
-      <Notice read={read} message="We couldn’t load payments" reload={reload} />
+      <Notice read={read} message="Couldn’t load payments" reload={reload} />
       {read.data && (
         <>
           <ul>
@@ -1396,7 +1649,7 @@ function Payments({
                 <span>
                   <span className="ec-date">{dateLabel(row.fields.Date)}</span> ·{' '}
                   <strong>{row.fields.Spender ?? 'Spender not reported'}</strong> ·{' '}
-                  <span className="ec-number">{exactMoney(row.fields.Amount)}</span>
+                  <span className="ec-number">{moneyLabel(row.fields.Amount)}</span>
                   {scope === 'outside_reviewed_period' && (
                     <span className="ec-muted">
                       {' '}
@@ -1455,6 +1708,37 @@ function evidenceFor(
   onSource: (source: string) => void,
 ): ElectionEvidence | null {
   if (!source) return null;
+  if (source.startsWith('outcome:')) {
+    const candidate = detail.race.candidates.find((item) => item.candidate_id === source.slice(8));
+    if (!candidate || outcomeLabel(candidate) === 'Pending') return null;
+    const record = candidate.evidence![0];
+    return {
+      evidence: {
+        title: `${candidate.name} · ${raceName(detail.race)}`,
+        authority: record.authority ?? 'Election authority',
+        checked: null,
+        rows: [
+          { label: 'Outcome', value: outcomeLabel(candidate) },
+          {
+            label: 'Result status',
+            value: statusLabel(detail.race.result_status),
+          },
+          { label: 'Copied', value: dateLabel(record.fetched_at) },
+          {
+            label: 'Source',
+            value: record.locator.page
+              ? `Page ${record.locator.page}`
+              : record.locator.line_start
+                ? `Line ${record.locator.line_start}`
+                : 'Election record',
+          },
+        ],
+        quote: record.quote,
+      },
+      attachment: d.electionSourcePath(detail.election_key, record.sha256, detail.snapshot_id),
+      pdfPage: record.locator.page,
+    };
+  }
   if (source === 'votes') {
     const hash = detail.race.summary_source_sha256 ?? detail.race.source_sha256;
     if (!hash) return null;

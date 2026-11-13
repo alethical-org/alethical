@@ -107,7 +107,7 @@ for (const engine of [chromium, webkit]) {
         'Retained race rows stay steady during an address search',
       );
       await page
-        .getByText('We couldn’t match that address to election records', {
+        .getByText('Couldn’t match that address to election records', {
           exact: true,
         })
         .waitFor();
@@ -124,7 +124,7 @@ for (const engine of [chromium, webkit]) {
       const failedRacesBefore = await page.locator('.candidate-group-toggle').first().boundingBox();
       await ready.click();
       await busy.waitFor();
-      await page.getByText('We couldn’t update the results', { exact: true }).waitFor();
+      await page.getByText('Couldn’t update the results', { exact: true }).waitFor();
       assert.equal(await ready.count(), 1);
       if (width === 1280)
         assert.deepEqual(

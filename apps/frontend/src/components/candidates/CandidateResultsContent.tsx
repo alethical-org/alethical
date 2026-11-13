@@ -265,7 +265,7 @@ export function CandidateCoverage({
                 {gap.kind === 'coverage-unconfirmed'
                   ? 'Some local offices may be missing'
                   : gap.kind === 'district-unconfirmed'
-                    ? `We couldn’t confirm your district for ${gap.office}`
+                    ? `Couldn’t confirm your district for ${gap.office}`
                     : `${resultsPhase ? 'Results' : 'Candidate records'} are unavailable for ${gap.office}`}
               </Text>
               {gap.kind !== 'coverage-unconfirmed' ? (

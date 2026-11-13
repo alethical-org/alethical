@@ -157,7 +157,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
     return (
       <Frame back={back}>
         <Refused onRetry={read.retry} retrying={read.pending}>
-          We couldn’t load this roll call
+          Couldn’t load this roll call
         </Refused>
       </Frame>
     );

@@ -763,7 +763,7 @@ function BillDetailMobileScreen() {
           ) : billQuery.isError || !bill || !vm ? (
             <View style={styles.stateBox}>
               <Text style={styles.stateText}>
-                We couldn’t load this bill right now. Please try again in a moment.
+                Couldn’t load bill right now. Please try again in a moment.
               </Text>
               <GoBackLink
                 destinationName="Search bills"

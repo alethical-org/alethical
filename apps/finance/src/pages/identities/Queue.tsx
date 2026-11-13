@@ -101,7 +101,7 @@ export function Queue({
           <Refused onRetry={read.retry} retrying={read.pending}>
             {read.changed
               ? RECORDS_CHANGED
-              : `We couldn’t load the names to review. This is a problem on our side.${data ? ' Previous results are shown.' : ''}`}
+              : `Couldn’t load the names to review. This is a problem on our side.${data ? ' Previous results are shown.' : ''}`}
           </Refused>
         </div>
       )}

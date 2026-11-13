@@ -93,8 +93,16 @@ export interface ResultCandidate {
   party?: string | null;
   is_write_in_aggregate: boolean;
   votes: number | null;
-  /** Current result publication supplies no candidate outcome labels. */
-  outcome: null;
+  /** Only checked authority evidence supplies an outcome; vote order never does. */
+  outcome: 'elected' | 'not_elected' | null;
+  outcome_status?: 'certified' | 'pending';
+  evidence?: Array<{
+    sha256: string;
+    authority?: string;
+    fetched_at?: string;
+    quote?: string;
+    locator: { page?: number; line_start?: number; line_end?: number };
+  }>;
   source_rows?: number[];
   summary_sources?: ResultSourceLocator[];
   candidate_source_row?: number | null;
@@ -122,6 +130,7 @@ export interface Race {
   county_name: string | null;
   county_ids?: string[];
   result_status: string;
+  outcome_review?: { version: string };
   source_status?: string;
   source_sha256?: string;
   candidate_source_sha256?: string;
@@ -683,4 +692,27 @@ export function reportedAmount(
   measure: Pick<SpendingMeasure, 'state' | 'amount'> | null | undefined,
 ): DecimalUSD | null {
   return measure?.state === 'reported' ? measure.amount : null;
+}
+
+/** Export the displayed scope, not just its visible precinct page. */
+export function raceCsvPath(
+  detail: RaceAnswer,
+  options: {
+    version?: string;
+    query: string;
+    reports: string[];
+    externalGeneration?: string;
+    externalVersions?: Array<[string, string]>;
+  },
+) {
+  const params = new URLSearchParams({ snapshot_id: detail.snapshot_id });
+  if (options.version) params.set('version', options.version);
+  if (detail.race.outcome_review?.version)
+    params.set('outcome_version', detail.race.outcome_review.version);
+  if (options.query) params.set('q', options.query);
+  for (const report of [...new Set(options.reports)]) params.append('report_key', report);
+  if (options.externalGeneration) params.set('external_generation_id', options.externalGeneration);
+  for (const [candidate, version] of options.externalVersions ?? [])
+    params.append('external_version', `${candidate}:${version}`);
+  return apiPath([...race(detail.election_key, detail.race.id), 'export.csv']) + '?' + params;
 }

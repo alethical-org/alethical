@@ -207,7 +207,7 @@ export function committeeFigures(committee: RaceCommittee, year: number): [RaceF
       ? named.text
       : committee.named.state === 'not_reported'
         ? `No itemized contributions in our records for ${year}`
-        : 'We couldn’t load this figure',
+        : 'Couldn’t load this figure',
     explanation: null,
     period: named.isFigure
       ? paymentDateRangeLabel(committee.named.firstPaymentOn, committee.named.lastPaymentOn)
@@ -298,4 +298,4 @@ export function noContestsTitle(office: string | null): string {
 /** What the page says when our copy of the register cannot be read. A gap on our
  *  side, never a claim that Minnesota has no candidates. */
 export const MONEY_BY_RACE_UNAVAILABLE =
-  'We couldn’t load the committee list. This does not tell us who is running.';
+  'Couldn’t load the committee list. This does not tell us who is running.';

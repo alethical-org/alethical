@@ -302,7 +302,7 @@ it.each([
     } else {
       expect(records).toBeNull();
       expect(node.textContent).toContain(
-        expected === 'notfound' ? 'Bill not found' : 'load this bill’s votes',
+        expected === 'notfound' ? 'Bill not found' : 'load bill’s votes',
       );
     }
     if (expected !== 'notfound')

@@ -84,29 +84,28 @@ describe('outside spending money goes through the one shared formatter', () => {
     }
   });
 
-  it('keeps a sub-dollar payment under a dollar rather than rounding it up', () => {
+  it('truncates sub-dollar displays to zero without rounding up', () => {
     // 0.999 printed "$1.00" before #1929 — higher than the money, and a dollar figure
     // inside the branch reserved for values under a dollar. It is the same carry
     // defect as #1332 at the other end of the range.
-    expect(formatMoney(0.999)).toBe('$0.99');
-    expect(formatMoney(0.9999)).toBe('$0.99');
-    expect(formatMoney(0.5)).toBe('$0.50');
-    // Binary floating point makes 0.29 * 100 come out as 28.999999999999996, so a bare
-    // floor would print $0.28 for a 29-cent payment.
-    expect(formatMoney(0.29)).toBe('$0.29');
-    expect(formatMoney(0.07)).toBe('$0.07');
-    expect(formatMoney(0.01)).toBe('$0.01');
+    expect(formatMoney(0.999)).toBe('$0');
+    expect(formatMoney(0.9999)).toBe('$0');
+    expect(formatMoney(0.5)).toBe('$0');
+    // Fractional dollars remain exact in the data; every display drops cents.
+    expect(formatMoney(0.29)).toBe('$0');
+    expect(formatMoney(0.07)).toBe('$0');
+    expect(formatMoney(0.01)).toBe('$0');
   });
 
   it('reads no higher in magnitude on a negative amount either', () => {
     // 0 of the live release's 41,130 outside-spending rows are negative, but a
     // correction could be, and the rule holds in both directions.
     expect(formatMoney(-1.9999)).toBe('-$1');
-    expect(formatMoney(-0.999)).toBe('-$0.99');
+    expect(formatMoney(-0.999)).toBe('-$0');
     expect(formatMoney(-487974.82)).toBe('-$487,974');
     // Finance asks for the true minus sign; alethical.com's default keeps the hyphen.
     expect(formatMoney(-150, { minusSign: true })).toBe('\u2212$150');
-    expect(formatMoney(-0.999, { minusSign: true })).toBe('\u2212$0.99');
+    expect(formatMoney(-0.999, { minusSign: true })).toBe('\u2212$0');
     expect(formatMoney(150, { minusSign: true })).toBe('$150');
     expect(formatMoney(-150)).toBe('-$150');
     // A site that sets the minus sign once at start-up gets it from every caller,
@@ -114,7 +113,7 @@ describe('outside spending money goes through the one shared formatter', () => {
     setNegativeSign('minus');
     try {
       expect(formatMoney(-150)).toBe('\u2212$150');
-      expect(formatMoney(-0.5)).toBe('\u2212$0.50');
+      expect(formatMoney(-0.5)).toBe('\u2212$0');
       expect(formatMoney(-150, { minusSign: false })).toBe('-$150');
     } finally {
       setNegativeSign('hyphen');

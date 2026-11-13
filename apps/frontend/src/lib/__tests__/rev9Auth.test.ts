@@ -86,7 +86,7 @@ describe('rev 9 provider error copy', () => {
       mapProviderAuthError({ code: 'unexpected_failure', message: 'Database host db-1 failed.' }),
     ).toEqual({
       kind: 'request-failure',
-      message: 'We couldn’t complete that request. Check your connection and try again.',
+      message: 'Couldn’t complete that request. Check your connection and try again.',
     });
   });
 
@@ -114,7 +114,7 @@ describe('rev 9 provider error copy', () => {
     for (const code of ['identity_already_exists', 'email_conflict_identity_not_deletable']) {
       expect(mapProviderAuthError({ code })).toEqual({
         kind: 'request-failure',
-        message: 'We couldn’t complete that request. Check your connection and try again.',
+        message: 'Couldn’t complete that request. Check your connection and try again.',
       });
     }
   });
@@ -124,7 +124,7 @@ describe('rev 9 provider error copy', () => {
     // If it reaches the mapper elsewhere, it must not revive retired copy.
     expect(mapProviderAuthError({ code: 'same_password', status: 422 })).toEqual({
       kind: 'request-failure',
-      message: 'We couldn’t complete that request. Check your connection and try again.',
+      message: 'Couldn’t complete that request. Check your connection and try again.',
     });
     expect(
       mapProviderAuthError({ code: 'validation_failed', status: 422 }, undefined, {
@@ -158,7 +158,7 @@ describe('rev 9 provider error copy', () => {
     });
     expect(mapProviderAuthError({ code: 'user_already_exists' })).toEqual({
       kind: 'request-failure',
-      message: 'We couldn’t complete that request. Check your connection and try again.',
+      message: 'Couldn’t complete that request. Check your connection and try again.',
     });
   });
 
@@ -196,7 +196,7 @@ describe('the uncertain password save (REQUEST FAILURE carve-out)', () => {
 
   it('names the reset account in the pinned banner wording', () => {
     expect(uncertainPasswordSaveMessage('jordan@example.com')).toBe(
-      'We couldn’t confirm whether the password for jordan@example.com was saved. If you sign in with email, try the password you entered. If it doesn’t work, reset your password.',
+      'Couldn’t confirm whether the password for jordan@example.com was saved. If you sign in with email, try the password you entered. If it doesn’t work, reset your password.',
     );
   });
 });

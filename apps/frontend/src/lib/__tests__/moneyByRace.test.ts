@@ -301,7 +301,7 @@ describe('a missing figure states our gap and never becomes $0', () => {
       2026,
     )[1];
     expect(gap.isFigure).toBe(false);
-    expect(gap.text).toBe('We couldn’t load this figure');
+    expect(gap.text).toBe('Couldn’t load this figure');
     expect(gap.period).toBeNull();
     expect(gap.explanation).toBeNull();
   });
@@ -311,7 +311,7 @@ describe('a missing figure states our gap and never becomes $0', () => {
       committee({ named: { ...committee().named, total: null } }),
       2026,
     )[1];
-    expect(named.text).toBe('We couldn’t load this figure');
+    expect(named.text).toBe('Couldn’t load this figure');
     expect(named.isFigure).toBe(false);
     expect(named.period).toBeNull();
     expect(named.explanation).toBeNull();
@@ -327,7 +327,7 @@ describe('a missing figure states our gap and never becomes $0', () => {
     );
     expect(reported.isFigure).toBe(false);
     expect(reported.period).toBeNull();
-    expect(named.text).toBe('We couldn’t load this figure');
+    expect(named.text).toBe('Couldn’t load this figure');
     expect(named.isFigure).toBe(false);
     expect(named.period).toBeNull();
   });

@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { formatMoney } from '../../lib/moneyFormat';
 import { theme as t } from '../../theme/tokens';
 import { ReviewAction, reviewStyles as s } from './ReviewControls';
 import {
@@ -21,9 +22,7 @@ export type SuggestionState = {
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const money = (value: string) => {
   const amount = Number(value);
-  return /^-?\d+(?:\.\d+)?$/.test(value) && Number.isFinite(amount)
-    ? amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-    : value;
+  return /^-?\d+(?:\.\d+)?$/.test(value) && Number.isFinite(amount) ? formatMoney(value) : value;
 };
 const day = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -254,8 +253,8 @@ function Group<T>({
                 : 'Loading suggestions…'
               : state?.error
                 ? state.data
-                  ? 'We couldn’t update the suggestions. The earlier list remains below.'
-                  : 'We couldn’t load suggestions. You can still type each value.'
+                  ? 'Couldn’t update the suggestions. The earlier list remains below.'
+                  : 'Couldn’t load suggestions. You can still type each value.'
                 : state?.data && !items.length
                   ? empty
                   : ''}

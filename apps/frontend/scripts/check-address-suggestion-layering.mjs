@@ -121,7 +121,7 @@ try {
         await openAndHitTest();
         await page.getByRole('option').last().click();
         await expect(
-          page.getByText('We couldn’t match that address to election records', { exact: true }),
+          page.getByText('Couldn’t match that address to election records', { exact: true }),
         ).toBeVisible();
         await expect(
           page.getByText(`Showing results for ${addresses[3]}`, { exact: true }),

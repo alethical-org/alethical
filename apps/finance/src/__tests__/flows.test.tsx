@@ -224,13 +224,13 @@ describe('the access answer', () => {
 
   it('moves focus to the unavailable heading on the sign-in page', async () => {
     await render('/sign-in', fakeSupabase(session('token-1')).client, answering(503));
-    expect(container.querySelector('h1')?.textContent).toBe('We couldn’t check your access');
+    expect(container.querySelector('h1')?.textContent).toBe('Couldn’t check your access');
   });
 
   it('offers Try again on the sign-in page when a new sign-in cannot be checked', async () => {
     const supabase = fakeSupabase(session('token-1'));
     await render('/sign-in', supabase.client, answering(503));
-    expect(text()).toContain('We couldn’t check your access');
+    expect(text()).toContain('Couldn’t check your access');
     expect(text()).toContain('Try again');
   });
 });
@@ -324,12 +324,12 @@ describe('sign-in steps', () => {
     await act(async () => button('Continue').click());
     await act(async () => {});
     expect(calls).toBeGreaterThan(0);
-    expect(text()).toContain('We couldn’t finish signing in.');
+    expect(text()).toContain('Couldn’t finish signing in.');
   });
 
   it.each([
     [400, 'That code is wrong or expired.'],
-    [503, 'We couldn’t check the code. Try again.'],
+    [503, 'Couldn’t check the code. Try again.'],
   ])('a code the server answers with %i never reaches Supabase', async (status, message) => {
     const supabase = fakeSupabase(null);
     const fetcher = vi.fn(async (url: string) =>
@@ -474,13 +474,13 @@ describe('sign-in steps', () => {
     await act(async () => supabase.emit('SIGNED_IN', session('token-2')));
     expect(container.querySelector('nav')).toBeNull();
     await act(async () => answer(new Response(null, { status: 503 })));
-    expect(text()).toContain('We couldn’t check your access');
+    expect(text()).toContain('Couldn’t check your access');
   });
 
   it('moves focus to the new screen’s heading', async () => {
     await render('/money', fakeSupabase(session('token-1')).client, answering(200));
     await act(async () => navigate('/no-such-page'));
-    expect(document.activeElement?.textContent).toBe('We couldn’t find that page');
+    expect(document.activeElement?.textContent).toBe('Couldn’t find that page');
     expect(document.activeElement?.tagName).toBe('H1');
   });
 });

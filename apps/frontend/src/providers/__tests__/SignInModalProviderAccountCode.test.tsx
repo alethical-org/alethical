@@ -456,7 +456,7 @@ describe('account-code dialog lifetime', () => {
     expect(testState.googleCalls).toBe(0);
     expect(testState.dialogProps.errorKind).toBe('request-failure');
     expect(testState.dialogProps.errorMessage).toBe(
-      'We couldn’t complete that request. Check your connection and try again.',
+      'Couldn’t complete that request. Check your connection and try again.',
     );
   });
 
