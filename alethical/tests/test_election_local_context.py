@@ -1429,27 +1429,89 @@ def test_unambiguous_township_name_still_replays():
     assert _replay_roots(acq, {"maple": receipt}).recipient(p.digest(receipt))
 
 
-def _shared_world(acq):
-    fam = "mn_cfb_local_directory"
-    board = acq["board"][0]
-    county = _root(
-        "county",
-        "62",
-        ["62"],
-        sos_rows(COUNTY_TBL, [62], "county"),
-        directory(board, fam, BOARD, RAMSEY_SHARED, "County", "Ramsey"),
-        "ramsey-county-website",
-    )[1]
-    city = _root(
-        "municipality",
-        "55852",
-        ["62"],
-        sos_rows(LOCAL_CAND, [4013]),
-        directory(board, fam, BOARD, RAMSEY_SHARED, "City", "Roseville"),
-        "ramsey-county-website",
-        mtype="city",
-    )[1]
-    return {"county": county, "city": city}
+def _synthetic_shared_world():
+    """Invented public-directory and SOS bytes for CI, never source evidence.
+
+    Replay acquisitions and typed roots using the same offline proof helper as
+    retained tests. No private files, database approval, or mocked root replay.
+    Familiar place labels exist only to keep the adversarial HTML readable.
+    """
+    family = "mn_cfb_local_directory"
+    directory_url = c.DIRECTORIES[family]
+    directory_body = (
+        '<html><body><div class="link-list"><h2>County</h2>'
+        '<ul class="link-list"><li class="link-item">'
+        f'<a href="{RAMSEY_SHARED}">Ramsey</a></li></ul></div>'
+        '<div class="link-list"><h2>City</h2><ul class="link-list">'
+        f'<li class="link-item"><a href="{RAMSEY_SHARED}">Roseville</a>'
+        "</li></ul></div></body></html>"
+    ).encode()
+    bodies = {
+        "board": (directory_body, directory_url, "text/html"),
+        "county": (
+            b"62;Ramsey;1\n",
+            "https://electionresultsfiles.sos.mn.gov/20261103/Cntytbl.txt",
+            "text/plain",
+        ),
+        "city": (
+            b"1;SYNTHETIC CANDIDATE;1001;Mayor (Roseville);62;55852;\n",
+            "https://electionresultsfiles.sos.mn.gov/20261103/LocalCandTbl.txt",
+            "text/plain",
+        ),
+    }
+    acq = {}
+    for name, (body, url, media) in bodies.items():
+        sha = hashlib.sha256(body).hexdigest()
+        SYNTHETIC[sha] = body
+        evidence = json.dumps(
+            {
+                "requested_url": url,
+                "fetched_at": "2026-11-12T00:00:00+00:00",
+                "state": "captured",
+                "redirects": [],
+                "final_url": url,
+                "sha256": sha,
+                "bytes": len(body),
+                "content_type": media,
+            }
+        ).encode()
+        acq[name] = p.prepare_acquisition(evidence), evidence
+    receipts = {}
+    for name, kind, sid, category, label in (
+        ("county", "county", "62", "County", "Ramsey"),
+        ("city", "municipality", "55852", "City", "Roseville"),
+    ):
+        receipt = {
+            "schema": p.RECIPIENT,
+            "original_routing_group": f"mn-local:{kind}:{sid}",
+            "election_date": "2026-11-03",
+            "recipient": {
+                "namespace": kind,
+                "source_id": sid,
+                "district_type": None,
+                "municipality_type": "city" if name == "city" else None,
+                "county_ids": ["62"],
+            },
+            "sos_rows": sos_rows(
+                acq[name][0]["final"]["source_sha256"],
+                [1],
+                "county" if name == "county" else "local_candidate",
+                acquisition_receipt_id=p.digest(acq[name][0]),
+            ),
+            "directory": directory(
+                acq["board"][0],
+                family,
+                acq["board"][0]["final"]["source_sha256"],
+                RAMSEY_SHARED,
+                category,
+                label,
+            ),
+            "publisher_namespace": "ramsey-county-website",
+            "entry_url": RAMSEY_SHARED,
+            "claim_scope": "official_publisher_for_typed_recipient",
+        }
+        receipts[name] = receipt
+    return acq, receipts
 
 
 def _shared_section(acq, receipts, page_html, *, binding=None):
@@ -1534,11 +1596,10 @@ def _shared_section(acq, receipts, page_html, *, binding=None):
     return results
 
 
-@retained_only
 def test_shared_publisher_page_cannot_assign_a_section_by_reviewer_choice():
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     page = b'<html><body><h2>Reports</h2><a href="/synthetic/report.pdf">Report</a></body></html>'
-    results = _shared_section(acq, _shared_world(acq), page)
+    results = _shared_section(acq, recipients, page)
     assert all(v.startswith("refused") for v in results.values()), results
 
 
@@ -1672,7 +1733,6 @@ def _heading_binding(position=1, tag="h2", text=None):
     return build
 
 
-@retained_only
 @pytest.mark.parametrize(
     "heading,expected",
     [
@@ -1686,20 +1746,17 @@ def _heading_binding(position=1, tag="h2", text=None):
 def test_shared_publisher_section_binds_only_the_recipient_its_heading_names(
     heading, expected
 ):
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     page = (
         "<html><body><h2>Reports</h2><h3>"
         + heading
         + '</h3><ul><li><a href="/synthetic/report.pdf">Report</a></li></ul></body></html>'
     ).encode()
-    results = _shared_section(
-        acq, _shared_world(acq), page, binding=_heading_binding(tag="h3")
-    )
+    results = _shared_section(acq, recipients, page, binding=_heading_binding(tag="h3"))
     accepted = {k: v for k, v in results.items() if not v.startswith("refused")}
     assert accepted == expected, results
 
 
-@retained_only
 @pytest.mark.parametrize(
     "page,tag,text",
     [
@@ -1721,9 +1778,9 @@ def test_shared_publisher_section_binds_only_the_recipient_its_heading_names(
     ],
 )
 def test_heading_binding_refuses_hidden_stale_or_mislocated_headings(page, tag, text):
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     results = _shared_section(
-        acq, _shared_world(acq), page, binding=_heading_binding(tag=tag, text=text)
+        acq, recipients, page, binding=_heading_binding(tag=tag, text=text)
     )
     assert all(v.startswith("refused") for v in results.values()), results
 
@@ -2001,7 +2058,6 @@ def test_unusable_submitter_is_not_an_offered_path(attribute):
         )
 
 
-@retained_only
 @pytest.mark.parametrize(
     "inner",
     [
@@ -2012,10 +2068,10 @@ def test_unusable_submitter_is_not_an_offered_path(attribute):
     ],
 )
 def test_recipient_heading_must_visibly_own_the_document_group(inner):
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     results = _shared_section(
         acq,
-        _shared_world(acq),
+        recipients,
         ("<html><body>" + inner + "</body></html>").encode(),
         binding=_heading_binding(tag=None),
     )
@@ -2106,9 +2162,8 @@ def test_recipient_binding_cannot_borrow_an_earlier_navigation_edge(chain):
         c.validate_context_shape(context, synthetic_reading("a" * 64))
 
 
-@retained_only
 def test_county_heading_still_owns_its_link_despite_unrelated_sidebar():
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     page = b'<html><body><section><h2>Ramsey County</h2><aside><h3>City of Roseville</h3></aside><ul><li><a href="/synthetic/report.pdf">Report</a></li></ul></section></body></html>'
 
     def binding(doc, index):
@@ -2121,14 +2176,13 @@ def test_county_heading_still_owns_its_link_despite_unrelated_sidebar():
             "heading_text": c._text(heading),
         }
 
-    results = _shared_section(acq, _shared_world(acq), page, binding=binding)
+    results = _shared_section(acq, recipients, page, binding=binding)
     assert results["county"] == "local:county:62"
     assert results["city"].startswith("refused:")
 
 
-@retained_only
 def test_shared_wire_alias_cannot_assign_one_document_to_two_recipients(monkeypatch):
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     urls = {
         "county": "https://www.ramseycounty.us/report files",
         "city": "https://www.ramseycounty.us/report%20files",
@@ -2152,7 +2206,6 @@ def test_shared_wire_alias_cannot_assign_one_document_to_two_recipients(monkeypa
         }
     ).encode()
     capture = p.prepare_acquisition(evidence)
-    recipients = _shared_world(acq)
     for n, name in enumerate(["county", "city"], 1):
         root = recipients[name]
         root["directory"] = {
@@ -2203,7 +2256,6 @@ def test_ordinary_hidden_input_keeps_its_value_with_a_visible_submitter():
     assert c.replay_offered_get_form(body, PAGE, edge) == edge["target_url"]
 
 
-@retained_only
 @pytest.mark.parametrize(
     "paint",
     [
@@ -2217,30 +2269,25 @@ def test_ordinary_hidden_input_keeps_its_value_with_a_visible_submitter():
     ],
 )
 def test_unsupported_recipient_paint_is_not_visible_identity(paint):
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     page = (
         '<html><body><h2>City of <span style="color:'
         + paint
         + '">Roseville</span></h2><a href="/synthetic/report.pdf">Report</a></body></html>'
     ).encode()
-    result = _shared_section(
-        acq, _shared_world(acq), page, binding=_heading_binding(tag=None)
-    )
+    result = _shared_section(acq, recipients, page, binding=_heading_binding(tag=None))
     assert result["city"].startswith("refused:"), result
 
 
-@retained_only
 @pytest.mark.parametrize("opening", ["", " open"])
 def test_only_statically_open_dialog_offers_recipient_group(opening):
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     page = (
         "<html><body><dialog"
         + opening
         + '><h2>City of Roseville</h2><a href="/synthetic/report.pdf">Report</a></dialog></body></html>'
     ).encode()
-    result = _shared_section(
-        acq, _shared_world(acq), page, binding=_heading_binding(tag=None)
-    )
+    result = _shared_section(acq, recipients, page, binding=_heading_binding(tag=None))
     if opening:
         assert result["city"] == "local:municipality:55852"
     else:
@@ -2321,18 +2368,15 @@ def test_supported_form_defaults_and_exact_choices_still_replay(
     assert c.replay_offered_get_form(body, PAGE, edge) == edge["target_url"]
 
 
-@retained_only
 @pytest.mark.parametrize("paint", ["#000", "#003865", "black", "rgb(0, 24, 62)"])
 def test_closed_opaque_paint_subset_preserves_recipient_text(paint):
-    acq = captures()
+    acq, recipients = _synthetic_shared_world()
     page = (
         '<html><body><h2>City of <span style="color:'
         + paint
         + '">Roseville</span></h2><a href="/synthetic/report.pdf">Report</a></body></html>'
     ).encode()
-    result = _shared_section(
-        acq, _shared_world(acq), page, binding=_heading_binding(tag=None)
-    )
+    result = _shared_section(acq, recipients, page, binding=_heading_binding(tag=None))
     assert result["city"] == "local:municipality:55852", result
 
 

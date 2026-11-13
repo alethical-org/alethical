@@ -243,6 +243,14 @@ compressed space per process. A busy file budget returns a retryable failure;
 it never marks a source missing or changes a report version. This file proof
 does not approve origin, candidate identity, visible fields or report versions.
 
+Real-source replay tests in `test_election_local_context.py` and
+`test_election_source_provenance.py` require the private source folder named by
+`ALETHICAL_RETAINED_LOCAL_EVIDENCE`. Their exact optional CI cases are listed in
+`alethical/tests/expected_skips.json`; synthetic recipient and source guards run
+without that folder. Before accepting retained-source work, run both modules with
+the folder set, retain the named test results, and require no skips. A green CI run
+alone does not prove those real sources were checked.
+
 ### Local publisher and acquisition checks
 
 `review_election_source_provenance.py` prepares or records explicit private source

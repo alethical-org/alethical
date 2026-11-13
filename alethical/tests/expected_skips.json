@@ -3,5 +3,285 @@
     "classname": "alethical.tests.test_fcc_document_text.PdfReadingTests",
     "name": "test_real_local_ocr_of_image_only_pdf",
     "reason": "Needs the tesseract OCR program, which the CI computer does not install; the test skips itself when pdftoppm or tesseract is missing."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_all_fifteen_retained_literal_edges_replay",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_city_chain_refuses_forged_or_shortcut_sources[media_header]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_city_chain_refuses_forged_or_shortcut_sources[neighbor_reading]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_city_chain_refuses_forged_or_shortcut_sources[ramsey_without_redirect]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_city_chain_refuses_forged_or_shortcut_sources[raw_source]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_city_chain_refuses_forged_or_shortcut_sources[role]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_city_chain_refuses_forged_or_shortcut_sources[unreached_original]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_city_chain_refuses_forged_or_shortcut_sources[v1_reading]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[account_name]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[case_folded_filterby]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[form_index]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[invented_page_size]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[municipal_account_as_county]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[namespace]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[office]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[other_account_pdf]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[reordered_query]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[section_account_literals]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[skipped_all_link]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_hennepin_chain_refuses_unbound_or_altered_navigation[wrong_root]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_manifest_record_cannot_be_a_navigation_step",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_one_township_label_cannot_bind_two_same_named_towns[20366-11-lines0]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_one_township_label_cannot_bind_two_same_named_towns[20384-42-lines1]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_recipient_binding_cannot_borrow_an_earlier_navigation_edge",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_chain_replays_to_exact_section_facts[hennepin_1237]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_chain_replays_to_exact_section_facts[hennepin_1247_seq2]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_chain_replays_to_exact_section_facts[hennepin_1247_seq3]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_chain_replays_to_exact_section_facts[maple]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_chain_replays_to_exact_section_facts[ramsey]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_reviewer_note_imitating_an_official_row_is_refused",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[county_scope]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[fabricated_entry]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[isd_as_ssd]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[label]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[literal_row]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[maple_township]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[ramsey_county_62]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[spoofed_id]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[ssd_rows_on_isd_entry]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[unreviewed_directory]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_root_refuses_wrong_typed_recipient[wrong_category]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_school_isd_and_ssd_are_distinct_recipient_subjects",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_shared_name_cell_replays_as_candidate_name_only_with_checked_mark",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_state_cities_page_navigation_links_are_not_city_entries",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_three_retained_capture_variants_reproduce_exact_collector_facts",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_unambiguous_township_name_still_replays",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_unshared_root_needs_no_binding_and_steps_carry_media_type",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_catalogue_links_replay_but_the_base_resolution_gap_holds",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_raw_space_urls_keep_literal_and_wire_identity[1]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_raw_space_urls_keep_literal_and_wire_identity[2]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_raw_space_urls_keep_literal_and_wire_identity[3]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_raw_space_urls_keep_literal_and_wire_identity[4]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_raw_space_urls_keep_literal_and_wire_identity[5]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_raw_space_urls_keep_literal_and_wire_identity[6]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_wabasha_raw_space_urls_keep_literal_and_wire_identity[7]",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
+  },
+  {
+    "classname": "alethical.tests.test_election_source_provenance",
+    "name": "test_retained_examples_record_and_replay_through_postgres",
+    "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
   }
 ]
