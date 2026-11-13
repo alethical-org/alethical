@@ -52,6 +52,9 @@ The same private boundary protects `/elections/{election_key}/analytics/funders`
 `/analytics/candidates` and `/analytics/records`. Their `/analytics/export` route
 provides CSV or structured API output with the selected filters and exact source
 versions. `/analytics/expenses` reports candidate expenses and public subsidy;
+its optional `view=payees` returns the initial payee list and that scope's snapshot
+and version together (`view=candidates` is the default). Later pages still require
+both pins. This does not relax the pins required by the `/payees` suffix.
 its `/payees`, `/payments` and `/export` suffixes retain the unadjusted baseline,
 explicit payee exclusions, source amounts and filing periods. Subsequent pages,
 drilldowns and exports require the first response's snapshot and version. A
