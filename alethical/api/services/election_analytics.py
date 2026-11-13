@@ -26,7 +26,7 @@ import zlib
 
 from botocore.exceptions import ClientError
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 from fastapi import HTTPException
 
 from alethical.api.problems import problem_exception
@@ -341,9 +341,17 @@ def _bulk_accounts(
         {
             row.id: row
             for row in db.scalars(
-                select(m.ElectionFinanceCollection).where(
-                    m.ElectionFinanceCollection.id.in_(collection_ids)
+                select(m.ElectionFinanceCollection)
+                .options(
+                    load_only(
+                        m.ElectionFinanceCollection.id,
+                        m.ElectionFinanceCollection.election_key,
+                        m.ElectionFinanceCollection.first_published_at,
+                        m.ElectionFinanceCollection.sources,
+                        raiseload=True,
+                    )
                 )
+                .where(m.ElectionFinanceCollection.id.in_(collection_ids))
             )
         }
         if collection_ids
@@ -500,6 +508,25 @@ def _outcomes(db, snapshot_id, races, *, store=None):
     )
 
 
+def _outcome_version_state(outcomes):
+    """Hash null aggregate IDs without changing outcomes or existing string-ID pins."""
+    return {
+        race_id: {
+            **outcome,
+            "candidates": [
+                "nullable-candidate-ids:v1",
+                sorted(
+                    outcome["candidates"].items(),
+                    key=lambda item: (item[0] is not None, item[0] or ""),
+                ),
+            ],
+        }
+        if None in outcome.get("candidates", {})
+        else outcome
+        for race_id, outcome in outcomes.items()
+    }
+
+
 def _board_context(
     db,
     election_key,
@@ -586,7 +613,7 @@ def _board_context(
                 money_version,
                 str(release.id),
                 reviews,
-                outcomes,
+                _outcome_version_state(outcomes),
                 sources,
             ],
             sort_keys=True,
@@ -767,7 +794,7 @@ def _context(
                     .order_by(m.ElectionCampaignAccountDecision.id)
                 ).tuples()
             ),
-            "outcomes": outcomes,
+            "outcomes": _outcome_version_state(outcomes),
         }
         release = None
     else:
@@ -1029,7 +1056,7 @@ def _external_events(data, races):
     return events, list(reports.values())
 
 
-def _event(row, dataset, source, accounts):
+def _event(row, dataset, source, accounts, *, race_id=None):
     direct = dataset == "contributions"
     target = row.recipient_reg_num if direct else row.affected_committee_reg_num
     registration = row.contrib_reg_num if direct else row.spender_reg_num
@@ -1063,15 +1090,18 @@ def _event(row, dataset, source, accounts):
         )
     )
     fields = {}
-    for column in DATASETS[dataset][1]:
-        value = getattr(row, column.attribute)
-        fields[column.source] = (
-            _money(value)
-            if isinstance(value, Decimal)
-            else value.isoformat()
-            if isinstance(value, date)
-            else value
-        )
+    # Global reconciliation needs every event, while a race-filtered response
+    # can never expose the CSV fields of a record unrelated to that race.
+    if race_id is None or any(key[0] == race_id for key, _ in claims):
+        for column in DATASETS[dataset][1]:
+            value = getattr(row, column.attribute)
+            fields[column.source] = (
+                _money(value)
+                if isinstance(value, Decimal)
+                else value.isoformat()
+                if isinstance(value, date)
+                else value
+            )
     return {
         "dataset": dataset,
         "row_number": row.row_number,
@@ -1240,7 +1270,7 @@ def _build(
                 .order_by(model.row_number)
             )
             for row in rows:
-                event = _event(row, dataset, source, by_account)
+                event = _event(row, dataset, source, by_account, race_id=race_id)
                 if row.year is None:
                     event["resolution"] = "missing_year"
                 elif event["metric"] == "other_receipts":

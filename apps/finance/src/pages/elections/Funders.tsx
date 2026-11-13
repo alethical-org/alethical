@@ -267,15 +267,25 @@ export function Funders({
     keepPrevious: true,
     revision: generation,
   });
-  const firstCurrent = first.dataPath === firstPath && !first.changed;
+  const firstCurrent =
+    first.dataPath === firstPath &&
+    !first.changed &&
+    !first.updating &&
+    !first.pending &&
+    !first.failed &&
+    !first.notFound;
+  // Keep the previous page visible while the first page obtains fresh pins.
+  // Refresh its request only once those pins belong to this reload.
+  const [pageRevision, setPageRevision] = useState(generation);
+  if (firstCurrent && pageRevision !== generation) setPageRevision(generation);
   const offset = (pageNumber(address.fpage) - 1) * d.PAGE_SIZE;
   const pagePath =
-    offset && first.data && firstCurrent
+    offset && first.data && first.dataPath === firstPath
       ? d.analyticsPath(election.election_key, 'funders', scope, pins(first.data), offset)
       : null;
   const next = useRead<d.FundersAnswer>(pagePath, {
     keepPrevious: true,
-    revision: generation,
+    revision: pageRevision,
   });
   const shown = offset ? next : first;
   const data = shown.data;
@@ -285,8 +295,7 @@ export function Funders({
     !shown.changed &&
     !shown.pending &&
     !shown.failed &&
-    !first.pending &&
-    !first.failed;
+    firstCurrent;
   const race = useRead<RaceAnswer>(
     raceId ? results.electionRacePath(election.election_key, raceId, election.snapshot_id) : null,
     { revision: generation },
