@@ -19,14 +19,32 @@ def packet(
     blank_inkind=False,
     checked_rows=False,
     report_type="Pre-general",
+    account_name="Synthetic Candidate",
+    candidate_mark_state="value",
+    candidate_name=True,
+    outside_report=False,
 ):
     body = native_pdf(
         {
             "office": office,
+            "name": (
+                201,
+                111,
+                10 if account_name == "Synthetic Candidate" else 7,
+                account_name,
+            ),
             "inkind": None if blank_inkind else "0",
             "report_mark": (330, 155, 10, "X") if report_type else None,
             "report_type": (345, 155, 10, report_type or "Pre-general"),
-            "candidate_mark": (30, 157, 10, "X Candidate"),
+            "candidate_mark": (
+                30,
+                157,
+                10,
+                "X Candidate" if candidate_mark_state == "value" else "? Candidate",
+            ),
+            "outside_mark": (30, 70, 10, "X Independent expenditure report")
+            if outside_report
+            else None,
         }
     )
     county = b"18;Crow Wing;62\n"
@@ -51,7 +69,7 @@ def packet(
         fields=dict(
             name="cover.name",
             office="cover.office",
-            candidate_name="cover.name",
+            candidate_name="cover.name" if candidate_name else None,
             candidate_mark="cover.candidate_mark",
             period_start="cover.period_start",
             period_end="cover.period_end",
@@ -59,11 +77,17 @@ def packet(
         ),
     )
     specs = [
-        ("candidate_mark", "Candidate", "X", "mark", [20, 145, 45, 165]),
+        (
+            "candidate_mark",
+            "Candidate",
+            "X" if candidate_mark_state == "value" else "",
+            "mark",
+            [20, 145, 45, 165],
+        ),
         (
             "name",
             "Name of candidate or committee",
-            "Synthetic Candidate",
+            account_name,
             "text",
             [197, 98, 585, 115],
         ),
@@ -98,7 +122,11 @@ def packet(
             bounds=bounds,
             label=label,
             literal=literal,
-            state="blank" if key == "type" and not report_type else "value",
+            state=candidate_mark_state
+            if key == "candidate_mark"
+            else "blank"
+            if key == "type" and not report_type
+            else "value",
             value_type=kind,
             currency="USD" if kind == "money" else None,
         )
@@ -127,6 +155,17 @@ def packet(
             ),
         ]
     )
+    if outside_report:
+        fields.append(
+            readings.field_proposal(
+                "cover.independent_expenditure",
+                page=1,
+                bounds=[20, 58, 45, 77],
+                label="Independent expenditure report",
+                literal="X",
+                value_type="mark",
+            )
+        )
     if checked_rows:
         native = local.read_native_local_report(body)
         for row in native["listed_disbursements"]:
@@ -257,6 +296,117 @@ def test_exact_document_still_requires_primary_name_and_complete_period(db, gap)
             locator["field_id"] = "cover.total_received"
         with pytest.raises(ComparisonImportError):
             local.extract_local_reading(body, source, locator, context=proof)
+
+
+@pytest.mark.parametrize(
+    ("relationship", "account_name", "mark_state"),
+    [
+        (
+            "named_candidate_campaign",
+            "Synthetic Candidate for Synthetic School Board",
+            "value",
+        ),
+        (
+            "campaign_fund_of_person",
+            "Synthetic Candidate( Campaign Fund of Synthetic Candidate )",
+            "ambiguous",
+        ),
+    ],
+)
+def test_checked_campaign_statement_keeps_complete_account_and_mark(
+    db, relationship, account_name, mark_state
+):
+    body, _, receipt, source, row, proof, _ = checked_packet(
+        db,
+        account_name=account_name,
+        candidate_name=False,
+        candidate_mark_state=mark_state,
+    )
+    result = local.extract_local_reading(
+        body,
+        source,
+        {
+            "kind": "candidate_relationship",
+            "receipt_sha256": row.receipt_sha256,
+            "relationship": relationship,
+        },
+        context=proof,
+    )
+    assert result.facts["account_name"] == account_name
+    assert result.facts["person_name"] == "Synthetic Candidate"
+    assert result.facts["office_literal"] == "Synthetic School Board"
+    assert result.facts["relationship"] == relationship
+    assert account_name in result.quote
+    account = local.verified_local_context(proof, row.receipt_sha256).values()[
+        "account"
+    ]
+    assert account["name"] == account_name and account["candidate_name"] is None
+    assert account["issued_id"] is False and account["source_candidate_id"] is None
+    mark = next(f for f in receipt["fields"] if f["field_id"] == "cover.candidate_mark")
+    assert mark["state"] == mark_state
+
+
+@pytest.mark.parametrize(
+    ("relationship", "name", "mark"),
+    [
+        (
+            "campaign_fund_of_person",
+            "Synthetic Candidate( Campaign Fund of Other Person )",
+            "value",
+        ),
+        (
+            "campaign_fund_of_person",
+            "Association in support of Synthetic Candidate",
+            "value",
+        ),
+        ("campaign_fund_of_person", "Treasurer: Synthetic Candidate", "value"),
+        ("named_candidate_campaign", "Synthetic Candidate for Another Office", "value"),
+        (
+            "named_candidate_campaign",
+            "Synthetic Candidate for Synthetic School Board",
+            "ambiguous",
+        ),
+        ("campaign_fund_of_person", "Musgrove4Ramsey", "value"),
+    ],
+)
+def test_campaign_relationship_does_not_invent_a_person_or_source_role(
+    db, relationship, name, mark
+):
+    body, _, _, source, row, proof, _ = checked_packet(
+        db, account_name=name, candidate_name=False, candidate_mark_state=mark
+    )
+    with pytest.raises(ComparisonImportError):
+        local.extract_local_reading(
+            body,
+            source,
+            {
+                "kind": "candidate_relationship",
+                "receipt_sha256": row.receipt_sha256,
+                "relationship": relationship,
+            },
+            context=proof,
+        )
+
+
+def test_explicit_outside_report_does_not_become_own_campaign(db):
+    body, _, _, source, row, proof, _ = checked_packet(
+        db,
+        account_name="Synthetic Candidate( Campaign Fund of Synthetic Candidate )",
+        candidate_name=False,
+        candidate_mark_state="ambiguous",
+        outside_report=True,
+    )
+    with pytest.raises(ComparisonImportError, match="Outside expenditure"):
+        local.extract_local_reading(
+            body,
+            source,
+            {
+                "kind": "candidate_relationship",
+                "receipt_sha256": row.receipt_sha256,
+                "relationship": "campaign_fund_of_person",
+            },
+            context=proof,
+        )
 
 
 def test_checked_context_derives_nonissued_group_and_keeps_literal_identity(held):

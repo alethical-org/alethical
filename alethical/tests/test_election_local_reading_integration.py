@@ -66,19 +66,39 @@ def db(isolated_engine, monkeypatch):
 def local_generation(db, monkeypatch, request):
     monkeypatch.setattr(s, "ADAPTERS", {})
     register_external_adapters()
+    options = getattr(request, "param", False)
+    options = (
+        deepcopy(options) if isinstance(options, dict) else {"blank_inkind": options}
+    )
+    relationship = options.pop("relationship", None)
+    office = options.pop("office", "County Commissioner District 3")
+    county = options.pop("ballot_county", "18")
+    duplicate_name = options.pop("duplicate_name", False)
+    source_chain = options.pop("source_chain", False)
     body, bodies, receipt, source = packet(
-        office="County Commissioner District 3",
-        blank_inkind=getattr(request, "param", False),
+        office=office,
+        **options,
     )
     store = MemoryStore()
-    ballot = (
-        b"03939001;Synthetic Candidate;0393;County Commissioner District 3;18;90;NP\n"
-    )
+    ballot = f"03939001;Synthetic Candidate;0393;County Commissioner District 3;{county};90;NP\n".encode()
+    if duplicate_name:
+        ballot += ballot.replace(b"03939001;", b"03939002;")
     local_roster = b"0000000000001;Other Local;1000;Mayor;01;00001;\n"
     for value in (ballot, local_roster):
         bodies[hashlib.sha256(value).hexdigest()] = value
     for value in bodies.values():
         archive_source(db, store, value)
+    chain = None
+    if source_chain:
+        from alethical.tests.test_election_reading_provenance_integration import (
+            provenance_chain,
+        )
+
+        chain = provenance_chain(db, store, body, receipt)
+        receipt, source = chain["receipt"], chain["source"]
+        bodies = chain["originals"] | {
+            hashlib.sha256(value).hexdigest(): value for value in (ballot, local_roster)
+        }
     decision = readings.record_reading(
         db,
         store,
@@ -95,22 +115,28 @@ def local_generation(db, monkeypatch, request):
     values = local.verified_local_context(ctx, rid).values()
     now = datetime(2026, 11, 12, 12, tzinfo=UTC)
     metadata = []
-    urls = {
-        receipt["original_sha256"]: source["url"],
-        receipt["source_context"]["publisher_source_sha256"]: receipt["source_context"][
-            "publisher_url"
-        ],
-        receipt["source_context"]["catalogue_source_sha256"]: receipt["source_context"][
-            "catalogue_url"
-        ],
-    }
+    urls = (
+        chain["urls"]
+        if chain
+        else {
+            receipt["original_sha256"]: source["url"],
+            receipt["source_context"]["publisher_source_sha256"]: receipt[
+                "source_context"
+            ]["publisher_url"],
+            receipt["source_context"]["catalogue_source_sha256"]: receipt[
+                "source_context"
+            ]["catalogue_url"],
+        }
+    )
     bh = hashlib.sha256(ballot).hexdigest()
     lh = hashlib.sha256(local_roster).hexdigest()
     for h, value in bodies.items():
         metadata.append(
             dict(
                 sha256=h,
-                authority="local:county:18" if h in urls else None,
+                authority="local:county:18"
+                if h in urls and not urls[h].endswith("Cntytbl.txt")
+                else None,
                 url=urls.get(
                     h,
                     "https://electionresultsfiles.sos.mn.gov/20261103/"
@@ -126,9 +152,11 @@ def local_generation(db, monkeypatch, request):
                 media_type="application/pdf"
                 if h == source["sha256"]
                 else "text/html"
-                if h in urls
+                if h in urls and not urls[h].endswith(".txt")
                 else "text/plain",
-                copied_at=now.isoformat(),
+                copied_at=source["copied_at"]
+                if source_chain and h in urls
+                else now.isoformat(),
             )
         )
     snapshot = m.ElectionComparisonSnapshot(
@@ -144,7 +172,7 @@ def local_generation(db, monkeypatch, request):
     db.flush()
     candidate = dict(
         candidate_id="03939001",
-        candidate_stable_id="cand:201:2026-11-03:general:18:0393:03939001",
+        candidate_stable_id=f"cand:201:2026-11-03:general:{county}:0393:03939001",
         name="Synthetic Candidate",
         party="NP",
         is_write_in_aggregate=False,
@@ -155,13 +183,24 @@ def local_generation(db, monkeypatch, request):
         id=digest("local reading integration race"),
         label="County Commissioner District 3",
         office_id="0393",
-        jurisdiction="18",
+        jurisdiction=county,
         result_status="unofficial",
         payload=dict(
             office_name="County Commissioner District 3",
             district=None,
             candidate_source_sha256=bh,
-            candidates=[candidate],
+            candidates=[candidate]
+            + (
+                [
+                    candidate
+                    | dict(
+                        candidate_id="03939002",
+                        candidate_stable_id=f"cand:201:2026-11-03:general:{county}:0393:03939002",
+                    )
+                ]
+                if duplicate_name
+                else []
+            ),
         ),
     )
     db.add(race)
@@ -169,9 +208,11 @@ def local_generation(db, monkeypatch, request):
 
     def binding(kind, field=None):
         locator = dict(kind=kind, receipt_sha256=rid)
+        if kind == "candidate_relationship":
+            locator["relationship"] = relationship
         adapter = "local_checked_reading:v1"
         h = source["sha256"]
-        if kind == "authority":
+        if kind == "authority" and not source_chain:
             h = receipt["source_context"]["publisher_source_sha256"]
         if field is not None:
             locator["field_id"] = field
@@ -244,7 +285,7 @@ def local_generation(db, monkeypatch, request):
                 kind="ballot",
                 sha256=bh,
                 row_number=1,
-                literal_row=ballot.decode().strip(),
+                literal_row=ballot.decode().splitlines()[0],
             ),
             *[
                 dict(
@@ -266,6 +307,18 @@ def local_generation(db, monkeypatch, request):
             ],
         ],
     )
+    if relationship:
+        bind = binding("candidate_relationship")
+        args["evidence"].append(
+            dict(
+                kind="local_candidate_relationship",
+                sha256=bind["source_sha256"],
+                generation_id=generation["id"],
+                report_key=report["report_key"],
+                reason="Exact checked campaign relationship and office",
+                binding=bind,
+            )
+        )
     monkeypatch.setattr(reviews, "raw_file_store_from_env", lambda: store)
     return SimpleNamespace(
         g=generation,
@@ -301,6 +354,274 @@ def test_local_checked_generation_stage_publish_and_read_uses_real_gates(
     assert data["accounts"] and data["reports"][0]["figures"][0]["value"] == "1482.11"
     serialized = json.dumps(data)
     assert "PRIVATE_" not in serialized and ctx.reading.receipt_sha256 not in serialized
+
+
+@pytest.mark.parametrize(
+    "local_generation",
+    [
+        settings | {"source_chain": source_chain}
+        for settings in [
+            {
+                "relationship": "named_candidate_campaign",
+                "account_name": "Synthetic Candidate for County Commissioner District 3",
+                "candidate_name": False,
+            },
+            {
+                "relationship": "campaign_fund_of_person",
+                "account_name": "Synthetic Candidate( Campaign Fund of Synthetic Candidate )",
+                "candidate_name": False,
+                "candidate_mark_state": "ambiguous",
+            },
+        ]
+        for source_chain in (False, True)
+    ],
+    indirect=True,
+)
+def test_source_campaign_relationship_uses_existing_dated_account_review(
+    db, local_generation
+):
+    ctx = local_generation
+    publish(db, ctx)
+    data = reads.candidate_finance(
+        db,
+        election_key=ctx.g["election_key"],
+        race_id=ctx.race.id,
+        candidate_id=ctx.candidate["candidate_id"],
+        store=ctx.store,
+    )
+    assert data["accounts"][0]["name"] == ctx.g["accounts"][0]["name"]
+    assert data["accounts"][0]["issued_id"] is False
+    assert data["accounts"][0]["source_candidate_id"] is None
+    assert data["reports"][0]["effective"] is None
+    assert data["reports"][0]["figures"][0]["value"] == "1482.11"
+    assert data["accounts"][0]["account_id_kind"] == (
+        "physical_section"
+        if ctx.receipt["schema"] == readings.SECTION_SCHEMA
+        else "publisher_catalogue_group"
+    )
+    assert db.scalar(select(m.ElectionCampaignAccountDecision)).decision == "confirmed"
+
+
+_CAMPAIGN_FUND = {
+    "relationship": "campaign_fund_of_person",
+    "account_name": "Synthetic Candidate( Campaign Fund of Synthetic Candidate )",
+    "candidate_name": False,
+    "candidate_mark_state": "ambiguous",
+}
+
+
+@pytest.mark.parametrize(
+    "local_generation",
+    [
+        _CAMPAIGN_FUND | {"office": "County Commissioner District 2"},
+        _CAMPAIGN_FUND | {"ballot_county": "17"},
+        _CAMPAIGN_FUND | {"duplicate_name": True},
+        _CAMPAIGN_FUND
+        | {"account_name": "Synthetic Other( Campaign Fund of Synthetic Other )"},
+        _CAMPAIGN_FUND | {"account_name": "Synthetic( Campaign Fund of Synthetic )"},
+    ],
+    indirect=True,
+)
+def test_source_campaign_relationship_refuses_wrong_person_office_or_recipient(
+    db, local_generation
+):
+    ctx = local_generation
+    s.stage_generation(db, ctx.store, ctx.g, ctx.originals)
+    with pytest.raises(ComparisonImportError) as error:
+        reviews.record_decision(db, **ctx.args)
+    if len(ctx.race.payload["candidates"]) > 1:
+        assert "ambiguous in this exact race" in str(error.value)
+    assert db.scalar(select(m.ElectionCampaignAccountDecision)) is None
+
+
+@pytest.mark.parametrize("local_generation", [_CAMPAIGN_FUND], indirect=True)
+@pytest.mark.parametrize("change", ["quote", "person", "report", "reason", "locator"])
+def test_source_campaign_relationship_rechecks_exact_evidence(
+    db, local_generation, change
+):
+    ctx = local_generation
+    s.stage_generation(db, ctx.store, ctx.g, ctx.originals)
+    args = deepcopy(ctx.args)
+    evidence = args["evidence"][-1]
+    if change == "quote":
+        evidence["binding"]["quote"] = "Only a matching name"
+    elif change == "person":
+        evidence["binding"]["facts"]["person_name"] = "Someone Else"
+    elif change == "report":
+        evidence["report_key"] = digest("another report")
+    elif change == "reason":
+        evidence["reason"] = ""
+    else:
+        evidence["binding"]["locator"] = []
+    with pytest.raises(ComparisonImportError):
+        reviews.record_decision(db, **args)
+
+
+@pytest.mark.parametrize(
+    "local_generation",
+    [_CAMPAIGN_FUND | {"source_chain": value} for value in (False, True)],
+    indirect=True,
+)
+def test_relationship_withdrawal_changes_current_and_historical_pins(
+    db, local_generation
+):
+    ctx = local_generation
+    publish(db, ctx)
+    query = dict(
+        election_key=ctx.g["election_key"],
+        race_id=ctx.race.id,
+        candidate_id=ctx.candidate["candidate_id"],
+        store=ctx.store,
+    )
+    old = reads.candidate_finance(db, **query)
+    readings.record_reading(
+        db,
+        ctx.store,
+        receipt=ctx.receipt,
+        decision="withdrawn",
+        reviewed_by="PRIVATE_SOURCE_REVIEWER",
+        reason="Withdraw checked relationship source",
+        expected_previous_id=ctx.reading.id,
+    )
+    for generation in (None, ctx.g["id"]):
+        current = reads.candidate_finance(db, **query, generation_id=generation)
+        assert not current["accounts"] and not current["reports"]
+        assert current["version"] != old["version"]
+        with pytest.raises(HTTPException) as exc:
+            reads.candidate_finance(
+                db, **query, generation_id=generation, version=old["version"]
+            )
+        assert exc.value.status_code == 409
+
+
+@pytest.mark.parametrize(
+    ("city", "title", "literal", "expected"),
+    [
+        (
+            "Maple Grove",
+            "Council Member (Maple Grove) (Elect 2)",
+            "Maple Grove City Council",
+            True,
+        ),
+        (
+            "Ramsey",
+            "Council Member At Large (Ramsey)",
+            "Ramsey City Council - At Large",
+            True,
+        ),
+        (
+            "Ramsey",
+            "Council Member Ward 3 (Ramsey)",
+            "Ramsey City Council - At Large",
+            False,
+        ),
+        ("Ramsey", "Mayor (Ramsey)", "Ramsey City Council - At Large", False),
+        (
+            "Ramsey",
+            "Council Member At Large (Ramsey)",
+            "Maple Grove City Council",
+            False,
+        ),
+    ],
+)
+def test_campaign_office_correspondence_keeps_exact_city_and_role(
+    city, title, literal, expected
+):
+    publisher = {
+        "name": city,
+        "jurisdiction": {"recipient_type": "municipality", "municipality_type": "city"},
+    }
+    race = SimpleNamespace(office_id="1010", payload={"office_name": title})
+    assert s._local_relationship_office(publisher, race, literal) is expected
+
+
+@pytest.mark.parametrize(
+    ("recipient_type", "recipient_id", "valid"),
+    [
+        ("county", "18", True),
+        ("municipality", "00001", False),
+        ("school", "0001", False),
+        ("county", "17", False),
+    ],
+)
+def test_county_candidate_requires_its_county_recipient_not_shared_geography(
+    recipient_type, recipient_id, valid
+):
+    expected = {
+        "county_id": "18",
+        "municipal_fips_code": None,
+        "school_district_number": None,
+        "office": "County Commissioner District 3",
+    }
+    jurisdiction = {
+        "recipient_type": recipient_type,
+        "recipient_id": recipient_id,
+        "county_ids": ["18"],
+    }
+    if valid:
+        s.validate_local_recipient(expected, jurisdiction)
+    else:
+        with pytest.raises(ComparisonImportError, match="recipient type or identity"):
+            s.validate_local_recipient(expected, jurisdiction)
+
+
+@pytest.mark.parametrize(
+    ("office", "municipal"),
+    [
+        ("Hospital District Board Member At Large Itasca (Northern Itasca)", None),
+        ("Soil and Water Supervisor District 1", None),
+        ("Sanitary District Board Member (Farwell)", "20690"),
+        ("Other Special District Board Member", None),
+    ],
+)
+def test_special_district_is_not_inferred_from_missing_or_municipal_codes(
+    office, municipal
+):
+    expected = {
+        "county_id": "31",
+        "municipal_fips_code": municipal,
+        "school_district_number": None,
+        "office": office,
+    }
+    jurisdiction = {
+        "recipient_type": "municipality" if municipal else "county",
+        "recipient_id": municipal or "31",
+        "municipal_fips_code": municipal,
+        "county_ids": ["31"],
+    }
+    with pytest.raises(ComparisonImportError, match="filing recipient"):
+        s.validate_local_recipient(expected, jurisdiction)
+
+
+@pytest.mark.parametrize("local_generation", [_CAMPAIGN_FUND], indirect=True)
+def test_relationship_report_retains_its_own_historical_review_dependency(
+    db, local_generation
+):
+    ctx = local_generation
+    # Two internal records of the same checked original need distinct scope keys;
+    # the original and every source fact remain exactly the same.
+    relationship_report = deepcopy(ctx.report)
+    relationship_report["report_key"] = digest("relationship cover scope")
+    ctx.g = s.prepare_generation(
+        {k: v for k, v in ctx.g.items() if k != "id"}
+        | {"reports": [ctx.report, relationship_report]}
+    )
+    for evidence in ctx.args["evidence"]:
+        if evidence.get("generation_id"):
+            evidence["generation_id"] = ctx.g["id"]
+        if evidence["kind"] == "local_candidate_relationship":
+            evidence["report_key"] = relationship_report["report_key"]
+    publish(db, ctx)
+    for generation in (None, ctx.g["id"]):
+        data = reads.candidate_finance(
+            db,
+            election_key=ctx.g["election_key"],
+            race_id=ctx.race.id,
+            candidate_id=ctx.candidate["candidate_id"],
+            store=ctx.store,
+            generation_id=generation,
+        )
+        assert data["accounts"]
 
 
 def test_stage_rejects_unapproved_receipt_and_wrong_generation_closure(

@@ -224,11 +224,11 @@ def _pdf_info(body):
         ).decode("utf-8")
     except Exception as exc:
         raise ComparisonImportError("Cannot inspect bounded original PDF") from exc
-    match = re.search(r"^Pages:\s+([0-9]+)$", output, re.M)
-    if match is None:
-        raise ComparisonImportError("Unsupported PDF page count")
-    require(0 < int(match[1]) <= 256, "Unsupported PDF page count")
-    return int(match[1])
+    counts = re.findall(r"^Pages:[ \t]+([0-9]+)[ \t]*$", output, re.M)
+    # Metadata may contain newlines that imitate native summary lines.
+    require(len(counts) == 1, "Unsupported PDF page count")
+    require(0 < int(counts[0]) <= 256, "Unsupported PDF page count")
+    return int(counts[0])
 
 
 def render_page(body, page):
@@ -243,11 +243,42 @@ def render_page(body, page):
             command=["pdfinfo", "-f", str(page), "-l", str(page), "-"],
             max_stdout=64 * 1024,
         ).decode("utf-8")
-        size = re.search(
-            r"^Page(?:\s+[0-9]+)? size:\s+([0-9.]+) x ([0-9.]+) pts", info, re.M
+        rotations = re.findall(
+            rf"^Page[ \t]+{page} rot:[ \t]+(-?[0-9]+)[ \t]*$", info, re.M
         )
-        if size is None:
-            raise ComparisonImportError("PDF page size is unavailable")
+        require(
+            len(rotations) == 1 and int(rotations[0]) % 90 == 0,
+            "PDF page rotation is unavailable or unsupported",
+        )
+        # pdfinfo's page size follows CropBox, while our unchanged image render
+        # uses MediaBox. Its printed boxes also lose fractional-point precision.
+        # The bounded bbox header supplies the full page plane; discard its text.
+        dimensions = re.findall(
+            rb'^\s*<page width="([0-9]+(?:\.[0-9]+)?)" height="([0-9]+(?:\.[0-9]+)?)">\s*$',
+            _run_native_reader(
+                body,
+                command=[
+                    "pdftotext",
+                    "-f",
+                    str(page),
+                    "-l",
+                    str(page),
+                    "-bbox",
+                    "-",
+                    "-",
+                ],
+                max_stdout=2 * 1024 * 1024,
+            ),
+            re.M,
+        )
+        require(len(dimensions) == 1, "PDF page dimensions are unavailable")
+        width, height = (float(format(float(n), ".6g")) for n in dimensions[0])
+        require(
+            all(math.isfinite(n) and 0 < n <= 20000 for n in (width, height)),
+            "Invalid PDF page dimensions",
+        )
+        if int(rotations[0]) % 360 in {90, 270}:
+            width, height = height, width
         image = _run_native_reader(
             body,
             command=[
@@ -273,8 +304,8 @@ def render_page(body, page):
         raise ComparisonImportError("Cannot render bounded original PDF page") from exc
     return {
         "page": page,
-        "width": float(size[1]),
-        "height": float(size[2]),
+        "width": width,
+        "height": height,
         "image_sha256": hashlib.sha256(image).hexdigest(),
         "render_profile": RENDER_PROFILE,
     }, image

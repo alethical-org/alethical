@@ -56,6 +56,7 @@ STATUSES = {
 OPERATIONAL_COVERAGE = {"not_collected", "retrieval_failed", "unmatched", "unchecked"}
 FACTUAL_COVERAGE = STATUSES - OPERATIONAL_COVERAGE
 REPORT_STATUSES = OPERATIONAL_COVERAGE | {"checked", "unreadable", "source_conflict"}
+REPORT_REVIEW_KINDS = {"report_cover", "local_candidate_relationship"}
 
 DIRECTIONS = {
     "direct_contribution",
@@ -609,7 +610,11 @@ def local_reading_ids(value):
     def visit(item):
         if isinstance(item, dict):
             if item.get("adapter") in LOCAL_READING_ADAPTERS:
-                receipt = item.get("locator", {}).get("receipt_sha256")
+                locator = item.get("locator")
+                require(
+                    isinstance(locator, dict), "Local binding needs an exact locator"
+                )
+                receipt = locator.get("receipt_sha256")
                 require(
                     fingerprint(receipt),
                     "Local binding needs an exact checked reading receipt",
@@ -1402,7 +1407,7 @@ def load_review_view(db, generation_id, account_keys, evidence):
         history_report_keys={
             e["report_key"]
             for e in evidence
-            if e.get("kind") == "report_cover" and e.get("report_key")
+            if e.get("kind") in REPORT_REVIEW_KINDS and e.get("report_key")
         },
         history_ballots={
             (e["literal_row"].split(";")[0], e["sha256"])
@@ -1583,7 +1588,7 @@ def source_dependencies(
         if item.get("sha256"):
             hashes.add(item["sha256"])
         record(item)
-        if item.get("kind") == "report_cover":
+        if item.get("kind") in REPORT_REVIEW_KINDS:
             record(indexes["reports"].get(item.get("report_key")))
     requirements = _reading_requirements(g, cache)
     for rid in receipt_ids:
@@ -2017,6 +2022,33 @@ def validate_local_recipient(expected, jurisdiction):
         and expected["county_id"] in jurisdiction.get("county_ids", []),
         "Local recipient does not cover this exact candidacy county",
     )
+    office = expected.get("office")
+    require(isinstance(office, str), "Local office filing recipient is not established")
+    require(
+        not any(
+            role in office
+            for role in ("Hospital District", "Sanitary District", "Soil and Water")
+        ),
+        "Special-district filing recipient needs its own checked source relationship",
+    )
+    if not expected.get("municipal_fips_code") and not expected.get(
+        "school_district_number"
+    ):
+        require(
+            re.fullmatch(
+                r"(?:Special Election for )?County (?:"
+                r"(?:Park )?Commissioner District [1-9][0-9]*|Auditor/Treasurer|"
+                r"Auditor|Treasurer|Recorder|Sheriff|Attorney|Surveyor)",
+                office,
+            )
+            is not None,
+            "County filing recipient is not established for this exact local office",
+        )
+        require(
+            jurisdiction.get("recipient_type") == "county"
+            and jurisdiction.get("recipient_id") == expected["county_id"],
+            "Local recipient type or identity differs from the exact ballot county",
+        )
     for field in ("municipal_fips_code", "school_district_number"):
         if expected.get(field):
             require(
@@ -2074,6 +2106,107 @@ def _review_period_is_covered(covers, start, end):
             return True
         cursor = last + timedelta(days=1)
     return False
+
+
+def _local_relationship_office(publisher, race, literal):
+    """Exact source wording or the two retained city-council naming forms."""
+    title = race.payload.get("office_name")
+    if isinstance(literal, str) and literal and literal == title:
+        return True
+    jurisdiction = publisher.get("jurisdiction", {})
+    city = publisher.get("name")
+    if not (
+        jurisdiction.get("recipient_type") == "municipality"
+        and jurisdiction.get("municipality_type") == "city"
+        and race.office_id == "1010"
+        and isinstance(city, str)
+        and city
+        and isinstance(title, str)
+    ):
+        return False
+    if title == f"Council Member At Large ({city})":
+        return literal in {
+            f"{city} City Council - At Large",
+            f"{city} City Council At Large",
+            f"{city} City Council At-Large",
+        }
+    return (
+        re.fullmatch(
+            rf"Council Member \({re.escape(city)}\)(?: \(Elect [1-9][0-9]*\))?",
+            title,
+        )
+        is not None
+        and literal == f"{city} City Council"
+    )
+
+
+def validate_local_candidate_relationship(
+    generation, bodies, evidence, *, account, publisher, report, race, candidate
+):
+    """Review the whole source-stated relationship, without renaming its account."""
+    binding = evidence.get("binding")
+    require(
+        account["authority"].startswith("local:")
+        and isinstance(binding, dict)
+        and binding.get("adapter") == "local_checked_reading:v1"
+        and isinstance(binding.get("locator"), dict)
+        and binding.get("locator", {}).get("kind") == "candidate_relationship"
+        and isinstance(evidence.get("reason"), str)
+        and bool(evidence["reason"].strip()),
+        "Local candidate relationship needs fixed checked source evidence and reason",
+    )
+    require(
+        report is not None
+        and report["check_status"] == "checked"
+        and (report["authority"], report["account_id"])
+        == (account["authority"], account["account_id"])
+        and report["source_sha256"] == binding.get("source_sha256"),
+        "Candidate relationship belongs to another account or unchecked cover",
+    )
+    require(
+        sum(
+            c.get("name") == candidate["name"] and not c.get("is_write_in_aggregate")
+            for c in race.payload["candidates"]
+        )
+        == 1,
+        "Source person name is ambiguous in this exact race",
+    )
+    facts = binding.get("facts")
+    require(isinstance(facts, dict), "Candidate relationship source facts are missing")
+    expected = {
+        k: report[k]
+        for k in (
+            "authority",
+            "account_id",
+            "source_report_id",
+            "period_start",
+            "period_end",
+        )
+    }
+    expected.update(
+        account_name=account["name"],
+        person_name=candidate["name"],
+        office_literal=facts.get("office_literal"),
+        relationship=binding["locator"].get("relationship"),
+    )
+    validate_binding(
+        generation,
+        bodies,
+        binding,
+        expected,
+        authority=account["authority"],
+        joins=(
+            "authority",
+            "account_id",
+            "source_report_id",
+            "period_start",
+            "period_end",
+        ),
+    )
+    require(
+        _local_relationship_office(publisher, race, expected["office_literal"]),
+        "Campaign relationship office differs from the exact ballot office",
+    )
 
 
 def validate_account_review(
@@ -2146,12 +2279,16 @@ def validate_account_review(
                     (
                         e.get("kind") == "alias"
                         or (authority == "fec" and e.get("kind") == "name_rendering")
+                        or (
+                            authority.startswith("local:")
+                            and e.get("kind") == "local_candidate_relationship"
+                        )
                     )
                     and isinstance(e.get("reason"), str)
                     and e["reason"].strip()
                     for e in evidence
                 ),
-                "Name variation needs separate exact alias or name-rendering evidence and reason",
+                "Name variation needs exact alias, name-rendering or source relationship evidence and reason",
             )
     reading_ids = local_reading_ids(
         [
@@ -2161,7 +2298,7 @@ def validate_account_review(
             *[
                 indexes["reports"].get(e.get("report_key"))
                 for e in evidence
-                if e.get("kind") == "report_cover"
+                if e.get("kind") in REPORT_REVIEW_KINDS
             ],
         ]
     )
@@ -2201,7 +2338,7 @@ def validate_account_review(
             authority=authority,
             joins=("authority", "account_id"),
         )
-    covers = []
+    covers, relationship_covers = [], []
     for e in evidence:
         kind = e.get("kind")
         if kind == "ballot":
@@ -2247,6 +2384,20 @@ def validate_account_review(
                 "period_start",
                 "period_end",
             )
+        elif kind == "local_candidate_relationship":
+            report = indexes["reports"].get(e.get("report_key"))
+            validate_local_candidate_relationship(
+                g,
+                bodies,
+                e,
+                account=account,
+                publisher=publisher,
+                report=report,
+                race=race,
+                candidate=candidate,
+            )
+            relationship_covers.append(report)
+            continue
         elif kind == "designation":
             expected = {
                 "authority": authority,
@@ -2324,6 +2475,13 @@ def validate_account_review(
             _review_period_is_covered(covers, period_start, period_end),
             "Review interval crosses unchecked report dates",
         )
+        if relationship_covers:
+            require(
+                _review_period_is_covered(
+                    relationship_covers, period_start, period_end
+                ),
+                "Review interval crosses unchecked candidate relationship dates",
+            )
     return g
 
 

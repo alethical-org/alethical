@@ -206,6 +206,16 @@ and extracted report data. Redacted fields retain an empty literal and a gap sta
 Original source bytes remain unchanged; retaining an original does not certify
 that its publisher removed hidden text.
 
+Reading coordinates follow the full rendered page after its declared rotation.
+The bounded native reader obtains MediaBox dimensions separately from CropBox;
+text returned with that geometry is discarded, never treated as a checked quote.
+PNG bytes and the render profile stay unchanged. A corrected dimension can differ
+from an older receipt, including at fractional-point rounding boundaries. Explicit
+render replay rejects that mismatch; never rewrite a sealed receipt. Review a new
+receipt through the normal correction history. Ordinary source reads verify bytes
+and checked heads without rendering each page again, so a known bad checked head
+must be withdrawn or corrected explicitly.
+
 An exact catalogued document does not establish its amendment relationship to
 other documents. Such local reports and payments carry `effective: null`,
 `version_scope: exact_document` and `amendment_status: not_established`. Explicit
@@ -219,6 +229,18 @@ A primary exact-document report with checked name and ordered dates may retain
 a missing report type or its literal Amended type. Neither establishes the latest
 version. Missing dates and unsupported supplement relationships still prevent
 report and figure extraction; the checked source reading can retain those gaps.
+
+A local campaign name may identify its candidate through a separately checked
+source statement. The fixed adapter supports the complete `PERSON for OFFICE`
+statement with a checked Candidate mark, or the complete repeated-person
+`PERSON( Campaign Fund of PERSON )` statement. It preserves the account's original
+name, ambiguous marks and unissued identifiers. The existing dated account review
+requires a unique exact ballot person, matching office and typed filing recipient,
+plus evidence covering that review's full interval. A relationship-only report
+remains a dependency in current and historical views. County geography alone does
+not establish a filing recipient; special-district roles need their own supported
+source relationship. These checks do not establish report versions or campaign
+continuity across separate source sections.
 
 Each request includes its actual source-proof outcomes in its version. A later
 failed proof cannot change the returned figures under an unchanged version.

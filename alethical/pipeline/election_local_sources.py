@@ -531,11 +531,114 @@ def _quote(value):
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
 
+def _candidate_relationship(receipt, fields, context, locator):
+    require(
+        set(locator) == {"kind", "receipt_sha256", "relationship"},
+        "Unsupported local candidate relationship locator",
+    )
+    value = _entity(context, locator)
+    mapped = receipt["source_context"]["fields"]
+    name = fields.get(mapped["name"])
+    office = fields.get(mapped["office"])
+    require(
+        name is not None
+        and office is not None
+        and name["page"] == office["page"]
+        and all(
+            f["record_type"] == "cover"
+            and f["value_type"] == "text"
+            and f["state"] == "value"
+            for f in (name, office)
+        )
+        and name["label"]
+        in {
+            "Name of candidate or committee",
+            "Name of candidate, committee or corporation",
+            "Name of candidate, committee, or corporation",
+        }
+        and office["label"] in {"Office sought", "Office sought or ballot question"},
+        "Candidate relationship needs its checked name and office cover fields",
+    )
+    require(
+        not any(
+            f["record_type"] == "cover"
+            and f["label"]
+            in {"Independent expenditure", "Independent expenditure report"}
+            and f["state"] == "value"
+            and f["normalized"] == "marked"
+            for f in fields.values()
+        ),
+        "Outside expenditure is not a candidate campaign relationship",
+    )
+    statement = name["literal"]
+    relationship = locator["relationship"]
+    mark = fields.get(mapped["candidate_mark"])
+    if relationship == "named_candidate_campaign":
+        match = re.fullmatch(r"([^\r\n]{1,200}) for ([^\r\n]{1,200})", statement)
+        require(
+            match is not None
+            and match[2] == office["literal"]
+            and mark is not None
+            and mark["page"] == name["page"]
+            and mark["label"] in {"Candidate", "Candidate report"}
+            and mark["value_type"] == "mark"
+            and mark["state"] == "value"
+            and mark["normalized"] == "marked",
+            "Named campaign needs the complete person/office statement and checked Candidate mark",
+        )
+    elif relationship == "campaign_fund_of_person":
+        match = re.fullmatch(
+            r"(?P<person>[^()\r\n]{1,200})\( Campaign Fund of (?P=person) \)",
+            statement,
+        )
+        require(
+            match is not None,
+            "Campaign fund statement must name the same person in both roles",
+        )
+    else:
+        raise ComparisonImportError("Unsupported source-stated candidate relationship")
+    assert match is not None  # Both supported branches have already required it.
+    person = match[1]
+    require(person == person.strip(), "Person name has unsupported surrounding text")
+    facts = {
+        k: value["report"][k]
+        for k in (
+            "authority",
+            "account_id",
+            "source_report_id",
+            "period_start",
+            "period_end",
+        )
+    }
+    facts.update(
+        account_name=value["account"]["name"],
+        person_name=person,
+        office_literal=office["literal"],
+        relationship=relationship,
+    )
+    return CheckedExtraction(
+        facts,
+        _quote(
+            {
+                "name": {k: name[k] for k in ("page", "label", "literal", "state")},
+                "office": {k: office[k] for k in ("page", "label", "literal", "state")},
+                "candidate_mark": {
+                    k: mark[k] for k in ("page", "label", "literal", "state")
+                }
+                if mark is not None
+                else None,
+            }
+        ),
+    )
+
+
 def extract_local_reading(body, source, locator, *, context=None):
     """Replay approved literal fields, or derived typed local context claims."""
     receipt = _input(body, source, locator, context)
     kind = locator.get("kind")
     fields = {f["field_id"]: f for f in receipt["fields"]}
+    if kind == "candidate_relationship":
+        return _candidate_relationship(receipt, fields, context, locator)
     if kind in {"authority", "account", "report"}:
         require(
             set(locator) == {"kind", "receipt_sha256"},
