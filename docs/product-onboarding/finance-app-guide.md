@@ -519,6 +519,18 @@ an unavailable source is not a no-match result.
   Finance evidence view for the pinned record, with no access token in the address.
   A temporary source-read failure keeps previous figures visible with a retry action
   and disables current exports until recovery; it does not lower totals.
+  Published Board candidate records without a principal campaign committee appear
+  separately as Personal expenditures. Each selected report keeps its own cash,
+  unpaid, in-kind and total fields, non-itemized figures, period, received and signed
+  dates, and retained source. Only one report per Board candidate record is selected;
+  overlapping cumulative reports are never added together. Itemized payees can be
+  excluded and restored within that report's separate before-and-after comparison.
+  These figures do not enter campaign-account totals, account counts or subsidy
+  receipts. Blank, ambiguous, unreadable and redacted fields stay distinct in source
+  evidence and CSV; an unavailable amount is never zero. A source-only Board record
+  says when no report information was returned and carries its source-copy date,
+  without claiming no spending or no filing. CSV retains each native measure and its
+  field status separately, with no invented campaign account.
 - **Funder reports (`report=funders` in Money by race)**: compare direct contributions
   and independent spending for or against exact candidacies. Distinct candidates and
   source-backed outcomes are counted separately from payments, with unresolved

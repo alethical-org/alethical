@@ -2185,7 +2185,11 @@ function Exclusions({
               </li>
             ))}
           </ul>
-          <Metrics values={[['Excluded spending · Minnesota Board', <Money value={removed} />]]} />
+          <Metrics
+            values={[
+              ['Campaign-account exclusions · Minnesota Board', <Money value={removed} />, true],
+            ]}
+          />
         </div>
       ) : (
         <p className="ec-muted">No exclusions applied</p>

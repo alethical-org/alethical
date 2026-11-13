@@ -6211,7 +6211,7 @@ class ElectionSourceProvenanceDecision(Base):
         ),
         CheckConstraint("decision IN ('checked','withdrawn')", name="valid_decision"),
         CheckConstraint(
-            "schema_id IN ('retained-acquisition:v1','local-recipient-root:v1','retained-board-capture:v1','board_candidate_relationship:v1')",
+            "schema_id IN ('retained-acquisition:v1','retained-board-capture:v1','local-recipient-root:v1','board_candidate_relationship:v1')",
             name="valid_schema",
         ),
         CheckConstraint(
