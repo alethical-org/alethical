@@ -75,10 +75,35 @@ def local_generation(db, monkeypatch, request):
     county = options.pop("ballot_county", "18")
     duplicate_name = options.pop("duplicate_name", False)
     source_chain = options.pop("source_chain", False)
+    jpeg_source = options.pop("jpeg_source", False)
     body, bodies, receipt, source = packet(
         office=office,
         **options,
     )
+    if jpeg_source:
+        from io import BytesIO
+        from PIL import Image, ImageDraw
+
+        assert source_chain, "JPEG test must exercise the normal typed source chain"
+        image = Image.new("RGB", (612, 792), "white")
+        draw = ImageDraw.Draw(image)
+        for field in receipt["fields"]:
+            if field["state"] == "value":
+                draw.text(tuple(field["bounds"][:2]), field["literal"], fill="black")
+        output = BytesIO()
+        image.save(output, "JPEG")
+        body = output.getvalue()
+        old_fields = receipt["source_context"]["fields"]
+        receipt = readings.prepare_receipt(
+            body,
+            fields=receipt["fields"],
+            document_kind=receipt["document_kind"],
+            reading_scope={
+                "cover": {"page": 1, "bounds": [0, 0, 612, 792]},
+                "regions": [{"page": 1, "bounds": [0, 0, 612, 792], "role": "cover"}],
+            },
+        )
+        receipt["source_context"] = {"fields": old_fields}
     store = MemoryStore()
     ballot = f"03939001;Synthetic Candidate;0393;County Commissioner District 3;{county};90;NP\n".encode()
     if duplicate_name:
@@ -94,8 +119,16 @@ def local_generation(db, monkeypatch, request):
             provenance_chain,
         )
 
-        chain = provenance_chain(db, store, body, receipt)
+        chain = provenance_chain(
+            db,
+            store,
+            body,
+            receipt,
+            document_media_type="image/jpeg" if jpeg_source else "application/pdf",
+        )
         receipt, source = chain["receipt"], chain["source"]
+        if jpeg_source:
+            receipt["source_context"]["fields"]["candidate_name"] = "cover.name"
         bodies = chain["originals"] | {
             hashlib.sha256(value).hexdigest(): value for value in (ballot, local_roster)
         }
@@ -149,7 +182,7 @@ def local_generation(db, monkeypatch, request):
                     ),
                 ),
                 file="cand.txt" if h == bh else "LocalCandTbl.txt" if h == lh else h,
-                media_type="application/pdf"
+                media_type=source["media_type"]
                 if h == source["sha256"]
                 else "text/html"
                 if h in urls and not urls[h].endswith(".txt")

@@ -15,6 +15,9 @@ from decimal import Decimal
 import hashlib
 import json
 import math
+from pathlib import Path
+import struct
+import sys
 import re
 
 from sqlalchemy import select, text
@@ -25,7 +28,10 @@ from alethical.pipeline.election_comparison import (
     digest,
     read_source,
 )
-from alethical.pipeline.election_fec_paper_identity import _run_native_reader
+from alethical.pipeline.election_fec_paper_identity import (
+    FecPaperIdentityError,
+    _run_native_reader,
+)
 from alethical.pipeline.election_source_files import (
     CHUNK_BYTES,
     SourceFileError,
@@ -37,6 +43,7 @@ from alethical.pipeline.election_source_files import (
 SCHEMA = "mn-local-source-reading:v1"
 SECTION_SCHEMA = "mn-local-source-reading:v2"
 RENDER_PROFILE = "pdftoppm:png:200dpi:max2600:v1"
+JPEG_RENDER_PROFILE = "pillow:jpeg:rgb8:native-pixels:orientation1:noicc:png:v1"
 MAX_ORIGINAL_BYTES = 16 * 1024 * 1024
 MAX_CLOSURE_BYTES = 64 * 1024 * 1024
 MAX_RECEIPT_BYTES = 4 * 1024 * 1024
@@ -176,7 +183,11 @@ def normalize_field(literal, value_type, state):
     # Keep the literal; never strip whitespace or supply a missing year digit.
     wrapped = re.fullmatch(r"([0-9]{1,2}/[0-9]{1,2}/[0-9]{3})\n([0-9])", literal)
     date_literal = wrapped[1] + wrapped[2] if wrapped else literal
-    match = re.fullmatch(r"([0-9]{1,2})/([0-9]{1,2})/([0-9]{2}|[0-9]{4})", date_literal)
+    # Printed form cells may leave ASCII spaces beside either slash. Match only
+    # that spacing: never remove repeated separators, supply digits or join dates.
+    match = re.fullmatch(
+        r"([0-9]{1,2}) */ *([0-9]{1,2}) */ *([0-9]{2}|[0-9]{4})", date_literal
+    )
     if match is None:
         # Local forms also print US month-day-year with hyphens. Retain the
         # exact literal; only a checked value gets calendar normalization.
@@ -273,6 +284,79 @@ def _source_contains(body, literal):
     return literal in body
 
 
+def original_type(receipt):
+    """The closed receipt profile fixes format and its coordinate plane."""
+    profiles = {p["render_profile"] for p in receipt["pages"]}
+    if profiles == {RENDER_PROFILE}:
+        return "pdf"
+    require(
+        profiles == {JPEG_RENDER_PROFILE}
+        and receipt["schema"] == SECTION_SCHEMA
+        and len(receipt["pages"]) == 1
+        and receipt["pages"][0]["page"] == 1
+        and all(
+            type(receipt["pages"][0][k]) is int and 0 < receipt["pages"][0][k] <= 8192
+            for k in ("width", "height")
+        )
+        and receipt["pages"][0]["width"] * receipt["pages"][0]["height"] <= 16_000_000,
+        "JPEG reading needs one section-v2 image plane",
+    )
+    return "jpeg"
+
+
+def verify_original_type(body, receipt):
+    kind = original_type(receipt)
+    require(
+        _source_startswith(body, b"%PDF-" if kind == "pdf" else b"\xff\xd8\xff"),
+        "Reading original differs from its render profile",
+    )
+    if kind == "jpeg":
+        size = body.byte_size if isinstance(body, VerifiedSourceFile) else len(body)
+        require(size <= MAX_ORIGINAL_BYTES, "JPEG original exceeds reading bound")
+    return kind
+
+
+def _render_jpeg(body, page):
+    _source_identity(body)
+    size = body.byte_size if isinstance(body, VerifiedSourceFile) else len(body)
+    require(
+        size <= MAX_ORIGINAL_BYTES and type(page) is int and page == 1,
+        "JPEG reading needs bounded original image and page 1",
+    )
+    try:
+        image = _run_native_reader(
+            body,
+            command=[
+                sys.executable,
+                str(Path(__file__).with_name("election_source_image_reader.py")),
+            ],
+            max_stdout=16 * 1024 * 1024,
+        )
+        require(
+            image.startswith(b"\x89PNG\r\n\x1a\n")
+            and image[8:16] == b"\x00\x00\x00\rIHDR"
+            and len(image) >= 33,
+            "JPEG renderer did not return supported PNG",
+        )
+        width, height = struct.unpack(">II", image[16:24])
+        require(
+            0 < width <= 8192
+            and 0 < height <= 8192
+            and width * height <= 16_000_000
+            and image[24:29] == b"\x08\x02\x00\x00\x00",
+            "JPEG renderer returned unsupported geometry or mode",
+        )
+    except (FecPaperIdentityError, ComparisonImportError, struct.error) as exc:
+        raise ComparisonImportError("Cannot render bounded original JPEG") from exc
+    return {
+        "page": 1,
+        "width": width,
+        "height": height,
+        "image_sha256": hashlib.sha256(image).hexdigest(),
+        "render_profile": JPEG_RENDER_PROFILE,
+    }, image
+
+
 def _pdf_info(body):
     _source_identity(body)
     require(
@@ -294,6 +378,8 @@ def _pdf_info(body):
 
 def render_page(body, page):
     """Fixed bounded render; input cannot choose a command or renderer options."""
+    if _source_startswith(body, b"\xff\xd8\xff"):
+        return _render_jpeg(body, page)
     count = _pdf_info(body)
     require(
         type(page) is int and 1 <= page <= count, "Reading page is outside original PDF"
@@ -447,7 +533,7 @@ def validate_receipt(value):
                 "Invalid or duplicate reading page",
             )
             require(
-                p["render_profile"] == RENDER_PROFILE
+                p["render_profile"] in {RENDER_PROFILE, JPEG_RENDER_PROFILE}
                 and _hash(p["image_sha256"])
                 and _string(p["transcript"], limit=128 * 1024),
                 "Reading page lacks exact render/transcript",
@@ -462,6 +548,13 @@ def validate_receipt(value):
                 "Invalid reading page dimensions",
             )
             indexed[p["page"]] = p
+        if original_type(value) == "jpeg":
+            require(
+                value["source_context"] is None
+                or isinstance(value["source_context"], dict)
+                and value["source_context"].get("kind") == "local_filing_context:v1",
+                "JPEG context needs the exact typed acquisition chain",
+            )
         fields = value["fields"]
         require(
             isinstance(fields, list) and 0 < len(fields) <= MAX_FIELDS,
@@ -959,10 +1052,7 @@ def verify_receipt_sources(receipt, bodies, *, render=False, provenance=None):
     )
     for h in source_dependencies(receipt):
         require(_source_identity(bodies[h]) == h, "Reading original hash differs")
-    require(
-        _source_startswith(bodies[receipt["original_sha256"]], b"%PDF-"),
-        "Reading original is not PDF",
-    )
+    verify_original_type(bodies[receipt["original_sha256"]], receipt)
     for d in receipt["dependencies"]:
         if d["literal"]:
             require(
@@ -1487,7 +1577,7 @@ def record_reading(
                 with verified_source_files(
                     store,
                     rows.values(),
-                    required_types={receipt["original_sha256"]: "pdf"},
+                    required_types={receipt["original_sha256"]: original_type(receipt)},
                 ) as originals:
                     provenance = _provenance_proof(
                         db,

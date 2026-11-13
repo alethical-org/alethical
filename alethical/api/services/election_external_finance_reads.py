@@ -320,7 +320,19 @@ def _report_version(report, generation, cache):
             "version_as_of",
             "version_sources",
         )
-    }
+    } | (
+        {"selection_group_key": facts["selection_group_key"]}
+        if "selection_group_key" in facts
+        else {}
+    )
+
+
+def report_selection_key(report):
+    """Group only a freshly checked listing projection, never raw account names."""
+    group = report.get("selection_group_key")
+    if group is not None:
+        return report["authority"], "publisher_group", group
+    return report["authority"], "account", report["account_id"]
 
 
 @_source_capacity_errors
@@ -1431,6 +1443,11 @@ def source_body(db, *, election_key, generation_id, source_hash, store=None):
         "text/plain": "txt",
         "text/html": "html",
     }.get(media_type, "bin")
+    if (
+        isinstance(media_type, str)
+        and media_type.split(";", 1)[0].strip().lower() == "image/jpeg"
+    ):
+        extension = "jpg"
     return (
         body,
         public_source(metadata),

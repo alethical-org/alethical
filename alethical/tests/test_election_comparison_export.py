@@ -874,3 +874,76 @@ def test_precinct_without_any_identity_key_does_not_join_by_name(
         r["Gap"] == "Candidate ID is not linked to this source row" for r in rows[:2]
     )
     assert rows[2]["Gap"] == ""
+
+
+@pytest.mark.parametrize("shared_latest", [False, True])
+def test_checked_group_defaults_span_candidate_entries_without_inventing_links(
+    finance_api, finance_db, external_originals, monkeypatch, shared_latest
+):
+    # Adverse projection composition through the actual CSV route. The synthetic
+    # group does not claim the source/version provider would admit these links.
+    from alethical.api.services import election_external_finance_reads as external_reads
+
+    ctx = external_originals
+    second_id = "00000002"
+    ctx.race.payload = deepcopy(ctx.race.payload)
+    ctx.race.payload["candidates"].append(
+        ctx.candidate
+        | {
+            "candidate_id": second_id,
+            "name": "Second Example",
+            "candidate_stable_id": "synthetic:second",
+        }
+    )
+    finance_db.commit()
+    base = external_reads.candidate_finance(
+        finance_db,
+        election_key=KEY,
+        race_id=ctx.race.id,
+        candidate_id=ctx.candidate["candidate_id"],
+        store=ctx.store,
+    )
+    seed_report = next(r for r in base["reports"] if r["effective"] is True)
+    original = external_reads._candidate_records
+
+    def split(db, state, *, cache=None):
+        entry = original(db, state, cache=cache)
+        first = entry["candidate_id"] == ctx.candidate["candidate_id"]
+        indexes = [1, 3] if first and shared_latest else [1] if first else [2, 3]
+        entry["accounts"], entry["reports"], entry["payments"] = [], [], []
+        for n in indexes:
+            account = deepcopy(base["accounts"][0]) | {"account_id": f"C0000000{n}"}
+            report = deepcopy(seed_report) | {
+                "account_id": account["account_id"],
+                "report_key": str(n) * 64,
+                "period_end": ("2026-03-31", "2026-07-31", "2026-10-31")[n - 1],
+                "selection_group_key": "local-selection:" + "a" * 64,
+            }
+            entry["accounts"].append(account)
+            entry["reports"].append(report)
+        return entry
+
+    monkeypatch.setattr(external_reads, "_candidate_records", split)
+    url = f"/api/v1/finance/elections/{KEY}/races/{ctx.race.id}/export.csv"
+    rows = parsed(finance_api.get(url, params={"snapshot_id": ctx.snapshot.id}))
+    reports = [r for r in rows if r["Row type"] == "Report"]
+    assert [r["Report key"] for r in reports] == ["3" * 64]
+    expected_ids = (
+        {second_id, ctx.candidate["candidate_id"]} if shared_latest else {second_id}
+    )
+    assert set(reports[0]["Candidate ID"].split("; ")) == expected_ids
+    rows = parsed(
+        finance_api.get(
+            url,
+            params=[
+                ("snapshot_id", ctx.snapshot.id),
+                ("report_key", "1" * 64),
+                ("report_key", "3" * 64),
+            ],
+        )
+    )
+    reports = [r for r in rows if r["Row type"] == "Report"]
+    assert {r["Report key"] for r in reports} == {"1" * 64, "3" * 64}
+    assert all(
+        r["Overlapping selected reports"] and r["Nonadditive"] == "Yes" for r in reports
+    )

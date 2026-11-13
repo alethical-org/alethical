@@ -243,7 +243,7 @@ and extracted report data. Redacted fields retain an empty literal and a gap sta
 Original source bytes remain unchanged; retaining an original does not certify
 that its publisher removed hidden text.
 
-Reading coordinates follow the full rendered page after its declared rotation.
+PDF reading coordinates follow the full rendered page after its declared rotation.
 The bounded native reader obtains MediaBox dimensions separately from CropBox;
 text returned with that geometry is discarded, never treated as a checked quote.
 PNG bytes and the render profile stay unchanged. A corrected dimension can differ
@@ -253,10 +253,32 @@ receipt through the normal correction history. Ordinary source reads verify byte
 and checked heads without rendering each page again, so a known bad checked head
 must be withdrawn or corrected explicitly.
 
+A section-v2 JPEG reading keeps the exact JPEG original and a separate fixed PNG
+render profile. Its single page uses original image pixels from the top-left,
+not PDF points or density metadata. RGB and grayscale sources with no colour
+profile and no rotation (absent orientation or 1) are supported; other modes,
+colour profiles and orientation transforms remain held. Check the raw primary
+orientation before a decoder collapses duplicate tags: it may occur at most once,
+as SHORT/count 1/value 1. Primary offsets, entry counts and directory end must fit
+its bounded segment. Other directories and tag values supply no geometry or
+source facts. Input is at most 16 MiB,
+with edges at most 8,192 pixels and at most 16 million pixels. The existing
+isolated native-reader process enforces bounded time and output; its hard memory
+limit is supported on Linux, not Darwin. Preparation and checked admission decode
+the original; ordinary current and historical reads only verify exact bytes and
+checked heads. Retained download links preserve the JPEG bytes, `image/jpeg`
+metadata and `.jpg` attachment name. Existing PDF receipts, profiles and Board
+PDF download requirements stay unchanged. Use `prepare --image` for a JPEG;
+`prepare --pdf` retains the PDF path. File format never approves source facts,
+identity, periods, amendment status or completeness.
+
 Checked dates retain their printed text. Calendar normalization supports ISO dates,
 US numeric dates with consistent slashes, hyphens or dots, compact `MMDDYYYY`, and
 complete English month names or three-letter abbreviations followed by an explicit
-day and year. A slash date may wrap its four-digit year after the third digit
+day and year. Complete slash dates may contain ASCII spaces beside each slash;
+the exact spacing stays in the source literal. Repeated slashes, missing digits,
+other whitespace and multiple dates in one cell stay unresolved. A slash date
+may wrap its four-digit year after the third digit
 with exactly one line feed; all digits must be visibly checked and the original
 line break remains in the source literal. Other whitespace or missing digits are
 not repaired. Compact dates require all eight digits. Two-digit years
@@ -436,6 +458,22 @@ Capacity failures stay retryable. Current and historical selectors follow the sa
 rules, and restoring exact proof produces a fresh checked response. Report options,
 candidate cards, expense reports, funder records and CSV evidence keep the dated
 qualification and source links together.
+
+When a checked publisher listing groups several physical report sections for one
+person, its derived `selection_group_key` lets expense reports choose one latest
+period across those sections. It is an internal selection key, never an issued
+account number or a name-based identity match. Raw account and report identifiers
+stay unchanged. Explicit period selection replaces the group's default; selecting
+two reports in that group is refused for additive expense totals. Tied latest
+periods remain unresolved. Group choices and party evidence use all checked
+member accounts before party, name or candidate display filters. A latest report
+without a checked link to the displayed candidate remains a visible gap; the
+filter cannot select an older report or grant an account-candidate link. Comparison
+CSV chooses defaults from the complete deduplicated race report inventory, retaining
+only actual candidate associations. It keeps explicitly inspected reports
+separate and marks overlapping periods across the group; analytics also refuses
+to sum overlapping periods. Losing the optional listing proof removes the group
+key together with its derived version claim.
 
 ## Outcome decisions
 

@@ -31,7 +31,14 @@ from sqlalchemy.orm import Session
 
 
 def provenance_chain(
-    db, store, body, receipt, *, election_date="2026-11-03", cover_page=1
+    db,
+    store,
+    body,
+    receipt,
+    *,
+    election_date="2026-11-03",
+    cover_page=1,
+    document_media_type="application/pdf",
 ):
     """Invented documents and collector observations, never real source approval."""
     entry = "https://www.crowwing.gov/synthetic-reports"
@@ -88,7 +95,7 @@ def provenance_chain(
         "text/plain",
     )
     catalogue_row, catalogue_receipt = capture(catalogue, entry, "text/html")
-    document_row, _ = capture(body, document, "application/pdf")
+    document_row, _ = capture(body, document, document_media_type)
     root = {
         "schema": p.RECIPIENT,
         "original_routing_group": "mn-local:county:18",
@@ -188,7 +195,7 @@ def provenance_chain(
             "sha256": receipt["original_sha256"],
             "authority": "local:county:18",
             "url": document,
-            "media_type": "application/pdf",
+            "media_type": document_media_type,
             "copied_at": "2026-11-12T00:00:00+00:00",
         },
         "transitive_hash": hashlib.sha256(directory).hexdigest(),

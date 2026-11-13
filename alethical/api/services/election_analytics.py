@@ -814,6 +814,7 @@ def _external_events(data, races):
                         "amendment_status",
                         "version_as_of",
                         "version_sources",
+                        "selection_group_key",
                         "check_status",
                         "status_basis",
                         "withheld_measures",
@@ -933,12 +934,25 @@ def _external_events(data, races):
                 },
             }
         )
+
     # An effective notice and periodic record, or cumulative series, cannot be
     # added merely because both are held. Keep each source report's measure.
+    def overlap_key(event):
+        report = reports.get((event["authority"], event["report_key"]))
+        selection = external_reads.report_selection_key(
+            report
+            if report is not None
+            else {
+                "authority": event["authority"],
+                "account_id": event["source_account_id"],
+            }
+        )
+        return selection, event["metric"]
+
     periods = defaultdict(dict)
     for event in events:
         if event["effective"] is True and not event["nonadditive"]:
-            periods[(event["funder_id"], event["metric"])][event["report_key"]] = (
+            periods[overlap_key(event)][event["report_key"]] = (
                 event["period_start"],
                 event["period_end"],
             )
@@ -956,8 +970,7 @@ def _external_events(data, races):
         event["sum_eligible"] = (
             event["effective"] is True
             and (
-                event["funder_id"],
-                event["metric"],
+                *overlap_key(event),
                 event["report_key"],
             )
             not in overlapping

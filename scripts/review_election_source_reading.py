@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare local PDF observations or explicitly review listed source cells.
+"""Prepare local source observations or explicitly review listed source cells.
 
 Dry by default. Preparation never approves data. Review execution records only a
 source reading, never a candidate/account link, generation or publication.
@@ -107,18 +107,19 @@ def execute_request(request, target):
         engine.dispose()
 
 
-def prepare_local_file(path, value):
+def prepare_local_file(path, value, *, source_type="pdf"):
     """Bound and fingerprint a local proposal; this proves no official origin."""
+    readings.require(source_type in {"pdf", "jpeg"}, "Unsupported proposal source type")
     maximum = (
         source_files.MAX_ORIGINAL_BYTES
-        if value.get("reading_scope") is not None
+        if value.get("reading_scope") is not None and source_type == "pdf"
         else readings.MAX_ORIGINAL_BYTES
     )
     size, hasher = 0, hashlib.sha256()
     with path.open("rb") as handle:
         while chunk := handle.read(source_files.CHUNK_BYTES):
             size += len(chunk)
-            readings.require(size <= maximum, "Original PDF exceeds reading bound")
+            readings.require(size <= maximum, "Original exceeds reading bound")
             hasher.update(chunk)
     h = hasher.hexdigest()
     metadata = dict(
@@ -128,7 +129,7 @@ def prepare_local_file(path, value):
         compressed_hash=h,
         compressed_byte_size=size,
         compression="raw",
-        media_type="application/pdf",
+        media_type="application/pdf" if source_type == "pdf" else "image/jpeg",
     )
 
     class LocalStore:
@@ -144,7 +145,7 @@ def prepare_local_file(path, value):
                     )
 
     with source_files.verified_source_files(
-        LocalStore(), [metadata], required_types={h: "pdf"}
+        LocalStore(), [metadata], required_types={h: source_type}
     ) as originals:
         return readings.prepare_receipt(originals[h], **value)
 
@@ -153,7 +154,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     prepare = commands.add_parser("prepare")
-    prepare.add_argument("--pdf", type=Path, required=True)
+    source = prepare.add_mutually_exclusive_group(required=True)
+    source.add_argument("--pdf", type=Path)
+    source.add_argument("--image", type=Path, help="Exact original JPEG (section-v2)")
     prepare.add_argument("--observations", type=Path, required=True)
     prepare.add_argument("--output", type=Path, required=True)
     review = commands.add_parser("review")
@@ -172,7 +175,11 @@ def main(argv=None):
                 ),
                 "Unsupported source observation proposal",
             )
-            receipt = prepare_local_file(args.pdf, value)
+            receipt = prepare_local_file(
+                args.pdf or args.image,
+                value,
+                source_type="pdf" if args.pdf else "jpeg",
+            )
             with args.output.open("x", encoding="utf-8") as handle:
                 json.dump(receipt, handle, ensure_ascii=False, indent=2)
                 handle.write("\n")

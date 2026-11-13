@@ -266,7 +266,16 @@ def _external_pins(values, candidates):
     return pins
 
 
-def _latest_external(reports):
+def _latest_external(reports, *, account=None):
+    if account is not None:
+        groups = {
+            external.report_selection_key(r)
+            for r in reports
+            if (r["authority"], r["account_id"]) == account
+        }
+        if len(groups) != 1:
+            return None
+        reports = [r for r in reports if external.report_selection_key(r) in groups]
     eligible = [
         r for r in reports if r.get("effective") is True and r.get("period_end")
     ]
@@ -622,6 +631,7 @@ def export_csv(
             "amendment_status",
             "version_as_of",
             "version_sources",
+            "selection_group_key",
             "filing",
         )
         if (
@@ -763,13 +773,35 @@ def export_csv(
                     "State": "checked",
                 },
             )
+        for report in entry["reports"]:
+            a = accounts[(report["authority"], report["account_id"])]
+            register(
+                report,
+                report["authority"],
+                report["account_id"],
+                a["name"],
+                cid,
+                "external",
+                account=a,
+            )
+    # Registration first checks identities and deduplicates reports shared by
+    # candidates. Defaults then see the whole race's checked group, not one
+    # candidate entry at a time; candidate associations remain in the inventory.
+    all_external_reports = [
+        item["report"] for item in inventory.values() if item["kind"] == "external"
+    ]
+    for entry in external_data:
+        cid = entry["candidate_id"]
+        for a in entry["accounts"]:
             held = [
                 r
                 for r in entry["reports"]
                 if (r["authority"], r["account_id"])
                 == (a["authority"], a["account_id"])
             ]
-            latest = _latest_external(held)
+            latest = _latest_external(
+                all_external_reports, account=(a["authority"], a["account_id"])
+            )
             if latest:
                 defaults.add(latest)
             elif not report_keys:
@@ -794,22 +826,17 @@ def export_csv(
                             "Gap": unavailable.get("next_action"),
                         },
                     )
-        for report in entry["reports"]:
-            a = accounts[(report["authority"], report["account_id"])]
-            register(
-                report,
-                report["authority"],
-                report["account_id"],
-                a["name"],
-                cid,
-                "external",
-                account=a,
-            )
     selected = set(report_keys) if report_keys else defaults
     if len(selected) != len(report_keys) and report_keys:
         _problem(422, "Select each report only once")
     if selected - inventory.keys():
         _problem(422, "Selected reports must belong to checked accounts in this race")
+    selection_groups = {
+        key: external.report_selection_key(item["report"])
+        if item["kind"] == "external"
+        else (item["authority"], "account", item["account_id"])
+        for key, item in inventory.items()
+    }
     for key in sorted(selected):
         item = inventory[key]
         r = item["report"]
@@ -817,8 +844,7 @@ def export_csv(
             k
             for k in selected
             if k != key
-            and (inventory[k]["authority"], inventory[k]["account_id"])
-            == (item["authority"], item["account_id"])
+            and selection_groups[k] == selection_groups[key]
             and r.get("period_start")
             and r.get("period_end")
             and inventory[k]["report"].get("period_start")

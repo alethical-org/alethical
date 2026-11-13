@@ -499,10 +499,8 @@ def _input(body, source, locator, context):
             "Local source metadata differs from checked publisher association",
         )
     require(h in allowed, "Local reading belongs to another original")
-    require(
-        h != receipt["original_sha256"] or readings._source_startswith(body, b"%PDF-"),
-        "Local reading original is not PDF",
-    )
+    if h == receipt["original_sha256"]:
+        readings.verify_original_type(body, receipt)
     return receipt
 
 

@@ -300,6 +300,8 @@ def _restore(stored, raw, metadata, required_type):
     )
     if required_type == "pdf":
         _require(prefix.startswith(b"%PDF-"), "Required original is not PDF")
+    elif required_type == "jpeg":
+        _require(prefix.startswith(b"\xff\xd8\xff"), "Required original is not JPEG")
     elif required_type == "html":
         _require(
             bytes(prefix).removeprefix(b"\xef\xbb\xbf").lstrip().startswith(b"<")
@@ -345,7 +347,8 @@ def verified_source_files(
     _require(
         set(kinds) <= metadata.keys()
         and all(
-            isinstance(kind, str) and kind in {"pdf", "html"} for kind in kinds.values()
+            isinstance(kind, str) and kind in {"pdf", "html", "jpeg"}
+            for kind in kinds.values()
         ),
         "Source type requirement is unsupported or outside its closure",
     )
@@ -355,6 +358,15 @@ def verified_source_files(
             for h, kind in kinds.items()
         ),
         "HTML source requires its retained HTML media type",
+    )
+    _require(
+        all(
+            kind != "jpeg"
+            or metadata[h].media_type is None
+            or metadata[h].media_type.split(";", 1)[0].strip().lower() == "image/jpeg"
+            for h, kind in kinds.items()
+        ),
+        "JPEG source has conflicting retained media type",
     )
     compressed_size = max(value.compressed_byte_size for value in metadata.values())
     budget = _BUDGET

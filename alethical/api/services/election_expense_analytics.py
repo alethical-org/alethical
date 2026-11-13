@@ -1923,8 +1923,15 @@ def _join_external(
         if any((c["race_id"], c["candidate_id"]) in displayed for c in claims)
     }
     by_account = defaultdict(list)
+    by_selection = defaultdict(list)
+    selection_accounts = defaultdict(set)
     for report in reports.values():
         key = (report["authority"], report["account_id"])
+        # Select from the full checked group before any display filter. A
+        # filtered-out account may hold its latest report or party evidence.
+        group_key = external.report_selection_key(report)
+        by_selection[group_key].append(report)
+        selection_accounts[group_key].add(key)
         if key in scoped_accounts:
             by_account[key].append(report)
     for account_key in scoped_accounts - by_account.keys():
@@ -1951,20 +1958,30 @@ def _join_external(
         key = (report["authority"], report["account_id"])
         if key not in scoped_accounts:
             _bad("Selected report is outside this candidate scope")
-        if key in explicit:
-            _bad("Select at most one report per authority account")
-        explicit[key] = rk
-    selected = {}
-    for key, choices in sorted(by_account.items()):
+        group_key = external.report_selection_key(report)
+        if group_key in explicit:
+            _bad("Select at most one report per account or checked publisher group")
+        explicit[group_key] = rk
+    group_choices = {}
+    for group_key, choices in by_selection.items():
         cutoff = max(r["period_end"] for r in choices)
         latest = [r for r in choices if r["period_end"] == cutoff]
-        chosen = (
-            reports[explicit[key]]
-            if key in explicit
+        group_choices[group_key] = (
+            reports[explicit[group_key]]
+            if group_key in explicit
             else latest[0]
             if len(latest) == 1
             else None
         )
+    selected = {}
+    for key, choices in sorted(by_account.items()):
+        group_keys = {external.report_selection_key(r) for r in choices}
+        # A physical section has one checked publisher group. Conflicting
+        # groups cannot silently turn one source account into two selections.
+        if len(group_keys) != 1:
+            _bad("Reports disagree about their checked publisher group")
+        group_key = next(iter(group_keys))
+        chosen = group_choices[group_key]
         option_rows = []
         for report in sorted(choices, key=lambda r: (r["period_end"], r["report_key"])):
             option_rows.append(
@@ -1995,6 +2012,7 @@ def _join_external(
                             "amendment_status",
                             "version_as_of",
                             "version_sources",
+                            "selection_group_key",
                         )
                         if k in report
                     },
@@ -2024,6 +2042,22 @@ def _join_external(
                         }
                     )
             continue
+        if (chosen["authority"], chosen["account_id"]) != key:
+            if (chosen["authority"], chosen["account_id"]) not in scoped_accounts:
+                # A publisher grouping cannot grant a candidate association.
+                # Keep the latest choice held, never fall back to an older one.
+                for claim in memberships[key]:
+                    row = displayed.get((claim["race_id"], claim["candidate_id"]))
+                    if row is not None:
+                        row["gaps"].append(
+                            {
+                                "state": "selected_report_not_associated",
+                                "authority": key[0],
+                                "account_id": key[1],
+                                "report_key": chosen["report_key"],
+                            }
+                        )
+            continue
         rk = chosen["report_key"]
         claims = report_memberships[rk]
         display_claims = [
@@ -2033,16 +2067,18 @@ def _join_external(
         # dates, before display filters. A wholly historical relationship cannot
         # assign this report to that person's party; partial overlap still blocks
         # a conflicting whole-report party allocation.
-        full = [
+        full_claims = [
             c
-            for c in memberships[key]
+            for account_key in sorted(selection_accounts[group_key])
+            for c in memberships[account_key]
             if c["period_start"] <= chosen["period_end"]
             and chosen["period_start"] <= c["period_end"]
         ]
+        full = list({digest(c): c for c in full_claims}.values())
         parties = {c["party_group"] for c in full}
         classification = (
             "membership_sources_unavailable"
-            if membership_gaps[key]
+            if any(membership_gaps[k] for k in selection_accounts[group_key])
             or not all(c["party_sources_available"] for c in full)
             else "mixed_ballot_parties"
             if len(parties) > 1
@@ -2075,6 +2111,7 @@ def _join_external(
                 "amendment_status",
                 "version_as_of",
                 "version_sources",
+                "selection_group_key",
             )
         }
         entry.update(
@@ -2091,7 +2128,11 @@ def _join_external(
             display_claims=display_claims,
             party_group=group,
             party_classification_state=classification,
-            membership_gaps=membership_gaps[key],
+            membership_gaps=[
+                gap
+                for account_key in sorted(selection_accounts[group_key])
+                for gap in membership_gaps[account_key]
+            ],
             check_status=chosen["check_status"]
             if checked
             else "period_not_covered"

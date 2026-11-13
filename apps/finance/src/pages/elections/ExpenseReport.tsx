@@ -1266,15 +1266,17 @@ function CandidateRow({
             <p className="ec-muted">
               {candidate.gaps.some((gap) => gap.state === 'amendment_status_not_established')
                 ? 'Amendments not established; excluded from totals'
-                : candidate.external_coverage
-                  ? coverageLabel(candidate.external_coverage.status)
-                  : candidate.filing_authority === 'fec'
-                    ? 'Federal campaign records'
-                    : candidate.filing_authority === 'local'
-                      ? 'Local campaign records'
-                      : candidate.confirmed_account_count
-                        ? 'Selected report unavailable'
-                        : 'No confirmed campaign account'}
+                : candidate.gaps.some((gap) => gap.state === 'selected_report_not_associated')
+                  ? 'Latest report not linked to this candidate'
+                  : candidate.external_coverage
+                    ? coverageLabel(candidate.external_coverage.status)
+                    : candidate.filing_authority === 'fec'
+                      ? 'Federal campaign records'
+                      : candidate.filing_authority === 'local'
+                        ? 'Local campaign records'
+                        : candidate.confirmed_account_count
+                          ? 'Selected report unavailable'
+                          : 'No confirmed campaign account'}
             </p>
           </div>
         )}

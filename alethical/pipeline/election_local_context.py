@@ -2706,10 +2706,15 @@ def replay_local_context(context, reading, *, originals, provenance):
         body == reading["original_sha256"],
         "Source chain does not end at the checked reading original",
     )
-    _media(final, {"application/pdf"})
-    pdf = p._source(originals, body)
-    with pdf.open() as handle:
-        require(handle.read(5) == b"%PDF-", "Reading original is not PDF")
+    from alethical.pipeline import election_source_readings as readings
+
+    kind = readings.original_type(reading)
+    _media(final, {"application/pdf"} if kind == "pdf" else {"image/jpeg"})
+    if kind == "jpeg":
+        require(
+            final["media_type"] is not None, "JPEG capture needs its exact media type"
+        )
+    readings.verify_original_type(p._source(originals, body), reading)
     document_url = position
     recipient = root["recipient"]
     if account["kind"] == HENNEPIN_ACCOUNT:

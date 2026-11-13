@@ -96,6 +96,12 @@ def source_download(
         "text/html": "html",
         "application/json": "json",
     }.get(metadata.get("media_type"), "txt")
+    media_type = metadata.get("media_type")
+    if (
+        isinstance(media_type, str)
+        and media_type.split(";", 1)[0].strip().lower() == "image/jpeg"
+    ):
+        extension = "jpg"
     return Response(
         body,
         media_type="application/octet-stream",
