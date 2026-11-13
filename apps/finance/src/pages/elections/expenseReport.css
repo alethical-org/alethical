@@ -193,6 +193,9 @@
 .ex-metrics dt {
   color: #4a5661;
 }
+.ex-metrics > .ex-metric-number {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
 .ex-metrics dd {
   margin: 0;
   text-align: right;

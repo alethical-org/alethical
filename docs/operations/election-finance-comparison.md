@@ -402,14 +402,33 @@ without that folder. Before accepting retained-source work, run both modules wit
 the folder set, retain the named test results, and require no skips. A green CI run
 alone does not prove those real sources were checked.
 
-### Local publisher and acquisition checks
+### Publisher, acquisition and Board candidate checks
 
 `review_election_source_provenance.py` prepares or records explicit private source
-checks, dry by default. Executing a review changes only append-only source history;
-it never confirms a campaign account or publishes money. Acquisition evidence is
+checks, dry by default. Executing a source review appends source history. An explicit
+`board_candidate_relationship:v1` review instead records the narrow same-person
+relationship between a Board candidate record and its exact ballot row. Neither
+confirms a principal campaign committee account nor publishes money. Acquisition evidence is
 bounded exact collector-record bytes stored privately, separate from public source
 documents. Direct captures, observed response redirects and older from/to-only
 observations remain distinct. Absent headers, methods and copy dates are not invented.
+
+`prepare --kind acquisition` is the default. `prepare --kind board-capture` uses the
+existing fixed Board POST-capture parser, preserving the selected evidence pointer
+and complete private capture bytes. The Board route refuses `--body-capture`; it
+does not infer missing request or response facts. Preparation only writes a proposed
+receipt. A checked acquisition review requires its matching bounded evidence file;
+a withdrawal may omit that file. Publisher-root and Board relationship requests
+reject capture evidence because their proof comes from retained dependencies.
+
+Each executed review uses one normal transaction and its explicit expected predecessor.
+Read the current head before building that request; a template's null predecessor is
+not evidence of absence. Keep acquisitions, visual readings and relationships in
+dependency order, with provenance locks before reading locks. Dry output establishes
+request shape and matching capture evidence only. Executed Board relationship output
+names that identity decision and separately reports campaign-account review as unchanged.
+Original retention, visual-reading review, collection composition and guarded publication
+remain separate operations.
 
 A `local_filing_context:v1` section reading cites a checked typed recipient root
 and the exact ordered acquisition, link and offered-form steps to its document.

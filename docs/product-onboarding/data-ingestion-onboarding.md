@@ -453,6 +453,23 @@ confirm it. The [election comparison operating contract](../operations/election-
 owns the three operator commands, required evidence, publication, restoration and
 coverage acceptance. These commands have no automatic schedule or paid AI step.
 
+Board candidate records without a principal campaign committee use a typed
+`candidate_records` section in the same scoped Board collection. Collection format 2
+includes that section in its immutable fingerprint and source closure; an absent
+section preserves format-1 replay exactly. The section does not add PCC report rows
+or change existing account counts. Personal-expenditure reports keep their native
+measures and periods; an empty catalogue is dated availability, not zero spending.
+
+Before attribution, the existing private review ledgers must hold the exact retained
+acquisition evidence, any required physical-page visual reading, and an explicit
+Board candidate-record relationship to the selected ballot snapshot. These checks
+are separate from a PCC account confirmation. Changed or withdrawn dependencies
+withhold their affected facts. Staging, publication and restoration require the
+normal strict retained-source and current-decision proofs. The
+[Board candidate-record implementation contract](../implementation/election-finance-comparison.md#board-candidate-records-without-a-principal-campaign-committee)
+records the built behavior and remaining record-admission and release steps; code
+support alone does not mean these records are admitted or live.
+
 ## H — Campaign finance (MN Campaign Finance Board)
 
 _Verified against the code and the live source on 2026-08-11
