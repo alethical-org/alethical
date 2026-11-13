@@ -258,7 +258,7 @@ def test_race_read_loads_full_source_columns_only_for_selected_rows(
     for row in list(finance_db.identity_map.values()):
         if isinstance(row, models):
             finance_db.expunge(row)
-    loaded, statements, annual_batches = [], [], []
+    loaded, statements, annual_cursors = [], [], []
 
     def capture_row(session, instance):
         if isinstance(instance, models):
@@ -268,7 +268,12 @@ def test_race_read_loads_full_source_columns_only_for_selected_rows(
         sql = " ".join(statement.split())
         statements.append(sql)
         if ".year IS NULL" in sql and "ORDER BY" in sql:
-            annual_batches.append(context.execution_options.get("yield_per"))
+            annual_cursors.append(
+                (
+                    context.execution_options.get("yield_per"),
+                    getattr(cursor, "name", None),
+                )
+            )
 
     connection = finance_db.connection()
     event.listen(finance_db, "loaded_as_persistent", capture_row)
@@ -285,7 +290,7 @@ def test_race_read_loads_full_source_columns_only_for_selected_rows(
         for row in selected
     }
     assert set(loaded) == expected
-    assert annual_batches == [10000, 10000]
+    assert annual_cursors == [(None, None), (None, None)]
     assert all(row["fields"] for row in selected)
     assert sum(bucket["record_count"] for bucket in context["reconciliation"]) > len(
         selected
@@ -389,3 +394,68 @@ def test_board_detail_fetch_excludes_external_dataset_aliases():
         SimpleNamespace(file_for=unexpected),
         [{"dataset": "contributions", "source_family": "external", "row_number": 1}],
     )
+
+
+@pytest.mark.parametrize("operation", [reads.funders, reads.candidates])
+@pytest.mark.parametrize("race_id", [None, RACE])
+def test_summary_routes_skip_full_fields_and_keep_exact_public_reply(
+    finance_db, analytics, monkeypatch, operation, race_id
+):
+    models = (
+        m.CampaignFinanceContributionRow,
+        m.CampaignFinanceIndependentExpenditureRow,
+    )
+    for row in list(finance_db.identity_map.values()):
+        if isinstance(row, models):
+            finance_db.expunge(row)
+    loaded, statements, annual_cursors, field_calls = [], [], [], []
+    original_fields = reads._event_fields
+
+    def capture_fields(*args):
+        field_calls.append(args[1])
+        return original_fields(*args)
+
+    monkeypatch.setattr(reads, "_event_fields", capture_fields)
+
+    def capture_row(session, instance):
+        if isinstance(instance, models):
+            loaded.append(instance.row_number)
+
+    def capture_sql(conn, cursor, statement, parameters, context, many):
+        sql = " ".join(statement.split())
+        statements.append(sql)
+        if ".year IS NULL" in sql and "ORDER BY" in sql:
+            annual_cursors.append(
+                (
+                    context.execution_options.get("yield_per"),
+                    getattr(cursor, "name", None),
+                )
+            )
+
+    connection = finance_db.connection()
+    event.listen(finance_db, "loaded_as_persistent", capture_row)
+    event.listen(connection, "before_cursor_execute", capture_sql)
+    try:
+        actual = operation(finance_db, election_key=KEY, race_id=race_id)
+    finally:
+        event.remove(finance_db, "loaded_as_persistent", capture_row)
+        event.remove(connection, "before_cursor_execute", capture_sql)
+    assert loaded == field_calls == []
+    assert annual_cursors == [(None, None), (None, None)]
+    for model, omitted in (
+        (models[0], "contrib_employer_name"),
+        (models[1], "vendor_name"),
+    ):
+        table = model.__tablename__
+        annual = [
+            sql
+            for sql in statements
+            if f"FROM {table} " in sql
+            and f"{table}.year IS NULL" in sql
+            and f"ORDER BY {table}.row_number" in sql
+        ]
+        assert len(annual) == 1
+        assert f"{table}.{omitted}" not in annual[0].split(" FROM ", 1)[0]
+        assert not any(f"{table}.row_number = ANY" in sql for sql in statements)
+    _use_full_annual_reference(monkeypatch)
+    assert actual == operation(finance_db, election_key=KEY, race_id=race_id)

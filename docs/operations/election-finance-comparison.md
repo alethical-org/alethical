@@ -464,13 +464,15 @@ publication state and retained-source inventory. They do not transfer its report
 index or coverage payload. Source-role membership and fresh original checks still
 run; omitted fields cannot silently trigger a later full-row fetch.
 
-A race filter streams the core identity, amount and classification fields for
-every annual event, retaining the global reconciliation. Full source fields load
-in batches only for selected Board rows; a missing detail row refuses the read.
-Whole-election reads retain their full-row path. Funder identities, shared-account
-claims, exact amounts, source checks and global version dependencies remain
-unchanged. External account groups stay complete before report selection and
-display filtering.
+Funder and candidate summaries read only the core identity, amount and
+classification fields for every annual event, retaining the global
+reconciliation. They do not load unused source columns. Race-filtered record and
+export reads then load full source fields in batches only for selected Board
+rows; a missing detail row refuses the read. Whole-election record and export
+reads retain their full-row path. Core queries use a buffered result to avoid
+repeated remote cursor fetches. Funder identities, shared-account claims, exact
+amounts, source checks and global version dependencies remain unchanged. External
+account groups stay complete before report selection and display filtering.
 
 An exact-race expense read loads the requested race plus every Board decision race
 and external account candidate race. It counts all named candidacies in SQL, so

@@ -1107,13 +1107,9 @@ def _annual_rows(db, dataset, source_id, reported_year, *, full_fields):
         model.snapshot_id == source_id,
         (model.year == reported_year) | model.year.is_(None),
     ).order_by(model.row_number)
-    # Race reconciliation still visits every annual record. Avoid full ORM
-    # objects and a buffered result set for fields that never leave this scope.
-    return (
-        db.scalars(query)
-        if full_fields
-        else db.execute(query.execution_options(yield_per=10000))
-    )
+    # Reconciliation still visits every annual record. Project unused/deferred
+    # fields without ORM objects; normal buffering avoids remote cursor fetches.
+    return db.scalars(query) if full_fields else db.execute(query)
 
 
 def _fill_event_fields(db, release, events):
@@ -1300,6 +1296,7 @@ def _build(
     race_id=None,
     funder_id=None,
     q="",
+    _include_fields=True,
 ):
     if len(q) > 200 or "\x00" in q:
         raise problem_exception(
@@ -1350,7 +1347,7 @@ def _build(
                 dataset,
                 source_id,
                 context["reported_year"],
-                full_fields=race_id is None,
+                full_fields=_include_fields and race_id is None,
             )
             for row in rows:
                 event = _event(
@@ -1359,7 +1356,7 @@ def _build(
                     source,
                     by_account,
                     race_id=race_id,
-                    include_fields=race_id is None,
+                    include_fields=_include_fields and race_id is None,
                 )
                 if row.year is None:
                     event["resolution"] = "missing_year"
@@ -1430,7 +1427,7 @@ def _build(
         selected = [
             event for event in selected if event["funder_id"] in matching_funders
         ]
-    if race_id is not None and release is not None:
+    if _include_fields and race_id is not None and release is not None:
         _fill_event_fields(db, release, selected)
     context["reconciliation"] = _buckets(events)
     context["filtered_reconciliation"] = _buckets(selected)
@@ -1749,7 +1746,7 @@ def _evidence_url(context, **filters):
 
 
 def funders(db: Session, *, limit=50, offset=0, **kwargs):
-    context, events, _, _, outcomes = _build(db, **kwargs)
+    context, events, _, _, outcomes = _build(db, _include_fields=False, **kwargs)
     grouped = defaultdict(list)
     for event in events:
         grouped[event["funder_id"]].append(event)
@@ -1844,7 +1841,9 @@ def _candidate_details(race, candidate, outcomes, records):
 
 
 def candidates(db: Session, *, limit=50, offset=0, **kwargs):
-    context, events, races, links, outcomes = _build(db, **kwargs)
+    context, events, races, links, outcomes = _build(
+        db, _include_fields=False, **kwargs
+    )
     by_candidate = defaultdict(list)
     for event in events:
         if event["resolution"] == "attributed":
