@@ -1473,22 +1473,67 @@ function CandidatePayees({
       (claim) => d.claimKey(claim) === d.claimKey(candidate),
     ),
   };
-  const seedPath = d.expensePath(baseline.election_key, '', query);
-  const seed = useRead<d.ExpenseAnswer>(seedPath, { revision });
+  // The first payee page establishes this candidate's own version in one read.
+  // Keep that version across search and paging; the whole-report version has
+  // another scope and cannot pin this candidate's detail.
+  const session = useFinanceSession();
+  const scopeKey = JSON.stringify([
+    d.expensePath(baseline.election_key, '', query),
+    revision,
+    session.apiBaseUrl,
+    session.accessToken,
+  ]);
+  const [scope, setScope] = useState<{
+    key: string;
+    initialQuery: string;
+    initialActive: boolean;
+    pins: d.Pins | null;
+  }>({
+    key: scopeKey,
+    initialQuery: address.expensePayeeQuery,
+    initialActive: true,
+    pins: null,
+  });
+  const currentScope =
+    scope.key === scopeKey
+      ? scope
+      : {
+          key: scopeKey,
+          initialQuery: address.expensePayeeQuery,
+          initialActive: true,
+          pins: null,
+        };
+  if (scope.key !== scopeKey) setScope(currentScope);
+  const initialPath = d.expensePath(baseline.election_key, 'payees-start', {
+    ...query,
+    payee_query: currentScope.initialQuery,
+  });
+  const offset = position(address.expensePayeePage);
+  const initialPage = offset === 0 && address.expensePayeeQuery === currentScope.initialQuery;
+  if (currentScope.pins && !initialPage && currentScope.initialActive)
+    setScope({ ...currentScope, initialActive: false });
   const path =
-    seed.data && !seed.failed
-      ? d.expensePath(
+    !currentScope.pins || (initialPage && currentScope.initialActive)
+      ? initialPath
+      : d.expensePath(
           baseline.election_key,
           'payees',
           { ...query, payee_query: address.expensePayeeQuery },
-          pins(seed.data),
-          position(address.expensePayeePage),
-        )
-      : null;
-  const payees = useRead<d.ExpenseAnswer>(path, {
-    keepPrevious: true,
-    revision,
-  });
+          currentScope.pins,
+          offset,
+        );
+  const payees = useRead<d.ExpenseAnswer>(path, { keepPrevious: true, revision });
+  // Reset before committing a view of a changed query/page. Late or retained
+  // answers cannot establish the next scope's pin.
+  if (
+    !currentScope.pins &&
+    payees.data &&
+    payees.dataPath === initialPath &&
+    !payees.failed &&
+    !payees.updating
+  ) {
+    setScope({ ...currentScope, pins: pins(payees.data) });
+  }
   const payeePrefix = `candidate:${d.claimKey(candidate)}:`;
   return (
     <section className="ex-payees">
@@ -1506,7 +1551,6 @@ function CandidatePayees({
           })
         }
       />
-      <Notice read={seed} message="Couldn’t load payees" reload={reload} />
       <Scope read={payees} path={path} />
       <Notice read={payees} message="Couldn’t load payees" reload={reload} />
       {payees.data && (

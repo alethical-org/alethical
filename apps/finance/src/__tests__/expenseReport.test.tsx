@@ -281,6 +281,8 @@ let container: HTMLDivElement,
   data: d.ExpenseAnswer,
   requests: URL[],
   handler: ((url: URL) => Promise<Response> | Response | undefined) | null;
+const isPayeeRead = (url: URL) =>
+  url.pathname.endsWith('/payees') || url.searchParams.get('view') === 'payees';
 const json = (answer: unknown) =>
   new Response(JSON.stringify({ data: answer }), {
     headers: { 'Content-Type': 'application/json' },
@@ -389,7 +391,7 @@ beforeEach(() => {
           },
         ];
       }
-      if (url.pathname.endsWith('/payees')) {
+      if (isPayeeRead(url)) {
         answer.payees = [payee()];
         answer.page.total = 1;
         delete answer.candidates;
@@ -448,7 +450,7 @@ it('top search makes two independent name searches and leaves summary scope unch
   const candidateRequest = requests.find(
     (url) => url.searchParams.get('candidate_query') === 'Robin',
   )!;
-  const payeeRequest = requests.find((url) => url.pathname.endsWith('/payees'))!;
+  const payeeRequest = requests.find((url) => isPayeeRead(url))!;
   expect(candidateRequest.searchParams.has('payee_query')).toBe(false);
   expect(candidateRequest.searchParams.has('version')).toBe(false);
   expect(payeeRequest.searchParams.get('payee_query')).toBe('Robin');
@@ -467,9 +469,11 @@ it('scoped expansion keeps nonmatching shared members and its own pin', async ()
   await render('&expenseQuery=Robin');
   await click(buttons('View payees')[0]);
   const scoped = requests.filter((url) => url.searchParams.get('candidate_id') === 'robin');
-  expect(scoped.length).toBeGreaterThan(1);
-  const detail = scoped.find((url) => url.pathname.endsWith('/payees'))!;
-  expect(detail.searchParams.get('version')).toBe('2'.repeat(16));
+  expect(scoped).toHaveLength(1);
+  expect(scoped[0].searchParams.get('view')).toBe('payees');
+  expect(scoped[0].searchParams.has('version')).toBe(false);
+  const detail = scoped.find((url) => isPayeeRead(url))!;
+  expect(detail.searchParams.has('version')).toBe(false);
   expect(detail.searchParams.get('race_id')).toBe('race-1');
   expect(container.textContent).toContain('Street address not shown');
   expect(container.textContent).toContain('St. Paul MN 55101');
@@ -479,9 +483,92 @@ it('scoped expansion keeps nonmatching shared members and its own pin', async ()
   expect(requests.filter((url) => url.pathname.endsWith('/payments'))).toHaveLength(1);
 });
 
+it('keeps the candidate payee version across search, paging and clearing', async () => {
+  await render('&expenseCandidate=' + encodeURIComponent('race-1:robin'));
+  const initial = requests.filter((url) => url.searchParams.get('view') === 'payees');
+  expect(initial).toHaveLength(1);
+  expect(initial[0].searchParams.has('version')).toBe(false);
+  await act(async () =>
+    navigate(window.location.href + '&expensePayeeQuery=Printer', { replace: true }),
+  );
+  await settle();
+  const searched = requests.filter((url) => url.pathname.endsWith('/payees')).at(-1)!;
+  expect(searched.searchParams.get('payee_query')).toBe('Printer');
+  expect(searched.searchParams.get('version')).toBe('2'.repeat(16));
+  await act(async () =>
+    navigate(
+      rootPath + '&expenseCandidate=' + encodeURIComponent('race-1:robin') + '&expensePayeePage=2',
+      { replace: true },
+    ),
+  );
+  await settle();
+  const paged = requests.filter((url) => url.pathname.endsWith('/payees')).at(-1)!;
+  expect(paged.searchParams.get('offset')).toBe('50');
+  expect(paged.searchParams.get('version')).toBe('2'.repeat(16));
+  await act(async () =>
+    navigate(rootPath + '&expenseCandidate=' + encodeURIComponent('race-1:robin'), {
+      replace: true,
+    }),
+  );
+  await settle();
+  const cleared = requests.filter((url) => url.pathname.endsWith('/payees')).at(-1)!;
+  expect(cleared.searchParams.has('payee_query')).toBe(false);
+  expect(cleared.searchParams.get('offset')).toBe('0');
+  expect(cleared.searchParams.get('version')).toBe('2'.repeat(16));
+  expect(requests.filter((url) => url.searchParams.get('view') === 'payees')).toHaveLength(1);
+});
+
+it('reports changed records when candidate payee search no longer matches its initial version', async () => {
+  await render('&expenseCandidate=' + encodeURIComponent('race-1:robin'));
+  handler = (url) =>
+    url.pathname.endsWith('/payees')
+      ? new Response(
+          JSON.stringify({ type: 'https://api.alethical.com/problems/records-changed' }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        )
+      : undefined;
+  await act(async () =>
+    navigate(window.location.href + '&expensePayeeQuery=Printer', { replace: true }),
+  );
+  await settle();
+  expect(container.querySelector('.ex-payees')?.textContent).toContain('These records changed');
+  expect(buttons('View payments')[0].disabled).toBe(true);
+  expect(requests.filter((url) => url.searchParams.get('view') === 'payees')).toHaveLength(1);
+});
+
+it('ignores a late first payee page after changing candidates', async () => {
+  let finish!: (response: Response) => void;
+  handler = (url) =>
+    url.searchParams.get('view') === 'payees' && url.searchParams.get('candidate_id') === 'robin'
+      ? new Promise<Response>((resolve) => {
+          finish = resolve;
+        })
+      : undefined;
+  await render('&expenseCandidate=' + encodeURIComponent('race-1:robin'));
+  await act(async () =>
+    navigate(rootPath + '&expenseCandidate=' + encodeURIComponent(d.claimKey(dana)), {
+      replace: true,
+    }),
+  );
+  await settle();
+  const answer = structuredClone(data);
+  answer.version = '9'.repeat(16);
+  answer.payees = [{ ...payee(), payee: { ...identity, name: 'Obsolete candidate payee' } }];
+  await act(async () => finish(json(answer)));
+  await settle();
+  expect(container.textContent).not.toContain('Obsolete candidate payee');
+  await click(buttons('View payments')[0]);
+  const request = requests.filter((url) => url.pathname.endsWith('/payments')).at(-1)!;
+  expect(request.searchParams.get('version')).toBe('2'.repeat(16));
+  expect(request.searchParams.get('candidate_id')).toBe(dana.candidate_id);
+});
+
 it('opens unnamed payments for their exact report without inventing a payee identity', async () => {
   handler = (url) => {
-    if (!url.pathname.endsWith('/payees')) return undefined;
+    if (!isPayeeRead(url)) return undefined;
     const answer = structuredClone(data);
     answer.payees = [
       {
@@ -1108,7 +1195,7 @@ it('preserves a checked multiline address in payees and their source panel', asy
     },
   };
   handler = (url) =>
-    url.pathname.endsWith('/payees')
+    isPayeeRead(url)
       ? json({
           ...data,
           payees: [{ ...payee(), payee: filed }],
@@ -1431,7 +1518,7 @@ it('renders external payees and memo payment detail with amounts=null', async ()
     source: report.sources,
   };
   handler = (url) => {
-    if (url.pathname.endsWith('/payees'))
+    if (isPayeeRead(url))
       return json({
         ...data,
         payees: [externalPayee],

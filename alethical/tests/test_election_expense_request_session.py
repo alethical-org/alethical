@@ -13,6 +13,7 @@ from alethical.db.session import get_db, get_engine
     ("suffix", "params"),
     [
         ("", {}),
+        ("", {"view": "payees"}),
         ("/payees", {}),
         ("/payments", {}),
         ("/export", {"format": "json"}),
