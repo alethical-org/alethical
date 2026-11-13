@@ -1923,11 +1923,12 @@
   border-radius: 4px;
   font-size: 16px;
 }
-.f-home-connections-link:active {
+.f-app .f-home-connections-link:active {
   color: #08465a;
 }
-.f-home-connections-link:active .f-dest-words,
-.f-home-connections-link:active .f-nowrap > span {
+.f-app .f-home-connections-link:active .f-dest-words,
+.f-app .f-home-connections-link:active .f-nowrap > span {
+  color: #08465a;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
