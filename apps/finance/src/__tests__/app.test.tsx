@@ -205,9 +205,16 @@ describe('the Finance shell', () => {
     expect(container.textContent).not.toContain('Confirm identities');
     expect(container.textContent).not.toContain('Check TV station files');
     expect(container.textContent).not.toContain('Donors by employer');
-    // Money connections is built, so its header-corner action is Home's 1 filled action.
-    const action = container.querySelector<HTMLAnchorElement>('.f-page-head .f-action');
-    expect(action?.textContent).toContain('Explore money connections');
+    // Money connections stays reachable after the family cards, with Home as return context.
+    const action = container.querySelector<HTMLAnchorElement>('.f-home-connections a');
+    expect(action?.textContent?.replace(/\s+/g, ' ')).toContain('Explore money connections');
+    expect(container.querySelector('.f-page-head a')).toBeNull();
+    expect(container.querySelectorAll('.f-home-connections a')).toHaveLength(1);
+    expect(action?.compareDocumentPosition(container.querySelector('.f-sources')!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    const families = container.querySelector('.f-home-families');
+    expect(families?.compareDocumentPosition(action!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(action?.getAttribute('href')).toBe('/money/connections?from=%2Fhome');
   });
 

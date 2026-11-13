@@ -159,9 +159,10 @@ for the owning permission and password-management rules.
   without spelling correction: `danc` can find “dance”, but `danch` cannot. Bill-number
   lookups remain exact. Name suggestions retain direct matches followed by likely
   spellings. The full results page retains its broader bill search.
-- **Finance Home (`/home`)**: "Research public records" with the search field, and the 1
-  header-corner action "Explore money connections" (a filled button beside the eyebrow and
-  heading where they share a line, under the heading where they do not); under "Browse records", entrances into each built directory in this order (Legislators,
+- **Finance Home (`/home`)**: "Research public records" with the search field, and a quiet
+  "Explore money connections" link after the record-family cards, before Sources and updates.
+  It keeps the same lower placement on computer, tablet and phone, with a 44px target,
+  visible hover, keyboard focus and pressed feedback; under "Browse records", entrances into each built directory in this order (Legislators,
   Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
   organizations), each shown once its page is built; a card per built record family in the
   header's order (Campaign money, Media buys, Lobbying, People, Legislation); and "Sources
