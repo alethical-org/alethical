@@ -1982,6 +1982,16 @@ def _join_external(
                     "source_state": "unavailable"
                     if report["check_status"] == "sources_unavailable"
                     else "available",
+                    **{
+                        k: deepcopy(report[k])
+                        for k in (
+                            "version_scope",
+                            "amendment_status",
+                            "version_as_of",
+                            "version_sources",
+                        )
+                        if k in report
+                    },
                 }
             )
         data["report_options"].append(
@@ -2055,6 +2065,10 @@ def _join_external(
                 "predecessor_report_key",
                 "effective",
                 "sources",
+                "version_scope",
+                "amendment_status",
+                "version_as_of",
+                "version_sources",
             )
         }
         entry.update(
@@ -2606,6 +2620,9 @@ _CSV_COLUMNS = (
     "Received date",
     "Report copied at",
     "Amendment",
+    "Version scope",
+    "Amendment status",
+    "Listing copied at",
     "Period basis",
     "Payee status",
     "Payee ID",
@@ -2826,6 +2843,9 @@ def _external_csv_rows(data):
             "Period start": report["period_start"],
             "Period end": report["period_end"],
             "Received date": report["received_date"],
+            "Version scope": report.get("version_scope"),
+            "Amendment status": report.get("amendment_status"),
+            "Listing copied at": report.get("version_as_of"),
             "Account party group": "Party cannot be assigned"
             if report["party_classification_state"]
             in {"mixed_ballot_parties", "membership_sources_unavailable"}
@@ -2876,6 +2896,8 @@ def _external_csv_rows(data):
 
     for report in reports.values():
         base = context(report)
+        for binding in report.get("version_sources") or []:
+            yield base | source([binding]) | {"Row type": "External version source"}
         yield (
             base
             | source(report["sources"], report.get("source_section"))

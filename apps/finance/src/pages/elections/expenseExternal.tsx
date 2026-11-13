@@ -13,6 +13,8 @@ import {
   fieldGapLabel,
   sourceLocator,
   sourceLocationLabel,
+  inventoryVersionLabel,
+  reportTypeLabel,
 } from './externalData';
 import { SourceFieldGaps } from './sourceFieldGaps';
 import { count, dateLabel, reportedFigureLabel, reportedMoneyLabel, periodLabel } from './format';
@@ -39,10 +41,28 @@ export function AuthorityFigures({
         {account.authority_name} · {identity.summary}
       </p>
       <p>
-        {account.report_type} · {periodLabel(account.period_start, account.period_end)}
+        {reportTypeLabel(account.report_type)} ·{' '}
+        {periodLabel(account.period_start, account.period_end)}
       </p>
       {account.received_date && (
         <p className="ec-muted">Received {dateLabel(account.received_date)}</p>
+      )}
+      {inventoryVersionLabel(account) && (
+        <p className="ec-muted">{inventoryVersionLabel(account)}</p>
+      )}
+      {!!account.version_sources?.length && (
+        <div className="ec-actions">
+          {account.version_sources.map((_, index) => (
+            <button
+              key={`version:${index}`}
+              className="ec-link"
+              disabled={!enabled}
+              onClick={() => source('version', index)}
+            >
+              View version source{account.version_sources!.length > 1 ? ` ${index + 1}` : ''}
+            </button>
+          ))}
+        </div>
       )}
       <dl className="ex-metrics">
         {(account.reported_measures ?? []).map((figure, index) => (
@@ -153,8 +173,12 @@ export function authorityEvidence(
     figureIndex === undefined ? undefined : account.reported_measures?.[Number(figureIndex)];
   const gapIndex = /^gap\.(\d+)$/.exec(kind)?.[1];
   const gap = gapIndex === undefined ? undefined : account.source_field_gaps?.[Number(gapIndex)];
-  if (kind !== 'report' && !figure && !gap) return null;
-  const binding = (figure?.sources ?? gap?.sources ?? account.sources)[Number(rawIndex)];
+  if (kind !== 'report' && kind !== 'version' && !figure && !gap) return null;
+  const binding = (
+    kind === 'version'
+      ? account.version_sources
+      : (figure?.sources ?? gap?.sources ?? account.sources)
+  )?.[Number(rawIndex)];
   if (!binding) return null;
   const locator = sourceLocator(binding, account);
   const location = sourceLocationLabel(locator, account);
@@ -174,7 +198,7 @@ export function authorityEvidence(
       title:
         figure?.label ??
         gap?.label ??
-        `${account.account_name || identity.summary} · ${account.report_type}`,
+        `${account.account_name || identity.summary} · ${reportTypeLabel(account.report_type)}`,
       authority: account.authority_name,
       checked: 'Checked',
       quote: binding.quote || undefined,
@@ -182,6 +206,9 @@ export function authorityEvidence(
         { label: identity.label, value: identity.value },
         ...(account.source_report_id ? [{ label: 'Report', value: account.source_report_id }] : []),
         ...(gap ? [{ label: 'Status', value: fieldGapLabel(gap.state) }] : []),
+        ...(inventoryVersionLabel(account)
+          ? [{ label: 'Version', value: inventoryVersionLabel(account)! }]
+          : []),
         {
           label: 'Reporting period',
           value: periodLabel(

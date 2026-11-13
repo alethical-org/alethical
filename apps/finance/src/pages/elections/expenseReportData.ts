@@ -3,12 +3,14 @@
 import { apiPath } from '../../api/read';
 import type { Page, RetainedSource } from './data';
 import { periodLabel } from './format';
+import { reportTypeLabel } from './externalData';
 import type {
   Binding,
   ExternalFigure,
   ExternalAccount,
   ExternalAccountIdentity,
   SourceFieldGap,
+  ReportVersion,
 } from './externalData';
 
 export type Party = 'R' | 'DFL' | 'NP' | 'other' | 'unknown';
@@ -120,11 +122,15 @@ export interface ReportOption {
   authority?: string;
   authority_name?: string;
   account_id?: string;
-  report_type?: string;
+  report_type?: string | null;
   received_date?: string | null;
   report_key: string;
   collection_id: string;
-  filing: Pick<Filing, 'report_type' | 'report_name' | 'cut_off_date'> & Partial<Filing>;
+  filing: Omit<Partial<Filing>, 'report_type' | 'report_name'> & {
+    report_type: string | null;
+    report_name: string | null;
+    cut_off_date: string;
+  };
   period_start: string | null;
   period_end: string | null;
   period_basis: string | null;
@@ -293,13 +299,13 @@ export interface ReportedAmount {
   currency: string;
   amount: string | null;
 }
-export interface AuthorityReport extends ExternalAccountIdentity {
+export interface AuthorityReport extends ExternalAccountIdentity, ReportVersion {
   authority: string;
   authority_name: string;
   account_name: string;
   report_key: string;
   source_report_id: string | null;
-  report_type: string;
+  report_type: string | null;
   period_start: string | null;
   period_end: string | null;
   received_date?: string | null;
@@ -460,7 +466,7 @@ export function scopedReportKeys(
     );
 }
 export const reportLabel = (report: Pick<ReportOption, 'filing' | 'period_start' | 'period_end'>) =>
-  `${report.filing.report_name || report.filing.report_type} · ${periodLabel(report.period_start, report.period_end)}${(report.filing.effective_amendment_index ?? 0) > 0 ? ` · Amended report ${report.filing.effective_amendment_index}` : ''}`;
+  `${reportTypeLabel(report.filing.report_name || report.filing.report_type)} · ${periodLabel(report.period_start, report.period_end)}${(report.filing.effective_amendment_index ?? 0) > 0 ? ` · Amended report ${report.filing.effective_amendment_index}` : ''}`;
 export function optionGroups(data: ExpenseAnswer) {
   const groups = new Map<string, { label: string; keys: string[] }>();
   for (const account of data.report_options)

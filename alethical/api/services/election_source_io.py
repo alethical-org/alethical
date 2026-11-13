@@ -98,6 +98,47 @@ def request_store(store):
     return store if isinstance(store, FreshReadStore) else FreshReadStore(store)
 
 
+class _LazySourceStore:
+    def __init__(self, factory):
+        self.factory, self.store, self.lock = factory, None, Lock()
+
+    def get(self, key, path, *, max_bytes=None):
+        with self.lock:
+            if self.store is None:
+                self.store = self.factory()
+            store = self.store
+        return store.get(key, path, max_bytes=max_bytes)
+
+
+def lazy_request_store(factory):
+    """A fresh read scope that creates its client only when a source is needed."""
+    return request_store(_LazySourceStore(factory))
+
+
+def outcome_map(db, *, snapshot_id, race_ids=None, store=None):
+    """Share this outcome read's bytes and expose capacity as a retryable error."""
+    from alethical.api.problems import problem_exception
+    from alethical.pipeline import election_outcomes
+    from alethical.pipeline.election_source_files import SourceFileLimitError
+
+    scope = (
+        request_store(store)
+        if store is not None
+        else lazy_request_store(reader_store_from_env)
+    )
+    try:
+        return election_outcomes.applicable_outcomes(
+            db, snapshot_id=snapshot_id, race_ids=race_ids, store=scope
+        )
+    except SourceFileLimitError:
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            "Records are busy",
+            headers={"Retry-After": "1"},
+        ) from None
+
+
 def reader_store_from_env():
     """Match the checked reader budget without changing ingestion clients.
 

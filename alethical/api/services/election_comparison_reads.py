@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
+from alethical.api.services.election_source_io import outcome_map
 from alethical.db import models as m
 from alethical.pipeline.election_comparison import read_source
 from alethical.pipeline import election_outcomes
@@ -219,9 +220,7 @@ def races(
         .limit(limit)
         .offset(offset)
     ).all()
-    outcomes = election_outcomes.applicable_outcomes(
-        db, snapshot_id=source.id, race_ids=[row.id for row in rows]
-    )
+    outcomes = outcome_map(db, snapshot_id=source.id, race_ids=[row.id for row in rows])
     return {
         **_context(source),
         "query": query,
@@ -251,12 +250,13 @@ def race_detail(
     election_key: str,
     race_id: str,
     snapshot_id: str | None,
+    store=None,
 ) -> dict:
     source = snapshot(db, election_key, snapshot_id)
     race = race_record(db, source, race_id)
-    outcome = election_outcomes.applicable_outcomes(
-        db, snapshot_id=source.id, race_ids=[race.id]
-    )[race.id]
+    outcome = outcome_map(db, snapshot_id=source.id, race_ids=[race.id], store=store)[
+        race.id
+    ]
     return {
         **_context(source),
         "race": _race(source, race, outcome),
@@ -275,12 +275,13 @@ def precincts(
     county: str | None,
     limit: int,
     offset: int,
+    store=None,
 ) -> dict:
     source = snapshot(db, election_key, snapshot_id)
     race = race_record(db, source, race_id)
-    outcome = election_outcomes.applicable_outcomes(
-        db, snapshot_id=source.id, race_ids=[race.id]
-    )[race.id]
+    outcome = outcome_map(db, snapshot_id=source.id, race_ids=[race.id], store=store)[
+        race.id
+    ]
     precinct = m.ElectionComparisonPrecinct
     query = " ".join(q.split())
     filters = [precinct.snapshot_id == source.id, precinct.race_id == race.id]

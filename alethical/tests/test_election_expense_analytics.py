@@ -2168,9 +2168,11 @@ def test_external_drilldown_keeps_exact_report_measure_and_memo(db, own_external
     )
 
 
-@pytest.mark.parametrize("physical_section", [False, True])
+@pytest.mark.parametrize(
+    "physical_section,inventory_version", [(False, False), (True, False), (False, True)]
+)
 def test_external_shared_account_money_and_party_use_full_memberships(
-    held, monkeypatch, physical_section
+    held, monkeypatch, physical_section, inventory_version
 ):
     context, races, _, _, _ = held
     race = races[0]
@@ -2212,6 +2214,21 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         ],
         "sources": [],
     }
+    if inventory_version:
+        # Projection-only input. Normal inventory proof is separately exercised
+        # by test_election_local_inventory_reads with real checked receipts.
+        report.update(
+            version_scope="publisher_inventory_as_of",
+            amendment_status="offered_inventory_checked",
+            version_as_of="2026-11-11T20:00:00+00:00",
+            version_sources=[
+                {
+                    "source_sha256": "c" * 64,
+                    "locator": {"page": 1},
+                    "source_copied_at": "2026-11-13T01:00:00+00:00",
+                }
+            ],
+        )
     account = {
         "authority": "fec",
         "account_id": "C00000001",
@@ -2290,6 +2307,21 @@ def test_external_shared_account_money_and_party_use_full_memberships(
         _csv=physical_section,
     )
     assert len(result["authority_reports"]) == 1
+    if inventory_version:
+        for field in (
+            "version_scope",
+            "amendment_status",
+            "version_as_of",
+            "version_sources",
+        ):
+            assert result["authority_reports"][0][field] == report[field]
+        option = next(
+            r
+            for a in result["report_options"]
+            for r in a["reports"]
+            if r["report_key"] == report["report_key"]
+        )
+        assert option["version_as_of"] == report["version_as_of"]
     if physical_section:
         actual = result["authority_reports"][0]
         assert actual["issued_id"] is False
@@ -2328,6 +2360,13 @@ def test_external_shared_account_money_and_party_use_full_memberships(
     exported_report = next(
         row for row in csv_rows if row["Row type"] == "External account report"
     )
+    if inventory_version:
+        assert exported_report["Listing copied at"] == report["version_as_of"]
+        proof = next(
+            row for row in csv_rows if row["Row type"] == "External version source"
+        )
+        assert proof["Source SHA256"] == "c" * 64
+        assert "kind=external" in proof["Source URL"]
     assert exported_report["Account party group"] == "Party cannot be assigned"
     if physical_section:
         assert exported_report["Account"] is None

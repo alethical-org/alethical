@@ -7,6 +7,7 @@ import pytest
 
 from alethical.api.services import election_finance_reads as reads
 from alethical.api.services import election_comparison_reads as result_reads
+from alethical.api.services import election_source_io
 from alethical.db import models as m
 from alethical.pipeline import election_outcomes as outcomes
 from alethical.pipeline import election_comparison as storage
@@ -35,6 +36,7 @@ def reviewed_race(finance_db, comparison, spending, monkeypatch):
     store = MemoryStore()
     downloads = {}
     monkeypatch.setattr(outcomes, "raw_file_store_from_env", lambda: store)
+    monkeypatch.setattr(election_source_io, "reader_store_from_env", lambda: store)
     monkeypatch.setattr(result_reads, "raw_file_store_from_env", lambda: store)
     monkeypatch.setattr(
         outcomes, "_download", lambda url, hosts: (downloads[url], url, "text/plain")

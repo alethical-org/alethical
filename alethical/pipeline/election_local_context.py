@@ -17,6 +17,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
+import hashlib
 import re
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
@@ -528,6 +529,336 @@ def _disclosed(doc, node):
         and len(bodies) == 1
         and _ROW_TOGGLE_BODY.fullmatch(bodies[0]) is not None
     )
+
+
+# This profile describes the offered table in retained HTML, not executed remote
+# assets or an assertion that the publisher has no other/future filings.
+HENNEPIN_INVENTORY_PROFILE = "hennepin_cfrs_offered_inventory:v1"
+_INVENTORY_ASSETS = (
+    "https://code.jquery.com/ui/1.11.4/jquery-ui.js",
+    "assets/js/vendor/modernizr-2.6.2-respond-1.1.0.min.js",
+    "assets/js/jquery-1.11.3.min.js",
+    "assets/js/bootstrap.min.js",
+    "assets/js/bootstrap-table.js",
+    "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js",
+    "/cfrs/assets/js/plugins.js",
+    "/cfrs/assets/js/main.js",
+)
+# Exact inspected inline behavior: disclosure/style, copyright year, jQuery
+# fallback, analytics, and two F5 latency-cookie scripts. No scripts execute.
+# Only the two bounded latency payload/counter literals vary in the F5 body.
+_INVENTORY_INLINE = (
+    "56c0cb4dbf922a442f8fb1f5afd6b42782310020a7fc15e069584828b47d2a36",
+    "6a31a3a39783d09cc53dd9e9baeb4a4fa49be602eef90f6bbb9f78af02688064",
+    "271cc72d39185fa70fad98ebdb48bc7456b7813b94dd8c81768ce3b28422a41f",
+    "979fe598fac013253d699f1a4ee81315db8b9e4c0225f739d2af0960e6f85467",
+    "874918e5eeb7ac93299ac3e1d9a0d140c19c0a4aadcccfb5dfca6a0b83102150",
+    "874918e5eeb7ac93299ac3e1d9a0d140c19c0a4aadcccfb5dfca6a0b83102150",
+)
+
+
+_INVENTORY_OTHER_LINKS = (
+    ("http://www.hennepin.us/", "Home"),
+    ("http://www.hennepin.us/residents", "Residents"),
+    ("http://www.hennepin.us/business", "Business"),
+    ("http://www.hennepin.us/your-government", "Your government"),
+    ("http://www.hennepin.us/services", "Online services"),
+    ("https://public.govdelivery.com/accounts/MNHENNE/subscriber/new ", "Subscribe"),
+    ("http://www.hennepin.us/jobs", "Jobs"),
+    ("http://www.hennepin.us/employees", "Employees"),
+    ("http://www.hennepin.us/media", "Media"),
+    ("https://www.hennepin.us/contact", "Contact"),
+    ("#navigation", "Navigation"),
+    ("http://www.hennepin.us/", "Home"),
+    ("search_options.do", "Campaign finance"),
+    ("#", "Candidate"),
+    (
+        "http://www.hennepin.us/residents/elections/campaign-finance",
+        "Campaign finance information",
+    ),
+    ("http://www.hennepin.us/residents/elections/file-for-office", "File for office"),
+    (
+        "http://www.hennepin.us/residents/elections/campaign-finance#campaign-contrib-limits",
+        "Contribution limits",
+    ),
+    ("https://www.facebook.com/hennepin", "Facebook"),
+    ("https://twitter.com/Hennepin", "Twitter"),
+    ("http://www.youtube.com/user/HennepinMN", "YouTube"),
+    ("http://www.linkedin.com/company/hennepin-county", "LinkedIn"),
+    (
+        "http://www.hennepin.us/your-government/open-government/accessibility-privacy-security.aspx",
+        "Privacy",
+    ),
+    ("#", "Top"),
+)
+
+
+def _inventory_scripts(doc):
+    require(
+        not doc.all("style")
+        and all(
+            set(n.attrs) in ({"rel", "href"}, {"rel", "href", "type"})
+            for n in doc.all("link")
+        )
+        and [
+            (n.attrs.get("rel"), n.attrs.get("href"), n.attrs.get("type"))
+            for n in doc.all("link")
+        ]
+        == [
+            ("shortcut icon", "favicon.ico", "image/x-icon"),
+            ("stylesheet", "assets/css/bootstrap.min.css", None),
+            ("stylesheet", "assets/css/bootstrap.min.css", None),
+            ("stylesheet", "assets/css/normalize.css", None),
+            ("stylesheet", "assets/css/main.css", None),
+            ("stylesheet", "assets/css/docs.min.css", None),
+            ("stylesheet", "assets/css/bootstrap-table.css", None),
+            (
+                "stylesheet",
+                "https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css",
+                None,
+            ),
+        ],
+        "Unsupported inventory stylesheet references",
+    )
+    external, inline = [], []
+    for node in doc.all("script"):
+        require(not node.duplicate, "Ambiguous inventory script")
+        text = "".join(node.text).replace("\r\n", "\n").strip()
+        if "src" in node.attrs:
+            require(set(node.attrs) == {"src"} and not text, "Unknown inventory script")
+            external.append(node.attrs["src"])
+        else:
+            require(node.attrs in ({}, {"id": "f5_cspm"}), "Unknown inline script")
+            if node.attrs:
+                text, payload = re.subn(r"f5_p:'[A-P]{128}'", "f5_p:'PAYLOAD'", text)
+                text, counter = re.subn(
+                    r"f5avr[0-9]{10}aaaaaaaaaaaaaaaa_cspm_",
+                    "f5avrCOUNTERaaaaaaaaaaaaaaaa_cspm_",
+                    text,
+                )
+                require(payload == counter == 1, "Unknown latency-script literals")
+            inline.append(hashlib.sha256(text.encode()).hexdigest())
+    require(
+        tuple(external) == _INVENTORY_ASSETS and tuple(inline) == _INVENTORY_INLINE,
+        "Unsupported executable inventory profile",
+    )
+
+
+def hennepin_offered_inventory(body, document_url, account_id):
+    """Enumerate one complete retained offered table; acquisition is separate.
+
+    Only replay_local_context may attach this observation to trusted source
+    provenance. This pure parser returns no as-of date, identity approval or
+    effective version. Unsupported markup refuses the optional proof only.
+    """
+    parts = urlsplit(p.url(document_url))
+    query = _query(document_url)
+    require(
+        parts.scheme == "https"
+        and parts.hostname == HENNEPIN_HOST
+        and parts.path == "/cfrs/getreports.do"
+        and query.get("ids") == account_id
+        and query.get("searchBy") == "candidate"
+        and re.fullmatch(r"[1-9][0-9]{0,8}", account_id) is not None,
+        "Inventory belongs to another publisher/account",
+    )
+    doc = _HTML(body)
+    _inventory_scripts(doc)
+    require(
+        not any(
+            doc.all(tag) for tag in ("base", "iframe", "object", "embed", "template")
+        ),
+        "Unsupported inventory embedded content",
+    )
+    forms, tables = doc.all("form"), doc.all("table")
+    require(
+        len(forms) == len(tables) == len(doc.all("body")) == 1,
+        "Offered inventory structure is ambiguous",
+    )
+    form, table = forms[0], tables[0]
+    require(
+        form.attrs == {"action": "getreport.pdf"}
+        and table.attrs.get("id") == "reports_2"
+        and _inside(table, form)
+        and _usable(table)
+        and not form.duplicate,
+        "Unsupported offered inventory table/form",
+    )
+    paragraphs = [n for n in _descendants(form) if n.tag == "p"]
+    require(
+        len(paragraphs) == 2
+        and _text(paragraphs[0]) == "Documents for viewing"
+        and _usable(paragraphs[0])
+        and _text(paragraphs[1]).startswith(
+            "Listed below are campaign finance documents for "
+        )
+        and _usable(paragraphs[1]),
+        "Offered inventory declaration is missing",
+    )
+    names = [n for n in _descendants(paragraphs[1]) if n.tag == "strong"]
+    require(
+        len(names) == 1
+        and _text(names[0]) == query.get("fullname")
+        and _usable(names[0]),
+        "Offered inventory account name differs",
+    )
+    header = [n for n in table.children if n.tag == "thead"]
+    body_nodes = [n for n in table.children if n.tag == "tbody"]
+    require(
+        len(header) == len(body_nodes) == 1 and len(table.children) == 2,
+        "Inventory header/body is incomplete",
+    )
+    heads = [n for n in _descendants(header[0]) if n.tag == "th"]
+    require(
+        [n.attrs.get("data-field") for n in heads]
+        == ["exp", "name", "contributions", "expenditures", "bal"]
+        and [_text(n) for n in heads]
+        == ["", "Report Name", "Contributions", "Expenditures", "End Balance"]
+        and all(_usable(n) for n in heads),
+        "Inventory columns differ",
+    )
+    rows = body_nodes[0].children
+    require(
+        0 < len(rows) <= 512
+        and len(rows) % 2 == 0
+        and all(n.tag == "tr" for n in rows),
+        "Inventory rows are incomplete or exceed bound",
+    )
+    identifiers = {}
+    for node in doc.nodes:
+        if "id" in node.attrs:
+            identifiers.setdefault(node.attrs["id"], []).append(node)
+    members, member_links, summaries = [], [], []
+    for summary, detail in zip(rows[::2], rows[1::2], strict=True):
+        cells = summary.children
+        links = [n for n in _descendants(detail) if n.tag == "a"]
+        require(
+            len(cells) == 5
+            and all(n.tag == "td" and _usable(n) for n in cells)
+            and len(detail.children) == 2
+            and all(n.tag == "td" for n in detail.children)
+            and len(links) == 1
+            and not any(
+                n.duplicate for n in [summary, detail, *cells, *detail.children]
+            ),
+            "Unsupported inventory row structure",
+        )
+        link = links[0]
+        require(
+            not link.duplicate
+            and re.fullmatch(r"[1-9][0-9]{0,5}", summary.attrs.get("id", ""))
+            is not None
+            and _disclosed(doc, link)
+            and _text(link) == "Download Document"
+            and _text(cells[0]) == "+"
+            and cells[0].attrs.get("id") == "rowExpStatus" + summary.attrs.get("id", "")
+            and identifiers.get(detail.attrs.get("id")) == [detail]
+            and identifiers.get(cells[0].attrs.get("id")) == [cells[0]],
+            "Inventory document is not an offered disclosure",
+        )
+        href = link.attrs.get("href", "")
+        match = re.fullmatch(
+            r"getReport\.pdf\?seq=([1-9][0-9]{0,8})&ids=([1-9][0-9]{0,8})", href
+        )
+        require(
+            match is not None and match[2] == account_id,
+            "Inventory document selector differs",
+        )
+        assert match is not None
+        members.append(
+            {
+                "source_report_id": match[1],
+                "url": p.url(urljoin(document_url, href)),
+                "href": href,
+                "line": link.line,
+                "summary_line": summary.line,
+                "label": _text(cells[1]),
+            }
+        )
+        member_links.append(link)
+        summaries.append(summary)
+    require(
+        len({m["source_report_id"] for m in members}) == len(members)
+        and len({n.attrs.get("id") for n in rows}) == len(rows),
+        "Duplicate inventory document or row identifier",
+    )
+    controls = [
+        n for n in doc.nodes if n.tag in {"input", "button", "select", "textarea"}
+    ]
+    require(
+        len(controls) == 1
+        and controls[0].tag == "button"
+        and _inside(controls[0], form)
+        and _usable(controls[0])
+        and _text(controls[0]) == "Search again"
+        and controls[0].attrs.get("type") == "button"
+        and controls[0].attrs.get("onclick")
+        == "javascript:document.location.href='search_options.do';",
+        "Unknown inventory control or paging",
+    )
+    form_links = [n for n in doc.all("a") if _inside(n, form)]
+    require(
+        set(form_links)
+        == set(member_links)
+        | {
+            n
+            for n in _descendants(paragraphs[1])
+            if n.tag == "a"
+            and n.attrs.get("href")
+            == "http://www.adobe.com/products/acrobat/readermain.html"
+        },
+        "Unknown inventory navigation or omitted document",
+    )
+    require(
+        tuple(
+            (n.attrs.get("href"), _text(n))
+            for n in doc.all("a")
+            if not _inside(n, form)
+        )
+        == _INVENTORY_OTHER_LINKS,
+        "Unknown inventory navigation outside its form",
+    )
+    for node in doc.nodes:
+        require(not node.duplicate, "Duplicate inventory attributes")
+        for attr, value in node.attrs.items():
+            if attr.startswith("data-"):
+                require(
+                    node in heads and attr == "data-field",
+                    "Unknown inventory data-loading attribute",
+                )
+            if attr.startswith("on"):
+                allowed = (
+                    node in summaries
+                    and attr == "onclick"
+                    and _ROW_TOGGLE.fullmatch(value)
+                    or node in controls
+                    and attr == "onclick"
+                    or node.tag == "body"
+                    and attr == "onload"
+                    and value == "fixFormat()"
+                    or node.tag == "a"
+                    and not _inside(node, form)
+                    and node.attrs.get("href") == "#"
+                    and _text(node) == "Candidate"
+                    and attr == "onclick"
+                    and value == "window.history.back();"
+                )
+                require(allowed, "Unknown inventory event behavior")
+            if node.tag == "meta" and attr == "http-equiv":
+                require(
+                    value.lower() == "x-ua-compatible",
+                    "Unknown inventory document redirect",
+                )
+    return {
+        "profile": HENNEPIN_INVENTORY_PROFILE,
+        "catalogue_sha256": hashlib.sha256(body).hexdigest(),
+        "catalogue_url": document_url,
+        "account_id_as_source": account_id,
+        "account_name_as_source": _text(names[0]),
+        "table": "reports_2",
+        "line": table.line,
+        "members": sorted(members, key=lambda m: int(m["source_report_id"])),
+    }
 
 
 def _ancestors(node):
@@ -1628,6 +1959,7 @@ def replay_local_context(context, reading, *, originals, provenance):
     )
     position, body, final = root["entry_url"], None, None
     steps, link_label, account_row = [], None, None
+    offered_inventory = None
     binding = context["recipient_binding"]
     shared = root["directory"]["shared_target_entries"]
     require(
@@ -1667,6 +1999,22 @@ def replay_local_context(context, reading, *, originals, provenance):
         if edge["kind"] == "html_anchor":
             target = replay_html_anchor(html, position, edge)
             link_label = edge["label"]
+            if (
+                account["kind"] == HENNEPIN_ACCOUNT
+                and urlsplit(position).hostname == HENNEPIN_HOST
+                and urlsplit(position).path == "/cfrs/getreports.do"
+            ):
+                try:
+                    offered_inventory = hennepin_offered_inventory(
+                        html, position, account["account_id"]
+                    )
+                    if final is None:
+                        raise ComparisonImportError("Inventory acquisition is missing")
+                    offered_inventory["version_as_of"] = final["copied_at"]
+                except ComparisonImportError:
+                    # Unsupported optional listing proof cannot erase the valid
+                    # exact-document navigation/reading already checked above.
+                    offered_inventory = {"status": "unsupported_inventory_profile"}
             if binding is not None and binding["edge_position"] == index:
                 _bind_heading(html, edge, binding, root)
         elif edge["kind"] == "offered_get_form":
@@ -1825,6 +2173,11 @@ def replay_local_context(context, reading, *, originals, provenance):
             k: root["directory"][k] for k in ("family", "category", "label", "href")
         },
         "source_chain": steps,
+        **(
+            {"offered_inventory": offered_inventory}
+            if offered_inventory is not None
+            else {}
+        ),
         "source_dependencies": sorted(public),
         "provenance_receipt_ids": context_dependencies(context)[
             "provenance_receipt_ids"

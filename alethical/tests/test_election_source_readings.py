@@ -390,3 +390,49 @@ def test_checked_us_date_refuses_invalid_or_unsupported_representation(literal):
 )
 def test_uncertain_us_date_never_becomes_a_calendar_value(state):
     assert r.normalize_field("03-10-2026", "date", state) is None
+
+
+@pytest.mark.parametrize(
+    "literal, expected",
+    [
+        ("1190⁰⁰", "1190.00"),
+        ("$1,007.⁵⁰", "1007.50"),
+        ("1190.⁰⁰", "1190.00"),
+        ("$1,007⁵⁰", "1007.50"),
+    ],
+)
+def test_checked_money_raised_cents(literal, expected):
+    assert r.normalize_field(literal, "money", "value") == expected
+    assert r.normalize_field(literal, "text", "value") == literal
+
+
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "-",
+        "Ø",
+        ".-",
+        "790.-",
+        "1⁰",
+        "1⁰⁰⁰",
+        "1⁰0",
+        "1..⁰⁰",
+        "1,00⁵⁰",
+        "790. -",
+        "790.--",
+        "790.−",
+        "-1⁰⁰",
+        "$-1⁰⁰",
+    ],
+)
+def test_checked_money_rejects_incomplete_raised_cents_and_dashes(literal):
+    with pytest.raises(ComparisonImportError):
+        r.normalize_field(literal, "money", "value")
+
+
+@pytest.mark.parametrize("literal", ["790.-", "1190⁰⁰", "$1,007.⁵⁰"])
+@pytest.mark.parametrize(
+    "state", ["ambiguous", "blank", "unreadable", "redacted", "not_checked"]
+)
+def test_raised_money_never_promotes_uncertain_source(literal, state):
+    assert r.normalize_field(literal, "money", state) is None

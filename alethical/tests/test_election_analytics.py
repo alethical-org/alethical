@@ -490,6 +490,36 @@ def test_external_distinct_source_periods_never_become_one_usd_metric(
     assert len({(m["period_start"], m["period_end"]) for m in measures}) == 2
 
 
+def test_inventory_version_context_survives_funder_and_measure_projection(
+    finance_db, checked_external
+):
+    ctx = checked_external
+    payload = external_reads.bulk_finance(finance_db, election_key=KEY, store=ctx.store)
+    version = {
+        "version_scope": "publisher_inventory_as_of",
+        "amendment_status": "offered_inventory_checked",
+        "version_as_of": "2026-11-11T20:00:00+00:00",
+        "version_sources": [
+            {
+                "source_sha256": "a" * 64,
+                "locator": {"page": 1},
+                "source_copied_at": "2026-11-13T01:00:00+00:00",
+            }
+        ],
+    }
+    # Already-verified input isolates the projection contract; this does not
+    # give a federal report a local publisher-inventory approval.
+    for candidate in payload["candidates"]:
+        for report in candidate["reports"]:
+            report.update(deepcopy(version))
+        for payment in candidate["payments"]:
+            payment.update(deepcopy(version))
+    events, reports = reads._external_events(payload, [ctx.race])
+    for row in [*events, *reports, *reads._native_measures(events)]:
+        for field, value in version.items():
+            assert row[field] == value
+
+
 def retain_analytics_originals(finance_db, publication, monkeypatch):
     # The publication's source rows have actual retained originals, including
     # legitimately empty source datasets, rather than metadata-only promises.
@@ -1429,8 +1459,8 @@ def test_outcome_revision_changes_count_and_invalidates_previous_page(
     before = _data(finance_api)
     original = reads._outcomes
 
-    def certified(db, snapshot_id, races):
-        data = original(db, snapshot_id, races)
+    def certified(db, snapshot_id, races, **kwargs):
+        data = original(db, snapshot_id, races, **kwargs)
         data[RACE]["candidates"]["a"].update(
             outcome="elected", outcome_status="certified"
         )

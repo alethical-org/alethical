@@ -16,6 +16,7 @@ from alethical.api.services import election_comparison_export as export
 from alethical.api.services import election_comparison_reads as results
 from alethical.api.services import election_finance_reads as finance
 from alethical.api.services import election_outside_spending as outside
+from alethical.pipeline import election_outcomes
 from alethical.db import models as m
 from alethical.pipeline import election_account_reviews as reviews
 from alethical.tests.finance_fixtures import finance_api, finance_db
@@ -30,6 +31,7 @@ from alethical.tests.test_election_comparison_reads import (
 from alethical.tests.test_election_comparison_storage import MemoryStore
 from alethical.tests.test_election_finance_reads import comparison, COLLECTION
 from alethical.tests.test_election_outside_spending import spending
+from alethical.tests.test_election_finance_outcomes import reviewed_race
 
 URL = f"/api/v1/finance/elections/{KEY}/races/{RACE}/export.csv"
 
@@ -149,6 +151,52 @@ def test_default_latest_and_zero_unknown_votes_are_distinct(
     assert len({r["Payment key"] for r in payments}) == len(payments)
     assert {r["Payment amount"] for r in payments} >= {"10.00", "0.00", "-5.00"}
     assert all(r["Report total"] == "" for r in payments)
+
+
+def test_precinct_paging_reuses_originals_but_final_check_is_fresh(
+    finance_api, finance_db, reviewed_race, spending, monkeypatch
+):
+    _, _, store, request, _ = reviewed_race
+    store.objects.update(spending.retained_store.objects)
+    for module in (results, finance, outside):
+        monkeypatch.setattr(module, "raw_file_store_from_env", lambda: store)
+    decision = election_outcomes.record_decision(finance_db, **request())
+    finance_db.commit()
+    source = finance_db.get(m.ElectionResultSource, decision.evidence[0]["sha256"])
+    key = source.object_key
+    calls = []
+    original_get = store.get
+
+    def get(object_key, path, *, max_bytes=None):
+        if object_key == key:
+            calls.append(object_key)
+        return original_get(object_key, path, max_bytes=max_bytes)
+
+    monkeypatch.setattr(store, "get", get)
+    first = parsed(finance_api.get(URL, params={"snapshot_id": SNAPSHOT}))
+    assert any(r["Outcome"] == "elected" for r in first)
+    single_page_reads = len(calls)
+    assert single_page_reads > 1  # End checks must independently fetch the source.
+    for i in range(105):
+        _precinct(finance_db, key=f"01:{i + 10:04}", name=f"Precinct {i}", vote=i)
+    finance_db.commit()
+    calls.clear()
+    rows = parsed(finance_api.get(URL, params={"snapshot_id": SNAPSHOT}))
+    assert int(rows[0]["Matching precincts"]) > 100
+    assert len(calls) == single_page_reads
+
+    original_precincts = results.precincts
+
+    def lose_source_after_last_page(*args, **kwargs):
+        page = original_precincts(*args, **kwargs)
+        if not page["page"]["has_more"]:
+            store.objects.pop(key)
+        return page
+
+    monkeypatch.setattr(results, "precincts", lose_source_after_last_page)
+    failed = finance_api.get(URL, params={"snapshot_id": SNAPSHOT})
+    assert failed.status_code in (409, 503)
+    assert not failed.text.startswith("Row type")
 
 
 @pytest.mark.parametrize("keys", [["f" * 64], ["1" * 64, "1" * 64], ["bad"]])
@@ -534,3 +582,174 @@ def test_export_limit_refuses_instead_of_truncating(
     monkeypatch.setattr(export, "MAX_BYTES", 100)
     response = finance_api.get(URL, params={"snapshot_id": SNAPSHOT})
     assert response.status_code == 503 and not response.text.startswith("Row type")
+
+
+def test_aggregate_write_in_without_candidate_id_keeps_source_row(
+    finance_api, finance_db, originals
+):
+    race = finance_db.get(m.ElectionComparisonRace, (SNAPSHOT, RACE))
+    payload = deepcopy(race.payload)
+    aggregate = next(c for c in payload["candidates"] if c["is_write_in_aggregate"])
+    aggregate["votes"] = 189
+    aggregate["candidate_id"] = None  # Real result aggregates have no candidacy ID.
+    race.payload = payload
+    _precinct(finance_db, key="01:0099", name="Write-in source precinct")
+    precinct = finance_db.get(m.ElectionComparisonPrecinct, (SNAPSHOT, RACE, "01:0099"))
+    precinct_payload = deepcopy(precinct.payload)
+    precinct_payload["rows"][0]["candidate_id"] = "a"
+    precinct_payload["rows"].append(
+        {
+            "row_number": 2,
+            "candidate_id": None,
+            "candidate_name": "WRITE-IN",
+            "votes": 189,
+        }
+    )
+    precinct.payload = precinct_payload
+    finance_db.commit()
+
+    rows = parsed(finance_api.get(URL, params={"snapshot_id": SNAPSHOT}))
+    candidates = [r for r in rows if r["Row type"] == "Candidate"]
+    assert len(candidates) == 3
+    assert {r["Candidate ID"] for r in candidates} == {"a", "b", ""}
+    named = {r["Candidate ID"]: r for r in candidates if r["Candidate ID"]}
+    assert named["a"]["Candidate"] == "José Example"
+    assert named["a"]["Candidate votes"] == "7"
+    assert named["b"]["Candidate"] == "Another Candidate"
+    assert named["b"]["Candidate votes"] == ""
+    write_in = next(r for r in candidates if r["Candidate ID"] == "")
+    assert write_in["Candidate"] == "WRITE-IN"
+    assert write_in["Party"] == aggregate["party"]
+    assert write_in["Candidate votes"] == "189"
+    assert write_in["Vote status"] == "reported"
+    assert write_in["Outcome"] == "" and write_in["Outcome status"] == "pending"
+    aggregate_precincts = [
+        r
+        for r in rows
+        if r["Row type"] == "Precinct candidate" and r["Candidate"] == "WRITE-IN"
+    ]
+    assert len(aggregate_precincts) == 1
+    assert aggregate_precincts[0]["Candidate ID"] == ""
+    assert aggregate_precincts[0]["Precinct votes"] == "189"
+    assert aggregate_precincts[0]["Vote status"] == "reported"
+    assert all(r["Candidate ID"] == "a" for r in rows if r["Row type"] == "Report")
+    assert all(
+        r["Candidate ID"] or r["Candidate"] == "WRITE-IN"
+        for r in rows
+        if r["Row type"] in {"Candidate", "Precinct candidate"}
+    )
+
+
+@pytest.mark.parametrize(
+    "summary_count, aggregate_votes", [(1, 189), (2, 189), (0, 189), (1, None)]
+)
+def test_candidate_votes_keep_exact_summary_or_precinct_evidence(
+    finance_api, finance_db, originals, summary_count, aggregate_votes
+):
+    from alethical.pipeline.election_comparison import archive_source
+
+    snapshot = finance_db.get(m.ElectionComparisonSnapshot, SNAPSHOT)
+    metadata = deepcopy(snapshot.sources)
+
+    def original(body, filename):
+        fingerprint = archive_source(finance_db, originals, body)
+        metadata.append(
+            {
+                "file": filename,
+                "url": "https://electionresultsfiles.sos.mn.gov/20261103/" + filename,
+                "sha256": fingerprint,
+                "bytes": len(body),
+                "fetched_at": datetime(2026, 11, 11, tzinfo=UTC).isoformat(),
+            }
+        )
+        return fingerprint
+
+    precinct_hash = original(
+        "WRITE-IN;80\nWRITE-IN;109\nJosé Example;3\nJosé Example;4\n".encode(),
+        "precinct-vote-proof.txt",
+    )
+    summaries = [
+        original(
+            (f"Summary header {i}\nJosé Example;7\nWRITE-IN;189\n").encode(),
+            f"race-summary-proof-{i}.txt",
+        )
+        for i in range(summary_count)
+    ]
+    snapshot.sources = metadata
+    race = finance_db.get(m.ElectionComparisonRace, (SNAPSHOT, RACE))
+    payload = deepcopy(race.payload)
+    payload["source_sha256"] = precinct_hash
+    for candidate in payload["candidates"]:
+        if candidate["is_write_in_aggregate"]:
+            candidate.update(
+                candidate_id=None, votes=aggregate_votes, source_rows=[1, 2]
+            )
+            candidate["summary_sources"] = [
+                {"source_sha256": fingerprint, "row_number": 3}
+                for fingerprint in summaries
+            ]
+        elif candidate["candidate_id"] == "a":
+            candidate["candidate_source_row"] = 1
+            candidate["source_rows"] = [3, 4]
+            candidate["summary_sources"] = [
+                {"source_sha256": fingerprint, "row_number": 2}
+                for fingerprint in summaries
+            ]
+    race.payload = payload
+    finance_db.commit()
+
+    rows = parsed(finance_api.get(URL, params={"snapshot_id": SNAPSHOT}))
+    candidate_rows = {
+        r["Candidate ID"]: r for r in rows if r["Row type"] == "Candidate"
+    }
+    assert candidate_rows["a"]["Source hash"] == SOURCE
+    assert candidate_rows["a"]["Source row"] == "1"
+    assert candidate_rows["a"]["Candidate votes"] == "7"
+    assert candidate_rows["b"]["Candidate votes"] == ""
+    aggregate = candidate_rows[""]
+    assert aggregate["Candidate"] == "WRITE-IN"
+    assert aggregate["Candidate votes"] == ("" if aggregate_votes is None else "189")
+    assert aggregate["Outcome"] == "" and aggregate["Outcome status"] == "pending"
+    if summary_count == 1:
+        assert (aggregate["Source hash"], aggregate["Source row"]) == (
+            summaries[0],
+            "3",
+        )
+    else:
+        assert (aggregate["Source hash"], aggregate["Source row"]) == (
+            precinct_hash,
+            "1; 2",
+        )
+
+    evidence = [
+        r
+        for r in rows
+        if r["Row type"] == "Evidence" and r["Measure"] == "Candidate votes"
+    ]
+    assert not any(r["Candidate ID"] == "b" for r in evidence)
+    for cid, name, value, summary_row, precinct_rows in [
+        ("a", "José Example", "7", "2", "3; 4"),
+        ("", "WRITE-IN", "189", "3", "1; 2"),
+    ]:
+        actual = [r for r in evidence if r["Candidate ID"] == cid]
+        if cid == "" and aggregate_votes is None:
+            assert actual == []
+            continue
+        expected = (
+            {(fingerprint, summary_row) for fingerprint in summaries}
+            if summaries
+            else {(precinct_hash, precinct_rows)}
+        )
+        assert {(r["Source hash"], r["Source row"]) for r in actual} == expected
+        assert len(actual) == len(expected)
+        assert all(
+            r["Candidate"] == name
+            and r["Candidate votes"] == ""
+            and r["Nonadditive"] == "Yes"
+            for r in actual
+        )
+        assert all(f"snapshot_id={SNAPSHOT}" in r["Source URL"] for r in actual)
+        if not summaries:
+            assert {r["Note"] for r in actual} == {
+                "Sum of the listed precinct source rows"
+            }

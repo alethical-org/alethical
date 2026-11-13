@@ -199,6 +199,12 @@ fields stay distinct; none becomes zero. Candidate/account identity and the
 applicable dates need their own checked evidence. Public source views and CSV keep
 the gap and locator; a blank quotation stays blank, never replaced by a label.
 
+A checked money field may show exactly two raised cents digits after explicit
+whole dollars, with or without a decimal point. Normalize those digits while
+preserving the literal source text. A terminal dash, mixed or incomplete digits,
+or an uncertain field never supplies inferred cents. Normalization support does
+not approve a reading; each changed value needs a new checked receipt.
+
 Native PDF text is not proof that words are visibly readable. Every admitted field
 must match an individually checked visible field, including its page, literal and
 value. Hidden text beneath a publisher's redaction stays out of displayed quotes
@@ -340,6 +346,33 @@ private; public gaps describe missing records or figures. A currently confirmed
 campaign account replaces a stale unmatched collection status without implying
 that its reports or figures are complete.
 
+## Publisher inventory and filing versions
+
+Raw local report facts keep unknown amendment status unless a separate checked
+proof establishes a version. The supported Hennepin profile checks the whole
+offered listing, its exact account selectors, every linked document and each
+checked report period/type. A missing, duplicate, competing, amended or unresolved
+member prevents the derived claim. Catalogue labels do not fill missing cover
+fields or establish a candidate identity.
+
+Successful proof means the only offered version of that report family in the
+retained listing, as of the listing's actual copy time. It does not establish that
+no later amendment exists. `version_as_of` retains that date; `version_sources`
+retains the listing and every companion's exact URL, individual copy time and
+source location. All of those source metadata must match the verified generation,
+including the listing. A later PDF download never acquires the earlier listing
+date. Prior-year companion documents prove the inventory and do not become
+current-election money rows.
+
+Strict stage/publication replays the full proof. Public readers complete the
+optional check before creating the response version. A withdrawn reading, missing
+companion or changed proof removes only the derived version claim and changes the
+pin; independently supported raw account facts and amounts remain available.
+Capacity failures stay retryable. Current and historical selectors follow the same
+rules, and restoring exact proof produces a fresh checked response. Report options,
+candidate cards, expense reports, funder records and CSV evidence keep the dated
+qualification and source links together.
+
 ## Outcome decisions
 
 `scripts/review_election_outcome.py --request PATH` checks request shape by default.
@@ -350,6 +383,38 @@ Source capture uses the separate `--capture-url`, `--publisher-url`,
 `--publisher-host` and `--authority` path. Capturing a canvass or publisher page
 does not approve its interpretation. Do not convert a leading vote count or an
 expected canvass date into a declared or certified outcome.
+
+Scanned certifications use the existing section-v2 checked-reading path with
+`document_kind: outcome_certification` and no financial `source_context`. The
+outcome capture still establishes the exact publisher, original and authority.
+Reading approval establishes only the quoted text and its location, not the
+meaning of the election result. Outcome evidence selects a resolved certification
+text field by its immutable reading hash, field ID, page and exact bounds. The
+quote must equal that field's text. Office, election, jurisdiction and candidate
+bindings remain separate exact checks. Financial-report readings cannot supply
+these outcome quotes.
+
+Outcome admission locks current reading heads before recording the race decision.
+Ordinary readers check current and historical reading dependencies in one batch
+without rendering pages. A current failed or withdrawn reading withholds its
+claims; a historical failure changes that race's version without suppressing a
+healthy replacement. Other races' versions remain separate. Public evidence keeps
+the page, bounds and quote, with no private reading IDs or review notes. Source
+capacity returns retryable HTTP503 with `Retry-After: 1`; it never creates missing
+coverage or a new report version. Each new request and final freshness check starts
+with fresh source bytes.
+
+Race exports reuse one bounded source cache across the initial detail and precinct
+pages. Their final freshness check starts a separate read scope, so a source lost
+while exporting prevents delivery of a stale file.
+
+Aggregate write-in rows retain their votes with a blank candidate ID when the
+source assigns none. They never acquire a named candidacy or outcome. Named
+candidate rows retain their roster citation; separate nonadditive Evidence rows
+identify the exact summary records or complete precinct rows supporting each
+vote total. Aggregate rows cite those vote records directly, never an absent
+roster entry. Unknown votes stay blank, and repeated proof does not repeat or add
+the numeric total.
 
 ## Acceptance before calling the comparison complete
 

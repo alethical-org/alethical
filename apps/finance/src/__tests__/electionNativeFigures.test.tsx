@@ -6,6 +6,7 @@ import {
   AuthorityComparisons,
   authorityEvidence,
 } from '../pages/elections/expenseExternal';
+import { reportLabel } from '../pages/elections/expenseReportData';
 vi.mock('../ui/band', () => ({ useBand: () => 'desktop' }));
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let container: HTMLDivElement;
@@ -68,6 +69,27 @@ it('keeps source currency and display truncation on a native cover figure', asyn
   expect(container.textContent).toContain('12 CAD');
   expect(container.textContent).not.toContain('12.99');
 });
+it('keeps an unknown report type null while displaying a useful report label', async () => {
+  const account = { ...native(), report_type: null };
+  await act(async () =>
+    root.render(<AuthorityFigures account={account as any} enabled showSource={() => {}} />),
+  );
+  expect(container.textContent).toContain('Report · Jul 1 to Sep 30, 2026');
+  expect(
+    reportLabel({
+      filing: { report_type: null, report_name: null, cut_off_date: '2026-09-30' },
+      period_start: account.period_start,
+      period_end: account.period_end,
+    }),
+  ).toBe('Report · Jul 1 to Sep 30, 2026');
+  const evidence = authorityEvidence(
+    { election_key: 'mn-2026-11-03-general', external_generation_id: 'c'.repeat(64) } as any,
+    account as any,
+    `external-report:${account.report_key}:report:0`,
+  )!;
+  expect(evidence.evidence.title).toBe('Synthetic committee · Report');
+  expect(account.report_type).toBeNull();
+});
 it('keeps the same currency visible in the exact figure evidence panel', () => {
   const account = native();
   const evidence = authorityEvidence(
@@ -80,6 +102,40 @@ it('keeps the same currency visible in the exact figure evidence panel', () => {
   );
   const money = evidence!.evidence.rows.find((row) => row.label === 'Disbursements this period');
   expect(money!.value).toBe('12 CAD');
+});
+it('keeps the listing date and individual original dates distinct in expense evidence', async () => {
+  const report = {
+    ...native(),
+    version_scope: 'publisher_inventory_as_of',
+    amendment_status: 'offered_inventory_checked',
+    version_as_of: '2026-11-11T20:00:00Z',
+    version_sources: [
+      { ...binding, locator: { page: 2 }, source_copied_at: '2026-11-13T01:00:00Z' },
+    ],
+  };
+  const showSource = vi.fn();
+  await act(async () =>
+    root.render(<AuthorityFigures account={report as any} enabled showSource={showSource} />),
+  );
+  expect(container.textContent).toContain('Only listed version for this period as of Nov 11, 2026');
+  const button = [...container.querySelectorAll('button')].find(
+    (b) => b.textContent === 'View version source',
+  )!;
+  await act(async () => button.click());
+  const key = `external-report:${report.report_key}:version:0`;
+  expect(showSource).toHaveBeenCalledWith(key);
+  const evidence = authorityEvidence(
+    { election_key: 'mn-2026-11-03-general', external_generation_id: 'c'.repeat(64) } as any,
+    report as any,
+    key,
+  )!;
+  expect(evidence.pdfPage).toBe(2);
+  expect(evidence.attachment).toContain(binding.source_sha256);
+  expect(evidence.evidence.rows).toContainEqual({ label: 'Copied', value: 'Nov 13, 2026' });
+  expect(evidence.evidence.rows).toContainEqual({
+    label: 'Version',
+    value: 'Only listed version for this period as of Nov 11, 2026',
+  });
 });
 it('does not describe mixed-party account money as missing candidate party', async () => {
   const mixed = native('b'.repeat(64), 'mixed_ballot_parties');

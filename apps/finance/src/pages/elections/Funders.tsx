@@ -20,7 +20,7 @@ import {
   pageNumber,
   periodLabel,
 } from './format';
-import { externalSourcePath } from './externalData';
+import { externalSourcePath, inventoryVersionLabel } from './externalData';
 import { reportHref } from './navigation';
 import './comparison.css';
 import './funders.css';
@@ -678,6 +678,7 @@ function NativeMeasures({ rows }: { rows: d.NativeMeasure[] }) {
             ) : row.attribution !== 'attributed' ? (
               <p className="ec-muted">Excluded from candidate totals; check filing records</p>
             ) : null}
+            {inventoryVersionLabel(row) && <p className="ec-muted">{inventoryVersionLabel(row)}</p>}
           </li>
         ))}
       </ul>
@@ -952,7 +953,7 @@ function sourceEvidence(
 ): ElectionEvidence {
   const source = context.sources[dataset];
   if (row?.source_family === 'external') {
-    const binding = row.source_bindings?.[sourceIndex];
+    const binding = [...(row.source_bindings ?? []), ...(row.version_sources ?? [])][sourceIndex];
     const authority =
       context.source_scopes?.external.authorities?.find((item) => item.key === row.authority)
         ?.name ??
@@ -981,6 +982,9 @@ function sourceEvidence(
             value: row.source_account_id ?? 'Unavailable',
           },
           { label: 'Report', value: row.source_report_id ?? 'Unavailable' },
+          ...(inventoryVersionLabel(row)
+            ? [{ label: 'Version', value: inventoryVersionLabel(row)! }]
+            : []),
           { label: 'Type', value: row.transaction_type ?? 'Not reported' },
           { label: 'Date', value: dateLabel(row.date) },
           {
@@ -1146,19 +1150,18 @@ function Payments({
                     )[row.resolution] || 'Attribution unavailable'}
                   </p>
                 )}
-                {(row.source_family === 'external' ? (row.source_bindings ?? []) : [null]).map(
-                  (_, index, bindings) => (
-                    <button
-                      key={index}
-                      className="ec-link"
-                      onClick={() =>
-                        onEvidence(sourceEvidence(read.data!, row.dataset, row, index))
-                      }
-                    >
-                      View source{bindings.length > 1 ? ` ${index + 1}` : ''}
-                    </button>
-                  ),
-                )}
+                {(row.source_family === 'external'
+                  ? [...(row.source_bindings ?? []), ...(row.version_sources ?? [])]
+                  : [null]
+                ).map((_, index, bindings) => (
+                  <button
+                    key={index}
+                    className="ec-link"
+                    onClick={() => onEvidence(sourceEvidence(read.data!, row.dataset, row, index))}
+                  >
+                    View source{bindings.length > 1 ? ` ${index + 1}` : ''}
+                  </button>
+                ))}
               </li>
             ))}
           </ul>

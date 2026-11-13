@@ -335,28 +335,92 @@ def test_ytd_and_report_figures_keep_actual_period_and_review_limit(db, external
         ]
 
 
-def test_appended_outcome_review_invalidates_external_version(db, external):
-    from datetime import UTC, datetime
-    from alethical.pipeline.election_comparison import digest
+def test_appended_outcome_review_invalidates_external_version(
+    db, external, monkeypatch
+):
+    from alethical.pipeline import election_outcomes as outcomes
 
     ctx = external
     checked(db, ctx)
-    before = reads.candidate_finance(db, **args(ctx))
-    row = m.ElectionOutcomeDecision(
-        request_key=digest("synthetic withdrawal, no winner claim"),
+    url = "https://www.sos.mn.gov/fixture-outcome-correction.txt"
+    publisher = "https://www.sos.mn.gov/fixture-outcome-publisher"
+    lines = [
+        ctx.race.label,
+        ctx.snapshot.election_date.isoformat(),
+        ctx.race.jurisdiction,
+        "Results pending",
+        "Correction withdraws earlier review",
+    ]
+    downloads = {url: "\n".join(lines).encode(), publisher: url.encode()}
+    monkeypatch.setattr(outcomes, "raw_file_store_from_env", lambda: ctx.store)
+    monkeypatch.setattr(
+        outcomes,
+        "_download",
+        lambda target, hosts: (downloads[target], target, "text/plain"),
+    )
+    capture = outcomes.capture_source(
+        db,
+        url=url,
+        publisher_url=publisher,
+        publisher_hosts=["www.sos.mn.gov"],
+        authority="Fixture authority",
+        store=ctx.store,
+    )
+
+    def locator(line):
+        return {"line_start": line, "line_end": line, "encoding": "utf-8"}
+
+    def evidence(kind, line, **extra):
+        return {
+            **outcomes.capture_metadata(capture),
+            "kind": kind,
+            "identity": outcomes.race_identity(ctx.snapshot, ctx.race),
+            "quote": lines[line - 1],
+            "locator": locator(line),
+            "context": {
+                "bindings": [
+                    {
+                        "field": field,
+                        "value": lines[number - 1],
+                        "literal": lines[number - 1],
+                        "quote": lines[number - 1],
+                        "locator": locator(number),
+                        "reason": "PRIVATE identity explanation",
+                    }
+                    for field, number in (
+                        ("office", 1),
+                        ("election_date", 2),
+                        ("jurisdiction", 3),
+                    )
+                ]
+            },
+            **extra,
+        }
+
+    request = dict(
         snapshot_id=ctx.snapshot.id,
         race_id=ctx.race.id,
-        decision="withdrawn",
         result_status="pending",
-        identity={},
+        identity=outcomes.race_identity(ctx.snapshot, ctx.race),
         candidate_outcomes=[],
-        evidence=[{"sha256": ctx.source_hash}],
         reason="PRIVATE_REASON",
         reviewed_by="PRIVATE_REVIEWER",
-        reviewed_at=datetime.now(UTC),
     )
-    db.add(row)
-    db.flush()
+    previous = outcomes.record_decision(
+        db,
+        **request,
+        decision="recorded",
+        expected_previous_id=None,
+        evidence=[evidence("race_status", 4, status="pending")],
+    )
+    before = reads.candidate_finance(db, **args(ctx))
+    outcomes.record_decision(
+        db,
+        **request,
+        decision="withdrawn",
+        expected_previous_id=previous.id,
+        evidence=[evidence("withdrawal", 5)],
+    )
     after = reads.candidate_finance(db, **args(ctx))
     assert after["version"] != before["version"]
     assert after["reports"] == before["reports"]

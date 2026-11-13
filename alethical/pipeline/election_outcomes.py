@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from io import BytesIO
 import ipaddress
+import math
 import socket
 import re
 from urllib.parse import parse_qsl, urljoin, urlsplit
@@ -27,6 +28,8 @@ from alethical.pipeline.election_comparison import (
     digest,
     read_source,
 )
+from alethical.pipeline import election_source_readings as readings
+from alethical.pipeline.election_source_files import SourceFileLimitError
 from alethical.pipeline.raw_file_store import raw_file_store_from_env
 
 STATUSES = {"pending", "unofficial", "certified", "recount", "tie", "unavailable"}
@@ -383,6 +386,96 @@ def validate_request(request: dict) -> None:
     )
 
 
+def _checked_locator(locator):
+    if "reading_sha256" not in locator:
+        return False
+    bounds = locator.get("bounds")
+    _require(
+        set(locator) == {"page", "reading_sha256", "field_id", "bounds"}
+        and type(locator["page"]) is int
+        and locator["page"] > 0
+        and isinstance(locator["reading_sha256"], str)
+        and re.fullmatch(r"[a-f0-9]{64}", locator["reading_sha256"]) is not None
+        and _text(locator["field_id"])
+        and isinstance(bounds, list)
+        and len(bounds) == 4
+        and all(type(v) in {int, float} and math.isfinite(v) for v in bounds)
+        and 0 <= bounds[0] < bounds[2]
+        and 0 <= bounds[1] < bounds[3],
+        "Checked PDF evidence needs an exact closed field locator",
+    )
+    return True
+
+
+def _reading_ids(evidence):
+    return {
+        loc["reading_sha256"]
+        for item in evidence
+        for loc in [
+            item["locator"],
+            *[b["locator"] for b in item["context"]["bindings"]],
+        ]
+        if _checked_locator(loc)
+    }
+
+
+def _reading_context(db, store, evidence, *, lock=False, partial=False):
+    ids = _reading_ids(evidence)
+    if not ids:
+        return None
+    return readings.load_verified_reading_context(
+        db,
+        store,
+        sorted(ids),
+        lock=lock,
+        partial=partial,
+        allowed_source_hashes={
+            item[key] for item in evidence for key in ("sha256", "publisher_sha256")
+        },
+    )
+
+
+def _evidence_text(item, locator, bodies, reading_context):
+    if not _checked_locator(locator):
+        return _quoted_text(bodies[item["sha256"]], item["media_type"], locator)
+    _require(
+        item["media_type"] == "application/pdf" and reading_context is not None,
+        "Checked quote needs retained PDF reading proof",
+    )
+    receipt = reading_context.receipt(locator["reading_sha256"])
+    _require(
+        receipt["document_kind"] == "outcome_certification"
+        and receipt["source_context"] is None,
+        "Reading purpose does not support outcome certification",
+    )
+    _require(
+        receipt["original_sha256"] == item["sha256"],
+        "Reading belongs to another original",
+    )
+    fields = [f for f in receipt["fields"] if f["field_id"] == locator["field_id"]]
+    _require(len(fields) == 1, "Checked outcome field is missing")
+    field = fields[0]
+    _require(
+        field["page"] == locator["page"]
+        and field["bounds"] == locator["bounds"]
+        and field["record_type"] == "certification"
+        and field["value_type"] == "text"
+        and field["state"] == "value"
+        and field["normalized"] == field["literal"],
+        "Checked outcome field differs or is unresolved",
+    )
+    return field["literal"]
+
+
+def _public_locator(locator):
+    keys = (
+        {"page", "bounds"}
+        if "reading_sha256" in locator
+        else {"page", "line_start", "line_end", "encoding"}
+    )
+    return {key: locator[key] for key in keys if key in locator}
+
+
 def _quoted_text(body: bytes, media_type: str, locator: dict) -> str:
     if media_type == "application/pdf":
         _require(
@@ -423,9 +516,20 @@ def _quoted_text(body: bytes, media_type: str, locator: dict) -> str:
 
 
 def _validate_evidence(
-    db, snapshot, race, evidence, *, bodies=None, store=None, captures=None
+    db,
+    snapshot,
+    race,
+    evidence,
+    *,
+    bodies=None,
+    store=None,
+    captures=None,
+    reading_context=None,
 ) -> None:
     bodies = {} if bodies is None else bodies
+    if reading_context is None and _reading_ids(evidence):
+        store = raw_file_store_from_env() if store is None else store
+        reading_context = _reading_context(db, store, evidence)
     identity = race_identity(snapshot, race)
     expected_bindings = {
         "election_date": snapshot.election_date.isoformat(),
@@ -457,16 +561,21 @@ def _validate_evidence(
                         store if store is not None else raw_file_store_from_env(),
                         source,
                     )
+                except SourceFileLimitError:
+                    raise
                 except Exception as error:
                     raise ComparisonImportError(
                         "Outcome source bytes are unavailable or corrupt"
                     ) from error
         try:
-            actual = _quoted_text(
-                bodies[fingerprint], item["media_type"], item["locator"]
-            )
+            actual = _evidence_text(item, item["locator"], bodies, reading_context)
             _require(
-                item["quote"] in actual, "Outcome quote differs from retained source"
+                (
+                    item["quote"] == actual
+                    if _checked_locator(item["locator"])
+                    else item["quote"] in actual
+                ),
+                "Outcome quote differs from retained source",
             )
             expected = dict(expected_bindings)
             candidate_id = item.get("candidate_id")
@@ -493,15 +602,19 @@ def _validate_evidence(
                     binding["value"] == expected[binding["field"]],
                     "Binding target differs from exact source identity",
                 )
-                literal_context = _quoted_text(
-                    bodies[fingerprint], item["media_type"], binding["locator"]
+                literal_context = _evidence_text(
+                    item, binding["locator"], bodies, reading_context
                 )
                 _require(
-                    binding["quote"] in literal_context
+                    (
+                        binding["quote"] == literal_context
+                        if _checked_locator(binding["locator"])
+                        else binding["quote"] in literal_context
+                    )
                     and binding["literal"] in binding["quote"],
                     "Identity binding differs from retained source",
                 )
-        except ComparisonImportError:
+        except (ComparisonImportError, SourceFileLimitError):
             raise
         except Exception as error:
             raise ComparisonImportError(
@@ -548,7 +661,9 @@ def record_decision(
         identity == race_identity(snapshot, race),
         "Review identity differs from the exact source race",
     )
-    _validate_evidence(db, snapshot, race, evidence)
+    store = raw_file_store_from_env()
+    proof = _reading_context(db, store, evidence, lock=True)
+    _validate_evidence(db, snapshot, race, evidence, store=store, reading_context=proof)
     if decision == "recorded":
         _require(
             any(
@@ -654,9 +769,13 @@ def public_evidence(item: dict) -> dict:
         )
         if key in item
     }
+    public["locator"] = _public_locator(item["locator"])
     public["context"] = {
         "bindings": [
-            {key: b[key] for key in ("field", "value", "literal", "quote", "locator")}
+            {
+                **{key: b[key] for key in ("field", "value", "literal", "quote")},
+                "locator": _public_locator(b["locator"]),
+            }
             for b in item["context"]["bindings"]
         ]
     }
@@ -693,7 +812,7 @@ def source_metadata(db: Session, snapshot_id: str) -> list[dict]:
 
 
 def applicable_outcomes(
-    db: Session, *, snapshot_id: str, race_ids: list[str] | None = None
+    db: Session, *, snapshot_id: str, race_ids: list[str] | None = None, store=None
 ) -> dict[str, dict]:
     """Batch candidates/races/reviews; read each unique retained original once.
 
@@ -752,13 +871,18 @@ def applicable_outcomes(
         if hashes
         else {}
     )
+    if hashes or _reading_ids(items):
+        store = raw_file_store_from_env() if store is None else store
+    proof = _reading_context(db, store, items, partial=True)
     # Historical evidence participates in versions; each unique original is read
     # once. Only active decision failures suppress the current outcome claims.
     for key in hashes:
         try:
             _require(key in sources, "Missing source")
-            bodies[key] = read_source(raw_file_store_from_env(), sources[key])
+            bodies[key] = read_source(store, sources[key])
             available[key] = True
+        except SourceFileLimitError:
+            raise
         except Exception:
             available[key] = False
     result = {}
@@ -788,6 +912,8 @@ def applicable_outcomes(
                         row.evidence,
                         bodies=bodies,
                         captures=captures,
+                        store=store,
+                        reading_context=proof,
                     )
                     for item in row.candidate_outcomes:
                         candidate = next(
@@ -804,6 +930,8 @@ def applicable_outcomes(
                     claims = {
                         c["candidate_id"]: c["outcome"] for c in row.candidate_outcomes
                     }
+                except SourceFileLimitError:
+                    raise
                 except Exception:
                     state = "sources_unavailable"
             evidence = [public_evidence(e) for e in row.evidence]
@@ -831,6 +959,19 @@ def applicable_outcomes(
                     for r in history
                     for e in r.evidence
                     for key in ("sha256", "publisher_sha256")
+                ),
+                **(
+                    {
+                        "readings": [
+                            (rid, proof.head(rid), proof.proof_outcomes[rid])
+                            for rid in sorted(
+                                _reading_ids([e for r in history for e in r.evidence])
+                            )
+                        ]
+                    }
+                    if proof is not None
+                    and _reading_ids([e for r in history for e in r.evidence])
+                    else {}
                 ),
                 "state": state,
             }

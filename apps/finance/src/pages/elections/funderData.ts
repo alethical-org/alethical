@@ -1,6 +1,6 @@
 import { apiPath } from '../../api/read';
 import type { Page } from './data';
-import type { Binding } from './externalData';
+import type { Binding, ReportVersion } from './externalData';
 
 export type Metric =
   | 'direct_contributions'
@@ -117,7 +117,7 @@ export interface Candidate {
   candidate_source_row: number | null;
   amounts: Record<Exclude<Metric, 'other_receipts'>, Measure>;
 }
-export interface Payment {
+export interface Payment extends ReportVersion {
   currency?: string | null;
   record_id?: string;
   source_family?: string;
@@ -160,7 +160,7 @@ export interface Payment {
         retained_original_state: string;
       };
 }
-export interface NativeMeasure {
+export interface NativeMeasure extends ReportVersion {
   authority: string;
   account_id: string;
   report_key: string;

@@ -104,7 +104,7 @@ export function ExternalCandidate({
     const [kind, key, index] = sourceParts;
     const [reportKey, figureIndex] = key.split('.');
     const report =
-      kind === 'report' || kind === 'figure' || kind === 'gap'
+      kind === 'report' || kind === 'figure' || kind === 'gap' || kind === 'version'
         ? data.reports.find((r) => r.report_key === reportKey)
         : undefined;
     const figure =
@@ -121,6 +121,7 @@ export function ExternalCandidate({
       figure?.sources ??
       gap?.sources ??
       (kind === 'report' ? report?.sources : undefined) ??
+      (kind === 'version' ? report?.version_sources : undefined) ??
       payment?.sources ??
       (kind === 'coverage' ? data.coverage.sources : undefined);
     const binding = bindings?.[Number(index)];
@@ -156,6 +157,9 @@ export function ExternalCandidate({
             ...(gap ? [{ label: 'Status', value: x.fieldGapLabel(gap.state) }] : []),
             ...(report && x.unknownAmendments(report)
               ? [{ label: 'Amendments', value: 'Not established; excluded from totals' }]
+              : []),
+            ...(report && x.inventoryVersionLabel(report)
+              ? [{ label: 'Version', value: x.inventoryVersionLabel(report)! }]
               : []),
             ...(location ? [{ label: 'Source', value: location }] : []),
             ...(report || payment
@@ -422,11 +426,28 @@ function ExternalAccount({
       {report ? (
         <>
           <p className="ec-period ec-muted">
-            {report.report_type} · {periodLabel(report.period_start, report.period_end)}
+            {x.reportTypeLabel(report.report_type)} ·{' '}
+            {periodLabel(report.period_start, report.period_end)}
             {report.received_date ? ` · Received ${dateLabel(report.received_date)}` : ''}
           </p>
           {x.unknownAmendments(report) && (
             <p className="ec-muted">Amendments not established; excluded from totals</p>
+          )}
+          {x.inventoryVersionLabel(report) && (
+            <p className="ec-muted">{x.inventoryVersionLabel(report)}</p>
+          )}
+          {!!report.version_sources?.length && (
+            <div className="ec-actions">
+              {report.version_sources.map((_, i) => (
+                <button
+                  className="ec-link"
+                  key={`version:${i}`}
+                  onClick={() => onSource(report.report_key, i, 'version')}
+                >
+                  View version source{report.version_sources!.length > 1 ? ` ${i + 1}` : ''}
+                </button>
+              ))}
+            </div>
           )}
           {report.figures?.length || report.source_field_gaps?.length ? (
             <dl className="ec-external-figures">

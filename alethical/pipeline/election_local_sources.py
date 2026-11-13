@@ -632,10 +632,206 @@ def _candidate_relationship(receipt, fields, context, locator):
     )
 
 
+_INVENTORY_LABEL = re.compile(
+    r"(?:(?P<year>[0-9]{4}) (?P<periodic>Pre-primary|Pre-general|Annual)|(?P<initial>Initial)) report"
+)
+
+
+def _inventory_family(row, values, receipt):
+    """A literal family is not an amendment order or an additive period."""
+    label = _INVENTORY_LABEL.fullmatch(row["label"])
+    require(label is not None, "Inventory has an unsupported potential competitor")
+    assert label is not None
+    report = values["report"]
+    require(values["document_role"] == "primary", "Inventory member role is unresolved")
+    ordered_period(report)
+    require(
+        bool(report["period_start"]) and bool(report["period_end"]),
+        "Inventory member period is unresolved",
+    )
+    year, kind = label["year"], label["periodic"] or label["initial"]
+    require(
+        year is None or report["period_end"][:4] == year,
+        "Inventory year conflicts with the actual report period",
+    )
+    raw_type = report["report_type"]
+    require(
+        raw_type in (None, kind),
+        "Inventory label conflicts with the checked report type",
+    )
+    # Unmapped but individually checked Type-of-report fields still matter.
+    # In particular, an amended/uncertain field cannot be hidden by the context
+    # selecting only a different positive type mark.
+    literals = {
+        "(Pre-Primary report)": "Pre-primary",
+        "(Initial Report)": "Initial",
+    }
+    for field in receipt["fields"]:
+        if field["record_type"] != "cover":
+            continue
+        relevant = (
+            field["field_id"].startswith("cover.report_type")
+            or field["label"] == "Type of report"
+            or "amend" in field["label"].lower()
+        )
+        if not relevant:
+            continue
+        require(
+            field["state"] in {"value", "blank"},
+            "Inventory has an uncertain potential amendment/type field",
+        )
+        if field["state"] != "value":
+            continue
+        require(
+            "amend" not in (field["label"] + " " + field["literal"]).lower(),
+            "Inventory cannot establish an amendment replacement",
+        )
+        if field["label"] == "Type of report":
+            require(
+                literals.get(field["literal"]) == kind,
+                "Literal report type conflicts with inventory",
+            )
+        elif field["value_type"] == "mark":
+            require(
+                field["normalized"] == "marked" and field["label"] == kind,
+                "Checked report type conflicts with inventory",
+            )
+        else:
+            raise ComparisonImportError("Unsupported checked inventory report type")
+    return year, kind
+
+
+def _offered_inventory_version(context, locator):
+    from alethical.pipeline.election_external_finance import inventory_reading_ids
+    from alethical.pipeline.election_local_context import HENNEPIN_INVENTORY_PROFILE
+
+    inventory_reading_ids(locator)
+    selected = _entity(context, locator)
+    inventory = selected.get("offered_inventory")
+    require(
+        isinstance(inventory, dict)
+        and inventory.get("profile") == HENNEPIN_INVENTORY_PROFILE
+        and isinstance(inventory.get("version_as_of"), str)
+        and selected["account"]["issued_id"] is True,
+        "Complete offered inventory is not established for this document",
+    )
+    try:
+        require(
+            datetime.fromisoformat(inventory["version_as_of"]).tzinfo is not None,
+            "Inventory has no checked listing-copy date",
+        )
+    except ValueError as exc:
+        raise ComparisonImportError("Inventory listing-copy date is invalid") from exc
+    offered = {m["source_report_id"]: m for m in inventory["members"]}
+    require(
+        {m["source_report_id"] for m in locator["members"]} == set(offered),
+        "Inventory proof omits or adds an offered document",
+    )
+    sources = [
+        {
+            "source_sha256": inventory["catalogue_sha256"],
+            "source_url": inventory["catalogue_url"],
+            "source_copied_at": inventory["version_as_of"],
+            "locator": {"table": inventory["table"], "line": inventory["line"]},
+        }
+    ]
+    family_members, quoted_members = {}, []
+    selected_family = None
+    for member in locator["members"]:
+        rid = member["receipt_sha256"]
+        values = _entity(context, {"receipt_sha256": rid})
+        receipt = context.receipt(rid)
+        report = values["report"]
+        row = offered[member["source_report_id"]]
+        require(
+            values.get("offered_inventory") == inventory
+            and values.get("election_date") == selected.get("election_date")
+            and values["authority"] == selected["authority"]
+            and values["account"]["issued_id"] is True
+            and values["account"]["account_id"] == selected["account"]["account_id"]
+            and report["source_report_id"] == member["source_report_id"]
+            and values["document_url"] == row["url"]
+            and receipt["original_sha256"] in context.original_hashes,
+            "Inventory member differs from its exact checked account/catalogue/document",
+        )
+        capture = values["source_chain"][-1]
+        require(
+            capture["source_sha256"] == receipt["original_sha256"]
+            and capture["final_url"] == row["url"],
+            "Inventory member capture differs from offered original",
+        )
+        family = _inventory_family(row, values, receipt)
+        family_members.setdefault(family, []).append(member["source_report_id"])
+        if rid == locator["receipt_sha256"]:
+            selected_family = family
+            require(report == selected["report"], "Selected inventory member changed")
+        sources.append(
+            {
+                "source_sha256": receipt["original_sha256"],
+                "source_url": row["url"],
+                "source_copied_at": capture["copied_at"],
+                "locator": {
+                    "page": values["section"]["cover"]["page"],
+                    "source_report_id": member["source_report_id"],
+                },
+            }
+        )
+        quoted_members.append(
+            {
+                **row,
+                "original_sha256": receipt["original_sha256"],
+                "original_copied_at": capture["copied_at"],
+                "period_start": report["period_start"],
+                "period_end": report["period_end"],
+                "document_role": values["document_role"],
+                "report_type": report["report_type"],
+            }
+        )
+    require(
+        selected_family is not None and len(family_members[selected_family]) == 1,
+        "Offered inventory has multiple possible versions of this family",
+    )
+    assert selected_family is not None  # The exact-family requirement above passed.
+    facts = {
+        k: selected["report"][k]
+        for k in (
+            "authority",
+            "account_id",
+            "source_report_id",
+            "period_start",
+            "period_end",
+        )
+    }
+    facts.update(
+        effective=True,
+        version_scope="publisher_inventory_as_of",
+        amendment_status="offered_inventory_checked",
+        version_as_of=inventory["version_as_of"],
+        version_sources=sources,
+        family={"catalogue_year": selected_family[0], "kind": selected_family[1]},
+    )
+    return CheckedExtraction(
+        facts,
+        _quote(
+            {
+                "scope": "offered table in retained publisher listing",
+                "catalogue_url": inventory["catalogue_url"],
+                "catalogue_sha256": inventory["catalogue_sha256"],
+                "listing_copied_at": inventory["version_as_of"],
+                "account_id_as_source": inventory["account_id_as_source"],
+                "account_name_as_source": inventory["account_name_as_source"],
+                "members": quoted_members,
+            }
+        ),
+    )
+
+
 def extract_local_reading(body, source, locator, *, context=None):
     """Replay approved literal fields, or derived typed local context claims."""
     receipt = _input(body, source, locator, context)
     kind = locator.get("kind")
+    if kind == "offered_inventory_version":
+        return _offered_inventory_version(context, locator)
     fields = {f["field_id"]: f for f in receipt["fields"]}
     if kind == "candidate_relationship":
         return _candidate_relationship(receipt, fields, context, locator)

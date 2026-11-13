@@ -36,6 +36,7 @@ from alethical.pipeline.candidate_catalogue import (
 )
 from alethical.pipeline.election_finance_collection import _coverage
 from alethical.pipeline.election_source_files import (
+    SourceFileError,
     SourceFileLimitError,
     verified_source_files,
 )
@@ -386,6 +387,11 @@ def validate_generation(g):
                 "Invalid report account or status",
             )
             account = accounts[(report["authority"], report["account_id"])]
+            version_binding_facts(report)
+            require(
+                report.get("version_binding") is None or account["issued_id"] is True,
+                "Offered inventory needs an issued publisher account",
+            )
             unissued_section = (
                 report["authority"].startswith("local:")
                 and report.get("version_scope") == "exact_document"
@@ -603,6 +609,192 @@ def validate_generation(g):
 LOCAL_READING_ADAPTERS = frozenset({"local_checked_reading:v1", "local_native_form:v1"})
 
 
+def inventory_reading_ids(locator):
+    """Only this closed locator may introduce companion reading dependencies."""
+    from alethical.pipeline.election_local_context import HENNEPIN_INVENTORY_PROFILE
+
+    require(
+        isinstance(locator, dict)
+        and set(locator) == {"kind", "receipt_sha256", "profile", "members"}
+        and locator.get("kind") == "offered_inventory_version"
+        and locator.get("profile") == HENNEPIN_INVENTORY_PROFILE
+        and fingerprint(locator.get("receipt_sha256"))
+        and isinstance(locator.get("members"), list)
+        and 0 < len(locator["members"]) <= 256,
+        "Unsupported offered-inventory locator",
+    )
+    ids, selectors = [], []
+    for member in locator["members"]:
+        require(
+            isinstance(member, dict)
+            and set(member) == {"source_report_id", "receipt_sha256"}
+            and fingerprint(member.get("receipt_sha256"))
+            and isinstance(member.get("source_report_id"), str)
+            and re.fullmatch(r"[1-9][0-9]{0,8}", member["source_report_id"])
+            is not None,
+            "Invalid offered-inventory member",
+        )
+        ids.append(member["receipt_sha256"])
+        selectors.append(member["source_report_id"])
+    require(
+        len(ids) == len(set(ids))
+        and len(selectors) == len(set(selectors))
+        and selectors == sorted(selectors, key=int)
+        and locator["receipt_sha256"] in ids,
+        "Inventory needs exact unique ordered members including the selected reading",
+    )
+    return set(ids)
+
+
+def version_binding_facts(report):
+    """Closed optional derived claim; raw report_facts remain exact-document facts."""
+    binding = report.get("version_binding")
+    if binding is None:
+        return None
+    require(
+        report.get("authority", "").startswith("local:")
+        and report.get("check_status") == "checked"
+        and report.get("effective") is None
+        and report.get("version_scope") == "exact_document"
+        and report.get("amendment_status") == "not_established"
+        and report.get("predecessor_report_key") is None
+        and isinstance(binding, dict)
+        and set(binding) == {"source_sha256", "adapter", "locator", "quote", "facts"}
+        and binding.get("source_sha256") == report.get("source_sha256")
+        and binding.get("adapter") == "local_checked_reading:v1",
+        "Optional inventory version requires a checked raw local exact document",
+    )
+    inventory_reading_ids(binding.get("locator"))
+    facts = binding.get("facts")
+    identity = {
+        k: report.get(k)
+        for k in (
+            "authority",
+            "account_id",
+            "source_report_id",
+            "period_start",
+            "period_end",
+        )
+    }
+    require(
+        isinstance(facts, dict)
+        and set(facts)
+        == set(identity)
+        | {
+            "effective",
+            "version_scope",
+            "amendment_status",
+            "version_as_of",
+            "version_sources",
+            "family",
+        }
+        and all(facts.get(k) == v for k, v in identity.items())
+        and facts.get("effective") is True
+        and facts.get("version_scope") == "publisher_inventory_as_of"
+        and facts.get("amendment_status") == "offered_inventory_checked"
+        and isinstance(facts.get("version_as_of"), str)
+        and isinstance(facts.get("version_sources"), list)
+        and 2 <= len(facts["version_sources"]) <= 257
+        and isinstance(facts.get("family"), dict),
+        "Optional inventory facts differ from this exact raw report",
+    )
+    try:
+        require(
+            datetime.fromisoformat(facts["version_as_of"]).tzinfo is not None,
+            "Inventory listing-copy date needs its actual timezone",
+        )
+    except ValueError as exc:
+        raise ComparisonImportError("Invalid inventory listing-copy date") from exc
+    return deepcopy(facts)
+
+
+def validate_report_version(generation, bodies, report, *, cache=None):
+    """Replay optional proof, including companion source metadata, separately.
+
+    Ordinary callers may fall back to raw unknown on ComparisonImportError.
+    SourceFileLimitError remains retryable and must never become an unknown claim.
+    """
+    facts = version_binding_facts(report)
+    if facts is None:
+        return None
+    from alethical.pipeline.election_local_sources import _input
+
+    require(
+        isinstance(bodies, _VerifiedBodies), "Inventory needs verified source bodies"
+    )
+    context = bodies.reading_context
+    require(context is not None, "Inventory companion reading proof is unavailable")
+    binding = report["version_binding"]
+    for rid in sorted(inventory_reading_ids(binding["locator"])):
+        receipt = context.receipt(rid)
+        h = receipt["original_sha256"]
+        source = bodies.sources.get(h)
+        require(
+            source is not None and h in bodies,
+            "Inventory companion is outside this generation",
+        )
+        try:
+            with bodies.original(h) as original:
+                _input(original, source, {"receipt_sha256": rid}, context)
+        except SourceFileLimitError:
+            raise
+        except (SourceFileError, OSError) as exc:
+            if cache is not None:
+                cache.setdefault("failed_review_originals", set()).add(h)
+                if "source_availability" in cache:
+                    cache["source_availability"][h] = False
+            raise ComparisonImportError(
+                "Inventory original is unavailable or changed"
+            ) from exc
+    validate_binding(
+        generation,
+        bodies,
+        binding,
+        facts,
+        authority=report["authority"],
+        joins=(
+            "authority",
+            "account_id",
+            "source_report_id",
+            "period_start",
+            "period_end",
+        ),
+    )
+    # The listing is a proof source too. Matching only companion PDFs permits
+    # a same-byte listing to acquire a different URL or copy date in public
+    # annotations and exports than the checked inventory actually established.
+    for proof_source in facts["version_sources"]:
+        source = bodies.sources.get(proof_source["source_sha256"])
+        require(
+            source is not None
+            and source["url"] == proof_source["source_url"]
+            and datetime.fromisoformat(source["copied_at"])
+            == datetime.fromisoformat(proof_source["source_copied_at"]),
+            "Inventory source metadata differs from its checked capture",
+        )
+    return facts
+
+
+def version_dependencies(g, *, reports=(), cache=None, _reading_ids=None):
+    """Optional proof dependencies; never part of raw identity/figure availability."""
+    hashes, ids = set(), set()
+    for report in reports:
+        if report.get("version_binding") is None:
+            continue
+        version_binding_facts(report)
+        binding = report["version_binding"]
+        hashes.update(binding_hashes(binding))
+        ids.update(inventory_reading_ids(binding["locator"]))
+    requirements = _reading_requirements(g, cache)
+    for rid in ids:
+        requirement = requirements.get(rid)
+        if requirement:
+            hashes.update(requirement["original_hashes"])
+    if _reading_ids is not None:
+        _reading_ids.update(ids)
+    return hashes
+
+
 def local_reading_ids(value):
     """Private receipt references in actual fixed-adapter bindings only."""
     result = set()
@@ -620,6 +812,8 @@ def local_reading_ids(value):
                     "Local binding needs an exact checked reading receipt",
                 )
                 result.add(receipt)
+                if locator.get("kind") == "offered_inventory_version":
+                    result.update(inventory_reading_ids(locator))
             for key, child in item.items():
                 if key not in {"facts", "raw_metadata"}:
                     visit(child)
@@ -1106,6 +1300,8 @@ def verify_evidence(db, store, g):
                         "period_end",
                     ),
                 )
+    for report in g["reports"]:
+        validate_report_version(g, bodies, report)
     for payment in sorted(g["payments"], key=lambda r: r["source_sha256"]):
         if payment["check_status"] == "checked":
             require(
@@ -1337,6 +1533,7 @@ def load_published_view(
             hashes.add(item["source_sha256"])
         hashes.update(binding_hashes(item.get("binding")))
         hashes.update(binding_hashes(item.get("status_binding")))
+        hashes.update(binding_hashes(item.get("version_binding")))
         for figure in item.get("figures") or []:
             hashes.update(binding_hashes(figure.get("binding")))
     for authority in authorities:
@@ -1546,7 +1743,7 @@ def source_dependencies(
     _reading_ids=None,
     include_figures=True,
 ):
-    """One source set for claim availability, identity rechecks and response versions."""
+    """Raw claim dependencies; optional version_dependencies are deliberately separate."""
     indexes = _review_indexes(g, cache)
     hashes = set()
     receipt_ids = set()
@@ -2292,16 +2489,22 @@ def validate_account_review(
             )
     reading_ids = local_reading_ids(
         [
-            publisher,
-            account,
-            evidence,
-            *[
-                indexes["reports"].get(e.get("report_key"))
-                for e in evidence
-                if e.get("kind") in REPORT_REVIEW_KINDS
-            ],
+            {key: item.get(key) for key in ("binding", "status_binding", "figures")}
+            for item in [
+                publisher,
+                account,
+                *evidence,
+                *[
+                    indexes["reports"].get(e.get("report_key"))
+                    for e in evidence
+                    if e.get("kind") in REPORT_REVIEW_KINDS
+                ],
+            ]
+            if item is not None
         ]
     )
+    # Optional whole-inventory proof must not become an identity dependency.
+    # Raw cover/status/figure receipts keep their existing review requirements.
     plan_readings(db, g, reading_ids, cache)
     hashes = source_dependencies(
         g,

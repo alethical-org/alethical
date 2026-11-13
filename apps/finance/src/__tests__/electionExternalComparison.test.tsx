@@ -124,6 +124,39 @@ it('shows unreadable local fields with their exact source and no guessed amount'
   expect(panel.textContent).toContain('1?0');
   expect(panel.textContent).toContain('page 3');
 });
+it('dates the checked listing separately from a companion PDF and opens each version source', async () => {
+  Object.assign(data.reports[0], {
+    report_type: null,
+    version_scope: 'publisher_inventory_as_of',
+    amendment_status: 'offered_inventory_checked',
+    version_as_of: '2026-11-11T20:00:00Z',
+    version_sources: [
+      {
+        source_sha256: source,
+        locator: { table: 'reports_2', line: 4 },
+        source_copied_at: '2026-11-11T20:00:00Z',
+      },
+      {
+        source_sha256: figureSource,
+        locator: { page: 1 },
+        source_copied_at: '2026-11-13T01:00:00Z',
+      },
+    ],
+  });
+  await render();
+  expect(container.textContent).toContain('Only listed version for this period as of Nov 11, 2026');
+  expect(container.textContent).not.toContain('null');
+  await click(buttons('View version source 2')[0]);
+  expect(onSource).toHaveBeenLastCalledWith(
+    `external:${encodeURIComponent(candidate.candidate_id)}:version:${reportKey}:1`,
+  );
+  await render({ source: onSource.mock.calls.at(-1)![0] });
+  const panel = document.querySelector('[role="dialog"]')!;
+  expect(panel.textContent).toContain('Only listed version for this period as of Nov 11, 2026');
+  expect(panel.textContent).toContain('Nov 13, 2026');
+  expect(panel.textContent).toContain('page 1');
+  expect(requests.some((url) => url.pathname.includes(figureSource))).toBe(true);
+});
 it('identifies a bundled report by its checked section page without inventing a filing number', async () => {
   const account = data.accounts[0];
   Object.assign(account, {

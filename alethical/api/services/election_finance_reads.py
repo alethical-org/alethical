@@ -21,7 +21,7 @@ from alethical.api.services import election_outside_spending as outside
 from alethical.api.services import finance_versions
 from alethical.db import models as m
 from alethical.pipeline.election_account_reviews import applicable_accounts
-from alethical.pipeline.election_outcomes import applicable_outcomes
+from alethical.api.services.election_source_io import outcome_map as applicable_outcomes
 from alethical.pipeline.election_comparison import read_source
 from alethical.pipeline.campaign_finance_report_document_store import read_document
 from alethical.pipeline.raw_file_store import raw_file_store_from_env

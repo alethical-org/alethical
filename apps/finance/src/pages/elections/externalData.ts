@@ -1,5 +1,6 @@
 import { apiPath } from '../../api/read';
 import type { Page } from './data';
+import { dateLabel } from './format';
 
 export interface Binding {
   source_sha256: string;
@@ -8,6 +9,17 @@ export interface Binding {
   source_copied_at?: string;
   source_url?: string;
 }
+export interface ReportVersion {
+  version_scope?: string | null;
+  amendment_status?: string | null;
+  version_as_of?: string | null;
+  version_sources?: Array<Omit<Binding, 'quote'> & { quote?: string }> | null;
+}
+export const inventoryVersionLabel = (report: ReportVersion) =>
+  report.version_scope === 'publisher_inventory_as_of' && report.version_as_of
+    ? `Only listed version for this period as of ${dateLabel(report.version_as_of)}`
+    : null;
+export const reportTypeLabel = (value?: string | null) => value || 'Report';
 export interface ExternalContext {
   election_key: string;
   snapshot_id: string;
@@ -47,20 +59,18 @@ export interface ExternalFigure {
   source_column?: string | number;
   sources: Binding[];
 }
-export interface ExternalReport {
+export interface ExternalReport extends ReportVersion {
   report_key: string;
   authority: string;
   account_id: string;
   source_report_id?: string | null;
-  report_type?: string;
+  report_type?: string | null;
   series_id?: string;
   period_start?: string;
   period_end?: string;
   received_date?: string;
   predecessor_report_key?: string | null;
   effective?: boolean | null;
-  version_scope?: string;
-  amendment_status?: string;
   check_status: string;
   figures: ExternalFigure[] | null;
   withheld_measures?: Array<{ measure: string; state: string }>;
@@ -84,7 +94,7 @@ export const fieldGapLabel = (state: string) =>
     not_checked: 'Not checked',
     unit_not_in_source: 'Unit not reported',
   })[state] ?? 'Unavailable';
-export interface ExternalPayment {
+export interface ExternalPayment extends ReportVersion {
   currency?: string | null;
   payment_key: string;
   authority: string;
@@ -181,7 +191,10 @@ export function accountIdentity(account: ExternalAccountIdentity) {
   };
 }
 /** A section's cover can locate that original only; a field's own page wins. */
-export function sourceLocator(binding: Binding, account?: ExternalAccountIdentity) {
+export function sourceLocator(
+  binding: Pick<Binding, 'source_sha256' | 'locator'>,
+  account?: ExternalAccountIdentity,
+) {
   const section = account?.source_section;
   return typeof binding.locator.page !== 'number' &&
     account?.issued_id === false &&

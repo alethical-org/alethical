@@ -35,6 +35,72 @@ class Store:
                 self.active -= 1
 
 
+def test_outcome_capacity_is_retryable_instead_of_missing_source(monkeypatch):
+    from fastapi import HTTPException
+    from alethical.pipeline import election_outcomes
+    from alethical.pipeline.election_source_files import SourceFileLimitError
+
+    def busy(*args, **kwargs):
+        raise SourceFileLimitError("Source proof budget is occupied")
+
+    monkeypatch.setattr(election_outcomes, "applicable_outcomes", busy)
+    with pytest.raises(HTTPException) as exc:
+        io.outcome_map(None, snapshot_id="snapshot", race_ids=["race"], store=Store())
+    assert exc.value.status_code == 503
+    assert exc.value.headers == {"Retry-After": "1"}
+
+
+def test_outcome_without_sources_does_not_need_storage_configuration(monkeypatch):
+    from alethical.pipeline import election_outcomes
+
+    def unconfigured():
+        raise AssertionError("No outcome bytes requested")
+
+    monkeypatch.setattr(io, "reader_store_from_env", unconfigured)
+    monkeypatch.setattr(election_outcomes, "applicable_outcomes", lambda *a, **k: {})
+    assert io.outcome_map(None, snapshot_id="snapshot") == {}
+
+
+def test_outcome_request_reuses_bytes_but_next_request_rechecks(monkeypatch, tmp_path):
+    from alethical.pipeline import election_outcomes
+
+    original = Store()
+    seen = []
+    monkeypatch.setattr(io, "reader_store_from_env", lambda: original)
+
+    def read(db, *, snapshot_id, race_ids, store):
+        seen.append(store)
+        values = []
+        for name in ("original", "binding"):
+            path = tmp_path / name
+            store.get("same", path, max_bytes=100)
+            values.append(path.read_bytes())
+        return {race_ids[0]: values}
+
+    monkeypatch.setattr(election_outcomes, "applicable_outcomes", read)
+    args = dict(snapshot_id="snapshot", race_ids=["race"])
+    first = io.outcome_map(None, **args)
+    assert original.calls == 1
+    original.body = b"changed original"
+    second = io.outcome_map(None, **args)
+    assert original.calls == 2
+    assert first != second
+    scope = io.request_store(original)
+    io.outcome_map(None, **args, store=scope)
+    assert seen[-1] is scope
+
+
+def test_outcome_request_does_not_relabel_other_validation_errors(monkeypatch):
+    from alethical.pipeline import election_outcomes
+
+    def invalid(*args, **kwargs):
+        raise ComparisonImportError("Wrong source identity")
+
+    monkeypatch.setattr(election_outcomes, "applicable_outcomes", invalid)
+    with pytest.raises(ComparisonImportError, match="Wrong source identity"):
+        io.outcome_map(None, snapshot_id="snapshot", store=Store())
+
+
 def test_reader_client_bounds_calls_without_changing_ingestion(monkeypatch):
     import boto3
     from alethical.pipeline import raw_file_store
@@ -59,6 +125,40 @@ def test_reader_client_bounds_calls_without_changing_ingestion(monkeypatch):
     assert bounded.s3 == ordinary.s3 == {"addressing_style": "path"}
     assert ordinary.connect_timeout == ordinary.read_timeout == 60
     assert ordinary.retries is None
+
+
+def test_outcome_default_get_uses_bounded_reader_client(monkeypatch, tmp_path):
+    import boto3
+    from io import BytesIO
+    from alethical.pipeline import election_outcomes, raw_file_store
+
+    configs = []
+
+    class Client:
+        def get_object(self, **kwargs):
+            return {"ContentLength": 8, "Body": BytesIO(b"original")}
+
+    def client(service, **kwargs):
+        configs.append(kwargs["config"])
+        return Client()
+
+    for name in raw_file_store.REQUIRED_ENV:
+        monkeypatch.setenv(name, "fixture")
+    monkeypatch.setattr(boto3, "client", client)
+
+    def check(db, *, snapshot_id, race_ids, store):
+        assert not configs  # No eager client before proof actually needs bytes.
+        store.get("original", tmp_path / "proof", max_bytes=8)
+        return {}
+
+    monkeypatch.setattr(election_outcomes, "applicable_outcomes", check)
+    assert io.outcome_map(None, snapshot_id="snapshot") == {}
+    assert (tmp_path / "proof").read_bytes() == b"original"
+    assert len(configs) == 1
+    config = configs[0]
+    assert config.connect_timeout == 10 and config.read_timeout == 30
+    assert config.max_pool_connections == io.SOURCE_WORKERS
+    assert config.retries == {"total_max_attempts": 1}
 
 
 def test_concurrent_requests_share_process_ceiling_and_preserve_every_result(tmp_path):

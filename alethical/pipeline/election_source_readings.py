@@ -68,7 +68,13 @@ _FIELD_KEYS = {
 }
 _PAGE_KEYS = {"page", "width", "height", "image_sha256", "render_profile", "transcript"}
 _STATES = {"value", "blank", "ambiguous", "unreadable", "not_checked", "redacted"}
-_KINDS = {"financial_report", "supplement", "certification", "bank_attachment"}
+_KINDS = {
+    "financial_report",
+    "supplement",
+    "certification",
+    "bank_attachment",
+    "outcome_certification",
+}
 _RECORDS = {
     "cover",
     "disbursement",
@@ -120,16 +126,24 @@ def normalize_field(literal, value_type, state):
         )
         return "marked"
     if value_type == "money":
+        # Exactly two raised digits can explicitly state cents on a checked form.
+        # Keep the source literal; do not infer cents from dashes or unclear marks.
+        whole = r"(?:0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:,[0-9]{3})+)"
+        raised = re.fullmatch(rf"(\$?{whole})\.?([⁰¹²³⁴⁵⁶⁷⁸⁹]{{2}})", literal)
+        money_literal = literal
+        if raised:
+            cents = raised[2].translate(str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789"))
+            money_literal = raised[1] + "." + cents
         require(
             re.fullmatch(
                 r"\$?-?(?:0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:,[0-9]{3})+)?(?:\.[0-9]{1,2})?",
-                literal,
+                money_literal,
             )
             is not None
-            and bool(re.search(r"[0-9]", literal)),
+            and bool(re.search(r"[0-9]", money_literal)),
             "Money reading is not an unambiguous scalar",
         )
-        value = Decimal(literal.removeprefix("$").replace(",", ""))
+        value = Decimal(money_literal.removeprefix("$").replace(",", ""))
         # Decimal formatting, not arithmetic affected by the global precision.
         whole, _, fraction = format(value, "f").partition(".")
         return whole + "." + fraction.ljust(2, "0")
@@ -504,6 +518,11 @@ def validate_receipt(value):
                 and _string(d["literal"], limit=16000, blank=True),
                 "Invalid reading dependency",
             )
+        if value["document_kind"] == "outcome_certification":
+            require(
+                value["schema"] == SECTION_SCHEMA and value["source_context"] is None,
+                "Outcome certification needs section scope and no financial context",
+            )
         if value["source_context"] is not None:
             require(isinstance(value["source_context"], dict), "Invalid source context")
             if value["source_context"].get("kind") == "local_filing_context:v1":
@@ -555,6 +574,7 @@ def _validate_section_scope(receipt, pages):
         "financial_report": {"cover", "disbursement", "donation", "other"},
         "supplement": {"disbursement", "donation", "other"},
         "certification": {"certification", "other"},
+        "outcome_certification": {"certification", "other"},
         "bank_attachment": {"bank_transaction", "other"},
     }
     roles = {
@@ -1003,6 +1023,7 @@ class VerifiedReadingContext:
             _seal is _CONTEXT_SEAL,
             "Reading context must be verified from retained originals",
         )
+        self._heads = deepcopy(heads)
         self._receipts = deepcopy(receipts)
         self._local_values = deepcopy(local_values or {})
         self._original_hashes = frozenset(original_hashes)
@@ -1016,6 +1037,12 @@ class VerifiedReadingContext:
                 **({"provenance": provenance_versions} if provenance_versions else {}),
             }
         )
+
+    def head(self, receipt_id):
+        require(
+            receipt_id in self.proof_outcomes, "Reading is outside this verified scope"
+        )
+        return deepcopy(self._heads.get(receipt_id))
 
     def receipt(self, receipt_id):
         require(receipt_id in self._receipts, "Receipt is outside this verified scope")

@@ -19,7 +19,11 @@ from sqlalchemy.orm import defer
 
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_versions
-from alethical.api.services.election_source_io import request_store, source_map
+from alethical.api.services.election_source_io import (
+    outcome_map,
+    request_store,
+    source_map,
+)
 from alethical.db import models as m
 from alethical.pipeline import election_account_reviews as reviews
 from alethical.pipeline import election_external_finance as storage
@@ -243,6 +247,80 @@ def _source_capacity_errors(operation):
             ) from None
 
     return wrapped
+
+
+def _inventory_versions(db, store, generation, available, cache):
+    """Finish optional whole-inventory replay before creating this request's pin."""
+    versions, dependencies = {}, {}
+    for report in generation["reports"]:
+        if report.get("version_binding") is None:
+            continue
+        key = report["report_key"]
+        versions[key] = {"state": "amendment_status_not_established", "facts": None}
+        ids = set()
+        try:
+            hashes = storage.version_dependencies(
+                generation, reports=[report], cache=cache, _reading_ids=ids
+            )
+            dependencies[key] = hashes
+            if not storage._current_readings(generation, ids, cache) or not all(
+                available.get(h, False) for h in hashes
+            ):
+                continue
+            verified = storage.retained_bodies(
+                db,
+                store,
+                generation,
+                hashes,
+                reading_ids=ids,
+                reading_context=cache.get(
+                    ("verified_local_readings", generation["id"])
+                ),
+                reading_context_planned=True,
+                cache=cache,
+            )
+            facts = storage.validate_report_version(
+                generation, verified, report, cache=cache
+            )
+        except SourceFileLimitError:
+            raise
+        except ComparisonImportError:
+            continue
+        if facts is not None:
+            versions[key] = {"state": "checked", "facts": facts}
+    # A later member fetch can fail after an earlier report reused the same
+    # companion. Invalidate every dependent projection before the pin, not raw facts.
+    for key, hashes in dependencies.items():
+        if not all(available.get(h, False) for h in hashes):
+            versions[key] = {"state": "amendment_status_not_established", "facts": None}
+    cache[("local_inventory_versions", generation["id"])] = versions
+    return versions
+
+
+def _report_version(report, generation, cache):
+    value = {
+        k: deepcopy(report[k])
+        for k in ("effective", "version_scope", "amendment_status")
+        if k in report
+    }
+    if report.get("version_binding") is None:
+        return value
+    checked = cache.get(("local_inventory_versions", generation["id"]), {}).get(
+        report["report_key"], {}
+    )
+    facts = checked.get("facts") if checked.get("state") == "checked" else None
+    if facts is None:
+        return {**value, "version_gap": "amendment_status_not_established"}
+    return {
+        k: deepcopy(facts[k])
+        for k in (
+            "effective",
+            "version_scope",
+            "amendment_status",
+            "version_as_of",
+            "version_sources",
+        )
+    }
 
 
 @_source_capacity_errors
@@ -523,6 +601,7 @@ def _context(
                     cache=cache,
                 ):
                     validation_failures.append(review.request_key)
+    inventory_versions = _inventory_versions(db, store, g, available, cache)
     for selected in [
         g,
         *[
@@ -549,6 +628,19 @@ def _context(
         if capture:
             outcome_sources.update({capture.content_hash, capture.publisher_hash})
     _, outcome_available = _availability(db, store, outcome_sources)
+    outcome_versions = {
+        key: value["outcome_review"]["version"]
+        for key, value in (
+            outcome_map(
+                db,
+                snapshot_id=row.snapshot_id,
+                race_ids=sorted({review.race_id for review in outcomes}),
+                store=store,
+            )
+            if outcomes
+            else {}
+        ).items()
+    }
     token = digest(
         {
             "generation": row.id,
@@ -559,9 +651,13 @@ def _context(
             "sources": sorted(source_rows),
             "reviews": [r.request_key for r in histories],
             "availability": available,
+            **(
+                {"inventory_versions": inventory_versions} if inventory_versions else {}
+            ),
             "outcomes": [r.request_key for r in outcomes],
             "outcome_captures": sorted(captures),
             "outcome_sources": outcome_available,
+            **({"outcome_versions": outcome_versions} if outcomes else {}),
             **(
                 {
                     "source_readings": reading_versions,
@@ -926,11 +1022,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                             "source_sha256",
                         )
                     },
-                    **{
-                        k: deepcopy(report[k])
-                        for k in ("version_scope", "amendment_status")
-                        if k in report
-                    },
+                    **_report_version(report, g, cache),
                     "figures": figures,
                     "withheld_measures": [
                         {"measure": f["measure"], "state": "period_not_covered"}
@@ -1069,12 +1161,7 @@ def _candidate_records(db, state, *, cache=None, indexes=None):
                 "nonadditive": is_memo,
                 "period_start": report["period_start"],
                 "period_end": report["period_end"],
-                "effective": report["effective"],
-                **{
-                    k: deepcopy(report[k])
-                    for k in ("version_scope", "amendment_status")
-                    if k in report
-                },
+                **_report_version(report, g, cache),
                 "sources": _binding(
                     payment["binding"],
                     reading_context=reading_context,
@@ -1213,12 +1300,7 @@ def _own_payments(entry, indexes, generation, available, cache):
                 "nonadditive": memo,
                 "period_start": report["period_start"],
                 "period_end": report["period_end"],
-                "effective": report["effective"],
-                **{
-                    k: deepcopy(report[k])
-                    for k in ("version_scope", "amendment_status")
-                    if k in report
-                },
+                **_report_version(report, generation, cache),
                 "sources": _binding(
                     payment["binding"],
                     reading_context=cache.get(

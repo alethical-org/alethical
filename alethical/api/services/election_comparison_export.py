@@ -21,6 +21,7 @@ from alethical.api.services import election_comparison_reads as results
 from alethical.api.services import election_external_finance_reads as external
 from alethical.api.services import election_finance_reads as finance
 from alethical.api.services import election_outside_spending as outside
+from alethical.api.services import election_source_io
 from alethical.db import models as m
 from alethical.pipeline.election_external_adapters import register_external_adapters
 from alethical.pipeline.election_comparison import ComparisonImportError
@@ -77,6 +78,7 @@ COLUMNS = (
     "Effective amendment",
     "Version scope",
     "Amendment status",
+    "Listing copied at",
     "Predecessor",
     "Overlapping selected reports",
     "Measure",
@@ -242,8 +244,15 @@ def export_csv(
     external_generation_id=None,
     external_versions=(),
 ):
+    outcome_store = election_source_io.lazy_request_store(
+        election_source_io.reader_store_from_env
+    )
     detail = results.race_detail(
-        db, election_key=election_key, race_id=race_id, snapshot_id=snapshot_id
+        db,
+        election_key=election_key,
+        race_id=race_id,
+        snapshot_id=snapshot_id,
+        store=outcome_store,
     )
     if (
         outcome_version is not None
@@ -329,9 +338,10 @@ def export_csv(
         rows.append(row)
 
     def who(ids):
+        ordered = sorted(ids, key=lambda cid: "" if cid is None else cid)
         return {
-            "Candidate ID": "; ".join(sorted(ids)),
-            "Candidate": "; ".join(candidates[c]["name"] for c in sorted(ids)),
+            "Candidate ID": "; ".join("" if c is None else c for c in ordered),
+            "Candidate": "; ".join(candidates[c]["name"] for c in ordered),
             "Party": "; ".join(
                 sorted({candidates[c].get("party") or "Not available" for c in ids})
             ),
@@ -402,6 +412,58 @@ def export_csv(
         },
     )
     for cid, candidate in candidates.items():
+        summaries = candidate.get("summary_sources") or []
+        precinct_rows = candidate.get("source_rows") or []
+        if (
+            not isinstance(summaries, list)
+            or any(
+                not isinstance(ref, dict)
+                or set(ref) != {"source_sha256", "row_number"}
+                or ref["source_sha256"] not in election_sources
+                or type(ref["row_number"]) is not int
+                or ref["row_number"] <= 0
+                for ref in summaries
+            )
+            or not isinstance(precinct_rows, list)
+            or any(type(row) is not int or row <= 0 for row in precinct_rows)
+        ):
+            _problem(503, "These candidate vote source references are unavailable")
+
+        def precinct_proof(subject=None):
+            if not precinct_rows:
+                return {}
+            fingerprint = race.get("source_sha256")
+            if fingerprint not in election_sources:
+                _problem(503, "This candidate vote source is unavailable")
+            return source(
+                "election",
+                fingerprint,
+                subject=subject,
+                metadata=election_sources[fingerprint],
+                locator={"row": "; ".join(str(row) for row in precinct_rows)},
+            )
+
+        if candidate.get("is_write_in_aggregate"):
+            if len(summaries) == 1:
+                ref = summaries[0]
+                identity_source = source(
+                    "election",
+                    ref["source_sha256"],
+                    metadata=election_sources[ref["source_sha256"]],
+                    locator={"row": ref["row_number"]},
+                )
+            else:
+                identity_source = precinct_proof()
+        else:
+            fingerprint = race.get("candidate_source_sha256") or race.get(
+                "source_sha256"
+            )
+            identity_source = source(
+                "election",
+                fingerprint,
+                metadata=election_sources.get(fingerprint),
+                locator={"row": candidate.get("candidate_source_row")},
+            )
         add(
             "Candidate",
             **who({cid}),
@@ -419,16 +481,31 @@ def export_csv(
                 else "not_available",
                 "Outcome": candidate.get("outcome"),
                 "Outcome status": candidate.get("outcome_status"),
-                **source(
-                    "election",
-                    race.get("candidate_source_sha256") or race.get("source_sha256"),
-                    metadata=election_sources.get(
-                        race.get("candidate_source_sha256") or race.get("source_sha256")
-                    ),
-                    locator={"row": candidate.get("candidate_source_row")},
-                ),
+                **identity_source,
             },
         )
+        if candidate.get("votes") is not None:
+            subject = {
+                **who({cid}),
+                "Measure": "Candidate votes",
+                "Nonadditive": True,
+            }
+            if summaries:
+                for ref in summaries:
+                    source(
+                        "election",
+                        ref["source_sha256"],
+                        subject=subject
+                        | {
+                            "Note": "Evidence for the same candidate total; do not add these rows"
+                        },
+                        metadata=election_sources[ref["source_sha256"]],
+                        locator={"row": ref["row_number"]},
+                    )
+            else:
+                precinct_proof(
+                    subject | {"Note": "Sum of the listed precinct source rows"}
+                )
     for evidence in race["outcome_review"].get("evidence", []):
         subject = {
             "Candidate ID": evidence.get("candidate_id"),
@@ -486,6 +563,8 @@ def export_csv(
             "effective",
             "version_scope",
             "amendment_status",
+            "version_as_of",
+            "version_sources",
             "filing",
         )
         if (
@@ -708,6 +787,7 @@ def export_csv(
             ),
             "Version scope": r.get("version_scope"),
             "Amendment status": r.get("amendment_status"),
+            "Listing copied at": r.get("version_as_of"),
             "Predecessor": r.get("predecessor_report_key"),
             "Overlapping selected reports": "; ".join(overlaps),
             "Nonadditive": True,
@@ -719,6 +799,18 @@ def export_csv(
             else "Each report and measure stands alone; overlapping periods and different measures are not added",
         }
         add("Report", **fields)
+        if item["kind"] == "external":
+            for binding in r.get("version_sources") or []:
+                source(
+                    "external",
+                    binding["source_sha256"],
+                    subject={
+                        "Report key": key,
+                        "Authority": item["authority"],
+                        "Listing copied at": r.get("version_as_of"),
+                    },
+                    locator=binding.get("locator"),
+                )
         for cid, variant in item["variants"].items():
             add(
                 "Report association",
@@ -806,6 +898,7 @@ def export_csv(
             county=county,
             limit=100,
             offset=offset,
+            store=outcome_store,
         )
         if total is None:
             total = page["page"]["total"]
@@ -1010,6 +1103,7 @@ def export_csv(
             "Effective amendment": p.get("effective"),
             "Version scope": p.get("version_scope"),
             "Amendment status": p.get("amendment_status"),
+            "Listing copied at": p.get("version_as_of"),
             "Payment date": p.get("date"),
             "Direction": p.get("direction"),
             "Transaction type": p.get("transaction_type"),

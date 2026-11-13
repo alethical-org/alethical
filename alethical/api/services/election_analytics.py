@@ -28,7 +28,11 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 from alethical.api.problems import problem_exception
-from alethical.api.services.election_source_io import request_store, source_map
+from alethical.api.services.election_source_io import (
+    lazy_request_store,
+    request_store,
+    source_map,
+)
 from alethical.api.services import committee_finance, finance_versions
 from alethical.api.services import election_external_finance_reads as external_reads
 from alethical.api.services import election_comparison_reads as results
@@ -435,13 +439,13 @@ def _bulk_accounts(
     return links, stamp
 
 
-def _outcomes(db, snapshot_id, races):
+def _outcomes(db, snapshot_id, races, *, store=None):
     # The append-only outcome adapter uses exact snapshot/candidate evidence and
     # deliberately has no vote-ranking fallback.
-    from alethical.pipeline.election_outcomes import applicable_outcomes
+    from alethical.api.services.election_source_io import outcome_map
 
-    return applicable_outcomes(
-        db, snapshot_id=snapshot_id, race_ids=[r.id for r in races]
+    return outcome_map(
+        db, snapshot_id=snapshot_id, race_ids=[r.id for r in races], store=store
     )
 
 
@@ -453,6 +457,7 @@ def _board_context(
     version=None,
     requested_output=None,
     allow_unavailable=False,
+    outcome_store=None,
 ):
     election = results.snapshot(db, election_key)
     if snapshot_id is not None and election.id != snapshot_id:
@@ -518,7 +523,7 @@ def _board_context(
     proof_cache = {}
     availability = _source_availability(proofs, requested_output, cache=proof_cache)
     accounts, reviews = _bulk_accounts(db, election_key, races, proof_cache=proof_cache)
-    outcomes = _outcomes(db, election.id, races)
+    outcomes = _outcomes(db, election.id, races, store=outcome_store)
     for dataset, available in availability.items():
         sources[dataset]["retained_original_state"] = (
             "available" if available else "unavailable"
@@ -600,6 +605,9 @@ def _context(
             422, "Unsupported Election", "Analytics currently support general elections"
         )
     external = None
+    # The external and Board outcome adapters prove the same retained originals.
+    # Share bytes within this composition, never with its later freshness check.
+    outcome_store = lazy_request_store(external_reads.raw_file_store_from_env)
     external_scope = {
         "status": "unavailable",
         "generation_id": current.generation_id,
@@ -608,7 +616,9 @@ def _context(
         "coverage": [],
     }
     try:
-        candidate = external_reads.bulk_finance(db, election_key=election_key)
+        candidate = external_reads.bulk_finance(
+            db, election_key=election_key, store=outcome_store
+        )
         external_scope.update(
             {
                 k: deepcopy(candidate.get(k))
@@ -625,6 +635,8 @@ def _context(
                 else "unavailable"
             )
     except HTTPException as error:
+        if error.status_code == 503 and (error.headers or {}).get("Retry-After"):
+            raise
         if error.status_code not in {404, 503}:
             raise
     board = None
@@ -636,6 +648,7 @@ def _context(
             election.id,
             requested_output=requested_output,
             allow_unavailable=True,
+            outcome_store=outcome_store,
         )
         board_scope = {
             "status": "available"
@@ -647,6 +660,8 @@ def _context(
             "release_id": board[0]["release_id"],
         }
     except HTTPException as error:
+        if error.status_code == 503 and (error.headers or {}).get("Retry-After"):
+            raise
         if error.status_code != 503:
             raise
         pointer = db.get(m.CampaignFinanceCurrentRelease, True)
@@ -666,7 +681,7 @@ def _context(
                 .order_by(m.ElectionComparisonRace.id)
             )
         )
-        outcomes = _outcomes(db, election.id, races)
+        outcomes = _outcomes(db, election.id, races, store=outcome_store)
         links = {
             (race.id, c["candidate_id"]): {"accounts": [], "gaps": []}
             for race in races
@@ -797,6 +812,8 @@ def _external_events(data, races):
                         "effective",
                         "version_scope",
                         "amendment_status",
+                        "version_as_of",
+                        "version_sources",
                         "check_status",
                         "status_basis",
                         "withheld_measures",
@@ -881,6 +898,8 @@ def _external_events(data, races):
                 "effective": effective,
                 "version_scope": payment.get("version_scope"),
                 "amendment_status": payment.get("amendment_status"),
+                "version_as_of": payment.get("version_as_of"),
+                "version_sources": deepcopy(payment.get("version_sources") or []),
                 "report_key": payment["report_key"],
                 "source_report_id": payment["source_report_id"],
                 "source_row_id": payment["source_row_id"],
@@ -1465,6 +1484,8 @@ def _native_measures(events):
                 "effective": first["effective"],
                 "version_scope": first.get("version_scope"),
                 "amendment_status": first.get("amendment_status"),
+                "version_as_of": first.get("version_as_of"),
+                "version_sources": deepcopy(first.get("version_sources") or []),
                 "nonadditive": first["nonadditive"],
                 "attribution": key[6],
                 "state": "reported" if additive else key[6],
@@ -1982,6 +2003,7 @@ def _csv_export(data, races):
         "Reporting period end",
         "Effective report",
         "Version scope",
+        "Listing copied at",
         "Amendment status",
         "Direction",
         "Transaction type",
@@ -2200,9 +2222,19 @@ def _csv_export(data, races):
             "Effective report": report["effective"],
             "Version scope": report.get("version_scope"),
             "Amendment status": report.get("amendment_status"),
+            "Listing copied at": report.get("version_as_of"),
         }
         # Cover figures remain source-specific, including their measure and basis.
         context_rows("External report", report, report_columns)
+        for binding in report.get("version_sources") or []:
+            write(
+                {
+                    "Row type": "Source",
+                    **report_columns,
+                    "Source role": "External version evidence",
+                    **source_row({**binding, "generation_id": report["generation_id"]}),
+                }
+            )
     events = data["rows"]
     by_funder, by_candidate = defaultdict(list), defaultdict(list)
     for event in events:
@@ -2280,6 +2312,7 @@ def _csv_export(data, races):
                     "Effective report": measure["effective"],
                     "Version scope": measure.get("version_scope"),
                     "Amendment status": measure.get("amendment_status"),
+                    "Listing copied at": measure.get("version_as_of"),
                     "Direction": measure["direction"],
                     "Transaction type": measure["transaction_type"],
                     "Measure": measure["measure"],
@@ -2395,6 +2428,7 @@ def _csv_export(data, races):
                     "Effective report": event["effective"],
                     "Version scope": event.get("version_scope"),
                     "Amendment status": event.get("amendment_status"),
+                    "Listing copied at": event.get("version_as_of"),
                     "Direction": event["direction"],
                     "Transaction type": event["transaction_type"],
                     "Amount role": event["amount_role"],
