@@ -134,6 +134,39 @@ fingerprint and never edits the published generation. Check the exact money,
 source and identity equality, address changes and remaining gaps before publishing
 the new generation through the usual guarded path.
 
+### Reported public subsidy and differing sources
+
+Public subsidy describes the amount reported in the selected effective filing,
+with its actual period. It does not independently prove payment or trace subsidy
+dollars to a payee. Keep campaign spending and subsidy totals separate.
+
+The saved `public_subsidy_source_method_version` is an integer. An absent version
+retains method 1; method 2 may include a differing filed amount only when the
+same effective PDF's summary and dated public-subsidy receipt detail agree. The
+account, report type, amendment, reporting period, original bytes and existing
+arithmetic checks must also pass. A same-period online overview remains retained
+with its differing amount. Do not fill a gap with a remainder, inferred payment,
+an award schedule alone, or a preferred source chosen without these checks.
+
+Show the difference beside the candidate amount and party/overall totals, with
+the affected report count, included amount and source links. When some affected
+reports remain unavailable, distinguish their count from the included reports.
+The report and CSV retain both source amounts and dates; CSV account rows carry
+the exact cents without repeating the subsidy on individual payment rows.
+Summary row numbers are labelled as summary rows, not PDF text-line numbers.
+
+Reproduction uses the saved method, including legacy collections. Unknown,
+null and boolean versions fail. New `prepare` and `stage` runs use method 2;
+`--public-subsidy-source-method-version 1` explicitly rebuilds historical method-1
+inputs. This option never changes the method used to replay a saved collection.
+`add_filed_public_subsidy` reproduces the old
+parent and its expense evidence before producing a new collection; it does not
+edit a published generation. Retention, staging, publication and restoration
+recheck the saved method and sources. Missing receipt evidence withholds the
+subsidy figure and keeps the source difference visible where both originals are
+available. Ordinary missing sources and identity holds still apply. A code
+release alone neither upgrades data nor makes a prepared collection current.
+
 Account review requests are separate private JSON files, passed to
 `scripts/review_election_account.py --request PATH`. The default validates request
 shape offline; it does **not** validate retained evidence. `--target production

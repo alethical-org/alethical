@@ -34,6 +34,7 @@ def prepare(args):
         directory_metadata=args.directory_metadata,
         identity_manifest=args.identity_manifest,
         include_campaign_expenses=args.include_campaign_expenses,
+        public_subsidy_source_method_version=args.public_subsidy_source_method_version,
     )
 
 
@@ -68,6 +69,13 @@ def main(argv=None):
             "--include-campaign-expenses",
             action="store_true",
             help="Rebuild checked campaign expense detail from retained originals",
+        )
+        command.add_argument(
+            "--public-subsidy-source-method-version",
+            type=int,
+            choices=(1, 2),
+            default=storage.PUBLIC_SUBSIDY_SOURCE_METHOD_VERSION,
+            help="Source method for new preparation; saved generations retain their method",
         )
         command.add_argument("--output", type=Path)
         if name == "stage":

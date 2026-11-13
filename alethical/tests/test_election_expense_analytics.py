@@ -361,6 +361,108 @@ def test_subsidy_gap_does_not_hide_checked_expenses(held):
     assert value["payments"][0]["amounts"]["total"] == "15.00"
 
 
+def _filed_subsidy_disagreement(held):
+    payload = held[3]["19399"][0].payload
+    payload["public_subsidy_source_method_version"] = 2
+    payload["figures"]["public_subsidy_payments"].update(cash="123.99", total="123.99")
+    payload["financial_source"] = {
+        "sha256": "9" * 64,
+        "url": "https://cfb.mn.gov/overview",
+        "copied_at": "2026-11-13T21:00:00Z",
+        "private_path": "/private/overview",
+    }
+    held[4]["9" * 64] = True
+    payload["public_subsidy_comparison"] = {
+        "status": "sources_disagree",
+        "filed": {
+            "cash": "123.99",
+            "total": "123.99",
+            "source_page": 2,
+            "source_lines": [7],
+            "source_sha256": "d" * 64,
+            "period_start": "2026-01-01",
+            "period_end": "2026-10-19",
+        },
+        "overview": {
+            "amount": "0.00",
+            "period_start": "2026-01-01",
+            "period_end": "2026-10-19",
+        },
+        "receipts": {
+            "status": "checked",
+            "schedule_pages": [8],
+            "private_path": "/private/receipt",
+        },
+        "reviewed_by": "private-reviewer",
+    }
+    return payload
+
+
+def test_filed_subsidy_keeps_disagreement_in_amounts_sources_and_csv(held):
+    _filed_subsidy_disagreement(held)
+    value = s._assemble(*held)
+    report = value["account_reports"][0]
+    comparison = report["public_subsidy_comparison"]
+    assert report["public_subsidy"]["total"] == "123.99"
+    assert comparison["status"] == "sources_disagree"
+    assert comparison["overview"]["amount"] == "0.00"
+    assert comparison["included_in_total"] is True
+    assert "collection_id=" in comparison["overview"]["source"]["retained_source_url"]
+    assert (
+        "/raw?collection_id=" in comparison["overview"]["source"]["retained_source_url"]
+    )
+    summary = value["summary"]["public_subsidy_receipts"]
+    assert summary["amount"] == "123.99"
+    assert summary["source_disagreement_accounts"] == 1
+    assert summary["source_disagreement_amount"] == "123.99"
+    assert summary["by_party"]["R"]["source_disagreement_accounts"] == 1
+    assert summary["by_party"]["R"]["source_disagreement_amount"] == "123.99"
+    assert summary["by_party"]["DFL"]["source_disagreement_accounts"] == 0
+    assert "/private/" not in json.dumps(
+        comparison
+    ) and "private-reviewer" not in json.dumps(comparison)
+    rows = list(csv.DictReader(io.StringIO(s._csv_body(value))))
+    row = next(r for r in rows if r["Row type"] == "Account report")
+    assert row["Public subsidy USD"] == "123.99"
+    assert row["Subsidy overview USD"] == "0.00"
+    assert "Public subsidy summary rows: 7" in row["Source lines"]
+    assert row["Subsidy status"] == "Reported amount; sources disagree"
+    assert "9" * 64 in row["Subsidy overview source URL"]
+    assert "kind=finance&" in row["Subsidy overview source URL"]
+    metadata = {
+        r["Metadata field"]: r["Metadata value"]
+        for r in rows
+        if r["Row type"] == "Metadata"
+    }
+    assert metadata["Subsidy accounts with differing source totals"] == "1"
+    assert metadata["Subsidy accounts included with differing source totals"] == "1"
+    assert (
+        metadata["Reported subsidy included despite source difference USD"] == "123.99"
+    )
+
+
+def test_unavailable_subsidy_detail_keeps_conflict_but_never_adds_money(held):
+    payload = _filed_subsidy_disagreement(held)
+    payload["figures"].pop("public_subsidy_payments")
+    payload["public_subsidy_comparison"]["receipts"] = {"status": "unavailable"}
+    value = s._assemble(*held)
+    report = value["account_reports"][0]
+    assert report["public_subsidy"] is None
+    assert report["public_subsidy_comparison"]["included_in_total"] is False
+    summary = value["summary"]["public_subsidy_receipts"]
+    assert summary["amount"] is None
+    assert summary["source_disagreement_accounts"] == 1
+    assert summary["source_disagreement_amount"] is None
+
+
+def test_missing_overview_source_withholds_subsidy_and_comparison(held):
+    _filed_subsidy_disagreement(held)
+    held[4]["9" * 64] = False
+    report = s._assemble(*held)["account_reports"][0]
+    assert report["public_subsidy"] is None
+    assert report.get("public_subsidy_comparison") is None
+
+
 def test_latest_different_series_same_cutoff_remains_ambiguous(held):
     first = held[3]["19399"][0]
     other = deepcopy(first)
