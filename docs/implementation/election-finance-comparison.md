@@ -14,7 +14,7 @@ its source and retains its period, version and availability. Missing is not zero
 No calculation claims spending caused an outcome. A factual support/outcome count
 counts distinct candidacies, preserves pending outcomes and defines its scope.
 
-## Release order: V1, V1.1, V2 video, V1.2, V3
+## Release milestones: V1, demo-ready v0.1.1, V2 video, V1.2, V3
 
 Release the approved working screens and Jeremy's campaign expense/public subsidy
 report as V1. Screens may release with the checked data already available, but that
@@ -29,26 +29,46 @@ must not block the useful report. Unknown amounts stay unknown, never assumed sm
 Distinguish an unfinished check from information not published or unavailable in the
 source. Do not use the percentage checked within collected reports as a measure of
 complete candidate or filing coverage. Finish the report's live reader journey and
-independent acceptance, notify the user with the live result, then continue to V1.1.
+independent acceptance and notify the user with the live result.
 
-V1.1 closes material gaps in Jeremy's report: remaining candidate/account matches,
-available newer filings and amendments, and any other gap that could change the main
-comparisons. Prioritize unresolved nonjudicial candidacies and party-comparison
-uncertainty, then remaining judicial candidate coverage within the Board report's
-scope. Account for every missing candidate with checked records or an evidenced
-availability status; unavailable or not-yet-checked records are not zero spending.
-Do not promise financial records that the source has not published. Notify after the
-V1.1 result is live and independently checked, then continue to the V2 report video.
+Demo-ready v0.1.1 is the first completed version sufficient to demonstrate Jeremy's
+core report: party spending and subsidy comparisons, payee detail and filed-location
+comparisons, exclusions, sources and CSV work live with enough checked data and
+visible limits. It has its own acceptance and estimate finish, separate from complete
+candidate coverage. The current checked journey meets this user-accepted milestone;
+dated counts and acceptance evidence belong in the release record on issue #2943.
+Do not keep the demo-ready version open while finishing every remaining record.
+Do not describe it as complete post-election data or a percentage of all spending.
 
-V1.2 closes lower-impact remaining report gaps: available street detail when geography
-is already known, small measured expense/subsidy discrepancies and authorized usability
-refinements from report review. Investigate unknown impact before assigning this
-priority; a material gap belongs in V1.1. Do not manufacture separate work or delay a
-ready correction just to preserve version labels. If earlier work resolves a V1.2
-item, record it as completed there. V1.2 follows V2 so the useful report video reaches
-Jeremy before these smaller refinements finish. Notify when the V1.2 report result
-is live and independently accepted, then continue to V3 planning and build. No new
-approval is required between these approved versions.
+At delivery, show candidate/report, payee-detail and subsidy coverage against the
+399 nonjudicial statewide and legislative candidacies in Jeremy's core report scope.
+Show the actual numerator and denominator for other measured fields, including
+filed-location coverage among held itemized payments; that is not full street-address
+coverage. These exclusions apply only to the core-demo measurement. Judicial candidates
+remain in the approved build. Report unknown coverage honestly and keep source periods
+and overlapping gaps clear. Completion of this version does not pause approved work.
+
+The next priority is the authorized V2 video of that verified demo-ready journey.
+Independent V1.2 preparation can continue when it does not delay the video or compete
+for its shared resources. More complete report coverage is not a dependency of this
+demo or its walkthrough; material errors in what the walkthrough shows still are.
+
+V1.2 owns the remaining report completion work previously assigned to full V1.1 and
+the report refinements: candidate/account matches, available newer filings/amendments,
+judicial coverage, unresolved subsidy and expense detail, available street addresses
+and authorized usability repairs. Prioritize effects on the main comparisons, then
+lower-impact gaps. Account for every missing candidate with checked records or an
+evidenced availability status; unavailable or unchecked records are not zero. Do not
+promise records the source has not published. Give this work its own estimate and
+correction allowance, without extending the completed demo-ready version's clock.
+Keep original forecasts for comparison when reassigning work to this version.
+
+Investigate unknown impact before calling work marginal. Bring a defect forward if
+it materially changes a demonstrated answer. Publish independently ready groups
+without weakening source or live checks, and do not delay a ready correction merely
+to preserve version labels. Notify when V1.2 is live and independently accepted,
+then continue to V3 planning and build. No new approval is required between the
+approved versions; public posting and other reserved actions keep their own gates.
 
 The legacy Board race comparison has a separate source-read follow-up in V1.2:
 `election_finance_reads` obtains account quote proofs through
@@ -60,7 +80,7 @@ the expense recovery checks do not establish coverage of that legacy path. No li
 occurrence or amount affected has been established.
 
 V2 is the approved live-product walkthrough video for Jeremy's report only, using
-the completed V1.1 journey, female ElevenLabs narration and selective explanatory
+the completed demo-ready journey, female ElevenLabs narration and selective explanatory
 captions/annotations. Show the main questions, filters, comparisons, payee exclusions,
 source inspection and CSV, with accurate limits. Deliver the checked video and notify
 the user, then continue to V1.2; public posting or sending it to other people remains
@@ -187,7 +207,7 @@ report cutoff stay pending; recoverable collection gaps remain unfinished work.
 
 ## Required live-product walkthrough video
 
-V2 follows the completed V1.1 report, before V1.2, and shows only the real live-product journey
+V2 follows the completed demo-ready report, before V1.2, and shows only the real live-product journey
 for Jeremy's campaign-expense request. The current chat owns its specification,
 production and final review. The approved scope includes the journey, female
 ElevenLabs narration and caption treatment below. No further spec approval is needed.
@@ -257,7 +277,7 @@ Additional report measures remain open. The comparison can proceed independently
    overlapping filings, zeros, missing values and ambiguous links.
 5. Validate a real race end to end, independently review, release with a concrete
    restore path, and verify live access and the full reader journey.
-6. After the checked V1.1 report, capture Jeremy's requested report journey,
+6. After the checked demo-ready report, capture Jeremy's requested report journey,
    produce narration/captions and deliver the reviewed V2 video, then finish V1.2.
    Propose the V3
    full-election coverage priorities and smaller releases, then begin the build under
@@ -275,7 +295,7 @@ remains unfinished collection work. Unpublished sources remain pending with thei
 actual authority, period and next expected filing event; they never become zero.
 
 The current chat retains these work packages. The release order above governs:
-V1, V1.1, V2 report video, V1.2, then the V3 coverage plan and build.
+V1, demo-ready v0.1.1, V2 report video, V1.2 report completion, then the V3 coverage plan and build.
 
 | Work | Prerequisite | Acceptance evidence |
 | --- | --- | --- |
@@ -285,7 +305,7 @@ V1, V1.1, V2 report video, V1.2, then the V3 coverage plan and build.
 | Spending and funder analytics | Reviewed identities and source versions | Direct contributions, campaign spending and outside support/opposition remain separate; distinct candidacies and pending outcomes reconcile |
 | Reports, filters and dated exports | Stable API and reviewed design | Candidate, race, district, funder and reporting-period journeys; each figure opens its source; documented purpose and vendor detail |
 | Independent acceptance and release | Integrated implementation and corrected findings | Requirement-to-evidence checklist, current-head checks, reversible publication and live review |
-| V2 report walkthrough video | Approved report-video spec; completed, checked V1.1 journey for final capture | Jeremy's requested expense/subsidy comparisons demonstrated; readable footage, accurate voiceover/captions and reviewed final export |
+| V2 report walkthrough video | Approved report-video spec; completed, checked demo-ready journey for final capture | Jeremy's requested expense/subsidy comparisons demonstrated; readable footage, accurate voiceover/captions and reviewed final export |
 
 PAC-only totals require an evidenced committee classification. Board political
 committees/funds and party units are not silently relabelled PACs. Reported
