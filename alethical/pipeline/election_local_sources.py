@@ -593,10 +593,46 @@ def _candidate_relationship(receipt, fields, context, locator):
             match is not None,
             "Campaign fund statement must name the same person in both roles",
         )
+    elif relationship == "publisher_lists_report_for_person":
+        publisher = value.get("publisher_relationship")
+        require(
+            isinstance(publisher, dict)
+            and publisher.get("relationship") == relationship,
+            "No exact official publisher person/report relationship is established",
+        )
+        scope = publisher["group_scope"]
+        person = scope["person_as_source"]
+        require(
+            value["account"].get("candidate_name") in (None, person),
+            "Publisher person conflicts with the checked candidate name",
+        )
+        checked_candidate_mark = any(
+            f["record_type"] == "cover"
+            and f["page"] == name["page"]
+            and f["label"] in {"Candidate", "Candidate report"}
+            and f["value_type"] == "mark"
+            and f["state"] == "value"
+            and f["normalized"] == "marked"
+            for f in fields.values()
+        )
+        require(
+            not checked_candidate_mark or name["literal"] == person,
+            "Publisher person cannot override an explicitly checked Candidate name",
+        )
+        office_literal = " ".join(
+            x for x in (scope["office_as_source"], scope["district_as_source"]) if x
+        )
+        require(
+            bool(person) and bool(office_literal),
+            "Publisher person/office is unresolved",
+        )
+        match = None
     else:
         raise ComparisonImportError("Unsupported source-stated candidate relationship")
-    assert match is not None  # Both supported branches have already required it.
-    person = match[1]
+    if relationship != "publisher_lists_report_for_person":
+        assert match is not None
+        person = match[1]
+        office_literal = office["literal"]
     require(person == person.strip(), "Person name has unsupported surrounding text")
     facts = {
         k: value["report"][k]
@@ -611,15 +647,22 @@ def _candidate_relationship(receipt, fields, context, locator):
     facts.update(
         account_name=value["account"]["name"],
         person_name=person,
-        office_literal=office["literal"],
+        office_literal=office_literal,
         relationship=relationship,
     )
+    if relationship == "publisher_lists_report_for_person":
+        facts["cover_office_literal"] = office["literal"]
     return CheckedExtraction(
         facts,
         _quote(
             {
                 "name": {k: name[k] for k in ("page", "label", "literal", "state")},
                 "office": {k: office[k] for k in ("page", "label", "literal", "state")},
+                **(
+                    {"publisher_relationship": publisher}
+                    if relationship == "publisher_lists_report_for_person"
+                    else {}
+                ),
                 "candidate_mark": {
                     k: mark[k] for k in ("page", "label", "literal", "state")
                 }
@@ -704,6 +747,10 @@ def _offered_inventory_version(context, locator):
     from alethical.pipeline.election_local_context import HENNEPIN_INVENTORY_PROFILE
 
     inventory_reading_ids(locator)
+    from alethical.pipeline.election_static_inventory import STATIC_INVENTORY_PROFILE
+
+    if locator["profile"] == STATIC_INVENTORY_PROFILE:
+        return _static_offered_inventory_version(context, locator)
     selected = _entity(context, locator)
     inventory = selected.get("offered_inventory")
     require(
@@ -819,6 +866,153 @@ def _offered_inventory_version(context, locator):
                 "account_id_as_source": inventory["account_id_as_source"],
                 "account_name_as_source": inventory["account_name_as_source"],
                 "members": quoted_members,
+            }
+        ),
+    )
+
+
+def _static_offered_inventory_version(context, locator):
+    from alethical.pipeline.election_static_inventory import (
+        STATIC_INVENTORY_PROFILE,
+        certificate_member,
+        checked_type_fields,
+        static_inventory_family,
+        validate_member_locator,
+    )
+
+    selected = _entity(context, locator)
+    inventory = selected.get("offered_inventory")
+    require(
+        isinstance(inventory, dict)
+        and inventory.get("profile") == STATIC_INVENTORY_PROFILE
+        and isinstance(inventory.get("version_as_of"), str)
+        and selected["account"]["issued_id"] is False,
+        "Complete static offered inventory is not established for this document",
+    )
+    try:
+        require(
+            datetime.fromisoformat(inventory["version_as_of"]).tzinfo is not None,
+            "Static inventory needs its actual listing-copy date",
+        )
+    except ValueError as exc:
+        raise ComparisonImportError("Invalid static listing-copy date") from exc
+    offered = {
+        validate_member_locator(m["member_locator"]): m for m in inventory["members"]
+    }
+    require(
+        {validate_member_locator(m["member_locator"]) for m in locator["members"]}
+        == set(offered),
+        "Static inventory proof omits or adds an offered document",
+    )
+    sources = [
+        {
+            "source_sha256": inventory["catalogue_sha256"],
+            "source_url": inventory["catalogue_url"],
+            "source_copied_at": inventory["version_as_of"],
+            "locator": {
+                "group_scope": inventory["group_scope"],
+                "line": inventory["line"],
+            },
+        }
+    ]
+    families, quoted, selected_family = {}, [], None
+    for member in locator["members"]:
+        rid = member["receipt_sha256"]
+        values = _entity(context, {"receipt_sha256": rid}, report=False)
+        receipt = context.receipt(rid)
+        row = offered[validate_member_locator(member["member_locator"])]
+        report = values["report"]
+        require(
+            values.get("offered_inventory") == inventory
+            and values.get("election_date") == selected.get("election_date")
+            and values["authority"] == selected["authority"]
+            and values["account"]["issued_id"] is False
+            and report["source_report_id"] is None
+            and values["document_url"] == row["url"]
+            and receipt["original_sha256"] in context.original_hashes,
+            "Static member differs from its exact checked group/document",
+        )
+        capture = values["source_chain"][-1]
+        require(
+            capture["source_sha256"] == receipt["original_sha256"]
+            and capture["final_url"] == row["url"],
+            "Static member capture differs from offered original",
+        )
+        if values["document_role"] == "certification":
+            certificate_member(row, values, receipt)
+            family = None
+        else:
+            # Retain normal primary-report identity, dates and raw-version guards.
+            _entity(context, {"receipt_sha256": rid})
+            require(
+                receipt["document_kind"] == "financial_report",
+                "Static financial member kind is unresolved",
+            )
+            family = static_inventory_family(row, values, receipt)
+            families.setdefault(digest(family), []).append(rid)
+        if rid == locator["receipt_sha256"]:
+            selected_family = family
+            require(report == selected["report"], "Selected static report changed")
+        sources.append(
+            {
+                "source_sha256": receipt["original_sha256"],
+                "source_url": row["url"],
+                "source_copied_at": capture["copied_at"],
+                "locator": {
+                    "page": values["section"]["cover"]["page"],
+                    "member_locator": row["member_locator"],
+                },
+            }
+        )
+        quoted.append(
+            {
+                **row,
+                "original_sha256": receipt["original_sha256"],
+                "original_copied_at": capture["copied_at"],
+                "account_id": values["account"]["account_id"],
+                "account_name_as_source": values["account"]["name"],
+                "office_literal": values["office_literal"],
+                "period_start": report["period_start"],
+                "period_end": report["period_end"],
+                "document_role": values["document_role"],
+                "report_type": report["report_type"],
+                "checked_type_fields": checked_type_fields(receipt),
+            }
+        )
+    require(
+        selected_family is not None and all(len(v) == 1 for v in families.values()),
+        "Static inventory contains competing possible versions or no financial family",
+    )
+    facts = {
+        k: selected["report"][k]
+        for k in (
+            "authority",
+            "account_id",
+            "source_report_id",
+            "period_start",
+            "period_end",
+        )
+    }
+    facts.update(
+        effective=True,
+        version_scope="publisher_inventory_as_of",
+        amendment_status="offered_inventory_checked",
+        version_as_of=inventory["version_as_of"],
+        version_sources=sources,
+        family=selected_family,
+        selection_group_key=inventory["selection_group_key"],
+    )
+    return CheckedExtraction(
+        facts,
+        _quote(
+            {
+                "scope": "offered group in retained publisher listing",
+                "catalogue_url": inventory["catalogue_url"],
+                "catalogue_sha256": inventory["catalogue_sha256"],
+                "listing_copied_at": inventory["version_as_of"],
+                "group_scope": inventory["group_scope"],
+                "selection_group_key": inventory["selection_group_key"],
+                "members": quoted,
             }
         ),
     )

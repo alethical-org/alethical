@@ -236,6 +236,23 @@ decisions remain required work before full local coverage. Public section eviden
 keeps the opening page separate from each figure's page and never presents a
 computed section key as a publisher-issued account number.
 
+The static Itasca and Otter Tail listing profiles keep each physical report's
+account separate while a fully checked publisher list can establish a shared
+report-selection group. Default expense and export selection chooses one latest
+eligible report in that group; explicit older inspection remains available without
+adding overlapping reports. Certificates are separate evidence, not zero spending.
+All offered links and relevant outside text must be accounted for. Duplicate
+publisher names or links to the same request hold the derived group. A publisher's
+person label cannot override a contrary checked Candidate mark, and both the
+publisher office and checked cover office must match the reviewed ballot office.
+Missing optional companion evidence removes the derived selection, while healthy
+own-report figures and independently checked candidate links remain available.
+
+The bounded JPEG reading path preserves the exact original image and native-pixel
+field coordinates. Image downloads retain their media type; they are not converted
+into replacement PDF originals. These source capabilities do not by themselves
+establish a checked candidate, effective report or complete filing coverage.
+
 The combined disposable-database check reproduces the published result fingerprint,
 5,023 races and 140,815 precinct/race records, then replays 389 existing Board
 account decisions and 14 federal fixture decisions. Expense reads, full JSON/CSV

@@ -2629,6 +2629,7 @@ def replay_local_context(context, reading, *, originals, provenance):
     position, body, final = root["entry_url"], None, None
     steps, link_label, account_row = [], None, None
     offered_inventory = None
+    publisher_relationship: dict | None = None
     binding = context["recipient_binding"]
     shared = root["directory"]["shared_target_entries"]
     require(
@@ -2684,6 +2685,34 @@ def replay_local_context(context, reading, *, originals, provenance):
                     # Unsupported optional listing proof cannot erase the valid
                     # exact-document navigation/reading already checked above.
                     offered_inventory = {"status": "unsupported_inventory_profile"}
+            from alethical.pipeline.election_static_inventory import (
+                STATIC_CATALOGUES,
+                static_offered_inventory,
+            )
+
+            if account["kind"] == PHYSICAL_SECTION and position in STATIC_CATALOGUES:
+                try:
+                    static = static_offered_inventory(html, position, edge, root)
+                    if final is None:
+                        raise ComparisonImportError("Static listing capture is missing")
+                    static["version_as_of"] = final["copied_at"]
+                    offered_inventory = static
+                    publisher_relationship = {
+                        "relationship": "publisher_lists_report_for_person",
+                        "catalogue_sha256": static["catalogue_sha256"],
+                        "catalogue_url": static["catalogue_url"],
+                        "catalogue_copied_at": final["copied_at"],
+                        "group_scope": deepcopy(static["group_scope"]),
+                        "selected_anchor": {
+                            k: edge[k]
+                            for k in ("anchor_index", "line", "href", "label")
+                        },
+                    }
+                except ComparisonImportError:
+                    # Navigation/own reading remains independently valid; no
+                    # optional version or explicit publisher relation is inferred.
+                    offered_inventory = {"status": "unsupported_inventory_profile"}
+                    publisher_relationship = None
             if binding is not None and binding["edge_position"] == index:
                 _bind_heading(html, edge, binding, root)
         elif edge["kind"] == "offered_get_form":
@@ -2716,6 +2745,15 @@ def replay_local_context(context, reading, *, originals, provenance):
         )
     readings.verify_original_type(p._source(originals, body), reading)
     document_url = position
+    if publisher_relationship is not None:
+        if (
+            urljoin(
+                publisher_relationship["catalogue_url"],
+                publisher_relationship["selected_anchor"]["href"],
+            )
+            != document_url
+        ):
+            publisher_relationship = None
     recipient = root["recipient"]
     if account["kind"] == HENNEPIN_ACCOUNT:
         require(account_row is not None, "Portal account was not selected in the chain")
@@ -2850,6 +2888,11 @@ def replay_local_context(context, reading, *, originals, provenance):
         **(
             {"offered_inventory": offered_inventory}
             if offered_inventory is not None
+            else {}
+        ),
+        **(
+            {"publisher_relationship": publisher_relationship}
+            if publisher_relationship is not None
             else {}
         ),
         "source_dependencies": sorted(public),

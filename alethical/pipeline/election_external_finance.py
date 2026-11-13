@@ -389,8 +389,14 @@ def validate_generation(g):
             account = accounts[(report["authority"], report["account_id"])]
             version_binding_facts(report)
             require(
-                report.get("version_binding") is None or account["issued_id"] is True,
-                "Offered inventory needs an issued publisher account",
+                report.get("version_binding") is None
+                or account["issued_id"] is True
+                or report["version_binding"]["locator"]["profile"]
+                == "mn_static_local_offered_inventory:v1"
+                and account["issued_id"] is False
+                and account.get("reviewed_key_basis", {}).get("kind")
+                == "local_filing_context:v1",
+                "Offered inventory needs an issued account or checked static physical section",
             )
             unissued_section = (
                 report["authority"].startswith("local:")
@@ -635,34 +641,47 @@ LOCAL_READING_ADAPTERS = frozenset({"local_checked_reading:v1", "local_native_fo
 def inventory_reading_ids(locator):
     """Only this closed locator may introduce companion reading dependencies."""
     from alethical.pipeline.election_local_context import HENNEPIN_INVENTORY_PROFILE
+    from alethical.pipeline.election_static_inventory import (
+        STATIC_INVENTORY_PROFILE,
+        validate_member_locator,
+    )
 
     require(
         isinstance(locator, dict)
         and set(locator) == {"kind", "receipt_sha256", "profile", "members"}
         and locator.get("kind") == "offered_inventory_version"
-        and locator.get("profile") == HENNEPIN_INVENTORY_PROFILE
+        and locator.get("profile")
+        in {HENNEPIN_INVENTORY_PROFILE, STATIC_INVENTORY_PROFILE}
         and fingerprint(locator.get("receipt_sha256"))
         and isinstance(locator.get("members"), list)
         and 0 < len(locator["members"]) <= 256,
         "Unsupported offered-inventory locator",
     )
+    static = locator["profile"] == STATIC_INVENTORY_PROFILE
     ids, selectors = [], []
     for member in locator["members"]:
         require(
             isinstance(member, dict)
-            and set(member) == {"source_report_id", "receipt_sha256"}
-            and fingerprint(member.get("receipt_sha256"))
-            and isinstance(member.get("source_report_id"), str)
-            and re.fullmatch(r"[1-9][0-9]{0,8}", member["source_report_id"])
-            is not None,
+            and set(member)
+            == {"member_locator" if static else "source_report_id", "receipt_sha256"}
+            and fingerprint(member.get("receipt_sha256")),
             "Invalid offered-inventory member",
         )
+        selector = member.get("source_report_id")
+        if static:
+            selector = validate_member_locator(member["member_locator"])
+        else:
+            require(
+                isinstance(selector, str)
+                and re.fullmatch(r"[1-9][0-9]{0,8}", selector) is not None,
+                "Invalid offered-inventory report selector",
+            )
         ids.append(member["receipt_sha256"])
-        selectors.append(member["source_report_id"])
+        selectors.append(selector)
     require(
         len(ids) == len(set(ids))
         and len(selectors) == len(set(selectors))
-        and selectors == sorted(selectors, key=int)
+        and selectors == sorted(selectors, key=None if static else int)
         and locator["receipt_sha256"] in ids,
         "Inventory needs exact unique ordered members including the selected reading",
     )
@@ -711,6 +730,19 @@ def version_binding_facts(report):
             "version_sources",
             "family",
         }
+        | (
+            {"selection_group_key"}
+            if binding["locator"]["profile"] == "mn_static_local_offered_inventory:v1"
+            else set()
+        )
+        and (
+            binding["locator"]["profile"] != "mn_static_local_offered_inventory:v1"
+            or isinstance(facts.get("selection_group_key"), str)
+            and re.fullmatch(
+                r"local-selection:[0-9a-f]{64}", facts["selection_group_key"]
+            )
+            is not None
+        )
         and all(facts.get(k) == v for k, v in identity.items())
         and facts.get("effective") is True
         and facts.get("version_scope") == "publisher_inventory_as_of"
@@ -2409,6 +2441,8 @@ def validate_local_candidate_relationship(
         office_literal=facts.get("office_literal"),
         relationship=binding["locator"].get("relationship"),
     )
+    if expected["relationship"] == "publisher_lists_report_for_person":
+        expected["cover_office_literal"] = facts.get("cover_office_literal")
     validate_binding(
         generation,
         bodies,
@@ -2427,6 +2461,13 @@ def validate_local_candidate_relationship(
         _local_relationship_office(publisher, race, expected["office_literal"]),
         "Campaign relationship office differs from the exact ballot office",
     )
+    if expected["relationship"] == "publisher_lists_report_for_person":
+        require(
+            _local_relationship_office(
+                publisher, race, expected["cover_office_literal"]
+            ),
+            "Checked cover office differs from the exact ballot office",
+        )
 
 
 def validate_account_review(
