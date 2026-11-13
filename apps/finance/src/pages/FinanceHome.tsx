@@ -7,16 +7,12 @@ import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteName } from '../routes';
 import { useSuggestionBox } from '../search/SuggestionBox';
 import { useBand } from '../ui/band';
-import { Arrow, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
+import { Arrow, SourcesAndUpdates, type SourceGroup, WithArrow } from '../ui/parts';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 const HOME = hrefFor('home');
 
-/** The 1 header-corner action (Finance Home, Round 30 of 2 Nov 2026): the
- * filled 48px button beside the eyebrow and title, dropping under the title
- * where they cannot share a line. Confirm identities and Check TV station
- * files are entered only from their context, and Donors by employer from
- * Campaign money (rule eug-44), never from here. */
+/** Secondary entrance after the record-family cards. */
 const ACTION: { label: string; route: RouteName } = {
   label: 'Explore money connections',
   route: 'money-connections',
@@ -28,13 +24,25 @@ const ENTRANCES: ReadonlyArray<{
   route: RouteName;
   query?: Record<string, string>;
 }> = [
-  { label: 'Legislators', route: 'people', query: { type: 'legislators', service: 'current' } },
+  {
+    label: 'Legislators',
+    route: 'people',
+    query: { type: 'legislators', service: 'current' },
+  },
   { label: 'Candidates', route: 'people', query: { type: 'candidates' } },
   { label: 'Lobbyists', route: 'lobbying', query: { tab: 'lobbyists' } },
-  { label: 'Committees and funds', route: 'campaign-money', query: { tab: 'committees' } },
+  {
+    label: 'Committees and funds',
+    route: 'campaign-money',
+    query: { tab: 'committees' },
+  },
   { label: 'Party units', route: 'campaign-money', query: { tab: 'party' } },
   { label: 'Vendors and payees', route: 'recipients' },
-  { label: 'Lobbying organizations', route: 'lobbying', query: { tab: 'principals' } },
+  {
+    label: 'Lobbying organizations',
+    route: 'lobbying',
+    query: { tab: 'principals' },
+  },
 ];
 
 type Dates = Partial<Record<CountKey, string | null>>;
@@ -138,12 +146,6 @@ export function FinanceHome() {
                 Research public records
               </h1>
             </div>
-            {action && (
-              <Link to={withFrom(hrefFor(action.route), HOME)} className="f-btn f-action">
-                <span>{action.label}</span>
-                <Arrow stroke="#FFFFFF" />
-              </Link>
-            )}
           </div>
           <form role="search" onSubmit={box.submit} className="f-home-search">
             <label htmlFor="home-search" className="f-visually-hidden">
@@ -199,6 +201,16 @@ export function FinanceHome() {
               </Link>
             ))}
           </section>
+        )}
+        {action && (
+          <div className="f-home-connections">
+            <Link
+              to={withFrom(hrefFor(action.route), HOME)}
+              className="f-dest f-home-connections-link"
+            >
+              <WithArrow>{action.label}</WithArrow>
+            </Link>
+          </div>
         )}
       </div>
       <SourcesAndUpdates groups={groups} />
