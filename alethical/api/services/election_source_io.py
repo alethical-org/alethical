@@ -20,8 +20,8 @@ from alethical.pipeline.raw_file_store import (
     StorageReadError,
 )
 
-# One process budget, not 16 new remote readers for each admitted HTTP request.
-SOURCE_WORKERS = 16
+# One process budget, not 32 new remote readers for each admitted HTTP request.
+SOURCE_WORKERS = 32
 _READ_SLOTS = BoundedSemaphore(SOURCE_WORKERS)
 _POOL = ThreadPoolExecutor(
     max_workers=SOURCE_WORKERS, thread_name_prefix="election-source"

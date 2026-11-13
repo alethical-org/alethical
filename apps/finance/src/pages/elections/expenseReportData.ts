@@ -378,7 +378,7 @@ export const exactKeys = (value: string, max: number) => {
 export const validQuery = (value: string) => value.length <= 200 && !value.includes('\0');
 export function expensePath(
   election: string,
-  endpoint: '' | 'payees' | 'payments' | 'export',
+  endpoint: '' | 'payees-start' | 'payees' | 'payments' | 'export',
   query: ExpenseQuery,
   pins?: Pins | null,
   offset = 0,
@@ -391,11 +391,12 @@ export function expensePath(
     election,
     'analytics',
     'expenses',
-    ...(endpoint ? [endpoint] : []),
+    ...(endpoint && endpoint !== 'payees-start' ? [endpoint] : []),
   ]);
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries({
     ...query,
+    ...(endpoint === 'payees-start' ? { view: 'payees' } : {}),
     ...pins,
     limit: PAGE_SIZE,
     offset,
