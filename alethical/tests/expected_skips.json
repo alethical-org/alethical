@@ -280,6 +280,26 @@
     "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."
   },
   {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_aitkin_table_cards_keep_exact_source_anchors[campaign-reports/2026/j-mark-wedel-1.pdf-local-filing-recovery/wave-1/35382415c9a99f0a267161608932ea65b83e37e33b13a419ce0904c7fa06b53c.body-35382415c9a99f0a267161608932ea65b83e37e33b13a419ce0904c7fa06b53c]",
+    "reason": "Replays private retained Aitkin publisher originals via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic layout and hiding controls run in CI. Local acceptance requires all four actual-source cases to pass."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_aitkin_table_cards_keep_exact_source_anchors[campaign-reports/2026/j-mark-wedel-1.pdf-local-source-capture/43f28cd23e5c0b15ca074f599e22fbec4827f8eb85181caa8b34b3fb65e59124.body-43f28cd23e5c0b15ca074f599e22fbec4827f8eb85181caa8b34b3fb65e59124]",
+    "reason": "Replays private retained Aitkin publisher originals via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic layout and hiding controls run in CI. Local acceptance requires all four actual-source cases to pass."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_aitkin_table_cards_keep_exact_source_anchors[campaign-reports/2026/patrick-murphy-1.pdf-local-filing-recovery/wave-1/35382415c9a99f0a267161608932ea65b83e37e33b13a419ce0904c7fa06b53c.body-35382415c9a99f0a267161608932ea65b83e37e33b13a419ce0904c7fa06b53c]",
+    "reason": "Replays private retained Aitkin publisher originals via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic layout and hiding controls run in CI. Local acceptance requires all four actual-source cases to pass."
+  },
+  {
+    "classname": "alethical.tests.test_election_local_context",
+    "name": "test_retained_aitkin_table_cards_keep_exact_source_anchors[campaign-reports/2026/patrick-murphy-1.pdf-local-source-capture/43f28cd23e5c0b15ca074f599e22fbec4827f8eb85181caa8b34b3fb65e59124.body-43f28cd23e5c0b15ca074f599e22fbec4827f8eb85181caa8b34b3fb65e59124]",
+    "reason": "Replays private retained Aitkin publisher originals via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic layout and hiding controls run in CI. Local acceptance requires all four actual-source cases to pass."
+  },
+  {
     "classname": "alethical.tests.test_election_source_provenance",
     "name": "test_retained_examples_record_and_replay_through_postgres",
     "reason": "Replays private retained local publisher originals and capture records via ALETHICAL_RETAINED_LOCAL_EVIDENCE; these files are not distributed to CI. Synthetic source and recipient guards run in CI separately."

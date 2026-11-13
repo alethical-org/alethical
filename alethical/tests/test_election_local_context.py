@@ -2636,3 +2636,172 @@ def test_frameset_text_does_not_refuse_an_ordinary_offered_link():
         "target_url": c.urljoin(PAGE, "/r.pdf"),
     }
     assert c.replay_html_anchor(body, PAGE, edge) == edge["target_url"]
+
+
+def _auto_table_card(
+    *, width="calc(50% - 10px)", extra="", parent="", card="", content=None
+):
+    content = content or '<h3>Offered reports</h3><a href="/report.pdf">Report #1</a>'
+    return (
+        "<html><head><style>.cards{display:flex;flex-wrap:wrap;gap:14px}"
+        f".cards div{{display:table;width:{width};padding:10px;border:1px solid #ddd;box-sizing:border-box}}"
+        f".cards h3{{font-size:20px}}{extra}</style></head><body><main {parent}>"
+        f'<div class="cards"><div {card}>{content}</div></div></main></body></html>'
+    ).encode()
+
+
+@pytest.mark.parametrize(
+    "width", ["calc(50% - 10px)", "calc(25% - 30px)", "calc(100% - 0px)"]
+)
+def test_auto_table_preferred_calc_width_is_not_a_static_collapse_proof(width):
+    body = _auto_table_card(width=width)
+    edge = _edge(body, 1, "/report.pdf", "Report #1")
+    assert c.replay_html_anchor(body, PAGE, edge) == edge["target_url"]
+    # The general declaration gate remains conservative outside this layout case.
+    assert c._obscuring_style("width:" + width)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        dict(extra=".cards div{display:block}"),
+        dict(card='style="display:inline"'),
+        dict(extra=".cards div{display:contents}"),
+        dict(extra=".cards div{table-layout:fixed}"),
+        dict(extra=".cards div{overflow:hidden}"),
+        dict(parent='style="overflow:clip"'),
+        dict(extra=".cards div{height:1px}"),
+        dict(extra=".cards div{max-inline-size:0}"),
+        dict(extra=".cards div{contain:size}"),
+        dict(extra=".cards div{clip-path:inset(100%)}"),
+        dict(parent="hidden"),
+        dict(parent="inert"),
+        dict(parent='aria-hidden="true"'),
+        dict(extra=".cards a{font-size:0}"),
+        dict(extra=".cards div{opacity:0}"),
+        dict(extra=".cards div{transform:scale(0)}"),
+        dict(extra=".cards div{all:initial}"),
+        dict(extra="@media (min-width:1px){.cards div{display:table}}"),
+        dict(extra=".cards div:hover{color:blue}"),
+        dict(extra=".cards div{width:var(--size)}"),
+        dict(width="calc(50% - 1em)"),
+        dict(width="calc(50% + 10px)"),
+        dict(content='<svg><g></g></svg><a href="/report.pdf">Report #1</a>'),
+        dict(
+            content='<template>hidden content</template><a href="/report.pdf">Report #1</a>'
+        ),
+    ],
+)
+def test_table_calc_width_does_not_override_layout_or_hiding_uncertainty(change):
+    body = _auto_table_card(**change)
+    with pytest.raises(ComparisonImportError):
+        c.replay_html_anchor(body, PAGE, _edge(body, 1, "/report.pdf", "Report #1"))
+
+
+def test_table_calc_width_keeps_source_tree_repair_uncertain():
+    body = _auto_table_card().replace(b"</div></div>", b"</div>")
+    with pytest.raises(ComparisonImportError):
+        c.replay_html_anchor(body, PAGE, _edge(body, 1, "/report.pdf", "Report #1"))
+
+
+@retained_only
+@pytest.mark.parametrize(
+    "relative,h",
+    [
+        (
+            "local-source-capture/43f28cd23e5c0b15ca074f599e22fbec4827f8eb85181caa8b34b3fb65e59124.body",
+            "43f28cd23e5c0b15ca074f599e22fbec4827f8eb85181caa8b34b3fb65e59124",
+        ),
+        (
+            "local-filing-recovery/wave-1/35382415c9a99f0a267161608932ea65b83e37e33b13a419ce0904c7fa06b53c.body",
+            "35382415c9a99f0a267161608932ea65b83e37e33b13a419ce0904c7fa06b53c",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "href",
+    [
+        "campaign-reports/2026/patrick-murphy-1.pdf",
+        "campaign-reports/2026/j-mark-wedel-1.pdf",
+    ],
+)
+def test_retained_aitkin_table_cards_keep_exact_source_anchors(relative, h, href):
+    body = (EVIDENCE / relative).read_bytes()
+    assert hashlib.sha256(body).hexdigest() == h
+    doc = c._HTML(body)
+    index, node = next(
+        (i, n) for i, n in enumerate(doc.all("a"), 1) if n.attrs.get("href") == href
+    )
+    url = "https://www.aitkincountymn.gov/departments/auditor/auditor-elections.php"
+    edge = _edge(body, index, href, c._text(node))
+    edge["target_url"] = c.urljoin(url, href)
+    assert c.replay_html_anchor(body, url, edge) == edge["target_url"]
+    assert hashlib.sha256(body).hexdigest() == h
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        '.cards[data-state="different"] div{display:table;width:calc(50% - 10px)}',
+        ".cards > article > div{display:table;width:calc(50% - 10px)}",
+        ".cards div:hover{display:table;width:calc(50% - 10px)}",
+    ],
+)
+def test_possible_selector_cannot_supply_positive_table_display(extra):
+    body = _auto_table_card(extra=extra).replace(
+        b"display:table;width:calc(50% - 10px);", b"width:calc(50% - 10px);", 1
+    )
+    with pytest.raises(ComparisonImportError):
+        c.replay_html_anchor(body, PAGE, _edge(body, 1, "/report.pdf", "Report #1"))
+
+
+@pytest.mark.parametrize(
+    "selector, attributes, declaration",
+    [
+        (".CARDS > div", 'class="cards"', "display:table"),
+        ("#CARDS > div", 'id="cards"', "display:table"),
+        (".cards\u00a0div", 'class="cards"', "display:table"),
+        (".cards > div", 'class="x\u00a0cards"', "display:table"),
+        (".cards > div,", 'class="cards"', "display:table"),
+        (",.cards > div", 'class="cards"', "display:table"),
+        (".cards > div, , .other", 'class="cards"', "display:table"),
+        (".9cards > div", 'class="9cards"', "display:table"),
+        ("#9cards > div", 'id="9cards"', "display:table"),
+        (".cards > div", 'class="cards"', "display:\u00a0table"),
+        (".cards > div", 'class="cards"', "display:table\u00a0"),
+        (".ca/**/rds > div", 'class="cards"', "display:table"),
+        (".cards > div", 'class="cards"', "dis/**/play:table"),
+    ],
+)
+def test_invalid_or_uncertain_selector_never_proves_table_width(
+    selector, attributes, declaration
+):
+    body = (
+        f"<!doctype html><html><head><style>{selector}{{{declaration}}}</style>"
+        f"</head><body><div {attributes}>"
+        '<div style="width:calc(1% - 9999px)">'
+        '<a href="/report.pdf">Report</a></div></div></body></html>'
+    ).encode()
+    with pytest.raises(ComparisonImportError):
+        c.replay_html_anchor(body, PAGE, _edge(body, 1, "/report.pdf", "Report"))
+
+
+@pytest.mark.parametrize(
+    "selector, attributes",
+    [
+        (".CARDS > div", 'class="CARDS"'),
+        ("#CARDS > div", 'id="CARDS"'),
+        (".cards > div", 'class="x\tcards"'),
+        (".cards\tdiv", 'class="cards"'),
+        (".other, .cards > div", 'class="cards"'),
+    ],
+)
+def test_exact_ascii_selector_can_establish_auto_table(selector, attributes):
+    body = (
+        f"<!doctype html><html><head><style>{selector}{{display:table}}</style>"
+        f"</head><body><div {attributes}>"
+        '<div style="width:calc(50% - 10px)">'
+        '<a href="/report.pdf">Report</a></div></div></body></html>'
+    ).encode()
+    edge = _edge(body, 1, "/report.pdf", "Report")
+    assert c.replay_html_anchor(body, PAGE, edge) == edge["target_url"]

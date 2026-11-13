@@ -404,6 +404,146 @@ def test_uncertain_us_date_never_becomes_a_calendar_value(state):
 
 
 @pytest.mark.parametrize(
+    ("literal", "expected"),
+    [
+        ("6.19.26", "2026-06-19"),
+        ("6.20.26", "2026-06-20"),
+        ("06.20.2026", "2026-06-20"),
+        ("2.29.24", "2024-02-29"),
+        ("02022026", "2026-02-02"),
+        ("03032026", "2026-03-03"),
+        ("03042026", "2026-03-04"),
+        ("02292024", "2024-02-29"),
+        ("12312025", "2025-12-31"),
+    ],
+)
+def test_checked_dotted_and_compact_us_date_preserves_literal(literal, expected):
+    field = r.field_proposal(
+        "expense.p1.r1.date",
+        page=1,
+        bounds=[10, 10, 20, 20],
+        label="Date",
+        literal=literal,
+        value_type="date",
+        record_type="expense",
+        row=1,
+    )
+    assert field["literal"] == literal
+    assert field["normalized"] == expected
+    assert "decision" not in field
+
+
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "2.29.26",
+        "6.31.26",
+        "13.1.26",
+        "0.1.26",
+        "6.20",
+        "6.20.6",
+        "6.20.026",
+        "6.20/26",
+        "6/20.26",
+        "6.20-26",
+        "6.20.26 ",
+        "02292026",
+        "02312026",
+        "13012026",
+        "00012026",
+        "06002026",
+        "0603206",
+        "060326",
+        "060320266",
+        "20260304",
+        "０３０４２０２６",
+        "03042026\n",
+        "around 03042026",
+    ],
+)
+def test_checked_dotted_and_compact_date_refuses_invalid_literal(literal):
+    with pytest.raises(ComparisonImportError):
+        r.normalize_field(literal, "date", "value")
+
+
+@pytest.mark.parametrize("literal", ["6.20.26", "03042026"])
+@pytest.mark.parametrize(
+    "state", ["blank", "ambiguous", "unreadable", "not_checked", "redacted"]
+)
+def test_uncertain_dotted_and_compact_date_stays_unknown(literal, state):
+    assert r.normalize_field(literal, "date", state) is None
+
+
+@pytest.mark.parametrize(
+    ("literal", "expected"),
+    [
+        ("Dec 31, 25", "2025-12-31"),
+        ("MAR 31, 26", "2026-03-31"),
+        ("Jan 1, 25", "2025-01-01"),
+        ("February 29, 2024", "2024-02-29"),
+        ("apr 30 26", "2026-04-30"),
+        ("May 1,2026", "2026-05-01"),
+        ("June 30, 2026", "2026-06-30"),
+        ("JUL 31, 26", "2026-07-31"),
+        ("August 31, 2026", "2026-08-31"),
+        ("Sep 30, 26", "2026-09-30"),
+        ("October 31, 2026", "2026-10-31"),
+        ("November 3, 2026", "2026-11-03"),
+        ("Feb 29, 00", "2000-02-29"),
+    ],
+)
+def test_checked_named_month_date_preserves_source_literal(literal, expected):
+    field = r.field_proposal(
+        "cover.period_start",
+        page=1,
+        bounds=[10, 10, 20, 20],
+        label="From",
+        literal=literal,
+        value_type="date",
+    )
+    assert field["literal"] == literal
+    assert field["normalized"] == expected
+
+
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "Feb 29, 26",
+        "February 29, 1900",
+        "Feb 29, 2100",
+        "Apr 31, 2026",
+        "Jan 0, 26",
+        "January 32, 26",
+        "Jan 1",
+        "Jan 1, 6",
+        "Jan 1, 026",
+        "Jan 1, 20266",
+        "Janu 1, 26",
+        "Septober 1, 26",
+        "Jan 1st, 26",
+        "1 Jan 26",
+        "around Jan 1, 26",
+        "Jan 1, 26 to Mar 31, 26",
+        "Jan 1, 26\n",
+        "Jan\t1, 26",
+        "Jan\u00a01, 26",
+        "Jan １, 26",
+        "Jan 1, ２６",
+    ],
+)
+def test_checked_named_month_date_rejects_incomplete_or_invalid_date(literal):
+    with pytest.raises(ComparisonImportError):
+        r.normalize_field(literal, "date", "value")
+
+
+@pytest.mark.parametrize(
+    "state", ["blank", "ambiguous", "unreadable", "not_checked", "redacted"]
+)
+def test_uncertain_named_month_date_stays_unknown(state):
+    assert r.normalize_field("Dec 31, 25", "date", state) is None
+
+
+@pytest.mark.parametrize(
     "literal, expected",
     [
         ("1190⁰⁰", "1190.00"),

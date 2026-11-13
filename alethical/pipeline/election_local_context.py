@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
+from functools import cache
 from html.parser import HTMLParser
 import hashlib
 import re
@@ -134,6 +135,8 @@ class _HTML(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.nodes, self.stack = [], []
         self.css_rules = []
+        self.table_rules = []
+        self.table_css_uncertain = False
         self.css_uncertain = False
         self.local_visibility = {}
         self.formatting_ancestry_uncertain = False
@@ -307,10 +310,29 @@ class _HTML(HTMLParser):
         # Refusal filter, not a CSS cascade or a browser visibility claim. Rules
         # that could obscure this node are never overridden by a later rule.
         for node in self.all("style"):
-            css = re.sub(r"/\*.*?\*/", "", "".join(node.text), flags=re.S)
+            raw_css = "".join(node.text)
+            # Removing comments can join separate CSS tokens into an invented
+            # selector or property. That cannot establish positive table proof.
+            if "/*" in raw_css:
+                self.table_css_uncertain = True
+            css = re.sub(r"/\*.*?\*/", "", raw_css, flags=re.S)
             if "@import" in css.lower():
                 self.css_uncertain = True
-            for rule in re.finditer(r"([^{}]+)\{([^{}]*)\}", css):
+            rules = list(re.finditer(r"([^{}]+)\{([^{}]*)\}", css))
+            if "@" in css or re.sub(r"[^{}]+\{[^{}]*\}", "", css).strip():
+                self.table_css_uncertain = True
+            for rule in rules:
+                if any(
+                    not selector.strip(" \t\n\r\f")
+                    for selector in _selector_parts(
+                        rule[1], comma=True, preserve_empty=True
+                    )
+                ):
+                    self.table_css_uncertain = True
+                self.table_rules.extend(
+                    (selector, rule[2])
+                    for selector in _selector_parts(rule[1], comma=True)
+                )
                 if _obscuring_style(rule[2]):
                     self.css_rules.extend(_selector_parts(rule[1], comma=True))
 
@@ -403,7 +425,7 @@ def _supported_opaque_paint(value):
     return rgb is not None and all(int(channel) <= 255 for channel in rgb.groups())
 
 
-def _obscuring_style(style):
+def _obscuring_style(style, *, table_width=False):
     """Conservatively refuse hiding/position/interaction declarations.
 
     No computed layout, external sheets, cascade override or script execution
@@ -458,6 +480,8 @@ def _obscuring_style(style):
             return True
         if name == "position" and value not in {"static", "relative", "sticky"}:
             return True
+        if name == "width" and table_width and _table_calc_width(value):
+            continue
         if name in {
             "width",
             "height",
@@ -486,7 +510,7 @@ def _obscuring_style(style):
     return False
 
 
-def _selector_parts(selector, *, comma=False):
+def _selector_parts(selector, *, comma=False, preserve_empty=False):
     """Split only outside quoted attributes/functions; unknown syntax holds all.
 
     Empty string is the conservative match-all sentinel. Escaped identifiers
@@ -509,7 +533,7 @@ def _selector_parts(selector, *, comma=False):
             if not stack or stack.pop() != {")": "(", "]": "["}[char]:
                 return [""]
         elif not stack and (char == "," if comma else char.isspace() or char in ">+~"):
-            if current:
+            if current or (comma and preserve_empty):
                 parts.append("".join(current))
                 current = []
             continue
@@ -518,6 +542,8 @@ def _selector_parts(selector, *, comma=False):
         return [""]
     if current:
         parts.append("".join(current))
+    elif comma and preserve_empty and selector.endswith(","):
+        parts.append("")
     return parts or [""]
 
 
@@ -682,6 +708,184 @@ def _selector_might_match(node, selector):
     return True
 
 
+def _table_calc_width(value):
+    # Closed preferred-width syntax only. No variables, other units or nesting.
+    return (
+        re.fullmatch(
+            r"calc\([ \t\n\r\f]*(?:[1-9][0-9]?|100)(?:\.0+)?%"
+            r"[ \t\n\r\f]+-[ \t\n\r\f]+[0-9]{1,4}(?:\.[0-9]{1,4})?px[ \t\n\r\f]*\)",
+            value,
+        )
+        is not None
+    )
+
+
+def _table_selector_match(node, selector):
+    """Three-valued source match; possible matches cannot establish display."""
+    if any(
+        ord(char) >= 127 or (ord(char) < 32 and char not in "\t\n\r\f")
+        for char in selector
+    ):
+        return None
+    chain = _selector_chain(selector)
+    if chain is None:
+        return None if _selector_might_match(node, selector) else False
+    compounds, relations = chain
+
+    def compound(current, text):
+        identifier = r"-?[a-zA-Z_][a-zA-Z0-9_-]*"
+        prefix = re.match(
+            rf"(?:[a-zA-Z][a-zA-Z0-9_-]*|\*)?(?:(?:[.#]{identifier})|(?:\[[a-zA-Z_][a-zA-Z0-9_-]*\]))*",
+            text,
+        )[0]
+        if prefix and not _compound_might_match(current, prefix):
+            return False
+        if not prefix or prefix != text:
+            return None
+        # Negative matching deliberately over-approximates quirks-mode case and
+        # whitespace. A positive proof requires exact class/ID literals and
+        # HTML's ASCII class separators; a possible mismatch stays uncertain.
+        classes = re.split(r"[ \t\n\r\f]+", current.attrs.get("class", ""))
+        for token in re.finditer(rf"([.#])({identifier})", prefix):
+            exact = (
+                token[2] in classes
+                if token[1] == "."
+                else token[2] == current.attrs.get("id", "")
+            )
+            if not exact:
+                return None
+        return True
+
+    @cache
+    def match(current, index):
+        own = compound(current, compounds[index])
+        if own is False or index == 0:
+            return own
+        parents = (
+            [current.parent]
+            if relations[index - 1] == ">"
+            else list(_ancestors(current))
+        )
+        prior = [match(parent, index - 1) for parent in parents if parent is not None]
+        if not any(value is not False for value in prior):
+            return False
+        return True if own is True and True in prior else None
+
+    return match(node, len(compounds) - 1)
+
+
+def _noncollapsing_table_width(node):
+    """Retained auto-table content supplies a minimum width, not painted proof.
+
+    CSS Tables 3 computing-the-table-width floors the used width at GRIDMIN;
+    fixed layout does not supply that content floor. Never resolve competing
+    display declarations or conditional/unknown layout by cascade guesses.
+    """
+    doc = node.document
+    if doc is None or doc.table_css_uncertain or not _selector_ancestry_known(node):
+        return False
+    root_styles = [node.attrs.get("style", "")] + [
+        style
+        for selector, style in doc.table_rules
+        if _table_selector_match(node, selector) is True
+    ]
+    if not any(
+        re.search(r"(?:^|;)\s*width\s*:\s*calc\(", style, re.I) for style in root_styles
+    ):
+        return False
+    subtree = [n for n in doc.nodes if n is node or node in _ancestors(n)]
+    safe = {"div", "a", "span", "p", "h1", "h2", "h3", "h4", "h5", "h6"}
+    if any(
+        n.tag not in safe or not n.source_closed or n.duplicate or n.ancestry_uncertain
+        for n in subtree
+    ):
+        return False
+    if not any(
+        re.search(r"[A-Za-z0-9]", part)
+        for n in subtree
+        for part in n.content
+        if isinstance(part, str)
+    ):
+        return False
+    allowed = {
+        "display",
+        "width",
+        "padding",
+        "border",
+        "background-color",
+        "box-sizing",
+        "margin",
+        "margin-bottom",
+        "margin-top",
+        "margin-left",
+        "margin-right",
+        "font-size",
+        "font-weight",
+        "line-height",
+        "text-align",
+        "color",
+        "flex-wrap",
+        "justify-content",
+        "gap",
+        "table-layout",
+    }
+    displays, widths = [], []
+    for current in [*subtree, *_ancestors(node)]:
+        styles = [current.attrs.get("style", "")]
+        for selector, style in doc.table_rules:
+            matched = _table_selector_match(current, selector)
+            if matched is None:
+                return False
+            if matched:
+                styles.append(style)
+        for style in styles:
+            if any(
+                ord(char) >= 127 or (ord(char) < 32 and char not in "\t\n\r\f")
+                for char in style
+            ):
+                return False
+            if _obscuring_style(style, table_width=current is node):
+                return False
+            for declaration in style.split(";"):
+                if not declaration.strip():
+                    continue
+                name, value = (
+                    part.strip().lower() for part in declaration.split(":", 1)
+                )
+                value = re.sub(r"\s*!important\s*$", "", value).strip()
+                if name not in allowed or "\\" in declaration or "var(" in value:
+                    return False
+                if name in {
+                    "padding",
+                    "margin",
+                    "margin-bottom",
+                    "margin-top",
+                    "margin-left",
+                    "margin-right",
+                    "font-size",
+                    "line-height",
+                    "gap",
+                } and not re.fullmatch(
+                    r"(?:0|[1-9]\d{0,3}(?:\.\d{1,4})?px)(?:\s+(?:0|[1-9]\d{0,3}(?:\.\d{1,4})?px)){0,3}",
+                    value,
+                ):
+                    return False
+                if name == "table-layout" and value != "auto":
+                    return False
+                if name == "width" and current is not node:
+                    return False
+                if current is node:
+                    if name == "display":
+                        displays.append(value)
+                    if name == "width":
+                        widths.append(value)
+    return (
+        bool(displays and widths)
+        and all(v == "table" for v in displays)
+        and all(_table_calc_width(v) for v in widths)
+    )
+
+
 def _locally_visible(node, *, ignore_hidden=False):
     if (
         node.tag in _UNRENDERED
@@ -699,13 +903,16 @@ def _locally_visible(node, *, ignore_hidden=False):
     doc = node.document
     if doc is not None and node in doc.local_visibility:
         return doc.local_visibility[node]
-    clear = not _obscuring_style(node.attrs.get("style", ""))
+    table_width = _noncollapsing_table_width(node)
+    clear = not _obscuring_style(node.attrs.get("style", ""), table_width=table_width)
     if doc is not None:
         clear = (
             clear
             and not doc.css_uncertain
             and not any(
-                _selector_might_match(node, selector) for selector in doc.css_rules
+                _selector_might_match(node, selector)
+                and _obscuring_style(style, table_width=table_width)
+                for selector, style in doc.table_rules
             )
         )
         doc.local_visibility[node] = clear

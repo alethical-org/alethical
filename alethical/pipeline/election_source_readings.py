@@ -84,6 +84,27 @@ _RECORDS = {
     "other",
 }
 _CONTEXT_SEAL = object()
+_ENGLISH_MONTHS = {
+    spelling: month
+    for month, name in enumerate(
+        (
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+        ),
+        start=1,
+    )
+    for spelling in (name, name[:3])
+}
 
 
 def require(ok, message):
@@ -153,12 +174,31 @@ def normalize_field(literal, value_type, state):
         # Local forms also print US month-day-year with hyphens. Retain the
         # exact literal; only a checked value gets calendar normalization.
         match = re.fullmatch(r"([0-9]{1,2})-([0-9]{1,2})-([0-9]{2}|[0-9]{4})", literal)
+    if match is None:
+        match = re.fullmatch(
+            r"([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{2}|[0-9]{4})", literal
+        )
+    if match is None:
+        # Compact US dates must supply two month/day digits and all four year
+        # digits. Never recover a missing year or guess omitted separators.
+        match = re.fullmatch(r"([0-9]{2})([0-9]{2})([0-9]{4})", literal)
     try:
         if match:
             month, day, year = map(int, match.groups())
             if len(match[3]) == 2:
                 year += 2000
             return date(year, month, day).isoformat()
+        named = re.fullmatch(
+            r"([A-Za-z]+) ([0-9]{1,2})(?:, *| +)([0-9]{2}|[0-9]{4})", literal
+        )
+        if named:
+            month_name = named[1].lower()
+            require(month_name in _ENGLISH_MONTHS, "Reading has an unsupported month")
+            # Explicit English names only; no locale or missing-year inference.
+            year = int(named[3])
+            if len(named[3]) == 2:
+                year += 2000
+            return date(year, _ENGLISH_MONTHS[month_name], int(named[2])).isoformat()
         value = date.fromisoformat(literal)
         require(value.isoformat() == literal, "Reading needs an exact calendar date")
         return literal

@@ -234,6 +234,13 @@ receipt through the normal correction history. Ordinary source reads verify byte
 and checked heads without rendering each page again, so a known bad checked head
 must be withdrawn or corrected explicitly.
 
+Checked dates retain their printed text. Calendar normalization supports ISO dates,
+US numeric dates with consistent slashes, hyphens or dots, compact `MMDDYYYY`, and
+complete English month names or three-letter abbreviations followed by an explicit
+day and year. Compact dates require all eight digits. Two-digit years
+use the existing 2000–2099 rule. Missing years, invalid dates and uncertain readings
+stay unresolved; a filename, copy date or election year never supplies a date.
+
 An exact catalogued document does not establish its amendment relationship to
 other documents. Such local reports and payments carry `effective: null`,
 `version_scope: exact_document` and `amendment_status: not_established`. Explicit
@@ -324,6 +331,13 @@ conditional styles and repaired or uncertain ancestry remain possible matches.
 Frameset documents are unsupported because the source tree cannot establish their
 offered body links or controls. These checks do not compute browser styles, fetch
 external assets or approve a filing's identity or contents.
+
+A closed auto-table subtree may retain a percent-minus-pixel preferred width when
+all applicable declarations establish that layout and ordinary text supplies its
+minimum width. Unknown selector matches cannot establish positive layout evidence.
+Fixed tables, clipping, uncertain styles, dimensions on other nodes and existing
+hiding checks still refuse the path. This is a bounded static source replay, not
+proof of painted browser visibility.
 
 Public reads label these physical accounts as report sections and retain the
 original hash and section opening page. A figure's checked page takes precedence
