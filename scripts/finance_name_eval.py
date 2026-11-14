@@ -89,6 +89,7 @@ def pairs(args) -> int:
     _print_rate("Same filer, spelling differs:", report["found_spelling_variants"])
     _print_rate("Same filer, words differ:", report["found_reworded_names"])
     _print_rate("Different filers grouped:", report["wrong_groups"])
+    _print_rate("Cannot tell, grouped:", report["cannot_tell_grouped"])
     print("  Misses by pattern:", report["misses_by_pattern"])
     for failure in report["failures"][: args.show]:
         print(

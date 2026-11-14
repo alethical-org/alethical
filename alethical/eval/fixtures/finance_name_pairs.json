@@ -16,6 +16,7 @@
     "2b283617d3ba": "missed",
     "3b784f7cf6af": "missed",
     "3e5353737ad7": "missed",
+    "40766bea0814": "missed",
     "41eeaee8da48": "missed",
     "434291c6081c": "missed",
     "512e03f2e75a": "missed",
@@ -48,6 +49,7 @@
     "d2cb139da19c": "missed",
     "d7ddc4c1743e": "missed",
     "e46df0dfe6f8": "missed",
+    "e6ff2f2bc572": "missed",
     "ed6bb4330040": "missed",
     "ee838c778679": "missed",
     "f0e9f3167eb4": "missed",
@@ -507,6 +509,259 @@
       "condition": "spelling",
       "kind": "organization",
       "evidence": "Board registration 20881; a spelling is also printed under another number",
+      "excluded": null
+    },
+    {
+      "id": "05a865a58065",
+      "left": "Hylden, Nancy ",
+      "right": "Hylden, Nancy M",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 9258; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "1fecb5813203",
+      "left": "Vanasek, Robert M",
+      "right": "Vanasek, Robert Rob M",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 1369; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "2dd5bec22126",
+      "left": "Hylden, Nancy",
+      "right": "Hylden, Nancy M",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 9258; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "31eb9e896554",
+      "left": "Grindal, H Theodore",
+      "right": "Grindal, Theodore",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 7237; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "33759e8dc586",
+      "left": "Hylden, Nancy ",
+      "right": "Hylden, Nancy B",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 9258; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "4882349aa590",
+      "left": "Noble, Michael J",
+      "right": "Noble, Michael T",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 275; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "49b5b26fd86a",
+      "left": "Noble, Michael",
+      "right": "Noble, Michael J",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 275; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "513562bfd6ec",
+      "left": " Humphrey, Hubert",
+      "right": "Humphrey, Hubert H, IV",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2068; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "5d298056e2f5",
+      "left": "Rahn, Melissa",
+      "right": "Rahn, Melissa Jo",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2260; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "6adc780af73c",
+      "left": "Vanasek, Robert",
+      "right": "Vanasek, Robert M",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 1369; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "95499b707f02",
+      "left": "Erickson, Tara Garman",
+      "right": "Erickson, Tara LynneGarma",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 1134; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "96bf84270e1d",
+      "left": "Hylden, Nancy",
+      "right": "Hylden, Nancy B",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 9258; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "9a772cac50cf",
+      "left": "Walker, Sarah",
+      "right": "Walker, Sarah C",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2712; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "9ecd1df712b6",
+      "left": "Grindal, Theodore",
+      "right": "Grindal, Theodore H",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 7237; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "b44a33a39ee0",
+      "left": "Erickson, Tara Garman",
+      "right": "Garman Erickson, Tara LG",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 1134; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "b751a4311a8f",
+      "left": "Humphrey, Hubert Buck",
+      "right": "Humphrey, Hubert Buck H",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2068; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "c27e487ba4cb",
+      "left": "Noble, Michael",
+      "right": "Noble, Michael T",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 275; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "c3254b899f00",
+      "left": "Vanasek, Rob M",
+      "right": "Vanasek, Robert M",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 1369; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "c60a9054e21c",
+      "left": " Humphrey, Hubert",
+      "right": "Humphrey, Hubert Buck",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2068; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "ce18e744b48f",
+      "left": "Humphrey, Hubert H, III",
+      "right": "Humphrey, Hubert H, IV",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2068; middle initials under this number conflict",
+      "excluded": "Source error: 2 people (suffixes III and IV) printed under 1 registration number"
+    },
+    {
+      "id": "da7fb75b7507",
+      "left": "Walker, Sarah",
+      "right": "Walker, Sarah A",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2712; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "e2f4b021ab19",
+      "left": "Walker, Sarah A",
+      "right": "Walker, Sarah C",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 2712; middle initials under this number conflict",
+      "excluded": null
+    },
+    {
+      "id": "e3ee7d0c8c21",
+      "left": "Hylden, Nancy B",
+      "right": "Hylden, Nancy M",
+      "role": "donor",
+      "label": "cannot_tell",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 9258; middle initials under this number conflict",
       "excluded": null
     },
     {
@@ -1401,17 +1656,6 @@
       "excluded": null
     },
     {
-      "id": "05a865a58065",
-      "left": "Hylden, Nancy ",
-      "right": "Hylden, Nancy M",
-      "role": "donor",
-      "label": "same",
-      "condition": "spelling",
-      "kind": "person",
-      "evidence": "Board registration 9258",
-      "excluded": null
-    },
-    {
       "id": "0b656aeb4716",
       "left": "Carroll-Shern, Linda M",
       "right": "Carroll-Shern, Linda Marie",
@@ -1519,6 +1763,17 @@
       "condition": "spelling",
       "kind": "person",
       "evidence": "Board registration 3279",
+      "excluded": null
+    },
+    {
+      "id": "40766bea0814",
+      "left": "Davidman, Jeffrey",
+      "right": "Davidman, Jeffrey Neil",
+      "role": "donor",
+      "label": "same",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 1440",
       "excluded": null
     },
     {
@@ -1676,25 +1931,14 @@
       "excluded": null
     },
     {
-      "id": "96bf84270e1d",
-      "left": "Hylden, Nancy",
-      "right": "Hylden, Nancy B",
+      "id": "a66423555509",
+      "left": "McDaniel, Brian",
+      "right": "McDaniel, Brian R",
       "role": "donor",
       "label": "same",
       "condition": "spelling",
       "kind": "person",
-      "evidence": "Board registration 9258",
-      "excluded": null
-    },
-    {
-      "id": "9ecd1df712b6",
-      "left": "Grindal, Theodore",
-      "right": "Grindal, Theodore H",
-      "role": "donor",
-      "label": "same",
-      "condition": "spelling",
-      "kind": "person",
-      "evidence": "Board registration 7237",
+      "evidence": "Board registration 1140",
       "excluded": null
     },
     {
@@ -1740,17 +1984,6 @@
       "kind": "person",
       "evidence": "Board registration 2601",
       "excluded": null
-    },
-    {
-      "id": "ce18e744b48f",
-      "left": "Humphrey, Hubert H, III",
-      "right": "Humphrey, Hubert H, IV",
-      "role": "donor",
-      "label": "same",
-      "condition": "spelling",
-      "kind": "person",
-      "evidence": "Board registration 2068",
-      "excluded": "Source error: 2 people (suffixes III and IV) printed under 1 registration number"
     },
     {
       "id": "d51ea16d3409",
@@ -1808,6 +2041,17 @@
       "excluded": null
     },
     {
+      "id": "e6ff2f2bc572",
+      "left": "Watson, Jonathan B",
+      "right": "Watson, Jonathan Blake",
+      "role": "donor",
+      "label": "same",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 3868",
+      "excluded": null
+    },
+    {
       "id": "ed6bb4330040",
       "left": "Cox, Barbara H",
       "right": "Cox, Barbara Helen",
@@ -1816,6 +2060,17 @@
       "condition": "spelling",
       "kind": "person",
       "evidence": "Board registration 9980",
+      "excluded": null
+    },
+    {
+      "id": "f168581351d0",
+      "left": "Oyaas, Mark",
+      "right": "Oyaas, Mark J",
+      "role": "donor",
+      "label": "same",
+      "condition": "spelling",
+      "kind": "person",
+      "evidence": "Board registration 9871",
       "excluded": null
     },
     {
@@ -2303,17 +2558,6 @@
       "excluded": null
     },
     {
-      "id": "1fb33f2cb150",
-      "left": "Walker, Sarah A",
-      "right": "Walker, Sarah Catherine",
-      "role": "donor",
-      "label": "same",
-      "condition": "wording",
-      "kind": "person",
-      "evidence": "Board registration 2712",
-      "excluded": null
-    },
-    {
       "id": "206eaf2bae28",
       "left": "Larson, Peder",
       "right": "Larson, Peder Alan",
@@ -2322,6 +2566,28 @@
       "condition": "wording",
       "kind": "person",
       "evidence": "Board registration 7414",
+      "excluded": null
+    },
+    {
+      "id": "2cd9e0d5f510",
+      "left": "Berns, John",
+      "right": "Berns, John Michael",
+      "role": "donor",
+      "label": "same",
+      "condition": "wording",
+      "kind": "person",
+      "evidence": "Board registration 2424",
+      "excluded": null
+    },
+    {
+      "id": "2fff2930588f",
+      "left": "Cullen, Patricia",
+      "right": "Cullen, Patricia Kaitlyn",
+      "role": "donor",
+      "label": "same",
+      "condition": "wording",
+      "kind": "person",
+      "evidence": "Board registration 7235",
       "excluded": null
     },
     {
@@ -2402,6 +2668,17 @@
       "excluded": null
     },
     {
+      "id": "5d3e9aae0018",
+      "left": "Kozak, Andrew V",
+      "right": "Kozak, Andy",
+      "role": "donor",
+      "label": "same",
+      "condition": "wording",
+      "kind": "person",
+      "evidence": "Board registration 141",
+      "excluded": null
+    },
+    {
       "id": "62f1f251ae95",
       "left": "Wertish, Gary",
       "right": "Wertish, Gary John",
@@ -2446,6 +2723,17 @@
       "excluded": null
     },
     {
+      "id": "84390094c813",
+      "left": "Hyland, Eric",
+      "right": "Hyland, Eric Jon",
+      "role": "donor",
+      "label": "same",
+      "condition": "wording",
+      "kind": "person",
+      "evidence": "Board registration 2986",
+      "excluded": null
+    },
+    {
       "id": "8c191b2d8a62",
       "left": "Poul, Thomas John",
       "right": "Poul, Tom",
@@ -2466,17 +2754,6 @@
       "kind": "person",
       "evidence": "Board registration 2943",
       "excluded": null
-    },
-    {
-      "id": "8eb1da2458b7",
-      "left": " Humphrey, Hubert",
-      "right": "Humphrey, Hubert Buck H",
-      "role": "donor",
-      "label": "same",
-      "condition": "wording",
-      "kind": "person",
-      "evidence": "Board registration 2068",
-      "excluded": "Source error: registration 2068 is printed for at least 2 people (suffixes III and IV, and \"Buck\"), so no pair under it is labelled"
     },
     {
       "id": "8f3811f28ec5",
@@ -2578,36 +2855,25 @@
       "excluded": null
     },
     {
-      "id": "b5e531e20357",
-      "left": "Walker, Sarah",
-      "right": "Walker, Sarah Catherine",
+      "id": "b58cdd2f6287",
+      "left": "Halloran, Brian",
+      "right": "Halloran, Brian Kelley",
       "role": "donor",
       "label": "same",
       "condition": "wording",
       "kind": "person",
-      "evidence": "Board registration 2712",
+      "evidence": "Board registration 304",
       "excluded": null
     },
     {
-      "id": "bfe94ae0907c",
-      "left": "Grindal, H Theodore",
-      "right": "Grindal, Ted",
+      "id": "b8ef6a93708f",
+      "left": "Conry, Chris",
+      "right": "Conry, Christopher David",
       "role": "donor",
       "label": "same",
       "condition": "wording",
       "kind": "person",
-      "evidence": "Board registration 7237",
-      "excluded": null
-    },
-    {
-      "id": "cd6b219542d2",
-      "left": "Scott, Kimberly",
-      "right": "Scott, Kimberly Kendall",
-      "role": "donor",
-      "label": "same",
-      "condition": "wording",
-      "kind": "person",
-      "evidence": "Board registration 2871",
+      "evidence": "Board registration 2920",
       "excluded": null
     },
     {
@@ -2675,17 +2941,6 @@
       "kind": "person",
       "evidence": "Board registration 1439",
       "excluded": null
-    },
-    {
-      "id": "fe835654ddfd",
-      "left": "Humphrey, Hubert Buck",
-      "right": "Humphrey, Hubert H, III",
-      "role": "donor",
-      "label": "same",
-      "condition": "wording",
-      "kind": "person",
-      "evidence": "Board registration 2068",
-      "excluded": "Source error: registration 2068 is printed for at least 2 people (suffixes III and IV, and \"Buck\"), so no pair under it is labelled"
     },
     {
       "id": "ff94212607ab",

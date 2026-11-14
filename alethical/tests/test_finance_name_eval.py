@@ -170,6 +170,9 @@ def test_harvest_labels_come_from_registration_numbers(monkeypatch):
             "Lobbyist",
             5,
         ),  # 2 lobbyist numbers: not "different"
+        ("102", "Sample, Ann B", "Lobbyist", 4),
+        ("102", "Sample, Ann M", "Lobbyist", 3),
+        ("102", "Sample, Ann", "Lobbyist", 5),  # initials conflict: may be 2 people
         ("300", "Example Unit 4 DFL", "Party Unit", 3),
         ("300", "Example Unit 4 DFL (Old)", "Party Unit", 3),
         ("301", "Example Unit 4 DFL", "Party Unit", 2),  # same name, another number
@@ -182,6 +185,7 @@ def test_harvest_labels_come_from_registration_numbers(monkeypatch):
     assert labels[("Example, Jonathan", "Example, Jonathon")] == "same"
     assert labels[("Example Unit 4 DFL", "Example Unit 4 DFL (Old)")] == "cannot_tell"
     assert labels[("Example Unit 4 DFL (Old)", "Example Unit 5 DFL")] == "different"
+    assert labels[("Sample, Ann", "Sample, Ann B")] == "cannot_tell"
     assert not any(c.label == "different" and c.kind == "person" for c in cases)
     assert not any("Sample, Rachel" in (c.left, c.right) for c in cases)
     assert not any("Example, Jon" in (c.left, c.right) for c in cases)

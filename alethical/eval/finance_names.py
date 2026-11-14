@@ -165,6 +165,17 @@ def _same_family(left: str, right: str) -> bool:
     )
 
 
+def _middle_initial(name: str) -> str | None:
+    if "," not in name:
+        return None
+    given = [
+        w
+        for w in words(name.split(",", 1)[1])
+        if w not in {"jr", "sr", "ii", "iii", "iv"}
+    ]
+    return _fold(given[1])[0] if len(given) > 1 else None
+
+
 def _pair_id(left: str, right: str) -> str:
     a, b = sorted((left, right))
     return hashlib.sha1(f"{a}\x00{b}".encode()).hexdigest()[:12]
@@ -366,23 +377,28 @@ def harvest_pairs(db, *, per_stratum: int = 40) -> tuple[dict, list[PairCase]]:
     for number, names in spellings.items():
         if number in placeholder:
             continue
+        # 2 different middle initials under 1 lobbyist number may be 2 people.
+        initials = {i for i in map(_middle_initial, names) if i}
+        conflicting = kind_of[number] == "person" and len(initials) > 1
         for left, right in combinations(sorted(names), 2):
             if normalized(left) == normalized(right):
                 trivial += 1
                 continue
             unclear = left in ambiguous or right in ambiguous
+            note = (
+                "; a spelling is also printed under another number"
+                if unclear
+                else "; middle initials under this number conflict"
+                if conflicting
+                else ""
+            )
             same.append(
                 case(
                     left,
                     right,
-                    "cannot_tell" if unclear else "same",
+                    "cannot_tell" if unclear or conflicting else "same",
                     kind_of[number],
-                    f"Board registration {number}"
-                    + (
-                        "; a spelling is also printed under another number"
-                        if unclear
-                        else ""
-                    ),
+                    f"Board registration {number}{note}",
                 )
             )
 
@@ -547,7 +563,7 @@ def search_keys(db, case: SearchCase, limit: int) -> list[str]:
     raise ValueError(f"Unknown surface {case.surface}")
 
 
-def run_searches(db, cases: list[SearchCase], *, limit: int = 5) -> list[dict]:
+def run_searches(db, cases: list[SearchCase], *, limit: int = 3) -> list[dict]:
     results = []
     for case in cases:
         if case.excluded:

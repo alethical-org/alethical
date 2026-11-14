@@ -34,7 +34,9 @@ registration number (committees, party units, funds and lobbyists).
   **different filers**. Lobbyists never supply "different" pairs: one lobbyist can
   hold 2 numbers.
 - A spelling printed under 2 numbers is **cannot tell**: the key cannot say which
-  filer it names. These pairs are reported and never graded.
+  filer it names. So is every pair under a lobbyist number whose spellings carry 2
+  different middle initials ("Nancy B" and "Nancy M"), which may be 2 people.
+  These pairs are reported and never graded.
 - Under a lobbyist's number, only spellings sharing the family name printed most
   often under it are kept. The same number turns up on other people's rows, which
   would otherwise label 2 people "the same".
@@ -104,24 +106,26 @@ same pull request. The searches need a database and have no floor.
 Measured on 14 November 2026 against the published contribution file
 (snapshot `58c13cce`) and the current registers.
 
-**Spelling pairs** (240, 3 excluded):
+**Spelling pairs** (263, 1 excluded):
 
 | Condition | Grouped |
 | --- | --- |
-| Same filer, spelling differs | 26 of 79 (33%) |
-| Same filer, words differ | 0 of 78 |
+| Same filer, spelling differs | 25 of 80 (31%) |
+| Same filer, words differ | 0 of 80 |
 | Different filers | 0 of 40 |
-| Cannot tell | 0 of 40 |
+| Cannot tell | 10 of 62 |
 
-No pair of different filers was grouped. 26 of 39 lobbyist spelling pairs group;
-none of the 40 organization spelling pairs does. The donor page reads every donor
+No pair of different filers was grouped. 25 of 40 lobbyist spelling pairs group;
+none of the 40 organization spelling pairs does. The 10 "cannot tell" pairs the
+rule groups are all under lobbyist numbers with conflicting middle initials: if
+those are 2 people, the page would show one's payments under the other's name. The donor page reads every donor
 name as a personal name, but the organization rule groups only 1 of the same 40,
-so the person reading is not the cause. Of the 53 missed spelling pairs:
+so the person reading is not the cause. Of the 55 missed spelling pairs:
 
-- **32 add words.** The markers "(New)" and "(Old)", a district printed in one
+- **33 add words.** The markers "(New)" and "(Old)", a district printed in one
   spelling only ("Senate Dist 26"), a registration number appended
   ("- 70005"), "PAC", "Jr", or "&" against "and".
-- **11 shorten a word.** 7 a middle initial against the full middle name
+- **12 shorten a word.** 8 a middle initial against the full middle name
   ("Linda M" and "Linda Marie"), 1 "Sam" against "Samuel", 2 district names
   reordered ("63rd Senate District DFL" and "Senate District 63 DFL") and 1
   "Pol Action Comm".
@@ -131,8 +135,9 @@ so the person reading is not the cause. Of the 53 missed spelling pairs:
 - **1 number** read as conflicting because one spelling carries the registration
   number.
 
-Excluded after reading: registration 2068 is printed for at least 2 Hubert
-Humphreys (suffixes III and IV, and "Buck"), so its 3 pairs carry no label.
+Excluded after reading: "Humphrey, Hubert H, III" and "Humphrey, Hubert H, IV",
+2 people printed under registration 2068. The number's other pairs are "cannot
+tell" by the middle-initial rule.
 
 **Searches** (180, among the 3 results shown):
 
