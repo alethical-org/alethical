@@ -285,7 +285,7 @@ function amountEntries(
       ]
     : (reported ?? []).map((item) => [
         `${item.label} · ${periodLabel(item.period_start, item.period_end)}`,
-        reportedMoneyLabel(item.amount, item.currency),
+        <span className="ex-number">{reportedMoneyLabel(item.amount, item.currency)}</span>,
       ]);
 }
 function paymentEntries(payment: d.Payment): Array<[string, ReactNode]> {
@@ -294,7 +294,9 @@ function paymentEntries(payment: d.Payment): Array<[string, ReactNode]> {
     : [
         [
           payment.measure_label ?? 'Reported amount',
-          reportedMoneyLabel(payment.reported_amount, payment.currency),
+          <span className="ex-number">
+            {reportedMoneyLabel(payment.reported_amount, payment.currency)}
+          </span>,
         ],
         ['Filing authority', payment.authority_name ?? 'Unavailable'],
         ['Reporting period', periodLabel(payment.period_start, payment.period_end)],
