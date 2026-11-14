@@ -201,7 +201,72 @@ export interface Read<T> {
 }
 
 const CACHE_MS = 60_000;
-const cache = new Map<string, { at: number; answer: ReadAnswer<unknown> }>();
+const cache = new Map<string, { at: number; answer: ReadAnswer<unknown>; order: number }>();
+let cacheEpoch = 0;
+let readOrder = 0;
+
+interface PendingRead {
+  controller: AbortController;
+  promise: Promise<ReadAnswer<unknown>>;
+  subscribers: number;
+  epoch: number;
+  order: number;
+}
+const pendingReads = new Map<string, PendingRead>();
+
+/** Share only pending transport, never a subscriber's validation or view state. */
+function readTransport<T>(
+  apiBaseUrl: string,
+  path: string,
+  accessToken: string | null,
+  unwrapped: boolean,
+  sharingKey: string | null,
+) {
+  let flight = sharingKey ? pendingReads.get(sharingKey) : undefined;
+  if (!flight) {
+    const controller = new AbortController();
+    const created: PendingRead = {
+      controller,
+      promise: apiGet<unknown>(
+        apiBaseUrl,
+        path,
+        accessToken,
+        fetch,
+        controller.signal,
+        unwrapped,
+      ).catch(() => ({ state: 'failed' })),
+      subscribers: 0,
+      epoch: cacheEpoch,
+      order: ++readOrder,
+    };
+    flight = created;
+    if (sharingKey) {
+      pendingReads.set(sharingKey, created);
+      void created.promise.then(() => {
+        if (pendingReads.get(sharingKey) === created) pendingReads.delete(sharingKey);
+      });
+    }
+  }
+  const current = flight;
+  current.subscribers += 1;
+  let released = false;
+  return {
+    promise: current.promise as Promise<ReadAnswer<T>>,
+    epoch: current.epoch,
+    order: current.order,
+    release() {
+      if (released) return;
+      released = true;
+      current.subscribers -= 1;
+      if (current.subscribers === 0) {
+        // Remove before abort: a same-tick replacement must start fresh. An old
+        // settlement or lease can never delete that replacement's entry.
+        if (sharingKey && pendingReads.get(sharingKey) === current) pendingReads.delete(sharingKey);
+        current.controller.abort();
+      }
+    },
+  };
+}
 
 function freshAnswer(key: string) {
   const held = cache.get(key);
@@ -226,7 +291,11 @@ export function useReadRetry(key: string | null) {
 /** Forget every held answer: on sign-out or an account change, nothing read for
  * 1 account may be shown to the next. */
 export function clearReadCache() {
+  cacheEpoch += 1;
   cache.clear();
+  // Existing subscribers keep their own lifecycle; new ones cannot join a
+  // transport from before sign-out, access refusal or deliberate cache clear.
+  pendingReads.clear();
 }
 
 /**
@@ -243,12 +312,15 @@ export function useRead<T>(
     acceptData,
     revision = 0,
     enabled = true,
+    sharePending = false,
   }: {
     keepPrevious?: boolean;
     /** A deliberate whole-list reload bypasses cached pages. */
     revision?: number | string;
     /** Wait for another read's fresh pins, retaining only this account's data. */
     enabled?: boolean;
+    /** Reuse an identical pending read; retries always start their own transport. */
+    sharePending?: boolean;
     /** A few routes (`/candidates/{id}`, `/people/{id}`) answer with the record
      * itself rather than `{ data: … }`. */
     unwrapped?: boolean;
@@ -279,6 +351,9 @@ export function useRead<T>(
   const [attempt, retry] = useReadRetry(key);
   const [pending, setPending] = useState(false);
   const latest = useRef(0);
+  const sharingKey = sharePending
+    ? JSON.stringify([apiBaseUrl, accessToken, path, revision, unwrapped])
+    : null;
 
   useEffect(() => {
     if (!enabled || !key || !path) {
@@ -300,34 +375,47 @@ export function useRead<T>(
       return;
     }
     const request = ++latest.current;
-    const controller = new AbortController();
-    setPending(true);
-    void apiGet<T>(apiBaseUrl, path, accessToken, fetch, controller.signal, unwrapped).then(
-      (received) => {
-        if (request !== latest.current) return;
-        const next: ReadAnswer<T> =
-          received.state === 'ok' && accept.current && !accept.current(received.data)
-            ? { state: 'failed' }
-            : received;
-        setPending(false);
-        if (next.state === 'failed' && next.accessDenied) {
-          clearReadCache();
-          setLastData(null);
-          accessCheck.current?.();
-        }
-        if (next.state !== 'failed') cache.set(key, { at: Date.now(), answer: next });
-        setAnswer({ key, answer: next });
-        if (next.state === 'ok')
-          setLastData({ data: next.data, path, page: next.page ?? null, scope });
-      },
+    const transport = readTransport<T>(
+      apiBaseUrl,
+      path,
+      accessToken,
+      unwrapped,
+      attempt === 0 ? sharingKey : null,
     );
+    setPending(true);
+    void transport.promise.then((received) => {
+      if (request !== latest.current) return;
+      let next = received;
+      if (received.state === 'ok' && accept.current) {
+        try {
+          if (!accept.current(received.data)) next = { state: 'failed' };
+        } catch {
+          next = { state: 'failed' };
+        }
+      }
+      setPending(false);
+      if (next.state === 'failed' && next.accessDenied) {
+        clearReadCache();
+        setLastData(null);
+        accessCheck.current?.();
+      }
+      if (
+        next.state !== 'failed' &&
+        transport.epoch === cacheEpoch &&
+        transport.order >= (cache.get(key)?.order ?? 0)
+      )
+        cache.set(key, { at: Date.now(), answer: next, order: transport.order });
+      setAnswer({ key, answer: next });
+      if (next.state === 'ok')
+        setLastData({ data: next.data, path, page: next.page ?? null, scope });
+    });
     return () => {
       // A superseded or abandoned read must never write its answer, including
       // the failure its own abort produces.
       latest.current += 1;
-      controller.abort();
+      transport.release();
     };
-  }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped, scope, enabled]);
+  }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped, scope, enabled, sharingKey]);
 
   const current = answer && answer.key === key ? answer.answer : null;
   const own =

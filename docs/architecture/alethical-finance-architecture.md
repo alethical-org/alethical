@@ -1,6 +1,6 @@
 # Alethical Finance — architecture and access decisions
 
-<!-- describes: alethical/api/routers/finance_identities.py, alethical/api/services/identity_confirmations.py, alethical/api/services/finance_identity_directory.py, alethical/api/services/finance_station_checks.py -->
+<!-- describes: alethical/api/routers/finance_identities.py, alethical/api/services/identity_confirmations.py, alethical/api/services/finance_identity_directory.py, alethical/api/services/finance_station_checks.py, apps/finance/src/App.tsx, apps/finance/src/routeLoading.tsx, apps/finance/src/api/read.ts, apps/finance/src/parts/CampaignFinance.tsx -->
 
 **Net:** Alethical Finance is a sign-in-only research product for law firms and their
 political committees. It runs on the same records, database, server and product rules as
@@ -51,6 +51,31 @@ Finance). Identity confirmations (§4) answer under `/identities/`
 (`alethical/api/routers/finance_identities.py`). The access check reads the list through its own short
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
+
+### Opening election research without loading every page
+
+The public site, sign-in, access states, navigation shell and Finance Home load at
+startup. Other private pages load when opened, after the existing access and editing
+checks. A cold election visit therefore downloads its own shared dependencies rather
+than every Finance page. The shell stays available while page code loads. Heading
+focus and saved Back/Forward scroll wait until the destination mounts; initial visits
+and in-place search retain their existing focus behavior.
+
+A failed code or stylesheet preload offers an explicit reload of the current address.
+The failure remains across private navigation until that reload: Vite can remember a
+failed stylesheet as already requested, so merely opening another page could render
+it without styles. A record rendering error instead resets when the address changes,
+without remounting healthy in-place searches.
+
+Candidate/profile headline figures and campaign account cards share only identical
+pending year requests. This is opt-in in `useAccountYear`; other reads remain
+independent. Sharing is scoped to API, token, exact path, revision and response shape.
+Each subscriber keeps its own validation, state and retry; the last subscriber leaving
+cancels the transport. A retry starts fresh. Completed-answer lifetime stays 60 seconds;
+older pending work cannot replace a newer cached answer or refill a cleared cache.
+Each card still selects its own registration from the returned year, and existing
+headline/year selection remains unchanged. This does not cache a source verdict across
+server requests or change server authorization.
 
 ### Paged lists name the source state they read
 

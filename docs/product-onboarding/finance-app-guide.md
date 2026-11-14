@@ -180,9 +180,13 @@ for the owning permission and password-management rules.
   check never shows the no-access state.
 - **Unknown address, or a page not built yet:** "Couldn’t find that page" inside the
   navigation, with Go to Finance Home.
+- Opening a research page shows "Loading page…" while its extra page code loads. If that code
+  or its styles cannot load, "Couldn’t load this page" offers **Reload page**, which reloads
+  the current address. A failed download of that page code or its styles keeps research
+  pages at this recovery step until reload.
 - When the screen changes, keyboard focus moves to its heading and the page starts at the
-  top; Back and Forward return to where the reader was on that page. Each sign-in step moves
-  focus to its field.
+  top once the destination is ready; Back and Forward return to where the reader was on
+  that page. Each sign-in step moves focus to its field.
 - A link to a record carries the earlier page's own address (`?from=`), so the record's
   "Back to {page}" link reopens exactly that page, its tab, year and search included; up to
   3 earlier pages are kept. A link back to Finance Home names it by its heading, "Back to
@@ -259,8 +263,8 @@ whose position is not held, in Table, the selection panel and source evidence. T
 do not write checks or confirmations.
 
 Each page is built from its approved Design drawing and reads alethical.com's own records
-through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
-Try again that never reads as an empty result, and a "no longer available" state for a record
+through the shared API (`api.alethical.com`). Every page has a loading state, a record-read
+failure with Try again that never reads as an empty result, and a "no longer available" state for a record
 the server does not hold. A page reached from another carries "Back to {page}" to exactly the
 earlier view, except the 5 top-bar destinations. Routine sources and copy dates sit in
 "Sources and updates" at the foot of the page, below the first screen. Money figures follow

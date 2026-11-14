@@ -365,6 +365,10 @@ async function render(path: string, answers: Answers) {
       </SessionProvider>,
     );
   });
+  await vi.waitFor(async () => {
+    await act(async () => {});
+    expect(container.querySelector('main[aria-busy="true"]')).toBeNull();
+  });
   for (let i = 0; i < 6; i += 1) await act(async () => {});
 }
 

@@ -102,7 +102,10 @@ async function render(path: string, client: SupabaseClient, fetcher: typeof fetc
       </SessionProvider>,
     );
   });
-  await act(async () => {});
+  await vi.waitFor(async () => {
+    await act(async () => {});
+    expect(container.querySelector('main[aria-busy="true"]')).toBeNull();
+  });
 }
 
 function answering(...statuses: number[]) {

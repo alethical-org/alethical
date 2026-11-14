@@ -86,8 +86,15 @@ async function renderAt(
       </SessionProvider>,
     );
   });
-  await act(async () => {});
+  await waitForPage();
   return fetcher;
+}
+
+async function waitForPage() {
+  await vi.waitFor(async () => {
+    await act(async () => {});
+    expect(container.querySelector('main[aria-busy="true"]')).toBeNull();
+  });
 }
 
 const SIGNED_IN = {
@@ -285,5 +292,6 @@ it('keeps typing focus across name-search paths but focuses ordinary destination
   expect(document.activeElement).toBe(input);
   expect(container.textContent).toContain('Enter a name as reported');
   await act(async () => navigate('/people'));
+  await waitForPage();
   expect(document.activeElement).toBe(container.querySelector('h1'));
 });
