@@ -145,11 +145,10 @@ def test_full_report_payloads_are_scoped_to_reply(finance_db, report_scale, oper
 
 
 @pytest.mark.parametrize("report_scale", [0, 100, 1000], indirect=True)
-def test_local_scaling_receipt(finance_db, report_scale):
+def test_report_payload_scope_and_answers_hold_at_scale(finance_db, report_scale):
     target = os.environ.get("ELECTION_SPEED_RECEIPT")
-    if not target:
-        pytest.skip("Explicit bounded scratch measurement only")
-    finance_db.execute(text("SET LOCAL statement_timeout = '5s'"))
+    if target:
+        finance_db.execute(text("SET LOCAL statement_timeout = '5s'"))
     rows = finance_db.execute(
         text(
             "SELECT count(*), sum(octet_length(payload::text)), sum(octet_length((payload->'filing')::text)) FROM election_finance_report WHERE collection_id=(SELECT collection_id FROM election_finance_current WHERE election_key=:key)"
@@ -167,13 +166,21 @@ def test_local_scaling_receipt(finance_db, report_scale):
     def expired(*args):
         raise TimeoutError("Bounded local service call exceeded15seconds")
 
-    prior = signal.signal(signal.SIGALRM, expired)
+    prior = signal.signal(signal.SIGALRM, expired) if target else None
     try:
         for operation in ("comparison", "outside"):
             finance_db.expunge_all()
-            signal.alarm(15)
+            if target:
+                signal.alarm(15)
             answer, measured = _capture(finance_db, operation)
-            signal.alarm(0)
+            if target:
+                signal.alarm(0)
+            assert measured["full_report_queries"] <= (
+                1 if operation == "comparison" else 0
+            )
+            assert measured["full_report_rows"] <= (
+                2 if operation == "comparison" else 0
+            )
             measured["answer_sha256"] = hashlib.sha256(
                 json.dumps(answer, sort_keys=True).encode()
             ).hexdigest()
@@ -183,22 +190,26 @@ def test_local_scaling_receipt(finance_db, report_scale):
                 for a in c["accounts"]
             )
             finance_db.expunge_all()
-            signal.alarm(15)
+            if target:
+                signal.alarm(15)
             with (
                 patch.object(reads, "_held_reports", _reference_held_reports),
                 patch.object(reads, "comparison", _referencecomparison),
             ):
                 reference, reference_measured = _capture(finance_db, operation)
-            signal.alarm(0)
+            if target:
+                signal.alarm(0)
             assert answer == reference
             measured["old_reference"] = reference_measured
             measured["exact_whole_answer_equal"] = True
             result["operations"][operation] = measured
     finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, prior)
-    with Path(target).open("a") as output:
-        output.write(json.dumps(result) + "\n")
+        if target:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, prior)
+    if target:
+        with Path(target).open("a") as output:
+            output.write(json.dumps(result) + "\n")
 
 
 # Frozen pre-change implementation, main77ab9283.
