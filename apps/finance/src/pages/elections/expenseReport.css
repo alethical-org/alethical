@@ -199,10 +199,12 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.ex-metrics > div:has(> dd > .ex-number) {
+.ex-metrics > div:has(> dd > .ex-number),
+.ex-excluded > .ex-metrics > div {
   grid-template-columns: minmax(0, 1fr) auto;
 }
-.ex-metrics > div:has(> dd > .ex-number) > dt {
+.ex-metrics > div:has(> dd > .ex-number) > dt,
+.ex-excluded > .ex-metrics > div > dt {
   min-width: 0;
   overflow-wrap: anywhere;
 }
