@@ -295,6 +295,7 @@ export function useAccountYear(
           { year },
         )
       : null,
+    { sharePending: true },
   );
   const committee =
     read.data?.committees.find((item) => item.registration_number === registrationNumber) ?? null;

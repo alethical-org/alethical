@@ -510,13 +510,23 @@ run; omitted fields cannot silently trigger a later full-row fetch.
 
 Funder and candidate summaries read only the core identity, amount and
 classification fields for every annual event, retaining the global
-reconciliation. They do not load unused source columns. Race-filtered record and
-export reads then load full source fields in batches only for selected Board
-rows; a missing detail row refuses the read. Whole-election record and export
-reads retain their full-row path. Core queries use a buffered result to avoid
-repeated remote cursor fetches. Funder identities, shared-account claims, exact
-amounts, source checks and global version dependencies remain unchanged. External
-account groups stay complete before report selection and display filtering.
+reconciliation. They do not load unused source columns. Funder lists sort all
+matching identities by their complete source names and ID, then build detailed
+amounts, outcomes and evidence links only for the displayed page. Counts still
+describe the full matching set.
+
+Payment pages also read the complete core event set, apply every filter and page,
+then load full source fields only for the displayed Board rows. Those reads use
+the exact source snapshot IDs from the already checked context, never a new
+current-release lookup. A missing selected detail row refuses the read. Empty
+pages still check all sources and global row counts. External rows retain their
+own native fields. Race-filtered exports load full source fields for every
+selected Board row; whole-election exports keep their full-row path.
+
+Core queries use a buffered result to avoid repeated remote cursor fetches.
+Funder identities, shared-account claims, exact amounts, source checks and global
+version dependencies remain unchanged. External account groups stay complete
+before report selection and display filtering.
 
 An exact-race expense read loads the requested race plus every Board decision race
 and external account candidate race. It counts all named candidacies in SQL, so

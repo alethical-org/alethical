@@ -73,6 +73,10 @@ async function open(value = address) {
     navigate(value);
     root.render(<App />);
   });
+  await vi.waitFor(async () => {
+    await act(async () => {});
+    expect(container.querySelector('main[aria-busy="true"]')).toBeNull();
+  });
 }
 
 it.each([

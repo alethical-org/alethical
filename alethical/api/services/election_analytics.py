@@ -1113,6 +1113,18 @@ def _annual_rows(db, dataset, source_id, reported_year, *, full_fields):
 
 
 def _fill_event_fields(db, release, events):
+    source_ids = {
+        dataset: release.file_for(m.CampaignFinanceDataset(dataset)).snapshot_id
+        for dataset in DATASETS
+        if any(
+            event["dataset"] == dataset and event.get("source_family") != "external"
+            for event in events
+        )
+    }
+    _fill_source_fields(db, source_ids, events)
+
+
+def _fill_source_fields(db, source_ids, events):
     for dataset, (model, _) in DATASETS.items():
         pending = {
             event["row_number"]: event
@@ -1121,7 +1133,9 @@ def _fill_event_fields(db, release, events):
         }
         if not pending:
             continue
-        source_id = release.file_for(m.CampaignFinanceDataset(dataset)).snapshot_id
+        source_id = source_ids.get(dataset)
+        if source_id is None:
+            _unavailable()
         # One array parameter also supports complete exports beyond PostgreSQL's
         # parameter limit; no per-row fetches or unbounded IN expansion.
         rows = db.scalars(
@@ -1750,8 +1764,25 @@ def funders(db: Session, *, limit=50, offset=0, **kwargs):
     grouped = defaultdict(list)
     for event in events:
         grouped[event["funder_id"]].append(event)
+    groups = [
+        (
+            key,
+            records,
+            sorted({r["funder_name"] for r in records if r["funder_name"] is not None}),
+        )
+        for key, records in grouped.items()
+    ]
+    # Only names and identity determine page order. Global reconciliation and
+    # every source check above still cover the complete selected event set.
+    groups.sort(
+        key=lambda group: (
+            not bool(group[2]),
+            str(group[2][0]).casefold() if group[2] else "",
+            group[0],
+        )
+    )
     rows = []
-    for key, records in sorted(grouped.items()):
+    for key, records, names in groups[offset : offset + limit]:
         rows.append(
             {
                 "funder_id": key,
@@ -1771,9 +1802,7 @@ def funders(db: Session, *, limit=50, offset=0, **kwargs):
                     for row in records[:1]
                     if row["funder_identity_evidence"]
                 ],
-                "names": sorted(
-                    {r["funder_name"] for r in records if r["funder_name"] is not None}
-                ),
+                "names": names,
                 "recorded_classifications": [
                     dict(
                         zip(
@@ -1813,18 +1842,10 @@ def funders(db: Session, *, limit=50, offset=0, **kwargs):
                 "evidence_url": _evidence_url(context, funder_id=key),
             }
         )
-    # Sort the complete result before paging; identity stays independent of names.
-    rows.sort(
-        key=lambda row: (
-            not bool(row["names"]),
-            str(row["names"][0]).casefold() if row["names"] else "",
-            row["funder_id"],
-        )
-    )
     return {
         **context,
-        "funders": rows[offset : offset + limit],
-        "page": _page(rows, limit, offset),
+        "funders": rows,
+        "page": _page(groups, limit, offset),
     }
 
 
@@ -1904,13 +1925,25 @@ def records(
     resolution=None,
     **kwargs,
 ):
-    context, events, races, _, _ = _build(db, **kwargs)
+    context, events, races, _, _ = _build(db, _include_fields=False, **kwargs)
     _candidate_exists(context, races, candidate_id)
     rows = _record_filters(events, candidate_id, metric, resolution)
     context = _record_context(context, rows, candidate_id, metric, resolution)
+    page = rows[offset : offset + limit]
+    # Source IDs come from the same checked context as the events, never from a
+    # later current-release lookup. Only this page needs original CSV fields.
+    _fill_source_fields(
+        db,
+        {
+            dataset: source["snapshot_id"]
+            for dataset, source in context["sources"].items()
+            if dataset in DATASETS
+        },
+        page,
+    )
     return {
         **context,
-        "rows": rows[offset : offset + limit],
+        "rows": page,
         "page": _page(rows, limit, offset),
     }
 
