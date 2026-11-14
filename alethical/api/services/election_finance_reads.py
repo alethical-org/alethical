@@ -89,10 +89,16 @@ def _collection(db, election_key, collection_id=None):
 
 
 def _held_reports(db, collection):
-    reports = db.scalars(
-        select(m.ElectionFinanceReport).where(
-            m.ElectionFinanceReport.collection_id == collection.id
-        )
+    # Both availability passes validate every report's filing and document.
+    # Full parsed bodies belong only to accounts actually shown in the reply.
+    report = m.ElectionFinanceReport
+    reports = db.execute(
+        select(
+            report.registration_number,
+            report.report_key,
+            report.document_hash,
+            report.payload["filing"].label("filing"),
+        ).where(m.ElectionFinanceReport.collection_id == collection.id)
     ).all()
     if len(reports) != collection.coverage.get("reports"):
         _unavailable()
@@ -121,7 +127,7 @@ def _held_reports(db, collection):
         _unavailable()
     for report in reports:
         if report.document_hash:
-            doc, filing = documents[report.document_hash], report.payload["filing"]
+            doc, filing = documents[report.document_hash], report.filing
             if (
                 doc.registration_number,
                 doc.filing_year,
@@ -674,9 +680,44 @@ def _outside(db, release, year, account_state):
         R.snapshot_id == release.independent_expenditures.snapshot_id,
         R.affected_committee_reg_num.in_([a["registration_number"] for a in accounts]),
     ]
+    # Preserve the existing authority asymmetry. These exclusions name all
+    # target accounts; attributed/outside-period scopes use Board accounts only.
+    scopes = {
+        "total": filters,
+        "excluded_missing_date": [
+            *target,
+            R.year == year,
+            R.transaction_date.is_(None),
+        ],
+        "excluded_missing_year": [*target, R.year.is_(None)],
+        "excluded_outside_reviewed_period": _outside_reviewed_period_filters(
+            release, year, accounts
+        ),
+    }
+    columns = [
+        column.element.filter(and_(*conditions)).label(f"{name}__{column.key}")
+        for name, conditions in scopes.items()
+        for column in outside._measure_columns()
+    ]
+    # Read only rows used by at least one measure, including any overlapping
+    # exclusions. Unrelated source years must not widen this candidate scan.
+    combined = (
+        db.execute(
+            select(*columns).where(
+                or_(*(and_(*conditions) for conditions in scopes.values()))
+            )
+        )
+        .mappings()
+        .one()
+    )
+    names = [column.key for column in outside._measure_columns()]
+    measures = {
+        name: outside._measures({key: combined[f"{name}__{key}"] for key in names})
+        for name in scopes
+    }
     return {
         "state": account_state["state"],
-        "total": outside._aggregate(db, *filters),
+        "total": measures["total"],
         "groups": [
             {
                 "category": row["category"],
@@ -685,13 +726,7 @@ def _outside(db, release, year, account_state):
             }
             for row in rows
         ],
-        "excluded_missing_date": outside._aggregate(
-            db, *target, R.year == year, R.transaction_date.is_(None)
-        ),
-        "excluded_missing_year": outside._aggregate(db, *target, R.year.is_(None)),
-        "excluded_outside_reviewed_period": outside._aggregate(
-            db, *_outside_reviewed_period_filters(release, year, accounts)
-        ),
+        **{name: value for name, value in measures.items() if name != "total"},
         "scope": "Source reported calendar year and exact checked account dates",
         "complete_election_spending": False,
     }
@@ -780,10 +815,42 @@ def comparison(db: Session, *, election_key, race_id, snapshot_id=None, version=
     context, election, race, collection, reports, release, outcome = _context(
         db, election_key, race_id, snapshot_id, version
     )
+    candidate_links = [
+        (candidate, _accounts(db, election_key, race, candidate))
+        for candidate in race.payload["candidates"]
+    ]
+    if reports is not None:
+        registrations = {
+            account["registration_number"]
+            for _, links in candidate_links
+            for account in links["accounts"]
+            if account["authority"] == "mn_cfb"
+        }
+        expected = {
+            (collection.id, report.registration_number, report.report_key)
+            for report in reports
+            if report.registration_number in registrations
+        }
+        reports = (
+            list(
+                db.scalars(
+                    select(m.ElectionFinanceReport).where(
+                        m.ElectionFinanceReport.collection_id == collection.id,
+                        m.ElectionFinanceReport.registration_number.in_(registrations),
+                    )
+                )
+            )
+            if expected
+            else []
+        )
+        if {
+            (report.collection_id, report.registration_number, report.report_key)
+            for report in reports
+        } != expected or len(reports) != len(expected):
+            _unavailable()
     candidates = []
     source_hashes = set()
-    for candidate in race.payload["candidates"]:
-        links = _accounts(db, election_key, race, candidate)
+    for candidate, links in candidate_links:
         candidate_coverage = _candidate_coverage(collection, race, candidate)
         report_state = (
             "unavailable"

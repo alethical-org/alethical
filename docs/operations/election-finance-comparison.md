@@ -503,6 +503,23 @@ that its reports or figures are complete.
 
 ### Bounded report work
 
+Comparison and outside-spending reads check the full report inventory,
+retained-source membership and document metadata at both ends of the request.
+Reports with a document hash keep their existing filing-to-document checks.
+Comparison loads full report
+bodies only for the selected race's linked Board registrations, then checks their
+complete collection, registration and report-key identities against that metadata.
+Outside-spending reads need no full report bodies. Missing selected bodies refuse
+the read; global source, account and version checks remain in place.
+
+Candidate outside-spending totals share one aggregate query across the attributed,
+missing-date, missing-year and outside-reviewed-period scopes. Its input is the
+exact union of those scopes, so unrelated source years do not widen the scan.
+Each measure retains its own filters, including the different account-authority
+rules; overlapping scopes do not multiply rows. Category and direction groups
+retain their separate query and order. Exact amounts, unknown values, date ranges
+and exclusions keep their existing meaning.
+
 Account evidence reads select only each collection's identity, election key,
 publication state and retained-source inventory. They do not transfer its report
 index or coverage payload. Source-role membership and fresh original checks still
