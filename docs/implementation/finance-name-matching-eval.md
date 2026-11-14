@@ -4,9 +4,10 @@
 
 Net: this measures whether a name in Alethical Finance lands on the right record.
 It checks 2 things: whether 2 printed spellings of one filer are grouped together on
-a name page, and whether typing a person's name finds their record in the first 5
-search results. The answers come from the Campaign Finance Board's own registration
-numbers and from person-checked links, never from a judgement about names.
+a name page, and whether typing a person's name puts their record among the 3
+results Finance search shows. The answers come from the Campaign Finance Board's own
+registration numbers and from person-checked links, never from a judgement about
+names.
 
 ## What it measures, and why these 2 steps
 
@@ -17,8 +18,8 @@ Finance shows a client money under names. 2 matching steps decide what they see:
   `alethical/api/services/finance_similar_names.py`, which applies
   `strong_spelling` in `finance_name_matching.py`). A missed variant hides
   payments. A wrong group shows another filer's payments under the heading.
-- **Search.** Finance search (`finance_suggestions.money`) must put the record a
-  person typed for among its first results.
+- **Search.** Finance search (`finance_suggestions.money`, behind the search box)
+  must put the record a person typed for among the 3 results it shows per group.
 
 Both steps are fixed rules, so 1 run per case gives the whole answer. The eval
 calls the shipped functions; it holds no copy of either rule.
@@ -29,17 +30,25 @@ calls the shipped functions; it holds no copy of either rule.
 registration number (committees, party units, funds and lobbyists).
 
 - 2 different spellings under 1 number are **the same filer**.
-- 2 close spellings under 2 different numbers are **different filers**.
+- 2 close spellings under 2 different committee, party-unit or fund numbers are
+  **different filers**. Lobbyists never supply "different" pairs: one lobbyist can
+  hold 2 numbers.
+- A spelling printed under 2 numbers is **cannot tell**: the key cannot say which
+  filer it names. These pairs are reported and never graded.
+- Under a lobbyist's number, only spellings sharing the family name printed most
+  often under it are kept. The same number turns up on other people's rows, which
+  would otherwise label 2 people "the same".
 - A spelling must appear on at least 2 rows under its number. A single row can be a
   mistyped number, which would fake either label.
 - A number printed under more than 6 spellings is treated as a reused placeholder
   and skipped, as are filer types whose numbers the source reuses across unrelated
   people ("Individual", "Self", "Other", blank).
-- Spellings identical once case and punctuation are set aside are skipped; they
-  test nothing.
+- Spellings identical once case, spacing and punctuation are set aside are skipped;
+  they test nothing.
 
-Individual donors carry no number, so no pair labels a private individual. Lobbyist
-pairs stand in for personal names.
+Individual donors carry no number, so the key labels only registered filers:
+committees, party units, funds and registered lobbyists. Lobbyist pairs stand in
+for personal names.
 
 Each pair also carries a **condition**, decided by character resemblance with case,
 punctuation and word order set aside (85% or more is "spelling"; less is "wording").
@@ -66,26 +75,28 @@ A pair removed after reading is kept in the fixture with its reason in `excluded
 PYTHONPATH=. uv run python scripts/finance_name_eval.py pairs
 ```
 
-Offline and free. Prints the 3 rates, misses by pattern and every failure.
+Offline and free. Prints the rates, misses by pattern and every failure.
 
 ```bash
 ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/finance_name_eval.py search --run-dir /tmp/finance-name-eval
 ```
 
 Runs every search through Finance search against production. Every transaction is
-`READ ONLY` (`read_only_engine`), so a run cannot write. The record must appear in
-the first 5 results.
+`READ ONLY` (`read_only_engine`), so a run cannot write. `--limit` sets how many
+results count; the default, 3, is what the search box shows.
 
 `harvest-pairs` and `harvest-searches` rebuild the fixtures from production, also
 read-only. Rebuilding keeps every exclusion and empties the known failures, which
-`pairs --record-known` then records afresh.
+`pairs --record-known` then records afresh. Read every person pair after a
+rebuild; the family-name filter catches another person under a lobbyist's number,
+not every source error.
 
 **The regression floor.** `alethical/tests/test_finance_name_eval.py` grades the
 committed pairs on every pull request. Any pair whose result changes fails the
 test, in either direction: a newly failing pair names what broke, and a newly
 passing pair has to be recorded with `--record-known` so the floor rises with it.
 A matching-rule change therefore states its effect on the labelled pairs in the
-same pull request.
+same pull request. The searches need a database and have no floor.
 
 ## Results
 
@@ -93,36 +104,37 @@ same pull request.
 Measured on 14 November 2026 against the published contribution file
 (snapshot `58c13cce`) and the current registers.
 
-**Spelling pairs** (204 graded, 1 excluded):
+**Spelling pairs** (240, 3 excluded):
 
 | Condition | Grouped |
 | --- | --- |
-| Same filer, spelling differs | 24 of 79 (30%) |
-| Same filer, words differ | 0 of 80 |
-| Different filers grouped | 0 of 45 |
+| Same filer, spelling differs | 26 of 79 (33%) |
+| Same filer, words differ | 0 of 78 |
+| Different filers | 0 of 40 |
+| Cannot tell | 0 of 40 |
 
-No pair of different filers was grouped. Of the 55 missed spelling pairs:
+No pair of different filers was grouped. 26 of 39 lobbyist spelling pairs group;
+none of the 40 organization spelling pairs does. The donor page reads every donor
+name as a personal name, but the organization rule groups only 1 of the same 40,
+so the person reading is not the cause. Of the 53 missed spelling pairs:
 
-- **37 add words.** The markers "(New)" and "(Old)", a district printed in one
+- **32 add words.** The markers "(New)" and "(Old)", a district printed in one
   spelling only ("Senate Dist 26"), a registration number appended
   ("- 70005"), "PAC", "Jr", or "&" against "and".
-- **10 shorten a word.** Mostly a middle initial against the full middle name
-  ("Linda M" and "Linda Marie"), and "Sam" against "Samuel".
-- **7 other.** Nicknames ("Jim" and "James", "Joe" and "Joseph") and
-  abbreviations the rule does not expand ("Assn", "Pol Fund").
+- **11 shorten a word.** 7 a middle initial against the full middle name
+  ("Linda M" and "Linda Marie"), 1 "Sam" against "Samuel", 2 district names
+  reordered ("63rd Senate District DFL" and "Senate District 63 DFL") and 1
+  "Pol Action Comm".
+- **9 other.** 5 abbreviations the rule does not expand ("Assn", "Pol Fnd",
+  "Fd"), 2 district names reordered with a marker, and 2 nicknames ("Jim" and
+  "James", "Joe" and "Joseph").
 - **1 number** read as conflicting because one spelling carries the registration
   number.
 
-Every person pair the rule grouped is right, and 24 of 39 person spelling pairs
-group. None of the 40 organization spelling pairs groups: their differences are
-almost all added words. The donor page reads every donor name as a personal name,
-but the organization rule groups only 1 of the same 40, so the person reading is
-not the cause.
+Excluded after reading: registration 2068 is printed for at least 2 Hubert
+Humphreys (suffixes III and IV, and "Buck"), so its 3 pairs carry no label.
 
-Excluded: Hubert H Humphrey III and IV printed under 1 registration number (2
-people).
-
-**Searches** (180, first 5 results):
+**Searches** (180, among the 3 results shown):
 
 | Typed | Found |
 | --- | --- |
@@ -140,6 +152,10 @@ a period that the committee name omits ("Mark W. Koran"), and 1 accented name
 - **Individual donors.** They carry no registration number, so the key cannot label
   them. Lobbyist names stand in for personal names; whether the rates carry over
   is not measured.
+- **Different people with near-identical names.** Lobbyists supply no "different"
+  pairs, so wrong groups of 2 people are measured only on organizations.
+- **The full Search page** (`/finance/name-search`), which uses its own matching
+  route.
 - **Media buys search.** Spaces against hyphens in folder names are
   [issue 2908](https://github.com/alethical-org/alethical/issues/2908).
 - **Identity confirmations.** People confirm identities record by record with

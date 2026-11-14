@@ -6,7 +6,7 @@ Two parts, both graded by code and both run through the shipped functions:
   they belong to the same registered filer. `groups_with` from
   `finance_similar_names` decides, exactly as the page does. Offline; no database.
 * **Search** (`run_searches`). Each case is what a person types and the record that
-  must appear in the first results of Finance search (`finance_suggestions.money`).
+  must appear among the results Finance search shows (`finance_suggestions.money`).
   Runs read-only against a database.
 
 **Where the answer key comes from.** Pair labels come from the Campaign Finance
@@ -39,7 +39,9 @@ FIXTURES = Path(__file__).parent / "fixtures"
 PAIRS_FIXTURE = FIXTURES / "finance_name_pairs.json"
 SEARCHES_FIXTURE = FIXTURES / "finance_name_searches.json"
 
-LABELS = ("same", "different")
+# "cannot_tell": a spelling printed under 2 numbers, so the key cannot say which
+# filer it is. Reported, never graded.
+LABELS = ("same", "different", "cannot_tell")
 # "spelling": the 2 names read alike once case, punctuation and word order are set
 # aside. "wording": the same filer printed with different words (a rename, an added
 # word). A spelling group claims only the first; the second is reported, not failed.
@@ -148,6 +150,21 @@ def pattern_of(left: str, right: str) -> str:
     return "other"
 
 
+def _family(name: str) -> list[str]:
+    """Family-name words: before the comma when there is one, else the last word."""
+    head = name.split(",", 1)[0] if "," in name else name
+    found = [_fold(w) for w in words(head)]
+    return found if "," in name else found[-1:]
+
+
+def _same_family(left: str, right: str) -> bool:
+    return any(
+        a == b or SequenceMatcher(None, a, b).ratio() >= 0.8
+        for a in _family(left)
+        for b in _family(right)
+    )
+
+
 def _pair_id(left: str, right: str) -> str:
     a, b = sorted((left, right))
     return hashlib.sha1(f"{a}\x00{b}".encode()).hexdigest()[:12]
@@ -210,6 +227,7 @@ def score_pairs(cases: list[PairCase]) -> dict:
         "found_spelling_variants": rate("same", "spelling"),
         "found_reworded_names": rate("same", "wording"),
         "wrong_groups": rate("different", "spelling"),
+        "cannot_tell_grouped": rate("cannot_tell", "spelling"),
         "strata": {k: dict(v) for k, v in sorted(strata.items())},
         "misses_by_pattern": dict(
             Counter(
@@ -302,6 +320,34 @@ def harvest_pairs(db, *, per_stratum: int = 40) -> tuple[dict, list[PairCase]]:
         n: ("person" if t.most_common(1)[0][0] == "Lobbyist" else "organization")
         for n, t in types.items()
     }
+    # A lobbyist's number also turns up on other people's rows (a relative, a
+    # miscoded donor). Keep only spellings sharing the family name printed most
+    # often under that number, so a different person is never labelled "same".
+    off_family = 0
+    for number, names in spellings.items():
+        if kind_of[number] != "person" or not names:
+            continue
+        main = names.most_common(1)[0][0]
+        kept = Counter({k: v for k, v in names.items() if _same_family(k, main)})
+        off_family += len(names) - len(kept)
+        spellings[number] = kept
+
+    # Compared after setting case, spacing and punctuation aside, so "Name " and
+    # "Name" printed under 2 numbers count as 1 spelling under 2 numbers.
+    owner = {}
+    ambiguous_key = set()
+    for number, names in spellings.items():
+        if number in placeholder:
+            continue
+        for name in names:
+            if owner.setdefault(normalized(name), number) != number:
+                ambiguous_key.add(normalized(name))
+    ambiguous = {
+        name
+        for names in spellings.values()
+        for name in names
+        if normalized(name) in ambiguous_key
+    }
 
     def case(left, right, label, kind, evidence):
         return PairCase(
@@ -324,21 +370,31 @@ def harvest_pairs(db, *, per_stratum: int = 40) -> tuple[dict, list[PairCase]]:
             if normalized(left) == normalized(right):
                 trivial += 1
                 continue
+            unclear = left in ambiguous or right in ambiguous
             same.append(
                 case(
-                    left, right, "same", kind_of[number], f"Board registration {number}"
+                    left,
+                    right,
+                    "cannot_tell" if unclear else "same",
+                    kind_of[number],
+                    f"Board registration {number}"
+                    + (
+                        "; a spelling is also printed under another number"
+                        if unclear
+                        else ""
+                    ),
                 )
             )
 
-    owner = {}
-    ambiguous = set()
-    for number, names in spellings.items():
-        if number in placeholder:
-            continue
-        for name in names:
-            if owner.setdefault(name, number) != number:
-                ambiguous.add(name)
-    names = sorted(n for n in owner if n not in ambiguous)
+    names = sorted(
+        {
+            n
+            for number, held in spellings.items()
+            if number not in placeholder
+            for n in held
+            if n not in ambiguous
+        }
+    )
     buckets: dict[str, list[str]] = defaultdict(list)
     counts = Counter(w for n in names for w in set(words(n)))
     for name in names:
@@ -353,14 +409,20 @@ def harvest_pairs(db, *, per_stratum: int = 40) -> tuple[dict, list[PairCase]]:
     different = {}
     for members in buckets.values():
         for left, right in combinations(members, 2):
-            a, b = owner[left], owner[right]
+            a, b = owner[normalized(left)], owner[normalized(right)]
             if a == b or normalized(left) == normalized(right):
                 continue
             if resemblance(left, right) < SPELLING_RESEMBLANCE:
                 continue
-            kind = "person" if kind_of[a] == kind_of[b] == "person" else "organization"
+            # One lobbyist can hold 2 numbers, so 2 numbers do not establish 2 people.
+            if kind_of[a] == "person" or kind_of[b] == "person":
+                continue
             pair = case(
-                left, right, "different", kind, f"Board registrations {a} and {b}"
+                left,
+                right,
+                "different",
+                "organization",
+                f"Board registrations {a} and {b}",
             )
             different[pair.id] = pair
 
@@ -371,12 +433,15 @@ def harvest_pairs(db, *, per_stratum: int = 40) -> tuple[dict, list[PairCase]]:
     for key in sorted(pools):
         if key[0] == "different" and key[1] == "wording":
             continue
+        if key[0] == "cannot_tell" and key[1] == "wording":
+            continue
         chosen.extend(_sample(pools[key], per_stratum))
     meta = {
         "contributions_snapshot": str(snapshot),
         "numbers": len(spellings),
         "placeholder_numbers_skipped": len(placeholder),
         "spellings_on_fewer_rows_skipped": single_row,
+        "lobbyist_spellings_with_another_family_name_skipped": off_family,
         "min_rows_per_spelling": MIN_ROWS_PER_SPELLING,
         "same_pairs_available": len(same),
         "identical_after_normalizing_skipped": trivial,

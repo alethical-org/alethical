@@ -41,6 +41,7 @@ def test_pair_fixture_cases_are_well_formed():
     for c in cases:
         assert c.id == ev._pair_id(c.left, c.right)
         assert c.label in ev.LABELS and c.condition in ev.CONDITIONS
+        assert not (c.label == "different" and c.kind == "person")
         assert c.role in ev.ROLES and c.kind in {"person", "organization"}
         assert c.evidence.startswith("Board registration")
         assert ev.normalized(c.left) != ev.normalized(c.right)
@@ -162,19 +163,39 @@ def test_harvest_labels_come_from_registration_numbers(monkeypatch):
         ("100", "Example, Jonathon", "Lobbyist", 2),
         ("100", "EXAMPLE, JONATHAN", "Lobbyist", 4),  # same after normalizing
         ("100", "Example, Jon", "Lobbyist", 1),  # one row: may be a mistyped number
-        ("200", "Example, Jonathen", "Lobbyist", 5),  # close spelling, other number
+        ("100", "Sample, Rachel", "Lobbyist", 2),  # another person under the number
+        (
+            "101",
+            "Example, Jonathen",
+            "Lobbyist",
+            5,
+        ),  # 2 lobbyist numbers: not "different"
+        ("300", "Example Unit 4 DFL", "Party Unit", 3),
+        ("300", "Example Unit 4 DFL (Old)", "Party Unit", 3),
+        ("301", "Example Unit 4 DFL", "Party Unit", 2),  # same name, another number
+        ("302", "Example Unit 5 DFL", "Party Unit", 2),  # close name, another number
         *[("900", f"Placeholder Name {i}", "Party Unit", 2) for i in range(7)],
     ]
     db = SimpleNamespace(execute=lambda *a, **k: _Rows(rows))
     meta, cases = ev.harvest_pairs(db, per_stratum=10)
-    pairs = {(c.label, *sorted((c.left, c.right))) for c in cases}
-    assert ("same", "Example, Jonathan", "Example, Jonathon") in pairs
-    assert ("different", "Example, Jonathan", "Example, Jonathen") in pairs
+    labels = {tuple(sorted((c.left, c.right))): c.label for c in cases}
+    assert labels[("Example, Jonathan", "Example, Jonathon")] == "same"
+    assert labels[("Example Unit 4 DFL", "Example Unit 4 DFL (Old)")] == "cannot_tell"
+    assert labels[("Example Unit 4 DFL (Old)", "Example Unit 5 DFL")] == "different"
+    assert not any(c.label == "different" and c.kind == "person" for c in cases)
+    assert not any("Sample, Rachel" in (c.left, c.right) for c in cases)
     assert not any("Example, Jon" in (c.left, c.right) for c in cases)
     assert not any(c.left.startswith("Placeholder") for c in cases)
     assert meta["placeholder_numbers_skipped"] == 1
     assert meta["spellings_on_fewer_rows_skipped"] == 1
+    assert meta["lobbyist_spellings_with_another_family_name_skipped"] == 1
     assert meta["identical_after_normalizing_skipped"] >= 1
+
+
+def test_cannot_tell_pairs_are_reported_but_never_fail():
+    report = ev.score_pairs([_case("Example, Ann", "Example, Annie", "cannot_tell")])
+    assert report["failures"] == []
+    assert report["cannot_tell_grouped"]["cases"] == 1
 
 
 # --- Search --------------------------------------------------------------------

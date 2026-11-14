@@ -169,7 +169,12 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=pairs)
     s = sub.add_parser("search")
     s.add_argument("--run-dir", type=Path)
-    s.add_argument("--limit", type=int, default=5)
+    s.add_argument(
+        "--limit",
+        type=int,
+        default=3,
+        help="Finance search shows 3 results per group by default",
+    )
     s.add_argument("--show", type=int, default=40)
     s.set_defaults(func=search)
     h = sub.add_parser("harvest-pairs")
