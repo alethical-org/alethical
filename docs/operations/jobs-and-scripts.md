@@ -116,7 +116,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 144 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 145 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -154,7 +154,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Read selected Railway deployment event times without configuration or logs | `railway_deployment_timings.py` |
 | Read the current address-copy host capacity or safely switch the copy on or off | `address_copy_capacity.py`, `address_copy_control.py` |
 | Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
-| Measure AI answers and search | `answer_eval.py`, `graph_retrieval_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
+| Measure AI answers and search | `answer_eval.py`, `finance_name_eval.py`, `graph_retrieval_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |
 | Run existing tests once and retain named money-prevention results for the exact tested code | `repeat_failure_runs.py` |
