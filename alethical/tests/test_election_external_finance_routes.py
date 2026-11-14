@@ -106,6 +106,33 @@ def test_access_denied_before_any_external_service_store_or_bootstrap(
 
 
 @pytest.mark.parametrize(
+    "path",
+    [
+        "expenses",
+        "expenses/payees",
+        "expenses/payments",
+        "expenses/export",
+        "funders",
+    ],
+)
+@pytest.mark.parametrize("account,status", [(None, 401), ("unlisted", 403)])
+def test_analytics_access_denied_before_bulk_adapter_bootstrap(
+    api, monkeypatch, path, account, status
+):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Refused analytics request reached source reader setup")
+
+    monkeypatch.setattr(reads, "register_external_adapters", forbidden)
+    response = api.get(
+        f"/api/v1/finance/elections/{KEY}/analytics/{path}",
+        params={"version": "a" * 16, "snapshot_id": "b" * 64},
+        headers=bearer(account) if account else {},
+    )
+    assert response.status_code == status
+    private(response)
+
+
+@pytest.mark.parametrize(
     "url,params,service",
     ENDPOINTS[:3] + [(BASE, PINS, "context"), (CANDIDATE, PINS, "candidate_finance")],
 )
