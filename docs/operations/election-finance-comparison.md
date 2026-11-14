@@ -503,8 +503,10 @@ that its reports or figures are complete.
 
 ### Bounded report work
 
-Comparison and outside-spending reads check every report's identity, filing and
-document metadata at both ends of the request. Comparison loads full report
+Comparison and outside-spending reads check the full report inventory,
+retained-source membership and document metadata at both ends of the request.
+Reports with a document hash keep their existing filing-to-document checks.
+Comparison loads full report
 bodies only for the selected race's linked Board registrations, then checks their
 complete collection, registration and report-key identities against that metadata.
 Outside-spending reads need no full report bodies. Missing selected bodies refuse
