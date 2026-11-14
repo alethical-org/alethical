@@ -1,8 +1,10 @@
 """Finance browsing matches, never identity claims or rewrites of source names.
 
-Full-name spelling groups allow a small typing difference or a missing middle
-initial. Discovery can find a word within a longer name and retains that
-result's own identifier.
+Full-name spelling groups allow a small typing difference, or a middle name that
+is missing or printed as its initial. Discovery can find a word within a longer
+name, a word typed with accents the name lacks, a nickname or the formal name
+behind it, and a name missing 1 middle word the reader typed; each result keeps
+its own identifier.
 """
 
 from __future__ import annotations
@@ -87,6 +89,25 @@ def _has_middle_initial(given: list[str]) -> bool:
     return len(given) == 2 and len(given[1]) == 1 and given[1].isalpha()
 
 
+def _compatible_middle(given_a: list[str], given_b: list[str]) -> bool:
+    """Same first name; the middle names never conflict.
+
+    One name may lack a middle initial ("Bruce" and "Bruce M"), or print the
+    initial of the other's full middle name ("Linda M" and "Linda Marie"). A missing
+    full middle name, 2 different initials or 2 different full middle names stay
+    separate.
+    """
+    if not given_a or not given_b or given_a[0] != given_b[0]:
+        return False
+    if max(len(given_a), len(given_b)) > 2:
+        return False
+    if len(given_a) != len(given_b):
+        return _has_middle_initial(max(given_a, given_b, key=len))
+    a, b = given_a[1], given_b[1]
+    shorter, longer = sorted((a, b), key=len)
+    return len(shorter) == 1 and shorter.isalpha() and longer.startswith(shorter)
+
+
 def strong_spelling(query: str, candidate: str, *, person: bool = False) -> bool:
     """A likely complete spelling variant, not evidence of a shared identity.
 
@@ -101,12 +122,10 @@ def strong_spelling(query: str, candidate: str, *, person: bool = False) -> bool
         if not given_a or suffix_a != suffix_b:
             return False
         if given_a != given_b:
-            shorter, longer = sorted((given_a, given_b), key=len)
             return (
                 bool(family_a)
                 and family_a == family_b
-                and _has_middle_initial(longer)
-                and shorter == longer[:1]
+                and _compatible_middle(given_a, given_b)
             )
         left, right = family_a, family_b
     if not left or not right or len(left) != len(right):
@@ -137,6 +156,136 @@ def direct_text(query: str, candidate: str) -> bool:
     return bool(words) and all(word in candidate.casefold() for word in words)
 
 
+# Common English given names and the short forms people type for them. Search only:
+# a nickname finds a record to look at, never evidence that 2 names are 1 person,
+# and spelling groups never use it. Forms shorter than 3 letters are left out.
+_NICKNAMES = {
+    "abigail": ("abby",),
+    "alexander": ("alex",),
+    "alexandra": ("alex", "lexi"),
+    "andrew": ("andy", "drew"),
+    "anthony": ("tony",),
+    "barbara": ("barb",),
+    "benjamin": ("ben", "benny"),
+    "bradley": ("brad",),
+    "catherine": ("cathy", "kate", "katie"),
+    "charles": ("charlie", "chuck"),
+    "christopher": ("chris",),
+    "cynthia": ("cindy",),
+    "daniel": ("dan", "danny"),
+    "david": ("dave",),
+    "deborah": ("deb", "debbie"),
+    "donald": ("don", "donnie"),
+    "douglas": ("doug",),
+    "edward": ("eddie", "ted"),
+    "elizabeth": ("beth", "betsy", "betty", "libby", "liz", "lizzie"),
+    "eugene": ("gene",),
+    "frederick": ("fred", "freddie"),
+    "gerald": ("gerry", "jerry"),
+    "gregory": ("greg",),
+    "harold": ("hal", "harry"),
+    "henry": ("hank", "harry"),
+    "jacqueline": ("jackie",),
+    "james": ("jamie", "jim", "jimmy"),
+    "jeffery": ("jeff",),
+    "jeffrey": ("jeff",),
+    "jennifer": ("jen", "jenny"),
+    "jessica": ("jess", "jessie"),
+    "john": ("jack", "johnny"),
+    "jonathan": ("jon",),
+    "joseph": ("joe", "joey"),
+    "joshua": ("josh",),
+    "katherine": ("kate", "kathy", "katie"),
+    "kathryn": ("kate", "kathy", "katie"),
+    "kenneth": ("ken", "kenny"),
+    "kimberly": ("kim",),
+    "lawrence": ("larry",),
+    "leonard": ("len", "lenny"),
+    "margaret": ("maggie", "marge", "meg", "peggy"),
+    "matthew": ("matt",),
+    "melissa": ("mel", "missy"),
+    "michael": ("mike", "mikey"),
+    "mitchell": ("mitch",),
+    "nathaniel": ("nate",),
+    "nicholas": ("nick", "nicky"),
+    "pamela": ("pam",),
+    "patricia": ("pat", "patti", "patty", "tricia", "trish"),
+    "peter": ("pete",),
+    "phillip": ("phil",),
+    "philip": ("phil",),
+    "raymond": ("ray",),
+    "rebecca": ("becca", "becky"),
+    "richard": ("dick", "rich", "rick", "ricky"),
+    "robert": ("bob", "bobby", "rob", "robbie"),
+    "ronald": ("ron", "ronnie"),
+    "samuel": ("sam", "sammy"),
+    "sandra": ("sandy",),
+    "stephen": ("steve",),
+    "steven": ("steve",),
+    "susan": ("sue", "susie"),
+    "theodore": ("ted", "teddy", "theo"),
+    "thomas": ("tom", "tommy"),
+    "timothy": ("tim", "timmy"),
+    "victoria": ("tori", "vicky"),
+    "vincent": ("vince",),
+    "walter": ("walt",),
+    "william": ("bill", "billy", "will", "willie"),
+    "zachary": ("zach", "zack", "zak"),
+}
+_FORMAL_NAMES: dict[str, set[str]] = {}
+for _formal, _short in _NICKNAMES.items():
+    for _nick in _short:
+        _FORMAL_NAMES.setdefault(_nick, set()).add(_formal)
+
+
+def _fold(word: str) -> str:
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", word)
+        if not unicodedata.combining(char)
+    )
+
+
+def _alternatives(word: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Other spellings to accept for 1 typed word: (like the word, whole word only).
+
+    The first kind is the word without accents, matched the way the word itself is.
+    The second kind is a nickname or the formal name behind one.
+    """
+    if any(char.isdigit() for char in word):
+        return (), ()
+    folded = _fold(word)
+    plain = (folded,) if folded != word else ()
+    names = set(_NICKNAMES.get(folded, ())) | _FORMAL_NAMES.get(folded, set())
+    return plain, tuple(sorted(names - {folded, word}))
+
+
+def _with_optional_middle(conditions: list, combine_all, combine_any):
+    """All typed words, or all but 1 word between the first and the last.
+
+    A middle name or initial a reader types ("Mark W. Koran", "María Isa
+    Pérez-Vega") is often absent from the printed name.
+    """
+    full = combine_all(conditions)
+    if len(conditions) < 3:
+        return full
+    return combine_any(
+        [
+            full,
+            *(
+                combine_all(conditions[:i] + conditions[i + 1 :])
+                for i in range(1, len(conditions) - 1)
+            ),
+        ]
+    )
+
+
+def _sql_words(conditions: list):
+    return _with_optional_middle(
+        conditions, lambda terms: and_(*terms), lambda terms: or_(*terms)
+    )
+
+
 def discovery_text(query: str, candidate: str) -> bool:
     """Same discovery decision for already-held graph node labels."""
     if query.casefold() in candidate.casefold():
@@ -144,10 +293,17 @@ def discovery_text(query: str, candidate: str) -> bool:
     if any(char in query for char in "%_\\"):
         return False
     words, held = _tokens(query), _tokens(candidate)
-    return bool(words) and all(
-        any(word in other or _word_typo(word, other) for other in held)
-        for word in words
-    )
+    if not words:
+        return False
+
+    def found(word):
+        plain, names = _alternatives(word)
+        return any(
+            any(form in other or _word_typo(form, other) for other in held)
+            for form in (word, *plain)
+        ) or any(name in held for name in names)
+
+    return _with_optional_middle([found(word) for word in words], all, any)
 
 
 def closeness(query: str, candidate: str) -> float:
@@ -198,7 +354,7 @@ def strong_candidates(column, query: str, *, person: bool = False):
     branches = [and_(*unchanged)]
     if person:
         surname, given, suffixes = _person_parts(query)
-        if surname and _has_middle_initial(given):
+        if surname and len(given) == 2:
             branches.append(
                 and_(
                     *(
@@ -236,8 +392,10 @@ def _word_contains(column, word):
 def discovery_match(column, typed: str):
     """SQL predicate for Finance-only discovery, with literal numbers preserved.
 
-    Each typed word must be present (in any order) or resemble a whole long word.
-    This is not the predicate for automatic grouping. The caller's held-data scope,
+    Each typed word must be present (in any order), resemble a whole long word,
+    match without its accents, or match a nickname or formal name as a whole word.
+    1 word between the first and the last may be absent. This is not the predicate
+    for automatic grouping. The caller's held-data scope,
     explicit sort and pagination remain outside this predicate.
     """
     if any(char in typed for char in "%_\\"):
@@ -247,33 +405,49 @@ def discovery_match(column, typed: str):
         return name_contains(column, typed)
     clauses = []
     for word in words:
-        exact = _word_contains(column, word)
-        if len(word) < 5 or any(char.isdigit() for char in word):
-            clauses.append(exact)
-            continue
-        token = (
-            func.regexp_split_to_table(func.lower(column), "[^[:alnum:]]+")
-            .table_valued("word")
-            .render_derived()
-        )
-        canonical = case(_WORDS, value=token.c.word, else_=token.c.word)
-        allowance = 2 if len(word) >= 7 else 1
-        typo = (
-            select(1)
-            .select_from(token)
-            .where(
-                func.length(canonical) >= 5,
-                func.abs(func.length(canonical) - len(word)) <= allowance,
-                ~token.c.word.op("~")("[[:digit:]]"),
-                func.length(func.translate(canonical, word, "")) <= allowance,
-                func.length(func.translate(word, canonical, "")) <= allowance,
-                func.finance_word_spelling(canonical, word),
+        plain, names = _alternatives(word)
+        clauses.append(
+            or_(
+                *(_discovery_word(column, form) for form in (word, *plain)),
+                *(_whole_word(column, name) for name in names),
             )
-            .correlate_except(token)
-            .exists()
         )
-        clauses.append(or_(exact, typo))
-    return or_(name_contains(column, typed), and_(*clauses))
+    return or_(name_contains(column, typed), _sql_words(clauses))
+
+
+def _whole_word(column, word):
+    return column.op("~*")(
+        r"(?:^|[^[:alnum:]])" + re.escape(word) + r"(?:$|[^[:alnum:]])"
+    )
+
+
+def _discovery_word(column, word):
+    """1 typed word: present, or a small typing difference of a long word."""
+    exact = _word_contains(column, word)
+    if len(word) < 5 or any(char.isdigit() for char in word):
+        return exact
+    token = (
+        func.regexp_split_to_table(func.lower(column), "[^[:alnum:]]+")
+        .table_valued("word")
+        .render_derived()
+    )
+    canonical = case(_WORDS, value=token.c.word, else_=token.c.word)
+    allowance = 2 if len(word) >= 7 else 1
+    typo = (
+        select(1)
+        .select_from(token)
+        .where(
+            func.length(canonical) >= 5,
+            func.abs(func.length(canonical) - len(word)) <= allowance,
+            ~token.c.word.op("~")("[[:digit:]]"),
+            func.length(func.translate(canonical, word, "")) <= allowance,
+            func.length(func.translate(word, canonical, "")) <= allowance,
+            func.finance_word_spelling(canonical, word),
+        )
+        .correlate_except(token)
+        .exists()
+    )
+    return or_(exact, typo)
 
 
 def direct_order(column, typed: str):
@@ -332,23 +506,37 @@ def indexed_discovery_match(column, typed: str):
     if any(char in typed for char in "%_\\"):
         return name_contains(column, typed)
     words = _tokens(typed)
-    candidates = [
-        or_(
-            name_contains(column, word),
-            _edit_candidate_word(column, word),
-            *(
-                column.op("~*")(r"\m" + re.escape(alias) + r"\M")
-                for alias, expanded in _WORDS.items()
-                if expanded == word or _word_typo(word, expanded)
-            ),
+
+    def candidate(word):
+        return (
+            or_(
+                name_contains(column, word),
+                _edit_candidate_word(column, word),
+                *(
+                    column.op("~*")(r"\m" + re.escape(alias) + r"\M")
+                    for alias, expanded in _WORDS.items()
+                    if expanded == word or _word_typo(word, expanded)
+                ),
+            )
+            if len(word) >= 5 and not any(c.isdigit() for c in word)
+            else _word_contains(column, word)
         )
-        if len(word) >= 5 and not any(c.isdigit() for c in word)
-        else _word_contains(column, word)
-        for word in words
-    ]
+
+    candidates = []
+    for word in words:
+        plain, names = _alternatives(word)
+        candidates.append(
+            or_(
+                *(candidate(form) for form in (word, *plain)),
+                *(_whole_word(column, name) for name in names),
+            )
+        )
     return (
         and_(
-            or_(name_contains(column, typed), and_(*candidates)),
+            or_(
+                name_contains(column, typed),
+                _sql_words(candidates),
+            ),
             discovery_match(column, typed),
         )
         if candidates

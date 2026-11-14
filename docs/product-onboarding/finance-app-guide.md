@@ -158,7 +158,9 @@ for the owning permission and password-management rules.
   Bill suggestions match the typed letters in the held title, short title or description,
   without spelling correction: `danc` can find “dance”, but `danch` cannot. Bill-number
   lookups remain exact. Name suggestions retain direct matches followed by likely
-  spellings. The full results page retains its broader bill search.
+  spellings, names matching the typed words without accents, common nicknames or the
+  formal name behind one ("Zack Stephenson" finds "Stephenson, Zachary"), and names
+  missing 1 typed middle word ("Mark W. Koran" finds "Koran, Mark"). The full results page retains its broader bill search.
 - **Finance Home (`/home`)**: "Research public records" with the search field, and a quiet
   "Explore money connections" link after the record-family cards, before Sources and updates.
   It keeps the same lower placement on computer, tablet and phone, with a 44px target,
@@ -433,8 +435,9 @@ an unavailable source is not a no-match result.
   `/finance/payments-under-name`, 200 at a time with the server's count of every record in
   scope. Strong full-name spelling variants load automatically after the exact spelling,
   each under its own original-spelling heading and count. For donors, a missing middle
-  initial can match when the first name, surname and suffix agree. Different middle
-  initials stay in Similar donor names. Each record shows its date, amount,
+  initial, or an initial against a full middle name starting with it ("Linda M" and
+  "Linda Marie"), can match when the first name, surname and suffix agree. Different
+  middle initials stay in Similar donor names. Each record shows its date, amount,
   committee and source evidence (the saved source, its copy, the row, the
   employer and ZIP as filed where held, and the whole source row as SOURCE TEXT, 1 "label:
   value" line per column in the file's order, a date as the page prints dates, an amount with

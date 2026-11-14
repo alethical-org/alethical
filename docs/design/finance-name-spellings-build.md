@@ -8,7 +8,10 @@ How often the groups and search land on the right record is measured in
 
 ## Approved behavior
 
-Name searches find direct matches and strongly likely spellings. Official people,
+Name searches find direct matches and strongly likely spellings. They also accept the
+typed words without accents, a common nickname or the formal name behind one as a whole
+word, and a name missing 1 typed word between the first and the last ("Mark W. Koran"
+finds "Koran, Mark"). Direct matches still lead. Official people,
 organizations, committees, lobbyists and principals remain separate results with
 their own identifiers and destinations. Explicit sorts govern all returned matches;
 direct matches lead only where no sort control exists. Numeric identifiers,
@@ -17,7 +20,9 @@ only its held members. Connections searches only held labels and creates no edge
 
 Payment and agency pages load strong full-name spelling variants automatically.
 Donor names with the same first and last names and suffix can differ by one
-missing middle initial. Different initials stay in Similar donor names.
+missing middle initial, or by an initial against a full middle name that starts with it
+("Linda M" and "Linda Marie"). A missing full middle name, different initials and
+nicknames stay in Similar donor names.
 Exact spelling comes first, followed by variants A–Z. Each group prints its exact
 source spelling and own count. No person total or inferred identity is created.
 Employer pages combine selected employer spellings under each donor, showing the

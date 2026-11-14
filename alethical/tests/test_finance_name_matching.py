@@ -46,6 +46,27 @@ def test_other_people_and_incomplete_names_stay_separate(candidate):
     assert not strong_spelling("Danchik, Arthur", candidate, person=True)
 
 
+@pytest.mark.parametrize(
+    ("left", "right", "grouped"),
+    [
+        ("Example, Linda M", "Example, Linda Marie", True),
+        ("Example, Linda Marie", "Linda M Example", True),
+        ("Example, Sarah A", "Example, Sarah Catherine", False),
+        ("Example, Linda Marie", "Example, Linda Mary", False),
+        ("Example, Linda", "Example, Linda Marie", False),
+        ("Exampel, Linda M", "Example, Linda Marie", False),
+    ],
+)
+def test_a_middle_initial_matches_only_its_own_full_middle_name(left, right, grouped):
+    assert strong_spelling(left, right, person=True) is grouped
+    assert strong_spelling(right, left, person=True) is grouped
+
+
+def test_spelling_groups_never_use_nicknames_or_drop_words():
+    assert not strong_spelling("Example, Tom", "Example, Thomas", person=True)
+    assert not strong_spelling("Example Fund", "Example Fund (New)")
+
+
 def test_organizations_keep_meaningful_words_and_numbers():
     assert strong_spelling("Example Health Association", "Example Health Assn")
     assert strong_spelling("Example Media LLC", "Exmaple Media L.L.C.")
@@ -67,6 +88,13 @@ def test_organizations_keep_meaningful_words_and_numbers():
         ("joh", "Smith, John", True),
         ("joh", "Smith, Jim", False),
         ("unfindable", "Arthur Danchik", False),
+        ("zack stephenson", "Stephenson, Zachary House Committee", True),
+        ("zachary stephenson", "Zack Stephenson", True),
+        ("william example", "Billings Example", False),
+        ("maría isa pérez-vega", "Perez-Vega, Maria House Committee", True),
+        ("mark w. koran", "Koran, Mark Senate Committee", True),
+        ("mark w koran", "Smith, Mark W", False),
+        ("isa pérez-vega", "Perez-Vega, Maria", False),
     ],
 )
 def test_discovery_sql(finance_db, query, name, expected):
@@ -84,6 +112,11 @@ def test_discovery_sql(finance_db, query, name, expected):
         ("Example Media LLC", "Example Media L.L.C."),
         ("18%", "18135 Committee"),
         ("District 10", "District 11 DFL"),
+        ("Zack Stephenson", "Stephenson, Zachary House Committee"),
+        ("William Example", "Billings Example"),
+        ("María Isa Pérez-Vega", "Perez-Vega, Maria House Committee"),
+        ("Mark W. Koran", "Koran, Mark Senate Committee"),
+        ("Mark W Koran", "Smith, Mark W"),
     ],
 )
 def test_index_candidates_keep_the_approved_matches(finance_db, query, name):
