@@ -68,6 +68,7 @@ things work in practice and are the place to start if you're new.
 - [Committee money wording](design/committee-money-refinements-copy.md) — approved labels and source-copy refinements
 - [Finance name spelling results](design/finance-name-spellings-build.md) — automatic spelling groups, comparison links and delivery checks
 - [Finance search and record clarity](design/finance-discovery-implementation.md) — searching across browsing categories, precise identifiers and delivery checks
+- [Finance name-matching eval](implementation/finance-name-matching-eval.md) — whether spelling groups and Finance search land on the right record, scored against registration numbers
 - [Faster Finance Home suggestions](implementation/finance-search-speed.md) — smaller reads, literal bill matches, cancellation and speed checks
 - [Election finance comparison](implementation/election-finance-comparison.md) — precinct results, reviewed campaign-account links, source coverage and release checks
 - [Election comparison sources and release](operations/election-finance-comparison.md) — retained files, account decisions, publication and restoration

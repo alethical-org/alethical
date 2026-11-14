@@ -3,6 +3,8 @@
 Build requirements for Finance name searches and payment spelling groups.
 Release progress and acceptance evidence live in
 [the Finance spelling-results issue](https://github.com/alethical-org/alethical/issues/2888).
+How often the groups and search land on the right record is measured in
+[the Finance name-matching eval](../implementation/finance-name-matching-eval.md).
 
 ## Approved behavior
 
