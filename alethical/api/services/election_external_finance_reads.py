@@ -28,6 +28,7 @@ from alethical.api.services.election_source_io import (
 from alethical.db import models as m
 from alethical.pipeline import election_account_reviews as reviews
 from alethical.pipeline import election_external_finance as storage
+from alethical.pipeline.election_external_adapters import register_external_adapters
 from alethical.pipeline.election_comparison import (
     ComparisonImportError,
     digest,
@@ -1436,6 +1437,10 @@ def bulk_finance(db, *, election_key, generation_id=None, version=None, store=No
     Compressed bytes are cached up to 64 MiB, and decoded bodies are discarded.
     Real-corpus run time remains a measured deployment acceptance requirement.
     """
+    try:
+        register_external_adapters()
+    except ComparisonImportError:
+        _problem(503, "External finance records are temporarily unavailable")
     store = source_read_scope(store, factory=raw_file_store_from_env)
     cache = {}
     state = _context(
