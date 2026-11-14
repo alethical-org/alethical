@@ -180,10 +180,10 @@ for the owning permission and password-management rules.
   check never shows the no-access state.
 - **Unknown address, or a page not built yet:** "Couldn’t find that page" inside the
   navigation, with Go to Finance Home.
-- Opening a research page shows "Loading page…" while its page code loads. If that code
+- Opening a research page shows "Loading page…" while its extra page code loads. If that code
   or its styles cannot load, "Couldn’t load this page" offers **Reload page**, which reloads
-  the current address. A failed code or style download keeps research pages at this
-  recovery step until reload; it never opens a page with missing styles.
+  the current address. A failed download of that page code or its styles keeps research
+  pages at this recovery step until reload.
 - When the screen changes, keyboard focus moves to its heading and the page starts at the
   top once the destination is ready; Back and Forward return to where the reader was on
   that page. Each sign-in step moves focus to its field.
