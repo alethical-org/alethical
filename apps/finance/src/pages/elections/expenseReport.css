@@ -199,6 +199,15 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.ex-metrics > div:has(> dd > .ex-number),
+.ex-excluded > .ex-metrics > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.ex-metrics > div:has(> dd > .ex-number) > dt,
+.ex-excluded > .ex-metrics > div > dt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .ex-retained {
   padding: 12px 16px;
   background: #eef1f4;
@@ -274,10 +283,18 @@
   outline: 2px solid #7c5cff;
   outline-offset: 3px;
 }
-.ex-exclusion-panel li span {
+.ex-exclusion-panel li label > span {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.ex-exclusion-panel li label:has(.ex-reported-values) {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+.ex-exclusion-panel li label:has(.ex-reported-values) > .ex-number {
+  grid-column: 2;
+  min-width: 0;
 }
 .ex-exclusion-panel li small {
   display: block;
