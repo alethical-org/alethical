@@ -102,38 +102,47 @@ same pull request. The searches need a database and have no floor.
 
 ## Results
 
-<!-- timeless-check-ignore: dated measurement of the first run -->
+<!-- timeless-check-ignore: dated measurements, before and after the matching change -->
 Measured on 14 November 2026 against the published contribution file
-(snapshot `58c13cce`) and the current registers.
+(snapshot `58c13cce`) and the current registers, first with the earlier rules and
+then with the current ones (a middle initial may stand for the other spelling's full
+middle name; search accepts accent-free words, nicknames and a missing typed middle
+initial).
 
 **Spelling pairs** (263, 1 excluded):
 
-| Condition | Grouped |
-| --- | --- |
-| Same filer, spelling differs | 25 of 80 (31%) |
-| Same filer, words differ | 0 of 80 |
-| Different filers | 0 of 40 |
-| Cannot tell | 10 of 62 |
+| Condition | Earlier rules | Current rules |
+| --- | --- | --- |
+| Same filer, spelling differs | 25 of 80 | 33 of 80 (41%) |
+| Same filer, words differ | 0 of 80 | 4 of 80 |
+| Different filers | 0 of 40 | 0 of 40 |
+| Cannot tell | 10 of 62 | 10 of 62 |
 
-No pair of different filers was grouped. 25 of 40 lobbyist spelling pairs group;
-none of the 40 organization spelling pairs does. The 10 "cannot tell" pairs the
-rule groups are all under lobbyist numbers with conflicting middle initials: if
-those are 2 people, the page would show one's payments under the other's name. The donor page reads every donor
-name as a personal name, but the organization rule groups only 1 of the same 40,
-so the person reading is not the cause. Of the 55 missed spelling pairs:
+No pair of different filers is grouped. The 12 newly grouped pairs (8 spelling, 4
+wording) are all a middle initial against its full middle name ("Linda M" and "Linda
+Marie"); the "cannot tell"
+pairs grouped are the same 10 as before, all a missing middle initial under a lobbyist
+number with conflicting initials. If those are 2 people, the page shows one's
+payments under the other's name. None of the 40 organization spelling pairs groups.
+The donor page reads every donor name as a personal name, but the organization rule
+groups only 1 of the same 40, so the person reading is not the cause. Of the 47
+spelling pairs still missed:
 
 - **33 add words.** The markers "(New)" and "(Old)", a district printed in one
   spelling only ("Senate Dist 26"), a registration number appended
   ("- 70005"), "PAC", "Jr", or "&" against "and".
-- **12 shorten a word.** 8 a middle initial against the full middle name
-  ("Linda M" and "Linda Marie"), 1 "Sam" against "Samuel", 2 district names
-  reordered ("63rd Senate District DFL" and "Senate District 63 DFL") and 1
-  "Pol Action Comm".
 - **9 other.** 5 abbreviations the rule does not expand ("Assn", "Pol Fnd",
   "Fd"), 2 district names reordered with a marker, and 2 nicknames ("Jim" and
   "James", "Joe" and "Joseph").
+- **4 shorten a word.** 2 district names reordered ("63rd Senate District DFL" and
+  "Senate District 63 DFL"), "Sam" against "Samuel", and "Pol Action Comm".
 - **1 number** read as conflicting because one spelling carries the registration
   number.
+
+"(New)" and "(Old)" stay distinct on purpose: the bare name "9th Senate District DFL"
+is printed under both the old unit's registration (20897) and the new one's (20977),
+so dropping the markers would put 2 filers' payments under 1 heading. Spelling groups
+never use nicknames.
 
 Excluded after reading: "Humphrey, Hubert H, III" and "Humphrey, Hubert H, IV",
 2 people printed under registration 2068. The number's other pairs are "cannot
@@ -141,16 +150,21 @@ tell" by the middle-initial rule.
 
 **Searches** (180, among the 3 results shown):
 
-| Typed | Found |
-| --- | --- |
-| Legislator's first and last name, committee expected | 53 of 60 |
-| Lobbyist, first name then last name | 60 of 60 |
-| Lobbyist, name as printed | 60 of 60 |
+| Typed | Earlier rules | Current rules |
+| --- | --- | --- |
+| Legislator's first and last name, committee expected | 53 of 60 | 58 of 60 |
+| Lobbyist, first name then last name | 60 of 60 | 60 of 60 |
+| Lobbyist, name as printed | 60 of 60 | 60 of 60 |
 
-The 7 committee misses: 5 nicknames ("Zack" for Zachary, "Patti" for Patricia,
-"Tom" for Thomas, "Jim" for James, "Liish" for Alicia), 1 middle initial typed with
-a period that the committee name omits ("Mark W. Koran"), and 1 accented name
-("María Isa Pérez-Vega" against the printed "Perez-Vega, Maria").
+The 5 committees now found were missed for 4 nicknames ("Zack", "Patti", "Tom",
+"Jim") and a middle initial the committee name omits ("Mark W. Koran"). 2 misses
+remain. "María Isa Pérez-Vega" against "Perez-Vega, Maria": the accent now matches,
+but "Isa" is a full middle name, and skipping full words let "Smith, John A" find
+"Smith, Paul" and "Senate District 26 DFL" find every Senate district, so only a
+1-letter initial may be skipped. "Liish Kozlowski" against "Kozlowski, Alicia": no
+nickname list covers it. Time per search, measured from a laptop to production with
+the network included, is unchanged within noise: median 1.40 s and slowest 4.55 s
+before, 1.34 s and 3.27 s after.
 
 ## What it does not cover
 

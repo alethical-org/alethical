@@ -155,7 +155,9 @@ leaves the note as it leaves the count; nothing is parsed from free text.
 
 `GET /api/v1/finance/people` pages held candidacies, public person records and
 legislative records as separate kinds, even when their names match. Finance name discovery
-includes likely spellings without combining identities; stable paging and whole-filter
+includes likely spellings, the typed words without accents, common nicknames and the
+formal names behind them as whole words, and names missing a typed middle initial
+("Mark W. Koran"; never with a comma or a number typed), without combining identities; stable paging and whole-filter
 counts apply to every kind. Search also
 matches a candidacy's held voting-area text and a legislative service period's district;
 no district is inferred for a bare public-person name. A complete query such as
@@ -309,7 +311,8 @@ held produce an unavailable state, never a zero. A requested release that change
 
 Finance browsing adds `/name-spellings` to find strong complete-name variants, with a
 release pin and the same role/filer/dataset boundaries. Donor candidates may omit a
-single middle initial when the rest of the name agrees. It never writes identities or
+single middle initial, or print the initial of the other spelling's full middle name,
+when the rest of the name agrees. Nicknames never form a spelling group. It never writes identities or
 changes `/payments-under-name`'s exact source-row reader. Main pages load each spelling
 separately, retain exact rows during variant loading/failure, and show no combined money
 total or confirmation status. Secondary `/similar-names` accepts repeated `exclude_name`

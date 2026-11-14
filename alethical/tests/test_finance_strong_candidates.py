@@ -73,6 +73,8 @@ def test_candidate_predicate_keeps_every_accepted_bounded_edit(finance_db, query
         ("Gross", "Groß", False),
         ("Danchik, Arthur", "Arthur Dantchick", True),
         ("Danchik, Arthur", "Dantchik, Arthur Mr", True),
+        ("Example, Linda Marie", "Example, Linda M", True),
+        ("Example, Linda M", "Example, Linda Marie", True),
     ],
 )
 def test_candidate_retrieval_covers_normalization(finance_db, query, candidate, person):
