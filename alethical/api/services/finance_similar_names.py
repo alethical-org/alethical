@@ -57,6 +57,14 @@ SIMILARITY = "0.35"
 QUERY_TIMEOUT_MS = "3000"
 
 
+def groups_with(name: str, candidate: str, role: Role) -> bool:
+    """The main-group decision this page makes, shared with the name-matching eval.
+
+    Donor names are read as personal names; payees and employers are not.
+    """
+    return strong_spelling(name, candidate, person=role == "donor")
+
+
 def probes(name: str) -> tuple[str, ...]:
     """At most 3 probes, independent of name length or abbreviation count."""
     identities._text(name, "Name", identities.MAX_KEY)
@@ -200,11 +208,7 @@ def read(
         else candidates[0].distinct().subquery()
     )
     names = list(db.scalars(select(all_names.c.name)))
-    strong = {
-        candidate
-        for candidate in names
-        if strong_spelling(name, candidate, person=role == "donor")
-    }
+    strong = {candidate for candidate in names if groups_with(name, candidate, role)}
     if strong_only:
         return {**result, "names": sorted(strong)}
     excluded = set(excluded_names)
