@@ -270,14 +270,23 @@ def _skippable_initials(typed: str, words: list[str]) -> list[int]:
     """
     if "," in typed or any(char.isdigit() for char in typed):
         return []
-    if len(typed.split()) not in (3, 4):
+    pieces = typed.split()
+    if len(pieces) not in (3, 4):
+        return []
+    # A whole typed word of 1 letter, with or without a period. "D'Amico" splits
+    # into "d" and "amico" but is a surname, never an initial.
+    skippable, position = [], 0
+    for k, piece in enumerate(pieces):
+        count = len(re.findall(r"[^\W_]+", piece))
+        if 0 < k < len(pieces) - 1 and re.fullmatch(r"[^\W\d_]\.?", piece):
+            skippable.append(position)
+        position += count
+    if position != len(words):
         return []
     return [
         i
-        for i in range(1, len(words) - 1)
-        if len(words[i]) == 1
-        and words[i].isalpha()
-        and sum(len(w) >= 3 for k, w in enumerate(words) if k != i) >= 2
+        for i in skippable
+        if sum(len(w) >= 3 for k, w in enumerate(words) if k != i) >= 2
     ]
 
 

@@ -102,6 +102,9 @@ def test_organizations_keep_meaningful_words_and_numbers():
         ("teamsters local 120 pac", "Teamsters Local 320 PAC", False),
         ("minnesota medical association", "Minnesota Nurses Association", False),
         ("jo a li", "Li, Jo", False),
+        ("john d'amico smith", "John Amico Smith", False),
+        ("mary ann o'brien", "Brien, Mary Ann", False),
+        ("mary ann k smith", "Smith, Mary Ann", True),
     ],
 )
 def test_discovery_sql(finance_db, query, name, expected):
