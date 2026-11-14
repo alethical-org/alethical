@@ -106,7 +106,8 @@ same pull request. The searches need a database and have no floor.
 Measured on 14 November 2026 against the published contribution file
 (snapshot `58c13cce`) and the current registers, first with the earlier rules and
 then with the current ones (a middle initial may stand for the other spelling's full
-middle name; search accepts accent-free words, nicknames and 1 missing middle word).
+middle name; search accepts accent-free words, nicknames and a missing typed middle
+initial).
 
 **Spelling pairs** (263, 1 excluded):
 
@@ -117,8 +118,9 @@ middle name; search accepts accent-free words, nicknames and 1 missing middle wo
 | Different filers | 0 of 40 | 0 of 40 |
 | Cannot tell | 10 of 62 | 10 of 62 |
 
-No pair of different filers is grouped. The 8 newly grouped pairs are all a middle
-initial against its full middle name ("Linda M" and "Linda Marie"); the "cannot tell"
+No pair of different filers is grouped. The 12 newly grouped pairs (8 spelling, 4
+wording) are all a middle initial against its full middle name ("Linda M" and "Linda
+Marie"); the "cannot tell"
 pairs grouped are the same 10 as before, all a missing middle initial under a lobbyist
 number with conflicting initials. If those are 2 people, the page shows one's
 payments under the other's name. None of the 40 organization spelling pairs groups.
@@ -150,16 +152,19 @@ tell" by the middle-initial rule.
 
 | Typed | Earlier rules | Current rules |
 | --- | --- | --- |
-| Legislator's first and last name, committee expected | 53 of 60 | 59 of 60 |
+| Legislator's first and last name, committee expected | 53 of 60 | 58 of 60 |
 | Lobbyist, first name then last name | 60 of 60 | 60 of 60 |
 | Lobbyist, name as printed | 60 of 60 | 60 of 60 |
 
-The 6 committees now found were missed for 4 nicknames ("Zack", "Patti", "Tom",
-"Jim"), a middle initial the committee name omits ("Mark W. Koran") and an accent
-("María Isa Pérez-Vega" against "Perez-Vega, Maria"). The remaining miss is
-"Liish Kozlowski" against "Kozlowski, Alicia", which no nickname list covers. Time per
-search, measured from a laptop to production with the network included, is unchanged
-within noise: median 1.40 s and slowest 4.55 s before, 1.27 s and 4.72 s after.
+The 5 committees now found were missed for 4 nicknames ("Zack", "Patti", "Tom",
+"Jim") and a middle initial the committee name omits ("Mark W. Koran"). 2 misses
+remain. "María Isa Pérez-Vega" against "Perez-Vega, Maria": the accent now matches,
+but "Isa" is a full middle name, and skipping full words let "Smith, John A" find
+"Smith, Paul" and "Senate District 26 DFL" find every Senate district, so only a
+1-letter initial may be skipped. "Liish Kozlowski" against "Kozlowski, Alicia": no
+nickname list covers it. Time per search, measured from a laptop to production with
+the network included, is unchanged within noise: median 1.40 s and slowest 4.55 s
+before, 1.34 s and 3.27 s after.
 
 ## What it does not cover
 

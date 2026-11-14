@@ -3,8 +3,8 @@
 Full-name spelling groups allow a small typing difference, or a middle name that
 is missing or printed as its initial. Discovery can find a word within a longer
 name, a word typed with accents the name lacks, a nickname or the formal name
-behind it, and a name missing 1 middle word the reader typed; each result keeps
-its own identifier.
+behind it, and a name missing a middle initial the reader typed; each result
+keeps its own identifier.
 """
 
 from __future__ import annotations
@@ -260,29 +260,43 @@ def _alternatives(word: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
     return plain, tuple(sorted(names - {folded, word}))
 
 
-def _with_optional_middle(conditions: list, combine_all, combine_any):
-    """All typed words, or all but 1 word between the first and the last.
+def _skippable_initials(typed: str, words: list[str]) -> list[int]:
+    """Positions of a typed middle initial the printed name may lack.
 
-    A middle name or initial a reader types ("Mark W. Koran", "María Isa
-    Pérez-Vega") is often absent from the printed name.
+    Only "First M Last" style input: 3 or 4 typed words, no comma (the "Last,
+    First M" form keeps every word), no number anywhere (districts, locals and
+    identifiers stay literal), a 1-letter word between the first and the last,
+    and at least 2 other words of 3 letters or more left to match.
     """
+    if "," in typed or any(char.isdigit() for char in typed):
+        return []
+    if len(typed.split()) not in (3, 4):
+        return []
+    return [
+        i
+        for i in range(1, len(words) - 1)
+        if len(words[i]) == 1
+        and words[i].isalpha()
+        and sum(len(w) >= 3 for k, w in enumerate(words) if k != i) >= 2
+    ]
+
+
+def _with_optional_initial(
+    typed: str, words: list[str], conditions: list, combine_all, combine_any
+):
+    """All typed words, or all but 1 skippable middle initial ("Mark W. Koran")."""
     full = combine_all(conditions)
-    if len(conditions) < 3:
+    skippable = _skippable_initials(typed, words)
+    if not skippable:
         return full
     return combine_any(
-        [
-            full,
-            *(
-                combine_all(conditions[:i] + conditions[i + 1 :])
-                for i in range(1, len(conditions) - 1)
-            ),
-        ]
+        [full, *(combine_all(conditions[:i] + conditions[i + 1 :]) for i in skippable)]
     )
 
 
-def _sql_words(conditions: list):
-    return _with_optional_middle(
-        conditions, lambda terms: and_(*terms), lambda terms: or_(*terms)
+def _sql_words(typed: str, words: list[str], conditions: list):
+    return _with_optional_initial(
+        typed, words, conditions, lambda terms: and_(*terms), lambda terms: or_(*terms)
     )
 
 
@@ -303,7 +317,9 @@ def discovery_text(query: str, candidate: str) -> bool:
             for form in (word, *plain)
         ) or any(name in held for name in names)
 
-    return _with_optional_middle([found(word) for word in words], all, any)
+    return _with_optional_initial(
+        query, words, [found(word) for word in words], all, any
+    )
 
 
 def closeness(query: str, candidate: str) -> float:
@@ -394,8 +410,8 @@ def discovery_match(column, typed: str):
 
     Each typed word must be present (in any order), resemble a whole long word,
     match without its accents, or match a nickname or formal name as a whole word.
-    1 word between the first and the last may be absent. This is not the predicate
-    for automatic grouping. The caller's held-data scope,
+    A typed middle initial may be absent ("Mark W. Koran"); see
+    `_skippable_initials`. This is not the predicate for automatic grouping. The caller's held-data scope,
     explicit sort and pagination remain outside this predicate.
     """
     if any(char in typed for char in "%_\\"):
@@ -412,7 +428,7 @@ def discovery_match(column, typed: str):
                 *(_whole_word(column, name) for name in names),
             )
         )
-    return or_(name_contains(column, typed), _sql_words(clauses))
+    return or_(name_contains(column, typed), _sql_words(typed, words, clauses))
 
 
 def _whole_word(column, word):
@@ -535,7 +551,7 @@ def indexed_discovery_match(column, typed: str):
         and_(
             or_(
                 name_contains(column, typed),
-                _sql_words(candidates),
+                _sql_words(typed, words, candidates),
             ),
             discovery_match(column, typed),
         )

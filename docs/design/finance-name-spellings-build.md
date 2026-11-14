@@ -10,8 +10,9 @@ How often the groups and search land on the right record is measured in
 
 Name searches find direct matches and strongly likely spellings. They also accept the
 typed words without accents, a common nickname or the formal name behind one as a whole
-word, and a name missing 1 typed word between the first and the last ("Mark W. Koran"
-finds "Koran, Mark"). Direct matches still lead. Official people,
+word, and a name missing a typed middle initial ("Mark W. Koran" finds "Koran, Mark").
+An initial is skipped only in "First M Last" input of 3 or 4 words with no comma and
+no number, keeping 2 words of 3 letters or more. Direct matches still lead. Official people,
 organizations, committees, lobbyists and principals remain separate results with
 their own identifiers and destinations. Explicit sorts govern all returned matches;
 direct matches lead only where no sort control exists. Numeric identifiers,

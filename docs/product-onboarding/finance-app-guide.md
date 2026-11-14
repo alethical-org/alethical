@@ -160,7 +160,7 @@ for the owning permission and password-management rules.
   lookups remain exact. Name suggestions retain direct matches followed by likely
   spellings, names matching the typed words without accents, common nicknames or the
   formal name behind one ("Zack Stephenson" finds "Stephenson, Zachary"), and names
-  missing 1 typed middle word ("Mark W. Koran" finds "Koran, Mark"). The full results page retains its broader bill search.
+  missing a typed middle initial ("Mark W. Koran" finds "Koran, Mark"). The full results page retains its broader bill search.
 - **Finance Home (`/home`)**: "Research public records" with the search field, and a quiet
   "Explore money connections" link after the record-family cards, before Sources and updates.
   It keeps the same lower placement on computer, tablet and phone, with a 44px target,

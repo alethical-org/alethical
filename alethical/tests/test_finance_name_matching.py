@@ -91,10 +91,17 @@ def test_organizations_keep_meaningful_words_and_numbers():
         ("zack stephenson", "Stephenson, Zachary House Committee", True),
         ("zachary stephenson", "Zack Stephenson", True),
         ("william example", "Billings Example", False),
-        ("maría isa pérez-vega", "Perez-Vega, Maria House Committee", True),
+        ("maría pérez-vega", "Perez-Vega, Maria House Committee", True),
         ("mark w. koran", "Koran, Mark Senate Committee", True),
         ("mark w koran", "Smith, Mark W", False),
         ("isa pérez-vega", "Perez-Vega, Maria", False),
+        ("maría isa pérez-vega", "Perez-Vega, Maria House Committee", False),
+        ("smith, john a", "Smith, Paul", False),
+        ("john a smith", "Smith, Paul", False),
+        ("senate district 26 dfl", "Senate District 63 DFL", False),
+        ("teamsters local 120 pac", "Teamsters Local 320 PAC", False),
+        ("minnesota medical association", "Minnesota Nurses Association", False),
+        ("jo a li", "Li, Jo", False),
     ],
 )
 def test_discovery_sql(finance_db, query, name, expected):
@@ -114,9 +121,11 @@ def test_discovery_sql(finance_db, query, name, expected):
         ("District 10", "District 11 DFL"),
         ("Zack Stephenson", "Stephenson, Zachary House Committee"),
         ("William Example", "Billings Example"),
-        ("María Isa Pérez-Vega", "Perez-Vega, Maria House Committee"),
+        ("María Pérez-Vega", "Perez-Vega, Maria House Committee"),
         ("Mark W. Koran", "Koran, Mark Senate Committee"),
         ("Mark W Koran", "Smith, Mark W"),
+        ("Smith, John A", "Smith, Paul"),
+        ("Senate District 26 DFL", "Senate District 63 DFL"),
     ],
 )
 def test_index_candidates_keep_the_approved_matches(finance_db, query, name):
