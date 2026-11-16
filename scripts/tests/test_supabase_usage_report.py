@@ -128,3 +128,13 @@ def test_probe_deltas_omit_unknown_resets_and_never_claim_bytes():
     report = usage.summarize_probe(first, second, 60)
     assert not report["counter_interval_valid"]
     assert report["top_queries_by_returned_rows"] == []
+
+
+def test_deeply_nested_input_is_rejected_without_traceback(tmp_path, capsys):
+    path = tmp_path / "reading.json"
+    path.write_text("[" * 100000 + "0" + "]" * 100000)
+    assert usage.main([str(path)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Invalid usage reading" in captured.err
+    assert "Traceback" not in captured.err

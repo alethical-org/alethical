@@ -239,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
         if not isinstance(reading, dict):
             raise ValueError("Reading must be an object")
         report = forecast(reading, today=args.today)
-    except (OSError, ValueError, TypeError, OverflowError):
+    except (OSError, ValueError, TypeError, OverflowError, RecursionError):
         # Do not echo arbitrary input, file contents, paths or private exception text.
         print(
             "Invalid usage reading; see docs/operations/supabase-usage.md",
