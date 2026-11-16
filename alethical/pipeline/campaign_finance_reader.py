@@ -236,7 +236,9 @@ def live_release(db: Session) -> Optional[Release]:
     One statement because each statement in a Read Committed transaction sees the
     newest committed state, so resolving the pointer and then the snapshots in
     separate statements can straddle a publish and return a mixed set. Callers pass
-    the returned object to every read below rather than re-resolving.
+    the returned object to every read below rather than re-resolving. Within an
+    explicitly pinned repeatable-read transaction, repeated calls reuse that same
+    result; outside it, every call reads the live pointer again.
 
     Returns ``None`` when nothing is published, which is a real state on a fresh
     database and is not the same as a release whose rows have gone.

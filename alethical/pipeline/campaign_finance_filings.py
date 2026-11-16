@@ -2257,8 +2257,10 @@ def pinned_memo(db: Session) -> Optional[dict]:
     committees' register rows (``"filers"``), the report catalogue
     (``"catalogued_reports"``), the release's withheld filer-years
     (``"withheld_filer_years"``), a committee-year's money rows (``"money_rows"``)
-    and its stored verdicts (``"verdicts"``). Every entry is safe only because the
-    transaction is ``REPEATABLE READ``: the database would answer identically anyway.
+    and its stored verdicts (``"verdicts"``). The payment release
+    (``"payment_release"``) and requested committees' filing totals
+    (``"reported_totals"``) are reused under the same rule. Every entry is safe
+    only because the transaction is ``REPEATABLE READ``: the database would answer identically anyway.
     """
     return _pinned_read(db)
 
