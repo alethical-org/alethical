@@ -1,6 +1,6 @@
 # Supabase outgoing data
 
-<!-- describes: scripts/supabase_usage_report.py .github/workflows/supabase-usage.yml alethical/pipeline/record_refresh.py alethical/api/services/source_refresh_dispatch.py alethical/pipeline/campaign_finance_reader.py alethical/pipeline/campaign_finance_filings.py alethical/api/services/election_comparison_reads.py -->
+<!-- describes: scripts/supabase_usage_report.py, .github/workflows/supabase-usage.yml, alethical/pipeline/record_refresh.py, alethical/api/services/source_refresh_dispatch.py, alethical/pipeline/campaign_finance_reader.py, alethical/pipeline/campaign_finance_filings.py, alethical/api/services/election_comparison_reads.py -->
 
 Supabase charges for data sent out of its services (egress). The organization
 shares its allowance across projects. Pro includes 250 decimal GB of uncached
