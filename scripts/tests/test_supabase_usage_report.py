@@ -138,3 +138,59 @@ def test_deeply_nested_input_is_rejected_without_traceback(tmp_path, capsys):
     assert captured.out == ""
     assert "Invalid usage reading" in captured.err
     assert "Traceback" not in captured.err
+
+
+def test_database_probe_refuses_unconfirmed_read_only_before_metadata(monkeypatch):
+    from contextlib import nullcontext
+    import sys
+    from types import ModuleType, SimpleNamespace
+    from unittest.mock import Mock
+
+    import sqlalchemy
+
+    statements = []
+
+    def execute(statement):
+        statements.append(statement)
+        if statement == "SHOW transaction_read_only":
+            return SimpleNamespace(scalar_one=lambda: "off")
+        assert statement.startswith("SET "), "Metadata read preceded read-only proof"
+        return None
+
+    connection = SimpleNamespace(
+        begin=lambda: nullcontext(),
+        exec_driver_sql=execute,
+        execute=Mock(side_effect=AssertionError("Unexpected metadata read")),
+    )
+    engine = SimpleNamespace(connect=lambda: nullcontext(connection), dispose=Mock())
+    database = ModuleType("alethical.db.session")
+    database.NO_PREPARED_STATEMENTS = {"prepare_threshold": None}
+    database.database_url_for_target = lambda target: "not-a-real-database"
+    monkeypatch.setitem(sys.modules, "alethical.db.session", database)
+    monkeypatch.setattr(sqlalchemy, "create_engine", lambda *args, **kwargs: engine)
+
+    with pytest.raises(RuntimeError, match="Read-only transaction not confirmed"):
+        usage.probe_database(interval_seconds=1)
+
+    assert statements == [
+        "SET TRANSACTION READ ONLY",
+        "SET LOCAL statement_timeout = '15s'",
+        "SHOW transaction_read_only",
+    ]
+    connection.execute.assert_not_called()
+    engine.dispose.assert_called_once_with()
+
+
+def test_probe_cli_failure_hides_connection_details(monkeypatch, capsys):
+    def unavailable(**kwargs):
+        raise RuntimeError("private connection detail: secret-token")
+
+    monkeypatch.setattr(usage, "probe_database", unavailable)
+    assert usage.main(["--database-probe"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "Database efficiency probe unavailable; no billing measurement was made\n"
+    )
+    assert "Traceback" not in captured.err
+    assert "secret-token" not in captured.err
