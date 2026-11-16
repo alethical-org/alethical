@@ -454,7 +454,6 @@ def current_release(db: Session) -> Release | None:
         .where(pointer.id.is_(True))
         .options(
             defer(filing_snapshot.validation_json),
-            defer(filing_snapshot.measurements),
             defer(filing_snapshot.error_text),
         )
         .execution_options(populate_existing=True)

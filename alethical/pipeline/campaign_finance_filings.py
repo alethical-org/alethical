@@ -2295,11 +2295,11 @@ def live_filings_snapshot(db: Session) -> Optional[Any]:
         select(snapshot)
         .join(pointer, pointer.snapshot_id == snapshot.id)
         .where(pointer.id.is_(True))
-        # Loader diagnostics can be large. Ordinary readers need the identity,
-        # dates and counts; a loader that needs diagnostics loads them explicitly.
+        # Validation and failure bodies can be large. Keep measurements here:
+        # register readers need its directory-copy date without another round trip.
+        # A loader that needs the other diagnostics loads them explicitly.
         .options(
             defer(snapshot.validation_json),
-            defer(snapshot.measurements),
             defer(snapshot.error_text),
         )
         .execution_options(populate_existing=True)

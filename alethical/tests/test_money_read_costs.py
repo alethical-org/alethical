@@ -910,12 +910,12 @@ def test_the_side_blocks_cost_one_statement_each(db, published) -> None:
 
 
 def test_live_finance_metadata_does_not_transfer_validation_bodies(db, published):
-    """Normal page reads do not download loader-only JSON and diagnostics."""
+    """Keep the directory-copy date, without validation or failure bodies."""
     with Statements() as sent:
         filings.live_filings_snapshot(db)
     selection = sent.sent[0].split("FROM")[0]
     assert "validation_json" not in selection
-    assert "measurements" not in selection
+    assert "measurements" in selection
     assert "error_text" not in selection
 
     db.rollback()
@@ -923,7 +923,8 @@ def test_live_finance_metadata_does_not_transfer_validation_bodies(db, published
     with Statements() as sent:
         committee_service.current_release(db)
     assert "cf_filing_snapshot.validation_json" not in sent.sent[0]
-    assert "cf_filing_snapshot.measurements" not in sent.sent[0]
+    assert "cf_filing_snapshot.measurements" in sent.sent[0]
+    assert "cf_filing_snapshot.error_text" not in sent.sent[0]
 
 
 def test_repeated_release_resolution_reuses_only_the_pinned_transaction(db, published):
