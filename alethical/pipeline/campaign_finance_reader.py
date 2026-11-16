@@ -236,15 +236,23 @@ def live_release(db: Session) -> Optional[Release]:
     One statement because each statement in a Read Committed transaction sees the
     newest committed state, so resolving the pointer and then the snapshots in
     separate statements can straddle a publish and return a mixed set. Callers pass
-    the returned object to every read below rather than re-resolving.
+    the returned object to every read below rather than re-resolving. Within an
+    explicitly pinned repeatable-read transaction, repeated calls reuse that same
+    result; outside it, every call reads the live pointer again.
 
     Returns ``None`` when nothing is published, which is a real state on a fresh
     database and is not the same as a release whose rows have gone.
     """
+    from alethical.pipeline import campaign_finance_filings as filings
+
+    memo = filings.pinned_memo(db)
+    if memo is not None and "payment_release" in memo:
+        return memo["payment_release"]
     row = db.execute(_LIVE_RELEASE_SQL).one_or_none()
-    if row is None:
-        return None
-    return release_from_row(row)
+    release = None if row is None else release_from_row(row)
+    if memo is not None:
+        memo["payment_release"] = release
+    return release
 
 
 def validate_file_manifest(
@@ -1382,17 +1390,17 @@ def reported_expenditures(
 ) -> list[ReportedExpenditures]:
     """What this filer's own filings report paying out in total, per year.
 
-    Reads through ``campaign_finance_filings.filings_context`` like
+    Reads through ``campaign_finance_filings.reported_totals_for`` like
     ``reported_contributions`` below, so the line-key mapping lives once. An empty
     list means no filings snapshot is published; a year absent from the result is
     "not reported", never a zero.
     """
     from alethical.pipeline import campaign_finance_filings as filings
 
-    context = filings.filings_context(db)
+    wanted = set(years) if years is not None else None
+    context = filings.reported_totals_for(db, [reg_num], wanted)
     if context is None:
         return []
-    wanted = set(years) if years is not None else None
     result: list[ReportedExpenditures] = []
     for (registration, year), total in context.reported_expenditures.items():
         if registration != reg_num:
@@ -1419,9 +1427,9 @@ def reported_contributions(
 ) -> list[ReportedContributions]:
     """What this filer reported taking in from contributors, per year.
 
-    Reads through ``campaign_finance_filings.filings_context``, which is #1408's own
-    reader, rather than re-deriving the line keys here: which lines add up to
-    "contributions" differs by filer kind and deliberately excludes public subsidy,
+    Reads through ``campaign_finance_filings.reported_totals_for``, the narrowed
+    twin of #1408's loader reader, rather than re-deriving the line keys here:
+    which lines add up to "contributions" differs by filer kind and deliberately excludes public subsidy,
     loan income and miscellaneous income, none of which is a contribution and none of
     which appears in the itemized download. Duplicating that mapping is how the two
     halves would drift.
@@ -1432,10 +1440,10 @@ def reported_contributions(
     """
     from alethical.pipeline import campaign_finance_filings as filings
 
-    context = filings.filings_context(db)
+    wanted = set(years) if years is not None else None
+    context = filings.reported_totals_for(db, [reg_num], wanted)
     if context is None:
         return []
-    wanted = set(years) if years is not None else None
     result: list[ReportedContributions] = []
     for (registration, year), total in context.reported_contributions.items():
         if registration != reg_num:
@@ -1562,15 +1570,28 @@ def resolve_payees(
     ).scalar_one()
     from alethical.pipeline import campaign_finance_filings as filings
 
-    context = filings.filings_context(db)
+    snapshot = filings.live_filings_snapshot(db)
+    registrations = [reg for reg, _ in rows]
+    known = set()
+    if snapshot is not None and registrations:
+        known = set(
+            db.execute(
+                text(
+                    "SELECT registration_number FROM cf_filer "
+                    "WHERE snapshot_id = :snapshot "
+                    "AND registration_number = ANY(:registrations)"
+                ),
+                {"snapshot": snapshot.id, "registrations": registrations},
+            ).scalars()
+        )
     return PayeeResolution(
         payee_reg_nums=tuple(reg for reg, _ in rows),
         unresolved=tuple(reg for reg, resolved in rows if not resolved),
         rows_without_a_payee_number=int(missing),
         absent_from_directory=()
-        if context is None
-        else tuple(reg for reg, _ in rows if reg not in context.known_registrations),
-        directory_checked=context is not None,
+        if snapshot is None
+        else tuple(reg for reg in registrations if reg not in known),
+        directory_checked=snapshot is not None,
     )
 
 

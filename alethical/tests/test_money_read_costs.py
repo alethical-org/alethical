@@ -907,3 +907,71 @@ def test_the_side_blocks_cost_one_statement_each(db, published) -> None:
     with Statements() as sent:
         stated_by_kind(db, release, SENATE_COMMITTEE, 2026)
     assert len(sent.sent) == 1, sent.sent
+
+
+def test_live_finance_metadata_does_not_transfer_validation_bodies(db, published):
+    """Keep the directory-copy date, without validation or failure bodies."""
+    with Statements() as sent:
+        filings.live_filings_snapshot(db)
+    selection = sent.sent[0].split("FROM")[0]
+    assert "validation_json" not in selection
+    assert "measurements" in selection
+    assert "error_text" not in selection
+
+    db.rollback()
+    committee_service.pin_to_one_view(db)
+    with Statements() as sent:
+        committee_service.current_release(db)
+    assert "cf_filing_snapshot.validation_json" not in sent.sent[0]
+    assert "cf_filing_snapshot.measurements" in sent.sent[0]
+    assert "cf_filing_snapshot.error_text" not in sent.sent[0]
+
+
+def test_repeated_release_resolution_reuses_only_the_pinned_transaction(db, published):
+    committee_service.pin_to_one_view(db)
+    with Statements() as sent:
+        first = committee_service.current_release(db)
+        second = reader.live_release(db)
+        third = committee_service.current_release(db)
+    assert first is second is third
+    assert len(sent.touching("cf_current_release")) == 1
+
+    db.commit()
+    with Statements() as sent:
+        reader.live_release(db)
+        reader.live_release(db)
+    assert len(sent.touching("cf_current_release")) == 2
+
+
+def test_reported_reader_helpers_never_load_statewide_figures(db, published):
+    with Statements() as sent:
+        reader.reported_contributions(db, SENATE_COMMITTEE, [2026])
+        reader.reported_expenditures(db, SENATE_COMMITTEE, [2026])
+    figure_reads = sent.touching("cf_filing_figure")
+    assert figure_reads
+    assert all("registration_number IN" in sql for sql in figure_reads)
+
+
+def test_pinned_reported_totals_are_reused_and_expire_with_transaction(db, published):
+    committee_service.pin_to_one_view(db)
+    with Statements() as sent:
+        first = filings.reported_totals_for(db, [SENATE_COMMITTEE], [2026])
+        second = filings.reported_totals_for(db, [SENATE_COMMITTEE], iter([2026]))
+        other_year = filings.reported_totals_for(db, [SENATE_COMMITTEE], [2025])
+    assert first is second
+    assert other_year is not first
+    assert len(sent.touching("cf_filing_figure")) == 2
+
+    db.commit()
+    with Statements() as sent:
+        third = filings.reported_totals_for(db, [SENATE_COMMITTEE], [2026])
+    assert third is not first
+    assert len(sent.touching("cf_filing_figure")) == 1
+
+
+def test_payee_registration_check_does_not_read_statewide_filing_totals(db, published):
+    release = reader.live_release(db)
+    with Statements() as sent:
+        reader.resolve_payees(db, release, SENATE_COMMITTEE, [2026])
+    assert not sent.touching("cf_filing_figure")
+    assert not sent.touching("cf_filing_report")

@@ -11,7 +11,7 @@ from copy import deepcopy
 from itertools import islice
 from typing import NoReturn
 
-from sqlalchemy import cast, func, or_, select
+from sqlalchemy import cast, func, literal_column, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
@@ -96,8 +96,35 @@ def _context(source: m.ElectionComparisonSnapshot) -> dict:
 
 def elections(db: Session) -> dict:
     finance_versions.pin(db)
-    held = db.scalars(
-        select(m.ElectionComparisonSnapshot)
+    # Trim audit inventories inside Postgres. Trimming the Python response
+    # still transfers every retained raw row over the database connection.
+    coverage = literal_column("""
+        coverage - 'excluded_rows' - 'excluded_summary_rows' - 'county_names'
+        || jsonb_build_object(
+            'excluded_rows_count', coalesce(jsonb_array_length(coverage->'excluded_rows'), 0),
+            'excluded_summary_rows_count', coalesce(jsonb_array_length(coverage->'excluded_summary_rows'), 0)
+        )
+    """)
+    bounds = "coverage #> '{comparison_checks,precinct_voter_bound}'"
+    summarized = literal_column(f"""
+        CASE WHEN jsonb_typeof({bounds}) = 'object' THEN
+            jsonb_set(({coverage}), '{{comparison_checks,precinct_voter_bound}}',
+                ({bounds}) - 'discrepancies' - 'unchecked_race_ids'
+                || jsonb_build_object('unchecked_race_count',
+                    coalesce(jsonb_array_length(({bounds})->'unchecked_race_ids'), 0)))
+        ELSE ({coverage}) END
+    """).label("coverage")
+    source = m.ElectionComparisonSnapshot
+    held = db.execute(
+        select(
+            source.id,
+            source.election_key,
+            source.election_date,
+            source.stage,
+            source.fetched_at,
+            source.first_published_at,
+            summarized,
+        )
         .join(
             m.ElectionComparisonCurrent,
             m.ElectionComparisonCurrent.snapshot_id == m.ElectionComparisonSnapshot.id,
@@ -108,7 +135,7 @@ def elections(db: Session) -> dict:
             m.ElectionComparisonSnapshot.election_key,
         )
     ).all()
-    return {"elections": [{**_context(s), "coverage": _coverage(s)} for s in held]}
+    return {"elections": [{**_context(s), "coverage": s.coverage} for s in held]}
 
 
 def _county_name(source: m.ElectionComparisonSnapshot, county: str) -> str | None:

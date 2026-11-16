@@ -23,7 +23,7 @@ import uuid
 
 from sqlalchemy import select, func, text
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from alethical.db.models import (
     SourceRefreshState,
@@ -608,7 +608,14 @@ def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
                     db, name, now=now, progress={"filings_snapshot_id": identity}
                 )
             db.commit()
-    states = {row.name: row for row in db.scalars(select(SourceRefreshState))}
+    states = {
+        row.name: row
+        for row in db.scalars(
+            select(SourceRefreshState).options(
+                defer(SourceRefreshState.progress, raiseload=True)
+            )
+        )
+    }
     owed = any(name in states for name in MARKERS)
     idle = set() if owed else {CLEARING_JOB}
     if CHECK_JOB in active and not _money_checks_owed(db):
@@ -678,6 +685,7 @@ def claim_job(
         )
         lane = db.scalar(
             select(SourceRefreshState)
+            .options(defer(SourceRefreshState.progress, raiseload=True))
             .where(SourceRefreshState.name == lane_name)
             .with_for_update()
         )
@@ -686,6 +694,7 @@ def claim_job(
             return None
     row = db.scalar(
         select(SourceRefreshState)
+        .options(defer(SourceRefreshState.progress, raiseload=True))
         .where(SourceRefreshState.name == job.name)
         .with_for_update()
     )
@@ -757,11 +766,13 @@ def finish_job(
     if claim.job.lane:
         lane = db.scalar(
             select(SourceRefreshState)
+            .options(defer(SourceRefreshState.progress, raiseload=True))
             .where(SourceRefreshState.name == f"lane:{claim.job.lane}")
             .with_for_update()
         )
     row = db.scalar(
         select(SourceRefreshState)
+        .options(defer(SourceRefreshState.progress, raiseload=True))
         .where(SourceRefreshState.name == claim.job.name)
         .with_for_update()
     )
@@ -820,6 +831,7 @@ def finish_job(
         )
     signal_row = db.scalar(
         select(SourceRefreshState)
+        .options(defer(SourceRefreshState.progress, raiseload=True))
         .where(SourceRefreshState.name == f"signal:{claim.job.name}")
         .with_for_update()
     )
@@ -988,7 +1000,21 @@ def _run_with_report(claim: Claim, command: list[str], env: dict) -> CommandResu
 
 def health(db: Session, *, now: datetime | None = None) -> list[dict]:
     now = now or datetime.now(UTC)
-    rows = {row.name: row for row in db.scalars(select(SourceRefreshState))}
+    rows = {
+        row.name: row
+        for row in db.scalars(
+            select(SourceRefreshState).options(
+                defer(SourceRefreshState.progress, raiseload=True)
+            )
+        )
+    }
+    failed_markers = dict(
+        db.execute(
+            select(
+                SourceRefreshState.name, SourceRefreshState.progress["failed_at"].astext
+            ).where(SourceRefreshState.name.in_(MARKERS))
+        ).all()
+    )
     result = []
     for name, job in jobs(now).items():
         row = rows.get(name)
@@ -1006,9 +1032,9 @@ def health(db: Session, *, now: datetime | None = None) -> list[dict]:
             # Late only when a clear failed and no retry has succeeded since;
             # an obligation waiting for a long turn to end is not late.
             failed = [
-                datetime.fromisoformat(rows[m].progress["failed_at"])
+                datetime.fromisoformat(failed_markers[m])
                 for m in MARKERS
-                if m in rows and "failed_at" in (rows[m].progress or {})
+                if failed_markers.get(m)
             ]
             overdue = enabled and any(
                 now > since + job.interval + job.timeout for since in failed
