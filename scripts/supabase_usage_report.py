@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Forecast organization egress from a dated Supabase usage reading.
 
-No network calls, credentials, writes, AI, or changes to billing. Inputs are meter
-readings, never query-row estimates. Dates use the dashboard's daily boundaries;
+The offline forecast uses supplied meter readings, never query-row estimates.
+The optional database probe reads bounded metadata with existing credentials.
+Neither route writes records, invokes AI, or changes billing. Dates use the dashboard's daily boundaries;
 cycle_end and measured_through are exclusive. GB means 1,000,000,000 bytes.
 """
 
