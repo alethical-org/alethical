@@ -415,3 +415,69 @@ def test_every_route_requires_finance_access(finance_api, published, suffix):
 )
 def test_invalid_list_inputs_are_rejected(finance_api, published, params):
     assert finance_api.get(f"{BASE}/races", params=params).status_code == 422
+
+
+def test_election_list_transfers_only_summary_metadata(finance_db):
+    """Large retained inventories stay in Postgres on the list route."""
+    import json
+    from sqlalchemy import event
+
+    row = _snapshot(finance_db)
+    row.sources = [{"private_path": "x" * 100_000}]
+    row.coverage = {
+        "races": 2,
+        "excluded_rows": [{"raw_row": "x" * 100_000}],
+        "excluded_summary_rows": [{"raw_row": "y" * 100_000}] * 2,
+        "county_names": {"01": "z" * 100_000},
+        "comparison_checks": {
+            "precinct_voter_bound": {
+                "checked": True,
+                "discrepancies": [{"raw": "q" * 100_000}],
+                "unchecked_race_ids": ["a", "b"],
+            }
+        },
+    }
+    expected = reads._coverage(row)
+    _current(finance_db)
+    finance_db.flush()
+    transferred = []
+
+    def capture(state):
+        if state.is_select and "election_comparison_snapshot" in str(state.statement):
+            result = state.invoke_statement().freeze()
+            for record in result.data:
+                if hasattr(record, "_mapping"):
+                    values = dict(record._mapping)
+                else:
+                    values = {
+                        key: value
+                        for key, value in vars(record).items()
+                        if not key.startswith("_")
+                    }
+                transferred.append(len(json.dumps(values, default=str)))
+            return result()
+
+    event.listen(finance_db, "do_orm_execute", capture, retval=True)
+    try:
+        response = reads.elections(finance_db)
+    finally:
+        event.remove(finance_db, "do_orm_execute", capture)
+    assert response["elections"][0]["coverage"] == expected
+    assert transferred and max(transferred) < 4096
+
+
+@pytest.mark.parametrize(
+    "coverage",
+    [
+        {"races": 2},
+        {"races": 2, "comparison_checks": {"another_check": {"passed": True}}},
+        {"comparison_checks": {"precinct_voter_bound": {"checked": False}}},
+    ],
+)
+def test_election_summary_keeps_sparse_coverage(finance_db, coverage):
+    row = _snapshot(finance_db)
+    row.coverage = coverage
+    expected = reads._coverage(row)
+    _current(finance_db)
+    finance_db.flush()
+    assert reads.elections(finance_db)["elections"][0]["coverage"] == expected

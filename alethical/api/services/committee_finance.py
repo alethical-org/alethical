@@ -74,8 +74,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import literal_column, select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy import case, literal_column, select
+from sqlalchemy.orm import defer, Session, aliased
 
 from alethical.api.services.independent_spending import (
     REPORTED,
@@ -394,6 +394,8 @@ def current_release(db: Session) -> Release | None:
     a fresh database.
     """
     memo = filings.pinned_memo(db)
+    if memo is not None and "payment_release" in memo:
+        return memo["payment_release"]
     if memo is None or "snapshot" in memo:
         return reader.live_release(db)
     release_model = schema.CampaignFinanceRelease
@@ -429,7 +431,12 @@ def current_release(db: Session) -> Release | None:
                     "r.file_manifest", "cf_release.file_manifest"
                 )
             ),
-            contributions.validation_json,
+            # A manifest already carries the accepted checks. Only releases
+            # predating manifests need the mutable snapshot's legacy fallback.
+            case(
+                (release_model.file_manifest == {}, contributions.validation_json),
+                else_=None,
+            ),
             filing_snapshot,
         )
         .select_from(pointer)
@@ -445,13 +452,20 @@ def current_release(db: Session) -> Release | None:
         .outerjoin(filing_pointer, filing_pointer.id.is_(True))
         .outerjoin(filing_snapshot, filing_snapshot.id == filing_pointer.snapshot_id)
         .where(pointer.id.is_(True))
+        .options(
+            defer(filing_snapshot.validation_json),
+            defer(filing_snapshot.measurements),
+            defer(filing_snapshot.error_text),
+        )
         .execution_options(populate_existing=True)
     ).one_or_none()
     if row is None:
+        memo["payment_release"] = None
         return None
     *release_columns, checks, snapshot = row
     memo["snapshot"] = snapshot
     release = reader.release_from_row(release_columns)
+    memo["payment_release"] = release
     if release.contributions.checks is not None:
         checks = {"checks": release.contributions.checks}
     memo["withheld_filer_years"] = reader.withheld_filer_years_from_checks(checks)

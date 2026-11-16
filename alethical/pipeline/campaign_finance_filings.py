@@ -74,7 +74,7 @@ from typing import Any, Callable, Iterable, Optional, Sequence
 import requests
 from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from alethical.db import models as schema
 from alethical.pipeline.raw_file_store import sha256_of_file
@@ -2142,6 +2142,12 @@ def reported_totals_for(
     if snapshot is None:
         return None
     wanted = sorted({number for number in registration_numbers if number})
+    wanted_years = tuple(sorted(set(years))) if years is not None else None
+    memo = _pinned_read(db)
+    held = memo.setdefault("reported_totals", {}) if memo is not None else {}
+    key = (snapshot.id, tuple(wanted), wanted_years)
+    if key in held:
+        return held[key]
     if not wanted:
         return ReportedTotalsContext(
             snapshot_id=snapshot.id,
@@ -2181,18 +2187,21 @@ def reported_totals_for(
             filing.registration_number.in_(wanted),
         )
     )
-    if years is not None:
-        statement = statement.where(filing.filing_year.in_(sorted(set(years))))
+    if wanted_years is not None:
+        statement = statement.where(filing.filing_year.in_(wanted_years))
     rows = db.execute(statement).all()
     contributions, expenditures, through = _fold_figure_rows(row[:6] for row in rows)
     special = frozenset((row[0], row[1]) for row in rows if row[6])
-    return ReportedTotalsContext(
+    result = ReportedTotalsContext(
         snapshot_id=snapshot.id,
         reported_contributions=contributions,
         reported_expenditures=expenditures,
         reported_through=through,
         special_election_filer_years=special,
     )
+    if memo is not None:
+        held[key] = result
+    return result
 
 
 # --- Writing it ---------------------------------------------------------------
@@ -2284,6 +2293,13 @@ def live_filings_snapshot(db: Session) -> Optional[Any]:
         select(snapshot)
         .join(pointer, pointer.snapshot_id == snapshot.id)
         .where(pointer.id.is_(True))
+        # Loader diagnostics can be large. Ordinary readers need the identity,
+        # dates and counts; a loader that needs diagnostics loads them explicitly.
+        .options(
+            defer(snapshot.validation_json),
+            defer(snapshot.measurements),
+            defer(snapshot.error_text),
+        )
         .execution_options(populate_existing=True)
     ).scalar_one_or_none()
     if memo is not None:

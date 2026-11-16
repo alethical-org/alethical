@@ -457,3 +457,48 @@ def test_fast_source_retry_and_defer_never_wait_beyond_its_cadence(sessions, cod
         assert db.get(SourceRefreshState, "test").next_due_at == NOW + timedelta(
             minutes=5
         )
+
+
+def test_scheduler_does_not_download_collector_inventory(sessions):
+    """A multi-MB resume inventory must never travel with scheduling reads."""
+    from sqlalchemy import event
+
+    definition = job()
+    with sessions() as db:
+        db.add(
+            SourceRefreshState(
+                name=definition.name,
+                next_due_at=NOW,
+                failures=0,
+                progress={"inventory": ["x" * 4096] * 100},
+            )
+        )
+        db.commit()
+    statements = []
+    engine = get_engine()
+
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with sessions() as db:
+            runner.due_names(db, now=NOW)
+            runner.health(db, now=NOW)
+            claimed = runner.claim_job(db, definition, now=NOW)
+            assert claimed is not None
+            assert runner.finish_job(db, claimed, code=0, now=NOW)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert statements
+    assert not any(
+        "source_refresh_state.progress," in sql
+        or "source_refresh_state.progress AS" in sql
+        for sql in statements
+    )
+    with sessions() as db:
+        assert (
+            db.get(SourceRefreshState, definition.name).progress["inventory"]
+            == ["x" * 4096] * 100
+        )

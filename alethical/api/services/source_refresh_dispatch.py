@@ -14,6 +14,7 @@ import uuid
 
 import httpx
 import jwt
+from sqlalchemy.orm import defer
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
@@ -92,14 +93,22 @@ def _claim(db, name: str, now: datetime) -> uuid.UUID | None:
     if not enabled_job(name):
         return None
     job = jobs(now)[name]
-    source = db.get(SourceRefreshState, name)
+    source = db.get(
+        SourceRefreshState,
+        name,
+        options=[defer(SourceRefreshState.progress, raiseload=True)],
+    )
     if source and (
         _next_due_at(source, job) > now
         or (source.lease_expires_at and source.lease_expires_at > now)
     ):
         return None
     if job.lane:
-        lane = db.get(SourceRefreshState, f"lane:{job.lane}")
+        lane = db.get(
+            SourceRefreshState,
+            f"lane:{job.lane}",
+            options=[defer(SourceRefreshState.progress, raiseload=True)],
+        )
         if lane and lane.lease_expires_at and lane.lease_expires_at > now:
             return None
     key = f"dispatch:{name}"
@@ -110,6 +119,7 @@ def _claim(db, name: str, now: datetime) -> uuid.UUID | None:
     )
     row = db.scalar(
         select(SourceRefreshState)
+        .options(defer(SourceRefreshState.progress, raiseload=True))
         .where(SourceRefreshState.name == key)
         .with_for_update()
     )
@@ -140,6 +150,7 @@ def _finish(
 ) -> None:
     row = db.scalar(
         select(SourceRefreshState)
+        .options(defer(SourceRefreshState.progress, raiseload=True))
         .where(SourceRefreshState.name == f"dispatch:{name}")
         .with_for_update()
     )

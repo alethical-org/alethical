@@ -307,3 +307,37 @@ def test_finished_bounded_turn_can_resume_before_queued_request_cooldown():
         )
     with get_session_factory()() as db:
         assert db.get(SourceRefreshState, "maps").last_checked_at is None
+
+
+def test_dispatch_does_not_fetch_source_resume_inventory():
+    from sqlalchemy import event
+
+    factory = get_session_factory()
+    engine = factory.kw["bind"]
+    with factory() as db:
+        db.add(
+            SourceRefreshState(
+                name="maps", next_due_at=NOW, progress={"inventory": ["x" * 4096] * 100}
+            )
+        )
+        db.commit()
+    sent = []
+
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            sent.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with client_for([]) as client:
+            assert service.dispatch_due(factory, now=NOW, client=client) == [
+                {"job": "maps", "status": "dispatched"}
+            ]
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert sent
+    assert not any(
+        "source_refresh_state.progress AS" in sql
+        or "source_refresh_state.progress," in sql
+        for sql in sent
+    )
