@@ -76,6 +76,8 @@ def test_active_originals_and_private_paging(finance_api, finance_db):
         BASE, params={"q": "held cable", "page": 2, "version": first["version"]}
     ).json()["data"]
     assert len(second["rows"]) == 2
+    beyond = finance_api.get(BASE, params={"q": "held cable", "page": 3}).json()["data"]
+    assert beyond["rows"] == [] and beyond["total"] == 27
     assert len({r["key"] for r in first["rows"] + second["rows"]}) == 27
     assert finance_api.get(BASE, params={"q": "%"}).json()["data"]["total"] == 0
     assert finance_api.get(BASE, params={"q": "staged"}).json()["data"]["total"] == 0

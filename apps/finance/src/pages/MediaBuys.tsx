@@ -241,6 +241,8 @@ export function MediaBuys() {
   const [typed, setTyped, applySearch] = useLiveSearch(query, here, commitQuery, (value) =>
     value.trim().slice(0, 200),
   );
+  const session = useFinanceSession();
+  const nationalAnswer = useRef<{ request: string; version: string } | null>(null);
   function useGroup(kind: Tab) {
     const active = !!query || kind === tab;
     const page = query
@@ -255,14 +257,27 @@ export function MediaBuys() {
       ...(kind === 'folders' ? [filters.station, filters.year, filters.category] : []),
     ]);
     const version = sourcePin(state[pinKey], scope);
+    const nationalPreview = !!query && view !== kind;
+    // Pin the copied URL without re-reading the exact response that produced it.
+    // A new page, search, view, account or remount validates the URL's pin.
+    const nationalRequest =
+      active && kind === 'national'
+        ? JSON.stringify([session.apiBaseUrl, session.accessToken, query, page, nationalPreview])
+        : '';
+    const justAnswered =
+      nationalAnswer.current?.request === nationalRequest &&
+      nationalAnswer.current?.version === version;
+    useEffect(() => {
+      if (kind === 'national' && !justAnswered) nationalAnswer.current = null;
+    }, [kind, nationalRequest, justAnswered]);
     const read = useVersionedRead<Browse>(
       active
         ? kind === 'national'
           ? mediaPath(['national-files'], {
-              version,
+              version: justAnswered ? undefined : version,
               q: query,
               page,
-              preview: query && view !== kind ? 1 : undefined,
+              preview: nationalPreview ? 1 : undefined,
             })
           : mediaPath(['browse'], {
               tab: kind,
@@ -298,8 +313,11 @@ export function MediaBuys() {
         return;
       const value = read.data.version;
       const changes: Partial<typeof state> = {};
-      if (!version && typeof value === 'string' && /^[0-9a-f]{16}$/.test(value))
+      if (!version && typeof value === 'string' && /^[0-9a-f]{16}$/.test(value)) {
+        if (kind === 'national')
+          nationalAnswer.current = { request: nationalRequest, version: value };
         changes[pinKey] = JSON.stringify([scope, value]);
+      }
       const lastPage = Math.max(1, Math.ceil(read.data.total / read.data.page_size));
       if (page > lastPage) changes[query ? PAGE_KEYS[kind] : 'page'] = String(lastPage);
       if (Object.keys(changes).length) setState(changes);
@@ -314,6 +332,7 @@ export function MediaBuys() {
       version,
       scope,
       pinKey,
+      nationalRequest,
       page,
       query,
       kind,
@@ -418,7 +437,7 @@ export function MediaBuys() {
     else params.delete('view');
     return location.pathname + (params.size ? `?${params}` : '');
   }
-  const check = useFinanceSession().canEdit !== false && isBuilt('check-station-files');
+  const check = session.canEdit !== false && isBuilt('check-station-files');
   return (
     <main id="main" className="f-page mb-page">
       <div className="f-content">

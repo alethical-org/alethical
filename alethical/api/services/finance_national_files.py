@@ -52,26 +52,34 @@ def browse(
             Original.service,
         )
         criteria.append(name_words_contain(labels, query))
-    total = release.original_count if release else 0
-    if query and total:
-        total = (
-            db.scalar(select(func.count()).select_from(Original).where(*criteria)) or 0
-        )
+    fields = (
+        Original.record_key,
+        Original.title,
+        Original.station_name,
+        Original.service,
+        Original.folder_path,
+        Original.file_year,
+        Original.content_hash,
+    )
+    matches = select(*fields).where(*criteria)
+    if query:
+        matches = matches.add_columns(func.count().over().label("match_count"))
     rows = db.execute(
-        select(
-            Original.record_key,
-            Original.title,
-            Original.station_name,
-            Original.service,
-            Original.folder_path,
-            Original.file_year,
-            Original.content_hash,
-        )
-        .where(*criteria)
-        .order_by(Original.record_key)
+        matches.order_by(Original.record_key)
         .limit(5 if preview else PAGE_SIZE)
         .offset((page - 1) * PAGE_SIZE)
-    )
+    ).all()
+    total = release.original_count if release else 0
+    if query:
+        # The window counts every match while reading the requested page.
+        # An empty later page has no row to carry its total. Only that recovery
+        # needs a second query so the directory can return to the last page.
+        total = rows[0].match_count if rows else 0
+        if not rows and page > 1 and release:
+            total = (
+                db.scalar(select(func.count()).select_from(Original).where(*criteria))
+                or 0
+            )
     return dict(
         version=token,
         tab="national",
