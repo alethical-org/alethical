@@ -6,12 +6,14 @@ import jwt
 import pytest
 from botocore.exceptions import ClientError
 from sqlalchemy import select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from alethical.db.models import NationalFCCReadGrant
 from alethical.db.session import get_engine
 from alethical.pipeline import national_fcc_read_grant as grants
 from scripts import national_fcc_db_renew as renew
+from scripts.national_fcc_db import activate
 
 SECRET = "test-parent-signing-secret-with-32-bytes"
 HOST = "d" * 32 + ".r2.cloudflarestorage.com"
@@ -125,3 +127,28 @@ def test_probe_requires_real_bytes_and_denials():
     store._client.list_objects_v2.return_value = {"Contents": []}
     with pytest.raises(RuntimeError, match="exceeded"):
         renew.verify(store, *keys)
+
+
+def test_withdrawal_waits_for_inflight_renewal(monkeypatch):
+    engine = get_engine()
+    monkeypatch.setattr(renew, "renewal_sample", lambda *_: ("pdf", "text", "index"))
+    monkeypatch.setattr(renew, "issue", lambda _: "temporary")
+    monkeypatch.setattr(renew, "store_from_token", lambda *_: (object(), 2000000000))
+    saved = Mock()
+    monkeypatch.setattr(renew, "save", saved)
+
+    def try_withdrawal(*_):
+        with engine.begin() as other:
+            other.exec_driver_sql("SET LOCAL lock_timeout = '150ms'")
+            activate(other, None, None)
+
+    def probe(*_):
+        with pytest.raises(OperationalError) as error:
+            try_withdrawal()
+        assert error.value.orig.sqlstate == "55P03"
+
+    monkeypatch.setattr(renew, "verify", probe)
+    with engine.begin() as db:
+        assert renew.renew_access(db, False, True) == 2000000000
+        saved.assert_called_once_with(db, "temporary", 2000000000)
+    try_withdrawal()

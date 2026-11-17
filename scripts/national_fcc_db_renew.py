@@ -16,6 +16,8 @@ import jwt
 from sqlalchemy import create_engine, select
 from sqlalchemy.dialects.postgresql import insert
 
+from scripts.national_fcc_db import lock
+
 from alethical.db import models as m
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target
 from alethical.pipeline.national_fcc_read_grant import (
@@ -125,6 +127,22 @@ def renewal_sample(db, allow_staged):
     return sample.object_key, sample.text_object_key, snapshot.index_object_key
 
 
+def renew_access(db, allow_staged, apply):
+    # Withdrawal and grant renewal must finish in the order they acquired this lock.
+    # Member reads never need it. Only the bounded storage probes run while held.
+    lock(db)
+    sample = renewal_sample(db, allow_staged)
+    if sample is None:
+        return None
+    now = int(time.time())
+    token = issue(now)
+    store, exp = store_from_token(token, now)
+    verify(store, *sample)
+    if apply:
+        save(db, token, exp)
+    return exp
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--target", required=True, choices=["production"])
@@ -140,18 +158,11 @@ def main():
         hide_parameters=True,
         connect_args=NO_PREPARED_STATEMENTS,
     )
-    with engine.connect() as db:
-        sample = renewal_sample(db, args.allow_staged)
-    if sample is None:
+    with engine.begin() as db:
+        exp = renew_access(db, args.allow_staged, args.apply)
+    if exp is None:
         print("No active national FCC snapshot. No file access renewed.")
         return
-    now = int(time.time())
-    token = issue(now)
-    store, exp = store_from_token(token, now)
-    verify(store, *sample)
-    if args.apply:
-        with engine.begin() as db:
-            save(db, token, exp)
     print(
         f"Finance file access verified; grant expires {datetime.fromtimestamp(exp, timezone.utc).isoformat()}"
     )

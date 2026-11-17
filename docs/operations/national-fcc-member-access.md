@@ -15,7 +15,8 @@ session token from which R2's delegated secret can be derived.
    then inspect the completed run under **Renew Finance FCC file access**. The job reads
    1 byte from a member original and 1 from its text, confirms denied access to the
    private research index, listing and object metadata, and only then saves the
-   3-day grant. An equivalent operator command from the project with its existing
+   3-day grant. Renewal and withdrawal share a database lock so withdrawal cannot finish
+   between the access checks and saving the grant. An equivalent operator command from the project with its existing
    private settings is `python -m scripts.national_fcc_db_renew --target production --apply --allow-staged`.
    Omit `--apply` for a probe that makes no changes.
 3. The [renewal workflow](../../.github/workflows/national-fcc-read-grant.yml) runs daily
