@@ -6960,3 +6960,56 @@ class MailUploadAnalysis(Base):
     excluded_from_counts: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+
+
+class NationalFCCSnapshot(Base):
+    """Private research database and release pointer for an immutable FCC transfer."""
+
+    __tablename__ = "national_fcc_snapshot"
+    snapshot_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    index_object_key: Mapped[str] = mapped_column(Text)
+    index_sha256: Mapped[str] = mapped_column(String(64))
+    index_bytes: Mapped[int] = mapped_column(BigInteger)
+    index_rows: Mapped[int] = mapped_column(BigInteger)
+    index_stored_bytes: Mapped[int] = mapped_column(BigInteger)
+    index_stored_sha256: Mapped[str] = mapped_column(String(64))
+    source_manifest_object_key: Mapped[str] = mapped_column(Text)
+    import_sha256: Mapped[str] = mapped_column(String(64))
+    original_count: Mapped[int] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (
+        Index(
+            "uq_national_fcc_active",
+            "active",
+            unique=True,
+            postgresql_where=text("active"),
+        ),
+    )
+
+
+class NationalFCCOriginal(Base):
+    """One file identity in a snapshot; identical document bytes share storage."""
+
+    __tablename__ = "national_fcc_original"
+    snapshot_id: Mapped[str] = mapped_column(
+        ForeignKey("national_fcc_snapshot.snapshot_id"), primary_key=True
+    )
+    record_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    service: Mapped[str] = mapped_column(Text)
+    entity_id: Mapped[str] = mapped_column(Text)
+    file_id: Mapped[str] = mapped_column(Text)
+    call_sign: Mapped[Optional[str]] = mapped_column(Text)
+    station_name: Mapped[str] = mapped_column(Text)
+    state: Mapped[Optional[str]] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    folder_path: Mapped[str] = mapped_column(Text)
+    file_year: Mapped[Optional[int]] = mapped_column(Integer)
+    source_url: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    byte_size: Mapped[int] = mapped_column(BigInteger)
+    object_key: Mapped[str] = mapped_column(Text)
+    text_object_key: Mapped[Optional[str]] = mapped_column(Text)
+    page_count: Mapped[Optional[int]] = mapped_column(Integer)
