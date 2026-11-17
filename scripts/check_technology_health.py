@@ -37,6 +37,17 @@ FORGE_ADVISORY = "GHSA-86w9-cpqp-85rv"
 # fix commits, including in the minimatch copy inside glob's minified bundles.
 GLOB_ADVISORY = "GHSA-3g3m-2fjr-6pw4"
 GLOB_BUILD_PATH = "apps__frontend>expo>@expo/cli>glob"
+PICOMATCH_ADVISORY = "GHSA-fc5q-39xc-vjpf"
+PICOMATCH_FINDINGS = [
+    {"version": "4.0.7", "paths": [".>lint-staged>picomatch"]},
+    {
+        "version": "2.3.2",
+        "paths": [
+            "apps__frontend>expo>@expo/cli>@expo/metro-file-map>jest-worker>jest-util>picomatch"
+        ],
+    },
+    {"version": "4.0.5", "paths": ["apps__frontend>expo>@expo/cli>picomatch"]},
+]
 MINIMATCH_ADVISORY = "GHSA-g3hv-75wg-m249"
 MINIMATCH_BUILD_PATH = "apps__frontend>expo>@expo/cli>glob>minimatch"
 BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
@@ -441,6 +452,7 @@ def javascript_audit_problems(
     decode_uri_repaired: bool = False,
     glob_repaired: bool = False,
     minimatch_repaired: bool = False,
+    picomatch_repaired: bool = False,
 ) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
@@ -474,6 +486,16 @@ def javascript_audit_problems(
             and advisory.get("vulnerable_versions") == ">=9.0.0 <=14.0.1"
             and advisory.get("patched_versions") == ">=14.0.2"
             and findings == [{"version": "13.0.6", "paths": [GLOB_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            picomatch_repaired
+            and advisory_id == PICOMATCH_ADVISORY
+            and advisory.get("module_name") == "picomatch"
+            and advisory.get("severity") == "high"
+            and advisory.get("vulnerable_versions") == "<=4.0.7"
+            and advisory.get("patched_versions") == "<0.0.0"
+            and findings == PICOMATCH_FINDINGS
         ):
             continue
         if (
@@ -609,6 +631,7 @@ def security_audit_problems(
     decode_uri_repaired: bool = False,
     glob_repaired: bool = False,
     minimatch_repaired: bool = False,
+    picomatch_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
@@ -633,6 +656,7 @@ def security_audit_problems(
                 decode_uri_repaired=decode_uri_repaired,
                 glob_repaired=glob_repaired,
                 minimatch_repaired=minimatch_repaired,
+                picomatch_repaired=picomatch_repaired,
             )
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
@@ -941,6 +965,7 @@ def run_security_audits(root: Path) -> list[str]:
         DECODE_URI_ADVISORY: False,
         GLOB_ADVISORY: False,
         MINIMATCH_ADVISORY: False,
+        PICOMATCH_ADVISORY: False,
     }
     if installed.returncode:
         problems.append("The JavaScript security repair installation failed")
@@ -952,6 +977,7 @@ def run_security_audits(root: Path) -> list[str]:
             (DECODE_URI_ADVISORY, "check-decode-uri-security.mjs"),
             (GLOB_ADVISORY, "check-glob-security.mjs"),
             (MINIMATCH_ADVISORY, "check-minimatch-security.mjs"),
+            (PICOMATCH_ADVISORY, "check-picomatch-security.mjs"),
         ):
             repair = _run(["node", f"apps/frontend/scripts/{script}"], root)
             repaired[advisory] = repair.returncode == 0
@@ -977,6 +1003,7 @@ def run_security_audits(root: Path) -> list[str]:
             decode_uri_repaired=repaired[DECODE_URI_ADVISORY],
             glob_repaired=repaired[GLOB_ADVISORY],
             minimatch_repaired=repaired[MINIMATCH_ADVISORY],
+            picomatch_repaired=repaired[PICOMATCH_ADVISORY],
         )
     )
     return problems

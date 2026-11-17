@@ -57,6 +57,15 @@ patchedDependencies:
   node-forge@1.4.3:
     hash: 26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952
     path: patches/node-forge@1.4.3.patch
+  picomatch@2.3.2:
+    hash: 2d6e61abe18f37836c59ef9daa507427777178cbf6f2863b490d59bb32aef9ba
+    path: patches/picomatch@2.3.2.patch
+  picomatch@4.0.5:
+    hash: 450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4
+    path: patches/picomatch@4.0.5.patch
+  picomatch@4.0.7:
+    hash: 450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4
+    path: patches/picomatch@4.0.7.patch
   query-string@7.1.3:
     hash: 32fabd661c87a64d8e92d6fb323ef8ca9b61812de3a3cba21215ac3373e9b641
     path: patches/query-string@7.1.3.patch
@@ -3933,7 +3942,7 @@ snapshots:
       node-forge: 1.4.3(patch_hash=26512bad9c4feee8ca12d77267a82e510fba4eb309c5ba1c4f99a8ae95863952)
       npm-package-arg: 11.0.3
       ora: 3.4.0
-      picomatch: 4.0.5
+      picomatch: 4.0.5(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)
       pretty-format: 29.7.0
       progress: 2.0.3
       prompts: 2.4.2
@@ -4114,7 +4123,7 @@ snapshots:
       hermes-parser: 0.36.1
       jsc-safe-url: 0.2.4
       lightningcss: 1.33.0
-      picomatch: 4.0.5
+      picomatch: 4.0.5(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)
       postcss: 8.5.23
       resolve-from: 5.0.0
     optionalDependencies:
@@ -5408,9 +5417,9 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  fdir@6.5.0(picomatch@4.0.7):
+  fdir@6.5.0(picomatch@4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)):
     optionalDependencies:
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)
 
   fetch-blob@3.2.0:
     dependencies:
@@ -5606,7 +5615,7 @@ snapshots:
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
-      picomatch: 2.3.2
+      picomatch: 2.3.2(patch_hash=2d6e61abe18f37836c59ef9daa507427777178cbf6f2863b490d59bb32aef9ba)
 
   jest-validate@29.7.0:
     dependencies:
@@ -5745,7 +5754,7 @@ snapshots:
 
   lint-staged@17.4.1:
     dependencies:
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)
       string-argv: 0.3.2
       tinyexec: 1.3.0
     optionalDependencies:
@@ -5972,7 +5981,7 @@ snapshots:
   micromatch@4.0.8:
     dependencies:
       braces: 3.0.3(patch_hash=ea29e28e84b25bb03e32f352eed8fc0dce67ad38b6cad073da15faf3e5ddcba2)
-      picomatch: 2.3.2
+      picomatch: 2.3.2(patch_hash=2d6e61abe18f37836c59ef9daa507427777178cbf6f2863b490d59bb32aef9ba)
 
   mime-db@1.52.0: {}
 
@@ -6114,11 +6123,11 @@ snapshots:
 
   picocolors@1.1.1: {}
 
-  picomatch@2.3.2: {}
+  picomatch@2.3.2(patch_hash=2d6e61abe18f37836c59ef9daa507427777178cbf6f2863b490d59bb32aef9ba): {}
 
-  picomatch@4.0.5: {}
+  picomatch@4.0.5(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4): {}
 
-  picomatch@4.0.7: {}
+  picomatch@4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4): {}
 
   playwright-core@1.62.1: {}
 
@@ -6524,8 +6533,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.7)
-      picomatch: 4.0.7
+      fdir: 6.5.0(picomatch@4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4))
+      picomatch: 4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)
 
   tinyrainbow@3.1.0: {}
 
@@ -6609,7 +6618,7 @@ snapshots:
   vite@8.1.6(@types/node@26.1.2)(terser@5.46.2)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)
       postcss: 8.5.23
       rolldown: 1.1.5
       tinyglobby: 0.2.17
@@ -6633,7 +6642,7 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.4
       pathe: 2.0.3
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=450f63f7600e653f7a055bdbcd50dd7f5f907f673aac382e04a704d310aa3fa4)
       std-env: 4.2.0
       tinybench: 2.9.0
       tinyexec: 1.3.0
