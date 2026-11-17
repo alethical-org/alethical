@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/node-forge-advisory-probes.mjs apps/frontend/scripts/test-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-decode-uri-security.mjs apps/frontend/scripts/test-decode-uri-security.mjs apps/frontend/scripts/check-glob-security.mjs apps/frontend/scripts/check-minimatch-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.3.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch patches/decode-uri-component@0.5.0.patch patches/glob@13.0.6.patch patches/minimatch@10.2.5.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-picomatch-security.mjs patches/picomatch@*.patch scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/node-forge-advisory-probes.mjs apps/frontend/scripts/test-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-decode-uri-security.mjs apps/frontend/scripts/test-decode-uri-security.mjs apps/frontend/scripts/check-glob-security.mjs apps/frontend/scripts/check-minimatch-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.3.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch patches/decode-uri-component@0.5.0.patch patches/glob@13.0.6.patch patches/minimatch@10.2.5.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -115,8 +115,10 @@ is tracked in [issue 2643](https://github.com/alethical-org/alethical/issues/264
 The existing Monday technology-health workflow runs a separate free job that reads
 the upstream repository's advisory API through `scripts/check_pillow_advisory.py`.
 The read is signed with the job's GitHub token, or the saved local `gh` sign-in,
-so it does not share GitHub's unauthenticated rate limit; it refuses redirects, so
-the signature never reaches another address. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
+and refuses redirects. The credential can use GitHub’s
+[current installation token format](https://github.blog/changelog/2026-10-02-stateless-github-app-installation-tokens-rolled-out/).
+A transport or access error triggers one public retry at
+the same publisher address. An unexpected advisory response fails validation. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
 field, unreadable response or failed request fails the recheck. This upstream
 check grants no runtime exception and does not suppress any scanner finding.
 The one resolved state is a warning that names a single fixed release which the
@@ -424,3 +426,25 @@ full monthly review. Both commands require the project's saved uv and pnpm versi
   automatic checks together.
 - pnpm 11 and Vercel 59 are major candidates; test them after the Expo 57 work settles
   the frontend package family and before changing either production path.
+
+### Picomatch repeated patterns in build tools
+
+The [picomatch advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+covers the copies that lint-staged, Expo and Jest resolve, with no fixed npm
+release. Following the
+[maintainer's recommendation to restrict patterns](https://github.com/micromatch/picomatch/pull/235#issuecomment-6315749381),
+all build tools resolve one patched copy of 4.0.7. This avoids incomplete
+patches on duplicate hoisted installations. The parser restricts the grammar of
+repeated extended globs. Only distinct, nonempty, equal-width literal alternatives made of
+ASCII letters, digits, spaces, underscores, periods and hyphens can repeat.
+Other repeated groups throw before regex compilation. Ordinary directory and file
+wildcards, braces and nonrepeating extended globs remain available. A future
+build configuration needing more syntax must use an equivalent simpler pattern
+or a reviewed upstream repair.
+
+The audit still reports the upstream finding. The release check accepts only its
+exact versions, affected paths and advisory range after a frozen install proves
+the installed parser hash, patch hash and lockfile entry. The check inventories
+every installed consumer, verifies the single package location, exercises Jest
+and micromatch with normal file patterns, and fingerprints the complete advisory. A new published fix,
+changed advisory or failed repair check blocks release.

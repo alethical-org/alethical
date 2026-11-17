@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -129,7 +130,14 @@ def token(env: dict | None = None) -> str | None:
         except (OSError, subprocess.TimeoutExpired):
             return None
         value = result.stdout.strip() if result.returncode == 0 else ""
-    if re.fullmatch(r"[A-Za-z0-9_]{20,255}", value or ""):
+    # GitHub supplies an opaque credential. Reject whitespace and control bytes
+    # in an HTTP header without depending on GitHub's token format or length.
+    if (
+        value
+        and value.isascii()
+        and value.isprintable()
+        and not any(char.isspace() for char in value)
+    ):
         return value
     return None
 
@@ -144,17 +152,28 @@ def fetch(env: dict | None = None) -> object:
     signed = token(env)
     if signed:
         headers["Authorization"] = f"Bearer {signed}"
-    request = urllib.request.Request(URL, headers=headers)
-    try:
-        with urllib.request.build_opener(NoRedirect).open(
-            request, timeout=20
-        ) as response:
-            raw = response.read(MAX_RESPONSE_BYTES + 1)
-        if len(raw) > MAX_RESPONSE_BYTES:
-            raise ValueError("Oversized advisory")
-        return json.loads(raw)
-    except (OSError, ValueError, UnicodeError):
-        return None
+    opener = urllib.request.build_opener(NoRedirect)
+    # GitHub Actions tokens can be restricted to their issuing repository.
+    # Retry a transport failure once on the same public publisher URL.
+    for attempt in range(2):
+        request = urllib.request.Request(URL, headers=headers)
+        try:
+            with opener.open(request, timeout=20) as response:
+                raw = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_RESPONSE_BYTES:
+                return None
+            return json.loads(raw)
+        except urllib.error.HTTPError as error:
+            if error.code not in {401, 403, 404, 408, 429} and error.code < 500:
+                return None
+            failure = f"HTTP {error.code}"
+        except OSError:
+            failure = "transport error"
+        except (ValueError, UnicodeError):
+            return None
+        print(f"Pillow publisher advisory read {attempt + 1}: {failure}")
+        headers.pop("Authorization", None)
+    return None
 
 
 def check(env: dict | None = None, locked: str | None = None) -> list[str]:

@@ -1,0 +1,24 @@
+diff --git a/lib/parse.js b/lib/parse.js
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -521,6 +521,20 @@
+   };
+ 
+   const extglobOpen = (type, value) => {
++    // Repeated extglobs in build patterns may only repeat fixed-width literal
++    // alternatives. Reject other bodies before compiling any part of the group.
++    if (type === 'plus' || type === 'star') {
++      const start = state.index + 2;
++      const end = input.indexOf(')', start);
++      const branches = end < 0 ? [] : input.slice(start, end).split('|');
++      const unique = new Set(branches.map(branch => branch.toLowerCase()));
++      if (!branches.length || unique.size !== branches.length || !branches.every(branch =>
++        branch.length === branches[0].length && /^[a-zA-Z0-9_. -]+$/.test(branch)
++      )) {
++        throw new SyntaxError('Repeated extglob requires fixed-width literal alternatives');
++      }
++    }
++
+     const token = { ...EXTGLOB_CHARS[value], conditions: 1, inner: '' };
+ 
+     token.prev = prev;

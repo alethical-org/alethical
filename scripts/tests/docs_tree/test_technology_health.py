@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -1147,3 +1148,37 @@ def test_glob_and_minimatch_installed_checks_decide_their_findings(
             f"The installed {advisory['github_advisory_id']} repair did not pass"
             in problems
         )
+
+
+def test_picomatch_requires_its_installed_repair_and_exact_registry_finding(
+    monkeypatch,
+) -> None:
+    health = check_technology_health
+    finding = {
+        "github_advisory_id": health.PICOMATCH_ADVISORY,
+        "severity": "high",
+        "module_name": "picomatch",
+        "vulnerable_versions": "<=4.0.7",
+        "patched_versions": "<0.0.0",
+        "findings": [{"version": "4.0.7", "paths": [".>lint-staged>picomatch"]}],
+        "overview": "Test advisory",
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(finding, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    monkeypatch.setattr(health, "PICOMATCH_REPORT_SHA256", fingerprint)
+    report = javascript_report({"pico": finding})
+    blocked = [f"{health.PICOMATCH_ADVISORY} (high)"]
+    assert health.javascript_audit_problems(report) == blocked
+    assert health.javascript_audit_problems(report, picomatch_repaired=True) == []
+    finding["overview"] = "Changed explanation"
+    assert health.javascript_audit_problems(report, picomatch_repaired=True) == blocked
+    finding["overview"] = "Test advisory"
+    finding["patched_versions"] = ">=4.1.0"
+    assert health.javascript_audit_problems(report, picomatch_repaired=True) == blocked
+    finding["patched_versions"] = "<0.0.0"
+    finding["findings"] = [
+        *finding["findings"],
+        {"version": "1.0.0", "paths": ["new"]},
+    ]
+    assert health.javascript_audit_problems(report, picomatch_repaired=True) == blocked
