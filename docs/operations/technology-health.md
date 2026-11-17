@@ -429,7 +429,7 @@ full monthly review. Both commands require the project's saved uv and pnpm versi
 
 The [picomatch advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
 covers the copies that lint-staged, Expo and Jest resolve, with no fixed npm
-release as of November 17, 2026. Following the
+release. Following the
 [maintainer's recommendation to restrict patterns](https://github.com/micromatch/picomatch/pull/235#issuecomment-6315749381),
 all build tools resolve one patched copy of 4.0.7. This avoids incomplete
 patches on duplicate hoisted installations. The parser restricts the grammar of
