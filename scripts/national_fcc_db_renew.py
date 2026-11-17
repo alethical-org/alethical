@@ -99,32 +99,52 @@ def save(db, token, exp):
     )
 
 
+def renewal_sample(db, allow_staged):
+    release, original = m.NationalFCCSnapshot, m.NationalFCCOriginal
+    snapshots = select(release.snapshot_id, release.index_object_key)
+    if not allow_staged:
+        snapshots = snapshots.where(release.active)
+    snapshot = db.execute(
+        snapshots.order_by(release.active.desc(), release.created_at.desc()).limit(1)
+    ).one_or_none()
+    if snapshot is None:
+        if allow_staged:
+            raise ValueError("No verified snapshot staged")
+        return None
+    sample = db.execute(
+        select(original.object_key, original.text_object_key)
+        .where(
+            original.snapshot_id == snapshot.snapshot_id,
+            original.text_object_key.is_not(None),
+        )
+        .order_by(original.record_key)
+        .limit(1)
+    ).one_or_none()
+    if sample is None:
+        raise ValueError("No verified member file and text in selected snapshot")
+    return sample.object_key, sample.text_object_key, snapshot.index_object_key
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--target", required=True, choices=["production"])
     p.add_argument("--apply", action="store_true")
+    p.add_argument(
+        "--allow-staged",
+        action="store_true",
+        help="Probe a staged first release before activation",
+    )
     args = p.parse_args()
     engine = create_engine(
         database_url_for_target(args.target, None),
         hide_parameters=True,
         connect_args=NO_PREPARED_STATEMENTS,
     )
-    original, release = m.NationalFCCOriginal, m.NationalFCCSnapshot
     with engine.connect() as db:
-        # On first release, stage the verified files, then run this before activation.
-        sample = db.execute(
-            select(
-                original.object_key, original.text_object_key, release.index_object_key
-            )
-            .join(release, release.snapshot_id == original.snapshot_id)
-            .where(original.text_object_key.is_not(None))
-            .order_by(
-                release.active.desc(), release.created_at.desc(), original.record_key
-            )
-            .limit(1)
-        ).one_or_none()
-    if not sample:
-        raise ValueError("No verified member files staged")
+        sample = renewal_sample(db, args.allow_staged)
+    if sample is None:
+        print("No active national FCC snapshot. No file access renewed.")
+        return
     now = int(time.time())
     token = issue(now)
     store, exp = store_from_token(token, now)

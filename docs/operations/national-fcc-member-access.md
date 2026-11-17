@@ -10,16 +10,16 @@ return the grant or a presigned URL made with the grant to a client: the URL con
 session token from which R2's delegated secret can be derived.
 
 1. Stage the verified database snapshot before enabling member access. The first
-   renewal can select a staged snapshot. Later renewals prefer the active snapshot.
+   manual renewal can select a staged snapshot. Scheduled renewals require an active snapshot.
 2. Run `gh workflow run national-fcc-read-grant.yml --ref main` after the migration,
    then inspect the completed run under **Renew Finance FCC file access**. The job reads
    1 byte from a member original and 1 from its text, confirms denied access to the
    private research index, listing and object metadata, and only then saves the
    3-day grant. An equivalent operator command from the project with its existing
-   private settings is `python -m scripts.national_fcc_db_renew --target production --apply`.
+   private settings is `python -m scripts.national_fcc_db_renew --target production --apply --allow-staged`.
    Omit `--apply` for a probe that makes no changes.
 3. The [renewal workflow](../../.github/workflows/national-fcc-read-grant.yml) runs daily
-   at 08:47 UTC on the default branch. A failed probe fails the run, retains the prior
+   at 08:47 UTC on the default branch. With no active snapshot it skips storage reads and grant renewal. A failed probe fails the run, retains the prior
    grant, and can be retried by dispatching the same workflow. A successful run records
    the expiry in its log. For a failure, verify the existing workflow's GitHub secrets,
    the migration and the staged or active object availability before rerunning.

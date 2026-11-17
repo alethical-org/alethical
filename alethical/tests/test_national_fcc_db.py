@@ -10,6 +10,7 @@ from sqlalchemy import func, select, text
 
 from alethical.db.session import get_engine
 from scripts import national_fcc_db as importer
+from scripts.national_fcc_db_renew import renewal_sample
 
 
 def transfer(root):
@@ -103,6 +104,31 @@ def test_only_successful_originals_activate_atomically_and_retry_without_writes(
             )
             == 2
         )
+        tx.rollback()
+
+
+def test_renewal_reads_only_active_files_unless_bootstrapping(tmp_path):
+    receipt, catalog, index, _ = transfer(tmp_path)
+    original = receipt["originals"][0]
+    original["text_object_key"] = importer.content_key("text", "d" * 64, "json")
+    receipt["source_manifest_object_key"] = importer.manifest_key(receipt)
+    snapshot, rows = importer.prepare(receipt, catalog, index)
+    expected = (
+        original["object_key"],
+        original["text_object_key"],
+        receipt["index_object_key"],
+    )
+    with get_engine().connect() as db, db.begin() as tx:
+        assert renewal_sample(db, False) is None
+        with pytest.raises(ValueError, match="No verified snapshot staged"):
+            renewal_sample(db, True)
+        importer.stage(db, snapshot, rows)
+        assert renewal_sample(db, False) is None
+        assert renewal_sample(db, True) == expected
+        importer.activate(db, snapshot["snapshot_id"], None)
+        assert renewal_sample(db, False) == expected
+        importer.activate(db, None, snapshot["snapshot_id"])
+        assert renewal_sample(db, False) is None
         tx.rollback()
 
 

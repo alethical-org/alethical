@@ -32,4 +32,8 @@ jobs:
           CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-        run: uv run --no-sync python -m scripts.national_fcc_db_renew --target production --apply
+          TRIGGER: ${{ github.event_name }}
+        run: |
+          flags=()
+          if [[ "$TRIGGER" == workflow_dispatch ]]; then flags+=(--allow-staged); fi
+          uv run --no-sync python -m scripts.national_fcc_db_renew --target production --apply "${flags[@]}"
