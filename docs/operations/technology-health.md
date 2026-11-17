@@ -115,8 +115,8 @@ is tracked in [issue 2643](https://github.com/alethical-org/alethical/issues/264
 The existing Monday technology-health workflow runs a separate free job that reads
 the upstream repository's advisory API through `scripts/check_pillow_advisory.py`.
 The read is signed with the job's GitHub token, or the saved local `gh` sign-in,
-so it does not share GitHub's unauthenticated rate limit; it refuses redirects, so
-the signature never reaches another address. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
+and refuses redirects. A transport or access error triggers one public retry at
+the same publisher address. An unexpected advisory response fails validation. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
 field, unreadable response or failed request fails the recheck. This upstream
 check grants no runtime exception and does not suppress any scanner finding.
 The one resolved state is a warning that names a single fixed release which the
