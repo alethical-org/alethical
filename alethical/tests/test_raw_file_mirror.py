@@ -60,8 +60,12 @@ class MemoryStore:
         self.refuse: set[str] = set()
         self.uploads: list[str] = []
 
-    def list_objects(self) -> dict[str, int]:
-        return {key: len(value) for key, value in self.objects.items()}
+    def list_objects(self, *, exclude_root_prefix: str | None = None) -> dict[str, int]:
+        return {
+            key: len(value)
+            for key, value in self.objects.items()
+            if not exclude_root_prefix or not key.startswith(exclude_root_prefix)
+        }
 
     def size(self, key: str) -> Optional[int]:
         stored = self.objects.get(key)
@@ -480,7 +484,9 @@ def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None
     same. A table that gains an ``object_key`` and no ``mirrored_at`` would be invisible
     to the copy job and to every count it prints, which is precisely the failure that
     reads as success. Private mail names its separate store explicitly and must
-    carry its own hash/verification proof instead. Unknown storage policies fail;
+    carry its own hash/verification proof instead. National FCC originals carry a
+    verified import receipt and a reference to the matching delivery manifest.
+    Unknown storage policies fail;
     new source bodies still require the original mirror columns by default.
     """
     from alethical.db import models as models_module
@@ -491,7 +497,7 @@ def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None
         if "object_key" not in table.columns:
             continue
         policy = table.info.get("object_store", "raw_source")
-        assert policy in {"raw_source", "private_mail"}, (
+        assert policy in {"raw_source", "private_mail", "national_fcc_archive"}, (
             f"{table.name}: unknown object store"
         )
         if policy == "private_mail":
@@ -499,6 +505,18 @@ def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None
                 "New private storage needs its own verified backup path"
             )
             columns = ("object_key", "sha256", "verified_at", "selected")
+            assert mapper.class_ not in body_tables()
+        elif policy == "national_fcc_archive":
+            assert mapper.class_ is schema.NationalFCCOriginal
+            columns = ("snapshot_id", "object_key", "content_hash", "byte_size")
+            assert {fk.target_fullname for fk in table.c.snapshot_id.foreign_keys} == {
+                "national_fcc_snapshot.snapshot_id"
+            }
+            assert {
+                "import_sha256",
+                "source_manifest_object_key",
+                "index_sha256",
+            } <= set(schema.NationalFCCSnapshot.__table__.columns.keys())
             assert mapper.class_ not in body_tables()
         else:
             columns = mirror_module.BODY_COLUMNS

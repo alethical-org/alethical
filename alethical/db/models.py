@@ -6994,6 +6994,7 @@ class NationalFCCOriginal(Base):
     """One file identity in a snapshot; identical document bytes share storage."""
 
     __tablename__ = "national_fcc_original"
+    __table_args__ = {"info": {"object_store": "national_fcc_archive"}}
     snapshot_id: Mapped[str] = mapped_column(
         ForeignKey("national_fcc_snapshot.snapshot_id"), primary_key=True
     )

@@ -37,6 +37,17 @@ owns member access and coverage. No ongoing national collection runs as part of 
    Members then see the preceding release, or an empty national list on first-release
    withdrawal. Private original bytes and research evidence remain available for recovery.
 
+## Recover a missing national file
+
+Keep the verified Drive delivery available for recovery. The private R2 namespace
+`fcc-national/` holds the serving copy and compact research version. The general
+Supabase backup job lists other R2 folders and checks every primary source key. A
+national key unexpectedly present in the Supabase source is a storage conflict.
+To restore member files, stage the retained transfer again and re-run the verified
+upload. Existing objects must match their content hashes. Keep any conflicting
+object for investigation. Revalidate the receipt against the catalog and recovered
+index before publishing a replacement snapshot.
+
 ## Internal research and usage
 
 Run `python -m scripts.national_fcc_db --target production restore-index --snapshot SNAPSHOT --destination NEW_SQLITE_PATH`

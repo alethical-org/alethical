@@ -16,7 +16,7 @@ Net: A current second copy is protection against losing a source file. A timed r
 
 ## Source files: current presence and bounded hash proof
 
-The daily mirror lists both Supabase Storage and Cloudflare R2. Every object in either store is part of the check, including objects no production database row names. Every database row naming a stored body is also part of the check, so a missing primary object cannot silently disappear from the work list.
+The daily mirror lists the Supabase source bucket and its backup files in Cloudflare R2, including files no production database row names. R2 also holds the independently recoverable [national FCC archive](national-fcc-archive.md#recover-a-missing-national-file) in its own folder. The daily mirror skips that R2 folder and reports a conflict if Supabase contains a source key reserved for it. Every database row naming a stored body is also part of the check, so a missing primary object cannot silently disappear from the work list.
 
 A missing Cloudflare copy is uploaded from the primary only after the primary bytes match any recorded hash. Both copies are read back for new or repaired objects. Observed size or hash conflicts fail without writing either copy. A missing primary fails and preserves any second copy for recovery.
 
