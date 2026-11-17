@@ -634,14 +634,14 @@ describe('the record family order', () => {
       'Minnesota Campaign Finance and Public Disclosure Board',
       'Minnesota Secretary of State',
       'Minnesota Legislature',
-      'KSTP-TV, KARE and KMSP-TV',
+      'Federal Communications Commission',
     ]);
     expect(labels('.f-sources-row dd span')).toEqual([
       'Campaign money · Payment files',
       'Lobbying · Lobbyist list',
       'People · Candidate records',
       'Legislation · Bills',
-      'Media buys · TV station files',
+      'Media buys · KSTP-TV, KARE and KMSP-TV files',
     ]);
   });
 

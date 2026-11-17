@@ -142,8 +142,11 @@ export function Landing() {
       lines: [['Legislation · Bills', copyDate(counts, 'current_legislature_bills'), 'updated']],
     },
     {
-      name: 'KSTP-TV, KARE and KMSP-TV, from the FCC’s public files',
-      lines: [['Media buys · TV station files', copyDate(counts, 'tv_station_files')]],
+      name: 'Federal Communications Commission',
+      lines: [
+        ['Media buys · KSTP-TV, KARE and KMSP-TV files', copyDate(counts, 'tv_station_files')],
+        ['National political files'],
+      ],
     },
   ];
 

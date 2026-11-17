@@ -117,7 +117,7 @@ describe('the public Finance site', () => {
       'Share Alethical Finance',
       'Sources and updates',
       'Minnesota Campaign Finance and Public Disclosure Board',
-      'KSTP-TV, KARE and KMSP-TV, from the FCC’s public files',
+      'Federal Communications Commission',
     ]) {
       expect(text).toContain(words);
     }
@@ -167,7 +167,8 @@ describe('the public Finance site', () => {
     expect(text).toContain('Payment files copied Sep 1, 2026');
     expect(text).toContain('Bills updated Jul 14, 2026');
     // The station source stays named; only its unsupported date is left out.
-    expect(text).toContain('Media buys · TV station files');
+    expect(text).toContain('Media buys · KSTP-TV, KARE and KMSP-TV files');
+    expect(text).toContain('National political files');
     expect(text).not.toMatch(/Station files copied/);
   });
 

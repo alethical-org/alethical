@@ -59,7 +59,7 @@ function dated(what: string, verb: string, iso: string | null | undefined): stri
   return iso ? `${what} ${verb} ${centralDateLabel(iso)}` : what;
 }
 
-const TV_STATIONS = 'KSTP-TV, KARE and KMSP-TV';
+const FCC = 'Federal Communications Commission';
 
 /** The family cards, in the approved order (Media buys directly after Campaign
  * money, as in the header). */
@@ -74,9 +74,9 @@ const FAMILIES: readonly Family[] = [
   {
     title: 'Media buys',
     route: 'media-buys',
-    body: 'TV station files for political ad time: folders, agency names, stations and years',
-    source: TV_STATIONS,
-    dated: (d) => dated('TV station files', 'copied', d.tv_station_files),
+    body: 'Political ad files from Minnesota TV stations and providers across the US',
+    source: FCC,
+    dated: (d) => dated('KSTP-TV, KARE and KMSP-TV files', 'copied', d.tv_station_files),
   },
   {
     title: 'Lobbying',
@@ -104,7 +104,7 @@ const FAMILIES: readonly Family[] = [
 ];
 
 /** Sources and updates keep their own order, independent of the card order. */
-const SOURCE_ORDER = [BOARD, 'Minnesota Secretary of State', 'Minnesota Legislature', TV_STATIONS];
+const SOURCE_ORDER = [BOARD, 'Minnesota Secretary of State', 'Minnesota Legislature', FCC];
 
 function copyDates(counts: ServedCounts | null): Dates {
   const dates: Dates = {};
