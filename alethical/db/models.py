@@ -7013,3 +7013,15 @@ class NationalFCCOriginal(Base):
     object_key: Mapped[str] = mapped_column(Text)
     text_object_key: Mapped[Optional[str]] = mapped_column(Text)
     page_count: Mapped[Optional[int]] = mapped_column(Integer)
+
+
+class NationalFCCReadGrant(Base):
+    """Server-only, short-lived read grant; the parent signing key never enters Postgres."""
+
+    __tablename__ = "national_fcc_read_grant"
+    purpose: Mapped[str] = mapped_column(Text, primary_key=True)
+    token: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint("purpose = 'finance-media'", name="finance_media_only"),
+    )

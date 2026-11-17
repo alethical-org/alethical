@@ -23,14 +23,16 @@ import {
 import type { Browse, FileRow, Group, Sources } from './media/types';
 import './media/directory.css';
 
-type Tab = 'folders' | 'agencies' | 'stations' | 'years';
+type Tab = 'folders' | 'agencies' | 'stations' | 'years' | 'national';
 const TABS: ReadonlyArray<{ value: Tab; label: string }> = [
   { value: 'folders', label: 'TV station folders' },
   { value: 'agencies', label: 'Agency names' },
   { value: 'stations', label: 'Stations' },
   { value: 'years', label: 'Years' },
+  { value: 'national', label: 'National FCC files' },
 ];
 const INTRO: Record<Tab, string> = {
+  national: 'Original political files from TV, radio, cable and satellite providers',
   folders: '',
   agencies: 'Names as printed, with each spelling listed separately',
   stations: '',
@@ -42,8 +44,10 @@ const NOUNS: Record<Tab | 'files', [string, string]> = {
   stations: ['station', 'stations'],
   years: ['year', 'years'],
   files: ['TV station file', 'TV station files'],
+  national: ['national FCC file', 'national FCC files'],
 };
 const NOTES: Record<Tab, string> = {
+  national: '',
   folders:
     'A folder checked as relating to a committee does not establish the same link for each file inside it',
   agencies:
@@ -71,9 +75,15 @@ export function browseRow(tab: Tab, row: Group | FileRow): BrowseRow {
     return {
       key: row.key,
       name: row.label || row.name,
-      note: [row.station, lastSegment(row.folder_label)].filter(Boolean).join(' · '),
+      note: [
+        row.station,
+        tab === 'national' ? row.folder_label?.split('/').pop() : lastSegment(row.folder_label),
+      ]
+        .filter(Boolean)
+        .join(' · '),
       mid: '',
-      end: row.uploaded_at ? day(row.uploaded_at) : '',
+      end:
+        tab === 'national' ? String(row.year ?? '') : row.uploaded_at ? day(row.uploaded_at) : '',
       href: fileHref(row.key, row.version_id),
     };
   const files = plural(row.file_count, 'file', 'files');
@@ -117,12 +127,14 @@ export function browseRow(tab: Tab, row: Group | FileRow): BrowseRow {
   };
 }
 
-const pageNumber = (raw: string) => Math.min(42, Math.max(1, Math.trunc(Number(raw)) || 1));
+const pageNumber = (raw: string, kind: Tab) =>
+  Math.min(kind === 'national' ? 100000 : 42, Math.max(1, Math.trunc(Number(raw)) || 1));
 const PAGE_KEYS = {
   folders: 'foldersPage',
   agencies: 'agenciesPage',
   stations: 'stationsPage',
   years: 'yearsPage',
+  national: 'nationalPage',
 } as const;
 
 const PIN_KEYS = {
@@ -130,6 +142,7 @@ const PIN_KEYS = {
   agencies: 'agenciesSource',
   stations: 'stationsSource',
   years: 'yearsSource',
+  national: 'nationalSource',
 } as const;
 
 function sourcePin(raw: string, scope: string): string | undefined {
@@ -164,11 +177,13 @@ export function MediaBuys() {
     agenciesPage: '1',
     stationsPage: '1',
     yearsPage: '1',
+    nationalPage: '1',
     browseSource: '',
     foldersSource: '',
     agenciesSource: '',
     stationsSource: '',
     yearsSource: '',
+    nationalSource: '',
     searchFilters: '',
     searchStation: '',
     searchYear: '',
@@ -190,6 +205,7 @@ export function MediaBuys() {
     agenciesPage: '1',
     stationsPage: '1',
     yearsPage: '1',
+    nationalPage: '1',
   };
   function commitQuery(q: string) {
     setState(
@@ -201,6 +217,7 @@ export function MediaBuys() {
         agenciesSource: '',
         stationsSource: '',
         yearsSource: '',
+        nationalSource: '',
         ...(!query && q
           ? {
               searchFilters: '1',
@@ -228,9 +245,9 @@ export function MediaBuys() {
     const active = !!query || kind === tab;
     const page = query
       ? view === kind
-        ? pageNumber(state[PAGE_KEYS[kind]])
+        ? pageNumber(state[PAGE_KEYS[kind]], kind)
         : 1
-      : pageNumber(state.page);
+      : pageNumber(state.page, kind);
     const pinKey = query ? PIN_KEYS[kind] : 'browseSource';
     const scope = JSON.stringify([
       kind,
@@ -240,22 +257,32 @@ export function MediaBuys() {
     const version = sourcePin(state[pinKey], scope);
     const read = useVersionedRead<Browse>(
       active
-        ? mediaPath(['browse'], {
-            tab: kind,
-            version,
-            search_scope: 'tab',
-            q: query,
-            page,
-            station: kind === 'folders' ? filters.station : '',
-            year: kind === 'folders' ? filters.year : '',
-            category: kind === 'folders' ? filters.category : '',
-          })
+        ? kind === 'national'
+          ? mediaPath(['national-files'], {
+              version,
+              q: query,
+              page,
+              preview: query && view !== kind ? 1 : undefined,
+            })
+          : mediaPath(['browse'], {
+              tab: kind,
+              version,
+              search_scope: 'tab',
+              q: query,
+              page,
+              station: kind === 'folders' ? filters.station : '',
+              year: kind === 'folders' ? filters.year : '',
+              category: kind === 'folders' ? filters.category : '',
+            })
         : null,
       {
         page,
         acceptData: (data) => !!data && Array.isArray(data.rows) && Number.isFinite(data.total),
         onRestart: () =>
-          setState({ [pinKey]: '', ...(query ? { [PAGE_KEYS[kind]]: '1' } : { page: '1' }) }),
+          setState({
+            [pinKey]: '',
+            ...(query ? { [PAGE_KEYS[kind]]: '1' } : { page: '1' }),
+          }),
       },
     );
     useEffect(() => {
@@ -301,6 +328,7 @@ export function MediaBuys() {
     agencies: useGroup('agencies'),
     stations: useGroup('stations'),
     years: useGroup('years'),
+    national: useGroup('national'),
   };
   const sources = useRead<Sources>(mediaPath(['sources']));
   const list = useRef<HTMLDivElement>(null);
@@ -412,8 +440,7 @@ export function MediaBuys() {
             )}
           </div>
           <p className="mb-lead">
-            TV political-ad files from <span className="f-nowrap">KSTP-TV</span>, KARE and{' '}
-            <span className="f-nowrap">KMSP-TV</span>
+            Political files from Minnesota TV stations and the national FCC archive
           </p>
         </header>
         <form role="search" className="mb-search" onSubmit={submit}>
@@ -489,7 +516,7 @@ export function MediaBuys() {
               const shownTab = (TABS.find((item) => item.value === data?.tab)?.value ??
                 kind) as Tab;
               const filesShown = data?.rows.some(isFile) ?? false;
-              const noun = NOUNS[filesShown ? 'files' : shownTab];
+              const noun = NOUNS[filesShown && shownTab !== 'national' ? 'files' : shownTab];
               const rows = (data?.rows ?? [])
                 .slice(0, preview ? 5 : undefined)
                 .map((row) => browseRow(shownTab, row));
@@ -525,7 +552,10 @@ export function MediaBuys() {
                               ...(sources.data?.stations ?? []).map((source) => source.call_sign),
                               ...(filters.station ? [filters.station] : []),
                             ]),
-                          ].map((station) => ({ value: station, label: station })),
+                          ].map((station) => ({
+                            value: station,
+                            label: station,
+                          })),
                         ]}
                         onChange={(station) => changeFilters({ station })}
                       />
@@ -669,8 +699,9 @@ export function MediaBuys() {
           <h2 id="about-h">About these records</h2>
           <ul>
             <li>
-              Only these 3 stations’ files are held, not the whole media market. Radio, cable,
-              streaming, print and online ads are not held.
+              TV station folders, agencies, stations and years cover KSTP-TV, KARE and KMSP-TV.
+              National FCC files include available originals from TV, radio, cable and satellite
+              providers.
             </li>
             <li>
               A station category describes where the station put a file. It does not establish the

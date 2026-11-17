@@ -58,7 +58,7 @@ export interface Browse {
   page_size: number;
   total: number;
   capped: boolean;
-  tab_counts?: Partial<Record<'folders' | 'agencies' | 'stations' | 'years', number>>;
+  tab_counts?: Partial<Record<'folders' | 'agencies' | 'stations' | 'years' | 'national', number>>;
   /** File rows while a search runs; folder, name, station or year groups otherwise. */
   rows: Array<Group | FileRow>;
   years: number[];

@@ -28,7 +28,8 @@ owns member access and coverage. No ongoing national collection runs as part of 
    `python -m scripts.national_fcc_db --target production stage --receipt RECEIPT --catalog DOWNLOAD_LOG --index RECOVERED_INDEX`.
    This registers member metadata in batches. Stage leaves the active version alone.
    Use the same inputs to resume. A conflicting snapshot under the same ID is refused.
-5. Check membership, object access, representative PDFs and text. Activate with
+5. [Provision and verify the member read grant](national-fcc-member-access.md). Check
+   membership, object access, representative PDFs and text. Activate with
    `python -m scripts.national_fcc_db --target production activate --snapshot NEW --from-snapshot CURRENT`
    (use `none` for the first release). Check live discovery, page 2, file identity,
    the source hash, text availability and refusal of anonymous access.
@@ -44,8 +45,8 @@ restored digests. Query the resulting SQLite file locally. Loading index rows in
 database would add millions of rows that member screens never use.
 
 The member database holds file metadata and object references. Browse requests transfer
-a page of matching rows. PDF reads go directly to private object storage after a signed-in
-request. Text loads only on demand. Distinguish disk space, query rows, response bytes and
+a page of matching rows. Finance serves signed-in PDF reads from private object storage. PDF bytes do not cross
+Supabase. Text loads only on demand. Distinguish disk space, query rows, response bytes and
 billed outgoing data using the [Supabase usage guide](supabase-usage.md). The source includes
 facility data, licensing records, file history and OCR progress. Those materials belong to
 research and do not count as member files.

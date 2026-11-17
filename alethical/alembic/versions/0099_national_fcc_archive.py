@@ -64,14 +64,32 @@ def upgrade() -> None:
         sa.Column("text_object_key", sa.Text),
         sa.Column("page_count", sa.Integer),
     )
-    for table in ("national_fcc_snapshot", "national_fcc_original"):
+    op.create_table(
+        "national_fcc_read_grant",
+        sa.Column("purpose", sa.Text, primary_key=True),
+        sa.Column("token", sa.Text, nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint("purpose = 'finance-media'", name="finance_media_only"),
+    )
+    for table in (
+        "national_fcc_snapshot",
+        "national_fcc_original",
+        "national_fcc_read_grant",
+    ):
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"REVOKE ALL ON TABLE {table} FROM PUBLIC")
-        for role in ("anon", "authenticated"):
+        # The temporary token belongs only to server-side DB connections.
+        roles = (
+            ("anon", "authenticated", "service_role")
+            if table == "national_fcc_read_grant"
+            else ("anon", "authenticated")
+        )
+        for role in roles:
             op.execute(f"""DO $$ BEGIN IF EXISTS (SELECT FROM pg_roles WHERE rolname='{role}')
               THEN REVOKE ALL ON TABLE {table} FROM {role}; END IF; END $$""")
 
 
 def downgrade() -> None:
+    op.drop_table("national_fcc_read_grant")
     op.drop_table("national_fcc_original")
     op.drop_table("national_fcc_snapshot")

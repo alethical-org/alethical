@@ -17,6 +17,8 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path, Query, Response
+from starlette.background import BackgroundTask
+from starlette.responses import StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -24,6 +26,7 @@ from alethical.api import finance_media_buys_schemas as schema
 from alethical.api.finance_access import require_finance_access
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_media_buys as media
+from alethical.api.services import finance_national_files as national
 from alethical.api.services import finance_station_checks as checks
 from alethical.api.services import finance_station_queue as station_queue
 from alethical.api.services import tv_ad_review as review
@@ -338,3 +341,66 @@ def withdraw_connection(
     check_id: UUID, payload: dict = Body(), db: Session = Depends(checking)
 ) -> dict:
     return _withdraw(db, m.FinanceTVConnection, check_id, payload)
+
+
+@router.get("/national-files", **answer(schema.FinanceBrowse))
+def national_files(
+    q: str = Query("", max_length=200),
+    page: int = Query(1, ge=1, le=100000),
+    preview: bool = False,
+    version: str | None = Query(None, pattern=r"^[a-f0-9]{16}$"),
+    db: Session = Depends(records),
+) -> dict:
+    return {"data": national.browse(db, q, page, version, preview)}
+
+
+@router.get("/national-files/{key}", **answer(schema.FinanceNationalFile))
+def national_detail(
+    key: str,
+    version: str | None = Query(None, pattern=r"^[a-f0-9]{64}$"),
+    db: Session = Depends(records),
+) -> dict:
+    return {"data": national.detail(national.original(db, key, version))}
+
+
+@router.get(
+    "/national-files/{key}/original",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"application/pdf": {}}}},
+)
+def national_original(
+    key: str,
+    version: str = Query(pattern=r"^[a-f0-9]{64}$"),
+    db: Session = Depends(records),
+) -> StreamingResponse:
+    row, store = national.held_source(db, key, version)
+    body = national.open_original(row, store)
+
+    def chunks():
+        try:
+            while chunk := body.read(256 * 1024):
+                yield chunk
+        finally:
+            body.close()
+
+    return StreamingResponse(
+        chunks(),
+        media_type="application/pdf",
+        background=BackgroundTask(body.close),
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Length": str(row.byte_size),
+            "Content-Disposition": f'inline; filename="fcc-{version[:16]}.pdf"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.get("/national-files/{key}/text", **answer(schema.FinanceOriginalText))
+def national_text(
+    key: str,
+    version: str = Query(pattern=r"^[a-f0-9]{64}$"),
+    db: Session = Depends(records),
+) -> dict:
+    row, store = national.held_source(db, key, version)
+    return {"data": national.document_text(row, store)}
