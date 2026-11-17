@@ -130,7 +130,14 @@ def token(env: dict | None = None) -> str | None:
         except (OSError, subprocess.TimeoutExpired):
             return None
         value = result.stdout.strip() if result.returncode == 0 else ""
-    if re.fullmatch(r"[A-Za-z0-9_]{20,255}", value or ""):
+    # GitHub supplies an opaque credential. Reject whitespace and control bytes
+    # in an HTTP header without depending on GitHub's token format or length.
+    if (
+        value
+        and value.isascii()
+        and value.isprintable()
+        and not any(char.isspace() for char in value)
+    ):
         return value
     return None
 

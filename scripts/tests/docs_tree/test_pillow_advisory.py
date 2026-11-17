@@ -181,6 +181,20 @@ def test_job_token_signs_the_read_and_redirects_are_refused(monkeypatch, name):
     assert CHECK.NoRedirect().redirect_request(None, None, 302, "", {}, "x") is None
 
 
+def test_current_actions_token_format_signs_the_publisher_read(monkeypatch):
+    # Synthetic placeholder with the shape of GitHub's longer installation token.
+    value = ".".join(["mock-header", "m" * 510, "mock-signature"])
+    seen = []
+
+    def fetch(request, timeout):
+        seen.append(request.get_header("Authorization"))
+        return io.BytesIO(json.dumps(advisory()).encode())
+
+    serve(monkeypatch, fetch)
+    assert CHECK.check({"GITHUB_TOKEN": value}) == []
+    assert seen == [f"Bearer {value}"]
+
+
 def test_job_token_failure_retries_the_same_public_publisher(monkeypatch):
     seen = []
 

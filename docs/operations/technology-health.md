@@ -115,7 +115,9 @@ is tracked in [issue 2643](https://github.com/alethical-org/alethical/issues/264
 The existing Monday technology-health workflow runs a separate free job that reads
 the upstream repository's advisory API through `scripts/check_pillow_advisory.py`.
 The read is signed with the job's GitHub token, or the saved local `gh` sign-in,
-and refuses redirects. A transport or access error triggers one public retry at
+and refuses redirects. The credential can use GitHub’s
+[current installation token format](https://github.blog/changelog/2026-10-02-stateless-github-app-installation-tokens-rolled-out/).
+A transport or access error triggers one public retry at
 the same publisher address. An unexpected advisory response fails validation. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
 field, unreadable response or failed request fails the recheck. This upstream
 check grants no runtime exception and does not suppress any scanner finding.
