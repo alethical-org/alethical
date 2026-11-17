@@ -181,6 +181,37 @@ def test_job_token_signs_the_read_and_redirects_are_refused(monkeypatch, name):
     assert CHECK.NoRedirect().redirect_request(None, None, 302, "", {}, "x") is None
 
 
+def test_job_token_failure_retries_the_same_public_publisher(monkeypatch):
+    seen = []
+
+    def fetch(request, timeout):
+        assert timeout == 20
+        seen.append((request.full_url, request.has_header("Authorization")))
+        if len(seen) == 1:
+            raise CHECK.urllib.error.HTTPError(CHECK.URL, 403, "Forbidden", {}, None)
+        return io.BytesIO(json.dumps(advisory()).encode())
+
+    serve(monkeypatch, fetch)
+    assert CHECK.check({"GH_TOKEN": FAKE_TOKEN}) == []
+    assert seen == [(CHECK.URL, True), (CHECK.URL, False)]
+
+
+def test_changed_signed_payload_does_not_retry_for_a_more_permissive_answer(
+    monkeypatch,
+):
+    seen = []
+    changed = advisory()
+    changed["ghsa_id"] = "different"
+
+    def fetch(request, timeout):
+        seen.append(request.full_url)
+        return io.BytesIO(json.dumps(changed).encode())
+
+    serve(monkeypatch, fetch)
+    assert CHECK.check({"GH_TOKEN": FAKE_TOKEN})
+    assert seen == [CHECK.URL]
+
+
 def test_saved_local_sign_in_is_used_without_printing(monkeypatch, capsys):
     calls = []
 
