@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import re
@@ -38,16 +39,10 @@ FORGE_ADVISORY = "GHSA-86w9-cpqp-85rv"
 GLOB_ADVISORY = "GHSA-3g3m-2fjr-6pw4"
 GLOB_BUILD_PATH = "apps__frontend>expo>@expo/cli>glob"
 PICOMATCH_ADVISORY = "GHSA-fc5q-39xc-vjpf"
-PICOMATCH_FINDINGS = [
-    {"version": "4.0.7", "paths": [".>lint-staged>picomatch"]},
-    {
-        "version": "2.3.2",
-        "paths": [
-            "apps__frontend>expo>@expo/cli>@expo/metro-file-map>jest-worker>jest-util>picomatch"
-        ],
-    },
-    {"version": "4.0.5", "paths": ["apps__frontend>expo>@expo/cli>picomatch"]},
-]
+# Hash the complete advisory including the paths and the upstream revision.
+PICOMATCH_REPORT_SHA256 = (
+    "dec51f05c31600aff4398f0618cf8a2d8801a240f3b90079bcd4c8518dfb0828"
+)
 MINIMATCH_ADVISORY = "GHSA-g3hv-75wg-m249"
 MINIMATCH_BUILD_PATH = "apps__frontend>expo>@expo/cli>glob>minimatch"
 BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
@@ -495,7 +490,10 @@ def javascript_audit_problems(
             and advisory.get("severity") == "high"
             and advisory.get("vulnerable_versions") == "<=4.0.7"
             and advisory.get("patched_versions") == "<0.0.0"
-            and findings == PICOMATCH_FINDINGS
+            and hashlib.sha256(
+                json.dumps(advisory, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            == PICOMATCH_REPORT_SHA256
         ):
             continue
         if (

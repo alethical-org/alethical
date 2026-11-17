@@ -53,6 +53,8 @@ overrides:
   undici: 8.12.2 # jsdom test HTTP client — patched request, cache, WebSocket, EventSource and content-encoding handling (GHSA-xjj6-f33q-929c, GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472)
   uuid: 11.1.1 # Expo telemetry uses compatible v1/v4/validate APIs
   zod: 4.6.7 # Expo CLI dev-tools plugin schemas and Vercel CLI config: memory exhaustion on oversized collections (GHSA-mrhx-c7xc-m3w5); they use only object, string, enum, array, union, literal and safeParse, which zod 4 keeps
+  # One hoisted copy ensures every build tool resolves the repaired parser.
+  picomatch: 4.0.7
   node-forge: 1.4.3 # Expo signing tools — published security fixes; retain the RSA repair below
   vite: 8.1.6 # Vitest dev server — patched launch-editor command handling
 patchedDependencies:
@@ -76,5 +78,3 @@ patchedDependencies:
   # the fixed 11.0.1 is a major version and younger than the 7-day package gate.
   minimatch@10.2.5: patches/minimatch@10.2.5.patch
   picomatch@4.0.7: patches/picomatch@4.0.7.patch
-  picomatch@4.0.5: patches/picomatch@4.0.5.patch
-  picomatch@2.3.2: patches/picomatch@2.3.2.patch

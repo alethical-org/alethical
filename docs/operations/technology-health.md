@@ -431,7 +431,8 @@ The [picomatch advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
 covers the copies that lint-staged, Expo and Jest resolve, with no fixed npm
 release as of November 17, 2026. Following the
 [maintainer's recommendation to restrict patterns](https://github.com/micromatch/picomatch/pull/235#issuecomment-6315749381),
-the 2.3.2, 4.0.5 and 4.0.7 parser patches enforce a restricted grammar for
+all build tools resolve one patched copy of 4.0.7. This avoids incomplete
+patches on duplicate hoisted installations. The parser restricts the grammar of
 repeated extended globs. Only distinct, nonempty, equal-width literal alternatives made of
 ASCII letters, digits, spaces, underscores, periods and hyphens can repeat.
 Other repeated groups throw before regex compilation. Ordinary directory and file
@@ -441,6 +442,7 @@ or a reviewed upstream repair.
 
 The audit still reports the upstream finding. The release check accepts only its
 exact versions, affected paths and advisory range after a frozen install proves
-all 3 parser hashes, workspace patch hashes and lockfile entries, with ordinary
-matching and rejection tests through the consuming tools. A new published fix,
+the installed parser hash, patch hash and lockfile entry. The check inventories
+every installed consumer, verifies the single package location, exercises Jest
+and micromatch with normal file patterns, and fingerprints the complete advisory. A new published fix,
 changed advisory or failed repair check blocks release.
