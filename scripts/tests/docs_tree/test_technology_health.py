@@ -1147,3 +1147,27 @@ def test_glob_and_minimatch_installed_checks_decide_their_findings(
             f"The installed {advisory['github_advisory_id']} repair did not pass"
             in problems
         )
+
+
+def test_picomatch_requires_its_installed_repair_and_exact_registry_finding() -> None:
+    health = check_technology_health
+    finding = {
+        "github_advisory_id": health.PICOMATCH_ADVISORY,
+        "severity": "high",
+        "module_name": "picomatch",
+        "vulnerable_versions": "<=4.0.7",
+        "patched_versions": "<0.0.0",
+        "findings": list(health.PICOMATCH_FINDINGS),
+    }
+    report = javascript_report({"pico": finding})
+    blocked = [f"{health.PICOMATCH_ADVISORY} (high)"]
+    assert health.javascript_audit_problems(report) == blocked
+    assert health.javascript_audit_problems(report, picomatch_repaired=True) == []
+    finding["patched_versions"] = ">=4.1.0"
+    assert health.javascript_audit_problems(report, picomatch_repaired=True) == blocked
+    finding["patched_versions"] = "<0.0.0"
+    finding["findings"] = [
+        *health.PICOMATCH_FINDINGS,
+        {"version": "1.0.0", "paths": ["new"]},
+    ]
+    assert health.javascript_audit_problems(report, picomatch_repaired=True) == blocked
