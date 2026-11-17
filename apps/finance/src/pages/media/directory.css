@@ -80,3 +80,8 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.mb-national-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

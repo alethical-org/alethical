@@ -1,3 +1,4 @@
+import { NationalFile } from './media/NationalFile';
 import { useFinanceSession } from '../auth/session';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRead } from '../api/read';
@@ -69,6 +70,14 @@ function ZoomIcon({ plus }: { plus: boolean }) {
 /** A TV station file: 1 exact saved version, its page images, and the checks made
  * on that version (TV Station File drawing; Rounds 22 to 26, 37, 41, 44). */
 export function StationFile({ match }: { match: RouteMatch }) {
+  return match.params.key.startsWith('national-') ? (
+    <NationalFile fileKey={match.params.key.slice(9)} />
+  ) : (
+    <TVFile match={match} />
+  );
+}
+
+function TVFile({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const key = match.params.key;

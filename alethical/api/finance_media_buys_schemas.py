@@ -353,3 +353,27 @@ class FinanceTargetPreview(Model):
     source_content_hash: str | None = None
     source_row_number: int | None = None
     source_date: str | None = None
+
+
+class FinanceNationalFile(Model):
+    source_url: str | None
+    title: str
+    station_name: str
+    service: str
+    state: str | None
+    folder_path: str
+    file_year: int | None
+    file_id: str
+    content_hash: str
+    page_count: int | None
+    has_text: bool
+
+
+class FinanceOriginalTextPage(Model):
+    page: int
+    text: str
+    method: Literal["embedded", "ocr", "unreadable"]
+
+
+class FinanceOriginalText(Model):
+    pages: list[FinanceOriginalTextPage]

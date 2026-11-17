@@ -22,6 +22,8 @@ The recurring collection change uses `codex/fcc-recurring-archive`.
 [Issue 2528](https://github.com/alethical-org/alethical/issues/2528) records the
 release and production acceptance receipts separately from initial collection.
 
+The separate [Finance national archive](../operations/national-fcc-archive.md) is an imported snapshot. Its member access and private research index do not expand the recurring collector or the public site.
+
 ## Why this collection exists
 
 The collection supports research into media-agency commissions and the invoices

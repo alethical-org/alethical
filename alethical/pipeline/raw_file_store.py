@@ -118,8 +118,8 @@ class RawFileStore:
             raise
         return int(response["ContentLength"])
 
-    def list_objects(self) -> dict[str, int]:
-        """Every object in the bucket, as key to byte size.
+    def list_objects(self, *, exclude_root_prefix: str | None = None) -> dict[str, int]:
+        """List keys and byte sizes, optionally skipping one top-level directory.
 
         The bucket is the authority on what has been stored, and the database is
         not: one bucket serves every database, so a local run's downloads land
@@ -129,11 +129,28 @@ class RawFileStore:
         downloads of dated Minnesota files unprotected.
         """
         objects: dict[str, int] = {}
-        for page in self._client.get_paginator("list_objects_v2").paginate(
-            Bucket=self.bucket
-        ):
-            for item in page.get("Contents", []):
-                objects[item["Key"]] = int(item["Size"])
+        paginator = self._client.get_paginator("list_objects_v2")
+
+        def collect(**filters: str) -> set[str]:
+            prefixes: set[str] = set()
+            for page in paginator.paginate(Bucket=self.bucket, **filters):
+                for item in page.get("Contents", []):
+                    objects[item["Key"]] = int(item["Size"])
+                prefixes.update(p["Prefix"] for p in page.get("CommonPrefixes", []))
+            return prefixes
+
+        if exclude_root_prefix is None:
+            collect()
+        else:
+            if (
+                not exclude_root_prefix.endswith("/")
+                or exclude_root_prefix.count("/") != 1
+            ):
+                raise ValueError("Expected a top-level directory ending in '/'")
+            # A delimiter lists root objects and one entry per directory. Only
+            # descend into the other directories, including unknown future ones.
+            for prefix in sorted(collect(Delimiter="/") - {exclude_root_prefix}):
+                collect(Prefix=prefix)
         return objects
 
     def put_and_verify(self, key: str, path: str, expected_sha256: str) -> None:

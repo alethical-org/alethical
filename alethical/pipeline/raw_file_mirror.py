@@ -73,6 +73,10 @@ ALREADY_MIRRORED = "already-mirrored"
 ALREADY_PRESENT = "already-present"
 FAILED = "failed"
 
+# This R2 directory holds primary national FCC objects managed by their own
+# archive. The same names in Supabase would collide with that archive.
+NATIONAL_ARCHIVE_PREFIX = "fcc-national/"
+
 # The 3 columns a table needs before this job can protect what it points at: where the
 # object is, what it should hash to, and somewhere to record that a copy was proved.
 BODY_COLUMNS = ("object_key", "compressed_hash", "mirrored_at")
@@ -168,9 +172,13 @@ def mirror_raw_files(
     now = now or datetime.now(timezone.utc)
     bodies = rows_by_object_key(db)
     objects = source.list_objects()
-    mirrored = mirror.list_objects()
+    mirrored = mirror.list_objects(exclude_root_prefix=NATIONAL_ARCHIVE_PREFIX)
     report = MirrorReport(
-        unrecorded_keys=sorted(key for key in objects if key not in bodies)
+        unrecorded_keys=sorted(
+            key
+            for key in objects
+            if key not in bodies and not key.startswith(NATIONAL_ARCHIVE_PREFIX)
+        )
     )
     log(
         f"{len(objects)} object(s) in the source store, "
@@ -221,6 +229,10 @@ def mirror_raw_files(
         size = objects.get(key, 0)
         rows = bodies.get(key, [])
         try:
+            if key.startswith(NATIONAL_ARCHIVE_PREFIX):
+                raise RuntimeError(
+                    "This key is reserved for the independent national FCC archive."
+                )
             if key not in objects:
                 raise RuntimeError(
                     "A recorded file or second copy is missing from the primary store. "

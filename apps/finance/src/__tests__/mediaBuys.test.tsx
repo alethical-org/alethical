@@ -334,7 +334,9 @@ describe('Media buys', () => {
 
   it('keeps recovery filters on an empty folder group and restores browsing filters on clear', async () => {
     const fetcher = serve((url) => {
-      const tab = url.searchParams.get('tab') ?? 'folders';
+      const tab = url.pathname.endsWith('/national-files')
+        ? 'national'
+        : (url.searchParams.get('tab') ?? 'folders');
       const station = url.searchParams.get('station') ?? '';
       const browsing = !url.searchParams.get('q');
       return json({
@@ -650,7 +652,7 @@ describe('Media buys', () => {
       await typeSearch(' dem ');
       expect(fetcher).toHaveBeenCalledTimes(count);
       await settleSearch();
-      expect(fetcher).toHaveBeenCalledTimes(count + 4);
+      expect(fetcher).toHaveBeenCalledTimes(count + 5);
       expect(container.querySelector('.mb-search-heading h2')?.textContent).toBe(
         'Results for “dem”',
       );
@@ -1868,5 +1870,95 @@ describe('Upload dates', () => {
     expect(day('2026-09-02')).toBe('Sep 2, 2026');
     expect(day(null)).toBe('Unavailable');
     expect(day('not a date')).toBe('Unavailable');
+  });
+});
+
+describe('National FCC originals in Media buys', () => {
+  const key = 'CABLE|000123|test';
+  const version = 'b'.repeat(64);
+
+  it('opens an exact national original from a later results page and preserves the return address', async () => {
+    const fetcher = serve((url) => {
+      expect(url.pathname.endsWith('/national-files')).toBe(true);
+      const page = Number(url.searchParams.get('page'));
+      return json({
+        tab: 'national',
+        q: '',
+        page,
+        page_size: 25,
+        total: 1097,
+        version: 'c'.repeat(16),
+        rows: [
+          {
+            key: 'national-' + key,
+            name: 'Original ' + page,
+            label: 'Original ' + page,
+            folder_label: 'Political Files/2026/State',
+            station: 'Held Cable',
+            year: 2026,
+            category: 'CABLE',
+            uploaded_at: null,
+            version_id: version,
+          },
+        ],
+      });
+    });
+    await render('/media-buys?tab=national&page=43', () => <MediaBuys />);
+    expect(text()).toContain('Page 43 of 44');
+    const requests = () =>
+      fetcher.mock.calls
+        .map(([input]) => new URL(input))
+        .filter((u) => u.pathname.endsWith('/national-files'));
+    expect(requests()).toHaveLength(1);
+    expect(requests()[0].searchParams.has('version')).toBe(false);
+    const copied = window.location.pathname + window.location.search;
+    expect(new URLSearchParams(window.location.search).has('browseSource')).toBe(true);
+    await click('Next');
+    expect(text()).toContain('Original 44');
+    expect(requests()).toHaveLength(2);
+    expect(requests()[1].searchParams.get('version')).toBe('c'.repeat(16));
+    const link = container.querySelector<HTMLAnchorElement>('.mb-list a')!;
+    const href = new URL(link.href);
+    expect(decodeURIComponent(href.pathname)).toBe('/media-buys/files/national-' + key);
+    expect(href.searchParams.get('version')).toBe(version);
+    expect(href.searchParams.get('from')).toContain('page=44');
+    await act(async () => root.render(null));
+    clearReadCache();
+    await render(copied, () => <MediaBuys />);
+    expect(requests()).toHaveLength(3);
+    expect(requests()[2].searchParams.get('version')).toBe('c'.repeat(16));
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) => new URL(url).searchParams.get('version') === 'c'.repeat(16),
+      ),
+    ).toBe(true);
+  });
+
+  it('reads text only on request, uses the exact file version and offers retry when the PDF cannot open', async () => {
+    const path = '/media-buys/files/national-' + encodeURIComponent(key);
+    const fetcher = serve((url) => {
+      expect(url.searchParams.get('version')).toBe(version);
+      if (url.pathname.endsWith('/text'))
+        return json({ pages: [{ page: 1, text: 'Order from the FCC record', method: 'ocr' }] });
+      if (url.pathname.endsWith('/original')) return json({}, 503);
+      return json({
+        title: 'National invoice',
+        service: 'CABLE',
+        station_name: 'Held Cable',
+        file_id: 'test',
+        folder_path: 'Political Files/2026/State',
+        content_hash: version,
+        page_count: 1,
+        has_text: true,
+        source_url: 'https://files.fcc.gov/download/test.pdf',
+      });
+    });
+    await render(path + '?version=' + version, () => <StationFile match={matchRoute(path)!} />);
+    expect(text()).toContain('National invoice');
+    expect(fetcher.mock.calls.some(([url]) => new URL(url).pathname.endsWith('/text'))).toBe(false);
+    await click('Show text');
+    expect(text()).toContain('Order from the FCC record');
+    await click('Open original PDF');
+    expect(text()).toContain('Try opening PDF again');
   });
 });

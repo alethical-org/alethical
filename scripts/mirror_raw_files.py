@@ -60,6 +60,7 @@ from alethical.db.session import (
     database_url_for_target,
 )
 from alethical.pipeline.raw_file_mirror import (
+    NATIONAL_ARCHIVE_PREFIX,
     body_tables,
     format_report,
     mirror_raw_files,
@@ -145,8 +146,17 @@ def _describe_only(db: Session, source, mirror) -> int:
         if all(row.mirrored_at is not None for row in named)
     }
     objects = source.list_objects()
-    present = mirror.list_objects()
-    todo = {key: size for key, size in objects.items() if key not in present}
+    present = mirror.list_objects(exclude_root_prefix=NATIONAL_ARCHIVE_PREFIX)
+    conflicts = {
+        key
+        for key in objects.keys() | rows.keys()
+        if key.startswith(NATIONAL_ARCHIVE_PREFIX)
+    }
+    todo = {
+        key: size
+        for key, size in objects.items()
+        if key not in present and key not in conflicts
+    }
     tables = ", ".join(model.__tablename__ for model in body_tables())
     print(
         f"\n{len(objects)} object(s) stored, {len(present)} already in the second copy, "
@@ -156,7 +166,7 @@ def _describe_only(db: Session, source, mirror) -> int:
     print(f"{len(todo)} object(s) would be copied ({sum(todo.values()):,} bytes):")
     for key in sorted(todo):
         print(f"  {key} ({todo[key]:,} bytes)")
-    missing_primary = sorted((set(rows) | set(present)) - set(objects))
+    missing_primary = sorted((set(rows) | set(present)) - set(objects) - conflicts)
     mismatches = sorted(
         key for key in set(objects) & set(present) if objects[key] != present[key]
     )
@@ -164,7 +174,9 @@ def _describe_only(db: Session, source, mirror) -> int:
         print(f"  FAILED primary missing: {key}")
     for key in mismatches:
         print(f"  FAILED stores disagree on byte size: {key}")
-    return 1 if missing_primary or mismatches else 0
+    for key in sorted(conflicts):
+        print(f"  FAILED reserved archive namespace: {key}")
+    return 1 if missing_primary or mismatches or conflicts else 0
 
 
 if __name__ == "__main__":
