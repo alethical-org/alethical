@@ -62,6 +62,30 @@ billed outgoing data using the [Supabase usage guide](supabase-usage.md). The so
 facility data, licensing records, file history and OCR progress. Those materials belong to
 research and do not count as member files.
 
+### Review archive usage
+
+The member list selects only the fields shown in results, plus the file identity
+and version used by the link. Search previews return up to 5 rows and full pages up
+to 25. Search waits briefly for typing to pause, and Finance can reuse an identical
+answer for the same account for 1 minute. Adding the source version to the current
+list address does not trigger another fetch. The server reuses the private file
+read grant for up to 5 minutes, cut short by its expiry.
+
+The first live release added about 8.5 MB across the 3 database tables and their
+indexes. Across all 10,797 live records, the largest projected list row was 391
+bytes when encoded as a JSON array. That is under 2 KB of row data for a preview
+and 10 KB for a full page in the same representation. The largest complete file
+metadata row was under 1 KB in JSON. These sizes exclude protocol overhead and
+other queries, including the release and grant reads.
+
+Use the [Supabase usage guide](supabase-usage.md#measurement) to check whether
+archive queries become material as traffic grows. Compare calls and returned
+rows in a representative window that excludes deliberate verification traffic.
+Use Supabase's organization usage readings for billed bytes. Supabase bills
+provisioned database disk, so table size alone does not show a change in the bill.
+Keep the current read limits and access checks unless measurements identify a
+specific read worth reducing.
+
 For the November 16, 2026 snapshot, the recovered inventory contains 2,704,694 entries across
 23 monthly windows. It includes deletion and purge history. The download log records 10,797
 successful originals, 2 errors and 1 unavailable file. The originals cover 7,619 cable, 2,007
