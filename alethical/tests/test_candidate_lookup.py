@@ -1357,3 +1357,14 @@ def test_only_the_confirmed_official_street_fills_an_omitted_spelling(short, ful
     result = lookup.resolve(text)
     assert result["kind"] == "ambiguous"
     assert lookup.resolve(text, result["choices"][0])[0].street == full
+
+
+def test_compass_and_missing_type_keep_the_actual_selected_original_spelling():
+    lookup, _ = service(rows=[street(FullStreetName="NEWBURG AVE E")])
+    text = ADDRESS.replace("EXAMPLE ST N", "E NEWBURG")
+    choices = lookup.resolve(text)["choices"]
+    address, match = lookup.resolve(text, choices[0])
+    assert lookup._confirmed_spelling(text, address, match).street == "E NEWBURG"
+    assert lookup.resolve(text.replace("E NEWBURG", "W NEWBURG")) == {
+        "kind": "no-match"
+    }

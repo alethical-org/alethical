@@ -10,7 +10,6 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
@@ -228,14 +227,17 @@ def _official_spellings(street: str) -> frozenset[str]:
     spellings = {" ".join(words)}
     if moved := _moved_direction(" ".join(words)):
         spellings.add(moved)
-    # Preserve the full base name. Never replace a supplied direction or type.
-    if len(words) > 1:
-        for i in (0, len(words) - 1):
-            if words[i] in _DIRECTIONS:
-                spellings.add(" ".join(words[:i] + words[i + 1 :]))
-        type_pos = len(words) - (2 if words[-1] in _DIRECTIONS else 1)
-        if type_pos > 0 and words[type_pos] in _STREET_TYPES:
-            spellings.add(" ".join(words[:type_pos] + words[type_pos + 1 :]))
+    # Preserve the base name and any supplied compass point.
+    for spelling in tuple(spellings):
+        parts = spelling.split()
+        if len(parts) < 2:
+            continue
+        for i in (0, len(parts) - 1):
+            if parts[i] in _DIRECTIONS:
+                spellings.add(" ".join(parts[:i] + parts[i + 1 :]))
+        type_pos = len(parts) - (2 if parts[-1] in _DIRECTIONS else 1)
+        if type_pos > 0 and parts[type_pos] in _STREET_TYPES:
+            spellings.add(" ".join(parts[:type_pos] + parts[type_pos + 1 :]))
     return frozenset(spellings)
 
 
@@ -996,6 +998,26 @@ class CandidateLookupService:
             ) from None
         return matches[0], found
 
+    def _confirmed_spelling(
+        self, text: str, address: StreetAddress, found: StreetRangeMatch
+    ):
+        rows = self.streets(address.zip_code)
+        if _parse_with_rows(text, rows) or _parse_with_rows(
+            text, rows, alternate_spelling=True
+        ) != [address]:
+            return None
+        # Only the precise wording actually entered can supply a second building
+        # point. A reader choosing between multiple possible streets uses only
+        # the selected street's location. The SOS precinct must still agree.
+        spelling_rows = [
+            dict(row, FullStreetName=spelling)
+            for row in rows
+            if row["ProdAddressRangeId"] == found.range_id
+            for spelling in _official_spellings(_normal(address.street))
+        ]
+        aliases = _parse_with_rows(text, spelling_rows)
+        return aliases[0] if len(aliases) == 1 else None
+
     def _historical_match(
         self,
         address: StreetAddress,
@@ -1110,19 +1132,7 @@ class CandidateLookupService:
                 return unavailable, None
             alternate = None
             if confirmed and confirmed == _choice(_address_label(address)):
-                moved = _moved_direction(_normal(address.street))
-                if moved:
-                    rows = self.streets(address.zip_code)
-                    spelling_rows = [
-                        dict(row, FullStreetName=moved)
-                        for row in rows
-                        if row["ProdAddressRangeId"] == found.range_id
-                        and _normal(row["FullStreetName"]) == _normal(address.street)
-                    ]
-                    if not _parse_with_rows(text, rows) and _parse_with_rows(
-                        text, spelling_rows
-                    ):
-                        alternate = replace(address, street=moved)
+                alternate = self._confirmed_spelling(text, address, found)
             geography = self._historical_match(address, found, alternate)
             if geography is None:
                 return unavailable, None

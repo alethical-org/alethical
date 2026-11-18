@@ -83,6 +83,7 @@ dependencies = [
   # Fixed client for the trusted, read-only production security probe.
   "websockets==15.0.1",
   "pillow-heif>=1.8.1",
+  "pyshp==2.3.1",
 ]
 
 [tool.uv]
