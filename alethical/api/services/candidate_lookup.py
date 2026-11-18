@@ -10,7 +10,6 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
@@ -24,7 +23,6 @@ from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.representative_lookup import (
     _ADDRESS_POINT_FIELDS,
     _STREET_TYPE_ALIASES,
-    _address_point_label,
     MINNESOTA_ADDRESS_POINTS_URL,
     AddressPointsIncomplete,
     MinnesotaAddressPointGeocoder,
@@ -93,6 +91,10 @@ LOCATION_MIN_SEPARATION_METERS = 8
 
 class CandidateLookupUnavailable(Exception):
     """Public safe error; no source URL, address or underlying exception text."""
+
+
+class _AddressPointServiceOffline(CandidateLookupUnavailable):
+    """An independent dated source can still establish the voting area."""
 
 
 def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
@@ -178,6 +180,72 @@ def _normal(value: str) -> str:
     )
 
 
+_DIRECTIONS = {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
+
+
+def _city_words(value: str) -> list[str]:
+    return [
+        "ST" if word in {"ST", "SAINT"} else word
+        for word in value.upper().replace(".", "").replace("-", " ").split()
+    ]
+
+
+@lru_cache(maxsize=256)
+def _city_ending(city: str) -> re.Pattern:
+    words = [
+        r"(?:ST\.?|SAINT)" if word == "ST" else re.escape(word)
+        for word in _city_words(city)
+    ]
+    return re.compile(r"(?:,?\s+)" + r"[-\s]+".join(words) + "$")
+
+
+def _moved_direction(street: str) -> str | None:
+    # The same compass point may appear on either end in different records.
+    # Require the reader to choose the other spelling before using it.
+    words = street.split()
+    if len(words) < 3 or (words[0] in _DIRECTIONS) == (words[-1] in _DIRECTIONS):
+        return None
+    if words[0] in _DIRECTIONS:
+        return " ".join([*words[1:], words[0]])
+    return " ".join([words[-1], *words[:-1]])
+
+
+_ORDINALS = dict(
+    zip(
+        "FIRST SECOND THIRD FOURTH FIFTH SIXTH SEVENTH EIGHTH NINTH TENTH".split(),
+        "1ST 2ND 3RD 4TH 5TH 6TH 7TH 8TH 9TH 10TH".split(),
+        strict=True,
+    )
+)
+_STREET_TYPES = frozenset(_STREET_TYPE_ALIASES.values())
+
+
+@lru_cache(maxsize=4096)
+def _official_spellings(street: str) -> frozenset[str]:
+    """Comparable spellings; callers offer the complete official street for confirmation."""
+    words = [_ORDINALS.get(word, word) for word in street.split()]
+    spellings = {" ".join(words)}
+    if moved := _moved_direction(" ".join(words)):
+        spellings.add(moved)
+    # Preserve the base name and any supplied compass point.
+    for spelling in tuple(spellings):
+        parts = spelling.split()
+        if len(parts) < 2:
+            continue
+        for i in (0, len(parts) - 1):
+            if parts[i] in _DIRECTIONS:
+                spellings.add(" ".join(parts[:i] + parts[i + 1 :]))
+        type_pos = len(parts) - (2 if parts[-1] in _DIRECTIONS else 1)
+        if type_pos > 0 and parts[type_pos] in _STREET_TYPES:
+            spellings.add(" ".join(parts[:type_pos] + parts[type_pos + 1 :]))
+    return frozenset(spellings)
+
+
+def _spelling_choice(supplied: str, expected: str) -> bool:
+    normalized = " ".join(_ORDINALS.get(word, word) for word in supplied.split())
+    return normalized in _official_spellings(expected)
+
+
 def _choice(address: str) -> dict:
     return {
         "id": hashlib.sha256(address.encode()).hexdigest(),
@@ -223,7 +291,15 @@ def _address_label(address: StreetAddress) -> str:
     return f"{address.house_number}{suffix} {address.street}{unit}, {address.city}, MN {address.zip_code}"
 
 
-def historical_address_points(address: StreetAddress) -> set[tuple[float, float]]:
+_AFTER_ELECTION_MS = int(
+    datetime(2026, 11, 4, tzinfo=ZoneInfo("America/Chicago")).timestamp() * 1000
+)
+
+
+def historical_address_points(
+    address: StreetAddress,
+    alternate_street: str | None = None,
+) -> set[tuple[float, float]] | None:
     """Locate the building only. Election-day maps decide the voting districts."""
     # These values came from an exact SOS range. Check them again before
     # forming a government GIS filter, which never contains the street or unit.
@@ -236,8 +312,9 @@ def historical_address_points(address: StreetAddress) -> set[tuple[float, float]
             MINNESOTA_ADDRESS_POINTS_URL,
             data={
                 "where": f"anumber = {address.house_number} AND zip = '{address.zip_code}'",
-                "outFields": ",".join(_ADDRESS_POINT_FIELDS),
-                "returnGeometry": "false",
+                "outFields": ",".join((*_ADDRESS_POINT_FIELDS, "ret_date", "eff_date")),
+                "returnGeometry": "true",
+                "outSR": "4326",
                 "resultRecordCount": "2000",
                 "f": "json",
             },
@@ -245,12 +322,15 @@ def historical_address_points(address: StreetAddress) -> set[tuple[float, float]
             allow_redirects=False,
         )
         if response.status_code != 200:
-            raise CandidateLookupUnavailable("Minnesota address points unavailable")
-        payload = response.json()
-    except (requests.RequestException, ValueError):
-        raise CandidateLookupUnavailable(
+            raise _AddressPointServiceOffline("Minnesota address points unavailable")
+    except requests.RequestException:
+        raise _AddressPointServiceOffline(
             "Minnesota address points unavailable"
         ) from None
+    try:
+        payload = response.json()
+    except ValueError:
+        raise CandidateLookupUnavailable("Invalid Minnesota address points") from None
     if (
         not isinstance(payload, dict)
         or payload.get("error")
@@ -258,35 +338,90 @@ def historical_address_points(address: StreetAddress) -> set[tuple[float, float]
     ):
         raise CandidateLookupUnavailable("Invalid Minnesota address points")
     if payload.get("exceededTransferLimit"):
-        return set()
-    # A common postal spelling changes only the standalone city word ST to SAINT.
-    # Street direction, house suffix, city, state and ZIP must all agree.
-    street, city, _ = _address_label(replace(address, unit="")).split(", ")
-    expected_city = re.sub(r"\bST\b", "SAINT", city.upper().replace(".", ""))
+        return None
+    expected_city = _city_words(address.city)
+    expected_streets = {_normal(address.street)}
+    if alternate_street:
+        expected_streets.add(_normal(alternate_street))
     points = set()
+    excluded = False
+    uncertain_points = set()
     for feature in payload["features"]:
         attrs = feature.get("attributes") if isinstance(feature, dict) else None
         if not isinstance(attrs, dict):
             raise CandidateLookupUnavailable("Invalid Minnesota address point")
-        if str(attrs.get("status")).upper() != "ACTIVE" or attrs.get(
-            "state_code"
-        ) not in (None, "MN"):
-            continue
-        label, locality, zip_code = _address_point_label(attrs)
         if (
-            zip_code != address.zip_code
-            or re.sub(r"\bST\b", "SAINT", locality.upper().replace(".", ""))
-            != expected_city
-            or _normal(label.partition(",")[0]) != _normal(street)
+            str(attrs.get("state_code") or "MN").strip().upper() != "MN"
+            or str(attrs.get("zip") or "").strip() != address.zip_code
+            or str(attrs.get("anumber") or "").strip() != str(address.house_number)
+            or str(attrs.get("anumbersuf") or "").replace(" ", "").upper()
+            != address.house_number_suffix
+            or str(attrs.get("anumberpre") or "").strip()
         ):
             continue
-        try:
-            lat, lon = float(attrs["latitude"]), float(attrs["longitude"])
-        except (ValueError, TypeError, KeyError):
-            return set()
-        if not (43.0 <= lat <= 50.0 and -98.0 <= lon <= -89.0):
-            return set()
-        points.add((lat, lon))
+        if not any(
+            _city_words(str(attrs.get(field) or "")) == expected_city
+            for field in ("postcomm", "ctu_name")
+        ):
+            continue
+        street = " ".join(
+            str(attrs.get(field) or "").strip()
+            for field in (
+                "st_pre_mod",
+                "st_pre_dir",
+                "st_pre_typ",
+                "st_pre_sep",
+                "st_name",
+                "st_pos_typ",
+                "st_pos_dir",
+                "st_pos_mod",
+            )
+        )
+        if _normal(street) not in expected_streets:
+            continue
+        # Some counties omit status. Evaluate dated retirements on election day,
+        # even when today's label says retired. January 1900 is a source placeholder.
+        status = str(attrs.get("status") or "").strip().upper()
+        retired = attrs.get("ret_date")
+        effective = attrs.get("eff_date")
+        if effective is not None and type(effective) not in (int, float):
+            return None
+        if retired is not None and type(retired) not in (int, float):
+            return None
+        dated_retirement = retired not in (None, 0, -2208988800000)
+        if (effective is not None and effective >= _AFTER_ELECTION_MS) or (
+            dated_retirement and retired < _AFTER_ELECTION_MS
+        ):
+            excluded = True
+            continue
+        dated_active = dated_retirement and effective is not None and effective > 0
+        uncertain = status not in {"", "ACTIVE", "CURRENT"} and not (
+            status in {"INACTIVE", "RETIRED"} and dated_active
+        )
+        spatial = feature.get("geometry")
+        reference = payload.get("spatialReference") or {}
+        positions = []
+        if (
+            isinstance(reference, dict)
+            and isinstance(spatial, dict)
+            and reference.get("wkid") == 4326
+        ):
+            positions.append((spatial.get("y"), spatial.get("x")))
+        lat_value, lon_value = attrs.get("latitude"), attrs.get("longitude")
+        if lat_value is not None or lon_value is not None:
+            positions.append((lat_value, lon_value))
+        if not positions:
+            return None
+        for lat, lon in positions:
+            try:
+                lat, lon = float(lat), float(lon)
+            except (ValueError, TypeError):
+                return None
+            if not (43 <= lat <= 50 and -98 <= lon <= -89):
+                return None
+            (uncertain_points if uncertain else points).add((lat, lon))
+    if (uncertain_points - points) or (not points and excluded):
+        return None
     return points
 
 
@@ -300,7 +435,11 @@ def _street_json_object(pairs: list[tuple[str, object]]) -> dict:
 
 
 def _parse_with_rows(
-    text: str, rows: list[dict], *, prefix: bool = False
+    text: str,
+    rows: list[dict],
+    *,
+    prefix: bool = False,
+    alternate_spelling: bool = False,
 ) -> list[StreetAddress]:
     """Match all supplied words against source streets, not coordinates or incumbents.
 
@@ -308,7 +447,9 @@ def _parse_with_rows(
     nothing, 1 unit elsewhere in the street or locality (after a comma, or after
     the city) is read as that unit. 2 different units are never reconciled.
     """
-    matches = _parse_rows_once(text, rows, prefix=prefix)
+    matches = _parse_rows_once(
+        text, rows, prefix=prefix, alternate_spelling=alternate_spelling
+    )
     if matches:
         return matches
     upper = normalize_address_format(text).upper()
@@ -327,13 +468,22 @@ def _parse_with_rows(
     street, separator, locality = without.partition(",")
     if separator:
         matches = _parse_rows_once(
-            f"{street.strip()} {unit_text},{locality}", rows, prefix=prefix
+            f"{street.strip()} {unit_text},{locality}",
+            rows,
+            prefix=prefix,
+            alternate_spelling=alternate_spelling,
         )
         if matches:
             return matches
     # Comma-free text, or a unit placed after the city: each source row's own
     # city marks where the street ends.
-    return _parse_rows_once(without, rows, prefix=prefix, unit=unit_text)
+    return _parse_rows_once(
+        without,
+        rows,
+        prefix=prefix,
+        alternate_spelling=alternate_spelling,
+        unit=unit_text,
+    )
 
 
 # "Apt.250" is the same supported spelling as "Apt 250" and "Apt. 250".
@@ -360,7 +510,12 @@ def _trailing_unit_start(text: str) -> int | None:
 
 
 def _parse_rows_once(
-    text: str, rows: list[dict], *, prefix: bool = False, unit: str = ""
+    text: str,
+    rows: list[dict],
+    *,
+    prefix: bool = False,
+    alternate_spelling: bool = False,
+    unit: str = "",
 ) -> list[StreetAddress]:
     supplied_unit = " ".join(unit.upper().split())
     text = normalize_address_format(text).upper()
@@ -386,15 +541,7 @@ def _parse_rows_once(
             continue
         requested = remainder
         # Postal city belongs to the address match, never to a municipal race.
-        city_words = city.strip().split()
-        city_name = re.escape(city.strip())
-        if len(city_words) > 1 and city_words[0] in {"ST", "ST.", "SAINT"}:
-            # Minnesota address points print SAINT PAUL; election street tables
-            # print ST PAUL. Accept that exact prefix spelling, preserving every
-            # remaining city word and the source's house/street/ZIP/range checks.
-            city_name = r"(?:ST\.?|SAINT)\s+" + re.escape(" ".join(city_words[1:]))
-        city_pattern = r"(?:,?\s+)" + city_name + r"$"
-        city_match = re.search(city_pattern, requested)
+        city_match = _city_ending(city).search(requested)
         if city_match:
             requested = requested[: city_match.start()].strip(" ,")
         elif "," in requested:
@@ -408,7 +555,10 @@ def _parse_rows_once(
             # "Street, Apt 3, City" leaves the separating comma behind.
             requested = requested[:unit_start].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)
-        if not (expected.startswith(supplied) if prefix else expected == supplied):
+        if alternate_spelling:
+            if not _spelling_choice(supplied, expected):
+                continue
+        elif not (expected.startswith(supplied) if prefix else expected == supplied):
             continue
         address = StreetAddress(
             street.strip(),
@@ -443,7 +593,7 @@ def _parse_rows_once(
         )
         city_key = (
             _normal(address.street),
-            re.sub(r"^(?:SAINT|ST\.)\s+", "ST ", " ".join(address.city.split())),
+            tuple(_city_words(address.city)),
             *key[2:],
         )
         if city_key in city_spellings and city_spellings[city_key] != address.city:
@@ -586,6 +736,12 @@ class CandidateLookupService:
         for choice, zip_code in choices_with_zip:
             rows = tables[zip_code]
             matches = _parse_with_rows(choice["address"], rows)
+            if not matches:
+                matches = _parse_with_rows(
+                    choice["address"], rows, alternate_spelling=True
+                )
+                if len(matches) == 1:
+                    choice = _choice(_address_label(matches[0]))
             if len(matches) != 1:
                 continue
             try:
@@ -606,9 +762,10 @@ class CandidateLookupService:
         text = normalize_address_format(text)
         zip_match = re.search(r"\b(\d{5})(?:-\d{4})?$", text.strip())
         if zip_match:
-            addresses = _parse_with_rows(
-                text, self.streets(zip_match.group(1)), prefix=True
-            )
+            rows = self.streets(zip_match.group(1))
+            addresses = _parse_with_rows(text, rows, prefix=True)
+            if not addresses:
+                addresses = _parse_with_rows(text, rows, alternate_spelling=True)
             return self._eligible_choices(
                 [_choice(_address_label(address)) for address in addresses[:5]]
             )
@@ -755,7 +912,13 @@ class CandidateLookupService:
             ]
             if confirmed is not None:
                 if confirmed not in choices:
-                    return {"kind": "no-match"}
+                    same_zip = [
+                        choice
+                        for choice in choices
+                        if choice["address"][-5:] == confirmed["address"][-5:]
+                    ]
+                    if confirmed not in self._eligible_choices(same_zip):
+                        return {"kind": "no-match"}
                 # Resolve only the chosen address. A source failure for an
                 # unrelated alternative must not block a valid confirmation.
                 text = confirmed["address"]
@@ -779,6 +942,16 @@ class CandidateLookupService:
             return {"kind": "outside-minnesota"}
         rows = self.streets(zip_match.group(1))
         matches = _parse_with_rows(text, rows)
+        if not matches:
+            alternatives = _parse_with_rows(text, rows, alternate_spelling=True)
+            if alternatives:
+                choices = self._eligible_choices(
+                    [_choice(_address_label(a)) for a in alternatives]
+                )
+                if confirmed is None and choices:
+                    return {"kind": "ambiguous", "choices": choices}
+                if confirmed in choices:
+                    matches = alternatives
         choices = [_choice(_address_label(address)) for address in matches]
         if confirmed is not None and confirmed not in choices:
             # For no-ZIP geocoding the original confirmed string may have been
@@ -825,6 +998,109 @@ class CandidateLookupService:
             ) from None
         return matches[0], found
 
+    def _confirmed_spelling(
+        self, text: str, address: StreetAddress, found: StreetRangeMatch
+    ):
+        rows = self.streets(address.zip_code)
+        if _parse_with_rows(text, rows) or _parse_with_rows(
+            text, rows, alternate_spelling=True
+        ) != [address]:
+            return None
+        # Only the precise wording actually entered can supply a second building
+        # point. A reader choosing between multiple possible streets uses only
+        # the selected street's location. The SOS precinct must still agree.
+        spelling_rows = [
+            dict(row, FullStreetName=spelling)
+            for row in rows
+            if row["ProdAddressRangeId"] == found.range_id
+            for spelling in _official_spellings(_normal(address.street))
+        ]
+        aliases = _parse_with_rows(text, spelling_rows)
+        return aliases[0] if len(aliases) == 1 else None
+
+    def _historical_match(
+        self,
+        address: StreetAddress,
+        found: StreetRangeMatch,
+        alternate: StreetAddress | None = None,
+    ):
+        from alethical.api.services.candidate_historical_county_addresses import (
+            county_address_points,
+        )
+        from alethical.api.services.candidate_historical_geography import (
+            corroborated_school,
+            historical_geography,
+            historical_precinct,
+        )
+        from alethical.api.services.candidate_historical_streets import (
+            agrees_with_precinct,
+            facility_points,
+            lancaster_central_precinct,
+            report_matches_address,
+            street_precinct,
+            street_school,
+        )
+
+        offline = False
+        try:
+            points = (
+                historical_address_points(address, alternate.street)
+                if alternate
+                else historical_address_points(address)
+            )
+        except _AddressPointServiceOffline:
+            offline = True
+            points = set()
+        if points is None:
+            return None
+        needs_range_confirmation = not points or alternate is not None
+        points = points | facility_points(address) | county_address_points(address)
+        if alternate:
+            points |= facility_points(alternate) | county_address_points(alternate)
+        if points:
+            geography = historical_geography(points)
+        else:
+            key = street_precinct(address) or lancaster_central_precinct(address)
+            geography = historical_precinct(key[:2], key[2:]) if key else None
+        if geography is None:
+            if offline:
+                raise CandidateLookupUnavailable("Minnesota address points unavailable")
+            return None
+        if needs_range_confirmation or not (
+            geography.school_type and geography.school_district
+        ):
+            try:
+                report_body = self.fetch(
+                    SOURCE_URL, {"prodAddressRangeId": found.range_id}
+                )
+                payload = json.loads(report_body, object_pairs_hook=_street_json_object)
+                report = (
+                    payload.get("PollingResult") if isinstance(payload, dict) else None
+                )
+            except (CandidateLookupUnavailable, ValueError, UnicodeDecodeError):
+                if needs_range_confirmation:
+                    raise CandidateLookupUnavailable(
+                        "Official street confirmation unavailable"
+                    ) from None
+                report = None
+            if (
+                isinstance(report, dict)
+                and report_matches_address(report, address)
+                and agrees_with_precinct(report, geography)
+            ):
+                geography = corroborated_school(
+                    geography,
+                    points,
+                    school_name=str(report.get("SchoolName") or ""),
+                    school_district=str(report.get("SchoolDistrict") or ""),
+                    street_school=street_school(address, geography)
+                    if not points
+                    else None,
+                )
+            elif needs_range_confirmation:
+                return None
+        return geography
+
     def lookup(
         self,
         text: str,
@@ -852,17 +1128,16 @@ class CandidateLookupService:
             return resolved, None
         address, found = resolved
         if lookup_kind == "historical-ballot":
-            from alethical.api.services.candidate_historical_geography import (
-                historical_geography,
-            )
             from alethical.api.services.candidate_historical_races import (
                 historical_candidate_results,
             )
 
-            # A building point cannot distinguish units with different ballots.
             if found.unit_specific or db is None:
                 return unavailable, None
-            geography = historical_geography(historical_address_points(address))
+            alternate = None
+            if confirmed and confirmed == _choice(_address_label(address)):
+                alternate = self._confirmed_spelling(text, address, found)
+            geography = self._historical_match(address, found, alternate)
             if geography is None:
                 return unavailable, None
             return historical_candidate_results(

@@ -471,11 +471,12 @@ def test_default_source_map_keeps_input_order_when_later_jobs_finish():
 
 @pytest.mark.parametrize("ordered", [True, False])
 def test_async_interrupt_during_cleanup_still_drains_started_jobs(monkeypatch, ordered):
-    import os
     import signal
+    from threading import get_ident
 
     release, started, draining, interrupted = Event(), Event(), Event(), Event()
-    finished, returned = Event(), Event()
+    finished, resumed = Event(), Event()
+    main_thread_id = get_ident()
     actual_wait = io.wait
 
     def work(number):
@@ -483,25 +484,35 @@ def test_async_interrupt_during_cleanup_still_drains_started_jobs(monkeypatch, o
             assert started.wait(timeout=3)
             return number
         started.set()
-        assert release.wait(timeout=3)
+        assert release.wait(timeout=10)
         finished.set()
         return number
 
     def waiting(futures, **kwargs):
-        if not kwargs:  # Cleanup, rather than completion-order result waiting.
-            draining.set()
-        try:
+        if kwargs:  # Completion-order result waiting, before cleanup.
             return actual_wait(futures, **kwargs)
+        try:
+            if interrupted.is_set():
+                assert any(future.running() for future in futures)
+                resumed.set()
+            else:
+                draining.set()
+                if not hasattr(signal, "pthread_kill"):
+                    signal.raise_signal(signal.SIGINT)
+            return actual_wait(futures)
         except KeyboardInterrupt:
             interrupted.set()
             raise
 
     def interrupt():
         try:
-            assert draining.wait(timeout=3)
-            os.kill(os.getpid(), signal.SIGINT)
-            assert interrupted.wait(timeout=3)
-            assert not returned.wait(timeout=0.05)
+            if not draining.wait(timeout=3):
+                return
+            if hasattr(signal, "pthread_kill"):
+                # A process-wide signal may wake a pool worker while Python's
+                # main thread remains asleep in wait until the worker times out.
+                signal.pthread_kill(main_thread_id, signal.SIGINT)
+            resumed.wait(timeout=5)
         finally:
             release.set()
 
@@ -513,8 +524,8 @@ def test_async_interrupt_during_cleanup_still_drains_started_jobs(monkeypatch, o
     try:
         with pytest.raises(KeyboardInterrupt):
             iterator.close()
+        assert interrupted.is_set() and resumed.is_set() and finished.is_set()
     finally:
-        returned.set()
         release.set()
         interrupter.join(timeout=3)
-    assert finished.is_set() and not interrupter.is_alive()
+    assert not interrupter.is_alive()

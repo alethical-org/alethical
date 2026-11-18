@@ -38,3 +38,71 @@ school district in both dated county tax-area registers.
 [South St. Paul election ballots](https://www.southstpaulmn.gov/224/Elections),
 [Crow Wing County 2026 register](https://www.crowwing.gov/Archive/ViewFile/Item/3159)
 and [October 28, 2026 register](https://www.crowwing.gov/Archive/ViewFile/Item/3321).
+
+The Secretary of State's dated precinct workbook supplies hospital districts.
+Hennepin County's 2026 and proposed 2027 tax-area registers support single-school
+municipalities. Minneapolis publishes matching park and school board districts.
+[September precinct workbook](https://sos.mn.gov/media/3338/precinct-table.xlsx),
+[Hennepin County registers](https://www.hennepincounty.gov/services/property/property-taxes/taxing-district-information)
+and [Minneapolis election maps](https://vote.minneapolismn.gov/results-data/election-maps/).
+
+For other schools, Minnesota's statewide 2025–26 school district map is one
+part of the check. The 4 districts consolidated on July 1, 2026 are mapped to
+their 2 successors. A match also requires the name and number assigned to the
+same address range by the Secretary of State, and a school contest in the
+November 3 precinct returns. Without an exact building location, all matching
+street segments or the whole precinct must be inside one school district. The education map generalizes
+some boundaries and is provided without warranty.
+[Education map and data limitations](https://www.arcgis.com/sharing/rest/content/items/796cba407b014bfcae4d5f0050dd4c68/info/metadata/metadata.xml?format=default&output=html),
+[2026 consolidations](https://www.house.mn.gov/hrd/issinfo/schdistcon.aspx),
+[November school names by county](https://electionresultsfiles.sos.mn.gov/20261103/SchoolDistTbl.txt)
+and [state address lookup](https://myballotmn.sos.mn.gov/).
+
+The U.S. Census Bureau's October 6, 2026 TIGER/Line files supply legal township
+boundaries inside Nashwauk and street address ranges across all 87 counties.
+The street builder first checks whether the full segment clears the relevant
+boundary by 10 metres. When it does not, the Census assigns each side's house
+numbers to a specific polygon (a topological face). The entire face must
+fit within one district, with at most 10 centimetres of linework difference.
+All compatible records must agree for the address. Aliases in the address
+range file have an explicit Census link to the side's house-number range.
+[Minnesota county subdivisions](https://www2.census.gov/geo/tiger/TIGER2026/COUSUB/tl_2026_27_cousub.zip),
+[county address ranges](https://www2.census.gov/geo/tiger/TIGER2026/ADDRFEAT/),
+[Census topological faces](https://www2.census.gov/geo/tiger/TIGER2026/FACES/),
+and [street range builder](../../../scripts/build_2026_candidate_streets.py).
+
+The street index also includes mapped physical addresses and coordinates from
+the Minnesota Department of Education's 2025–26 public school program
+directory. They identify buildings. Electoral geography is checked separately.
+[School program locations](https://operations.gis.data.mn.gov/api/publicdownload/download/1148/school_program_locations.csv)
+(SHA-256 `a2deaa62a20469931669fe7e318613e6746bae22e614beee33f365810f6248de`).
+
+The exact-address supplement uses Sibley County GIS's September 17, 2026
+address point edition. Traverse County points must agree in both its October
+20, 2021 archive and its November 18, 2026 service, including the full address
+and all coordinates at the archive's seven-decimal precision. The offline
+index contains lookup keys and coordinates. The county points support address
+placement; the election districts are independently confirmed. An added compass
+direction requires the October 2026 Census to link both street names to the
+same address range on the same side of the same road segment. Each mapped
+county point must be inside that side, within 50 metres of the segment, and
+clear of the ends. Any competing range for the directed name in that county
+and ZIP with the same number and parity disqualifies the alias.
+[Census address range to street name links](https://www2.census.gov/geo/tiger/TIGER2026/ADDRFN/).
+[Sibley County data downloads](https://www.sibleycounty.gov/371/Maps-Geographic-Information-System-GIS),
+[Sibley address layer](https://www.arcgis.com/home/item.html?id=83bff03683ca46359043534b14ebb10b),
+[Traverse County open data](https://data-traversecountymn.opendata.arcgis.com/),
+[Traverse County address layer](https://gis.co.traverse.mn.us/arcgis/rest/services/GIS_Data_Layers/MapServer/0),
+[OpenAddresses archive of the county source](https://data.openaddresses.io/runs/1198403/us/mn/traverse.zip)
+and [rebuild script](../../../scripts/build_2026_candidate_county_addresses.py).
+
+[Sibley County's required data disclaimer](https://www.sibleycounty.gov/DocumentCenter/View/521/Digital-Disclaimer-PDF):
+
+> SIBLEY COUNTY PUBLIC WORKS makes no representations or warranties, expressed or implied, with respect to the reuse of the data provided herewith, regardless of its format or the means of its transmission. There is no guarantee or representation to the user as to the accuracy, currency, suitability, or reliability of the data for any purpose. The user accepts this data "as is", and assumes all risks associated with its use. By acceptance of this data, the user agrees not to transmit this data or provide access to it or any part of it to another party unless the user shall include with the data a copy of this disclaimer. SIBLEY COUNTY PUBLIC WORKS assumes no responsibility for actual or consequential damage incurred as a result of any user's reliance on this data.
+
+The Minnesota Department of Transportation's November 2024 Lancaster city map
+shows one continuous Central Avenue. The election service distinguishes its north
+and south addresses. A dated Census street range corroborates only the precinct
+when every matching side and spelling gives Lancaster's November precinct and
+the full directed election address independently agrees.
+[Lancaster city road map](https://www.dot.state.mn.us/maps/gdma/data/maps/city/Under5000/kittson/lancaster.pdf).
