@@ -360,7 +360,11 @@ export function matchRoute(pathname: string): RouteMatch | null {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
   for (const route of ROUTES) {
     const params = matches(route.pattern, path);
-    if (params) return { route, params };
+    if (!params) continue;
+    if (route.name === 'station-file' && params.key.startsWith('national-')) {
+      return { route: { ...route, title: 'National FCC file' }, params };
+    }
+    return { route, params };
   }
   return null;
 }
