@@ -1288,3 +1288,72 @@ def test_a_suggestion_carrying_typed_detail_is_checked_as_its_full_text(
     result, _ = lookup.lookup(shown, "8334")
     assert result["kind"] == "results"
     assert calls[-1] == (SOURCE_URL, {"prodAddressRangeId": range_id})
+
+
+def test_reordered_direction_requires_confirmation_and_keeps_number_and_city():
+    lookup, _ = service()
+    text = ADDRESS.replace("EXAMPLE ST N", "N EXAMPLE ST")
+    result = lookup.resolve(text)
+    assert result["kind"] == "ambiguous"
+    (choice,) = result["choices"]
+    assert choice["address"] == ADDRESS
+    assert lookup.resolve(text, choice)[0].street == "EXAMPLE ST N"
+    assert lookup.suggest(text) == [choice]
+    for different in (
+        text.replace("100", "101"),
+        text.replace("N EXAMPLE", "S EXAMPLE"),
+        text.replace("EXAMPLE CITY", "OTHER CITY"),
+    ):
+        assert lookup.resolve(different, choice) == {"kind": "no-match"}
+
+
+def test_official_direction_wins_over_spelling_alternative():
+    lookup, _ = service(
+        rows=[street(), street(FullStreetName="N EXAMPLE ST", ProdAddressRangeId=999)]
+    )
+    assert (
+        lookup.resolve(ADDRESS.replace("EXAMPLE ST N", "N EXAMPLE ST"))[1].range_id
+        == 999
+    )
+
+
+def test_city_accepts_punctuation_and_saint_after_first_word():
+    lookup, _ = service(rows=[street(CityName="NORWOOD YOUNG AMERICA")])
+    assert (
+        lookup.resolve(ADDRESS.replace("EXAMPLE CITY", "Norwood-Young America"))[
+            1
+        ].range_id
+        == 123
+    )
+    lookup, _ = service(rows=[street(CityName="SOUTH ST PAUL")])
+    assert (
+        lookup.resolve(ADDRESS.replace("EXAMPLE CITY", "South Saint Paul"))[1].range_id
+        == 123
+    )
+
+
+def test_omitted_direction_offers_both_complete_streets_and_preserves_the_selection():
+    lookup, _ = service(
+        rows=[street(), street(FullStreetName="EXAMPLE ST S", ProdAddressRangeId=124)]
+    )
+    text = ADDRESS.replace("EXAMPLE ST N", "EXAMPLE ST")
+    choices = lookup.resolve(text)["choices"]
+    assert len(choices) == 2
+    assert {lookup.resolve(text, choice)[1].range_id for choice in choices} == {
+        123,
+        124,
+    }
+    assert lookup.resolve(text.replace("EXAMPLE ST", "EXAMPLE AVE"), choices[0]) == {
+        "kind": "no-match"
+    }
+
+
+@pytest.mark.parametrize(
+    "short,full", [("SE FIRST AVE", "1ST AVE SE"), ("N MAIN", "N MAIN ST")]
+)
+def test_only_the_confirmed_official_street_fills_an_omitted_spelling(short, full):
+    lookup, _ = service(rows=[street(FullStreetName=full)])
+    text = ADDRESS.replace("EXAMPLE ST N", short)
+    result = lookup.resolve(text)
+    assert result["kind"] == "ambiguous"
+    assert lookup.resolve(text, result["choices"][0])[0].street == full

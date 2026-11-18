@@ -174,3 +174,83 @@ def test_building_point_cannot_decide_a_unit_specific_ballot(client, monkeypatch
         client.app.dependency_overrides.pop(
             candidate_lookup.get_candidate_lookup_service
         )
+
+
+@pytest.mark.parametrize("status", [None, "", "  ", "Current", "ACTIVE"])
+def test_optional_county_status_and_official_point_geometry(monkeypatch, status):
+    source = feature(status=status, latitude=None, longitude=None)
+    source["geometry"] = {"x": -93.05, "y": 44.881}
+    reply(monkeypatch, [source], spatialReference={"wkid": 4326})
+    assert candidate_lookup.historical_address_points(ADDRESS) == {(44.881, -93.05)}
+
+
+@pytest.mark.parametrize(
+    "status", ["Inactive", "Proposed", "Pending", "Vacant", "Retired", "Unknown"]
+)
+def test_noncurrent_county_points_cannot_assign_a_ballot(monkeypatch, status):
+    reply(monkeypatch, [feature(status=status)])
+    assert not candidate_lookup.historical_address_points(ADDRESS)
+
+
+def test_omitted_status_cannot_override_a_real_retirement_date(monkeypatch):
+    reply(monkeypatch, [feature(status=None, ret_date=1704067200000)])
+    assert not candidate_lookup.historical_address_points(ADDRESS)
+
+
+def test_wrong_geometry_projection_cannot_be_used_as_lon_lat(monkeypatch):
+    source = feature(latitude=None, longitude=None)
+    source["geometry"] = {"x": -93.05, "y": 44.881}
+    reply(monkeypatch, [source], spatialReference={"wkid": 26915})
+    assert not candidate_lookup.historical_address_points(ADDRESS)
+
+
+def test_post_election_retirement_preserves_a_second_election_day_point(monkeypatch):
+    reply(
+        monkeypatch,
+        [
+            feature(),
+            feature(
+                status="Retired",
+                latitude=44.912,
+                eff_date=1714521600000,
+                ret_date=1794096000000,
+            ),
+        ],
+    )
+    assert candidate_lookup.historical_address_points(ADDRESS) == {
+        (44.881, -93.05),
+        (44.912, -93.05),
+    }
+
+
+def test_undated_retired_point_cannot_hide_a_different_location(monkeypatch):
+    reply(monkeypatch, [feature(), feature(status="Retired", latitude=44.912)])
+    assert candidate_lookup.historical_address_points(ADDRESS) is None
+
+
+def test_conflicting_coordinate_fields_preserve_both_for_map_check(monkeypatch):
+    source = feature()
+    source["geometry"] = {"x": -93.05, "y": 44.9}
+    reply(monkeypatch, [source], spatialReference={"wkid": 4326})
+    assert candidate_lookup.historical_address_points(ADDRESS) == {
+        (44.881, -93.05),
+        (44.9, -93.05),
+    }
+
+
+def test_malformed_success_body_cannot_fall_back_to_another_location_source(
+    monkeypatch,
+):
+    import requests
+
+    response = requests.Response()
+    response.status_code = 200
+    response._content = b'{"features": ['
+    monkeypatch.setattr(
+        candidate_lookup.public_source_session(), "post", lambda *a, **kw: response
+    )
+    with pytest.raises(
+        candidate_lookup.CandidateLookupUnavailable,
+        match="Invalid Minnesota address points",
+    ):
+        candidate_lookup.historical_address_points(ADDRESS)

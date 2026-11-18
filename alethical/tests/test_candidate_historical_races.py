@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 import json
 
@@ -476,3 +477,229 @@ def test_known_school_gap_is_distinct_from_a_different_school(db):
     assert school_gaps(school_district="186") == ["school board"]
     assert school_gaps(school_district="181") == []
     assert school_gaps(school_district="186", school_type="SSD") == []
+
+
+@pytest.mark.parametrize(
+    "code,ward,precinct,title,expected",
+    [
+        ("00928", "W-01", "", "Council Member Ward 1 (Alexandria)", True),
+        ("07966", "W-E", "", "Council Member Ward E (Brooklyn Park)", True),
+        ("07966", "W-W", "", "Council Member Ward E (Brooklyn Park)", False),
+        ("53620", "W-02", "", "Council Member Wards 1 & 2 (Red Wing)", True),
+        ("53620", "W-03", "", "Council Member Wards 1 & 2 (Red Wing)", False),
+        ("54880", "W-03", "", "Council Member District 3 (Rochester)", True),
+        ("54880", "W-01", "", "Council Member District 3 (Rochester)", False),
+        (
+            "23948",
+            "W-02",
+            "GLENCOE CITY P-2",
+            "Council Member Precinct 2 (Glencoe)",
+            True,
+        ),
+        (
+            "23948",
+            "W-02",
+            "GLENCOE CITY P-1",
+            "Council Member Precinct 2 (Glencoe)",
+            False,
+        ),
+        ("14158", "W-04", "", "Council Member Section II (Crystal)", True),
+        ("14158", "W-01", "", "Council Member Section II (Crystal)", False),
+        ("02908", "W-02", "", "Utility Board Commissioner (Austin) (Elect 2)", True),
+        ("06688", "W-02", "", "Board of Public Works (Blue Earth) (Elect 2)", True),
+    ],
+)
+def test_city_seat_uses_the_election_map_ward_or_named_precinct(
+    code, ward, precinct, title, expected
+):
+    geo = geography(municipality_code=code, ward=ward, precinct_name=precinct)
+    assert (
+        bool(_area(title, "municipality", f"municipality:{int(code)}", "", geo))
+        == expected
+    )
+
+
+def test_conservation_district_spelling_and_houston_countywide_electorate():
+    for county, name, display in [
+        ("43", "Mcleod", "McLeod"),
+        ("28", "Houston", "Root River"),
+    ]:
+        geo = geography(county_code=county, soil_water_name=display)
+        assert _area(
+            "Soil and Water Supervisor District 2", "county", county, name, geo
+        )
+        assert not _area(
+            "Soil and Water Supervisor District 2", "county", "02", name, geo
+        )
+
+
+def test_numbered_school_seat_requires_the_confirmed_member_area_and_school():
+    office = "School Board Member District 3 (SSD #1)"
+    scope = geography(school_type="SSD", school_district="1", school_subdistrict="03")
+    assert _area(office, "school_district", "school_district:1", "", scope) == (
+        "school",
+        "SSD #1 · District 3",
+    )
+    for overrides in (
+        {"school_subdistrict": "1"},
+        {"school_type": "ISD"},
+        {"school_subdistrict": None},
+    ):
+        assert not _area(
+            office,
+            "school_district",
+            "school_district:1",
+            "",
+            replace(scope, **overrides),
+        )
+
+
+def test_all_gfw_voters_elect_each_residence_area_but_other_districts_do_not():
+    geo = geography(school_type="ISD", school_district="2365")
+    for area in ("Gibbon", "Fairfax", "Winthrop"):
+        office = f"School Board Member {area} District (ISD #2365)"
+        assert _area(office, "school_district", "school_district:2365", "", geo)
+        assert not _area(
+            office, "school_district", "school_district:2365", "", geography()
+        )
+
+
+def test_hospital_seats_use_their_own_county_or_commissioner_district():
+    geo = geography(
+        county_code="16",
+        hospital_district="340",
+        hospital_name="Cook County",
+        commissioner_district="03",
+    )
+    assert _area(
+        "Hospital District Board Member 3 (Cook County)",
+        "hospital_district",
+        "hospital_district:340",
+        "Cook",
+        geo,
+    )
+    assert not _area(
+        "Hospital District Board Member 1 (Cook County)",
+        "hospital_district",
+        "hospital_district:340",
+        "Cook",
+        geo,
+    )
+    north = geography(hospital_district="1430", hospital_name="Northern Itasca")
+    office = "Hospital District Board Member At Large Itasca (Northern Itasca)"
+    assert _area(office, "hospital_district", "hospital_district:1430", "Itasca", north)
+    assert not _area(
+        office, "hospital_district", "hospital_district:1430", "Koochiching", north
+    )
+
+
+def test_hospital_municipal_seat_checks_both_official_district_and_municipality(db):
+    publish(db)
+    add_race(db, "a" * 64, "County Sheriff", "18", "county")
+    add_race(
+        db,
+        "b" * 64,
+        "Hospital District Board Member (Bay Lake Township)",
+        "hospital_municipal_seat:4096",
+        "hospital_municipal_seat",
+        precinct="0010",
+    )
+    race = db.get(m.ElectionComparisonRace, (SNAPSHOT, "b" * 64))
+    race.payload = {
+        **race.payload,
+        "geography_bridge": [
+            {
+                "hospital_district_id": "350",
+                "municipality_fips": "04096",
+                "county_id": "18",
+                "precinct_id": "0010",
+            }
+        ],
+    }
+    db.flush()
+    geo = geography(
+        municipality_code="04096",
+        hospital_district="350",
+        hospital_name="Cuyuna Range",
+        precinct_code="0010",
+    )
+
+    def lookup(area):
+        return historical_candidate_results(db, address="Example", geography=area)
+
+    assert (
+        lookup(geo)["races"][0]["votingArea"]
+        == "Cuyuna Range Hospital District · Bay Lake Township"
+    )
+    for changed in (
+        {"hospital_district": "310"},
+        {"municipality_code": "11111"},
+        {"hospital_district": None},
+    ):
+        assert lookup(replace(geo, **changed))["kind"] == "historical-match-unavailable"
+
+
+@pytest.mark.parametrize(
+    "school,member,county,precinct,expected",
+    [
+        ("381", "7", "69", "0015", True),
+        ("728", "1", "71", "0130", True),
+        ("728", "1", "71", "0145", False),
+        ("2142", "3", "69", "0940", True),
+        ("2142", "2", "69", "0980", False),
+        ("2180", "5", "34", "0135", True),
+        ("2180", "2", "12", "0010", False),
+        ("2180", "4", "12", "0010", False),
+    ],
+)
+def test_district_resolution_must_cover_the_school_and_entire_precinct(
+    school, member, county, precinct, expected
+):
+    geo = geography(school_district=school, county_code=county, precinct_code=precinct)
+    args = (
+        f"School Board Member District {member} (ISD #{school})",
+        "school_district",
+        f"school_district:{school}",
+        "",
+    )
+    assert bool(_area(*args, geo)) == expected
+    assert not _area(*args, replace(geo, school_district=None))
+    assert not _area(*args, replace(geo, school_type="SSD"))
+
+
+def test_town_elections_also_appear_in_wholly_dependent_cities():
+    office = "Town Clerk (Greenway Township)"
+    for place in ("09316", "40418"):
+        assert _area(
+            office,
+            "municipality",
+            "municipality:25892",
+            "Itasca",
+            geography(county_code="31", municipality_code=place),
+        )
+    # Nashwauk City overlaps both of these townships. City membership alone
+    # cannot qualify a voter for either town.
+    geo = geography(county_code="31", municipality_code="44980")
+    assert not _area(office, "municipality", "municipality:25892", "Itasca", geo)
+    assert not _area(
+        "Town Clerk (Nashwauk Township)",
+        "municipality",
+        "municipality:44998",
+        "Itasca",
+        geo,
+    )
+
+    assert _area(
+        "Town Clerk (Nashwauk Township)",
+        "municipality",
+        "municipality:44998",
+        "Itasca",
+        replace(geo, township_code="44998"),
+    )
+    assert not _area(
+        "Town Clerk (Nashwauk Township)",
+        "municipality",
+        "municipality:44998",
+        "Itasca",
+        replace(geo, township_code="37934"),
+    )
