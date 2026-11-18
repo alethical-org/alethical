@@ -13,7 +13,13 @@ import { build, preview } from 'vite';
 test('Chrome saves the displayed original after the former 60-second expiry', async (t) => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const scratch = await mkdtemp(path.join(tmpdir(), 'finance-pdf-'));
-  t.after(() => rm(scratch, { recursive: true, force: true }));
+  let server;
+  let browser;
+  t.after(async () => {
+    await browser?.close();
+    await server?.close();
+    await rm(scratch, { recursive: true, force: true });
+  });
   const outDir = path.join(scratch, 'dist');
   Object.assign(process.env, {
     VITE_API_BASE_URL: '/.',
@@ -26,15 +32,13 @@ test('Chrome saves the displayed original after the former 60-second expiry', as
     config.headers[0].headers.map(({ key, value }) => [key, value]),
   );
   await build({ root, logLevel: 'warn', build: { outDir, emptyOutDir: true } });
-  const server = await preview({
+  server = await preview({
     root,
     build: { outDir },
     preview: { port: 0, host: '127.0.0.1', headers },
   });
-  t.after(() => server.close());
   const origin = 'http://127.0.0.1:' + server.httpServer.address().port;
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chromium' });
-  t.after(() => browser.close());
+  browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chromium' });
   const page = await browser.newPage();
   const token = 'finance_research_' + 't'.repeat(40);
   await page.addInitScript((access_token) => {
