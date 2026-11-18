@@ -8,6 +8,7 @@ from functools import lru_cache
 import gzip
 import json
 from pathlib import Path
+from threading import Lock
 
 from pyproj import Transformer
 from shapely import Point, STRtree, from_wkb
@@ -44,6 +45,7 @@ MAP_PATH = (
 # rounding, datum transformation and small differences in source digitization.
 _MARGIN_METRES = 5
 _PROJECT = Transformer.from_crs("EPSG:4326", "EPSG:26915", always_xy=True)
+_LOAD_LOCK = Lock()
 
 
 @lru_cache(maxsize=1)
@@ -91,7 +93,9 @@ def historical_geography(
     places = list(points)
     if not places:
         return None
-    precincts, precinct_tree, schools, school_tree = _maps()
+    # A burst of first requests should decompress and index the map only once.
+    with _LOAD_LOCK:
+        precincts, precinct_tree, schools, school_tree = _maps()
     matched: set[HistoricalGeography] = set()
     matched_schools: set[tuple[str, str] | None] = set()
     for lat, lon in places:
