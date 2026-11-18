@@ -369,15 +369,22 @@ def test_malformed_matching_street_rows_rejected(changes):
         match_street_range([street(**changes)], ADDRESS)
 
 
-def test_matching_does_not_mutate_or_retain_address_table():
-    rows = [street()]
+@pytest.mark.parametrize("unit_specific", [False, True])
+def test_matching_does_not_mutate_or_retain_address_table(unit_specific):
+    rows = [
+        street(DisplayUnitNbr=True, UnitNumberRange="UNIT A")
+        if unit_specific
+        else street()
+    ]
+    address = replace(ADDRESS, unit="UNIT A") if unit_specific else ADDRESS
     original = copy.deepcopy(rows)
-    result = match_street_range(rows, ADDRESS)
+    result = match_street_range(rows, address)
     assert rows == original
-    assert set(result.__dict__) == {"range_id"}
+    assert vars(result) == {"range_id": 123, "unit_specific": unit_specific}
+    assert result.unit_specific is unit_specific
     for changes in ({"state": "WI"}, {"zip_code": "bad"}, {"house_number": True}):
         with pytest.raises(CandidateBallotError):
-            match_street_range(rows, replace(ADDRESS, **changes))
+            match_street_range(rows, replace(address, **changes))
 
 
 @pytest.mark.parametrize("label", ["Write In", "WRITE IN", "write-in, if any"])
