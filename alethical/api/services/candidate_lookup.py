@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import threading
 import time
@@ -52,6 +53,8 @@ from alethical.pipeline.candidate_ballot import (
     parse_unit_ranges,
     validate_street_rows,
 )
+
+logger = logging.getLogger(__name__)
 
 STREETS_URL = "https://myballotmn.sos.mn.gov/api/Streets/GetStreets"
 # The official app reads a flagged range's unit list in 2 steps: the street's
@@ -338,7 +341,12 @@ def historical_address_points(
         return set()
     try:
         payload = historical_point_payload(address.zip_code, address.house_number)
-    except (OSError, ValueError):
+    except (OSError, ValueError) as error:
+        # Only the error's class is logged, never the address or its parts.
+        logger.warning(
+            "Packaged address points unavailable (%s); asking the state service",
+            type(error).__name__,
+        )
         payload = _live_point_payload(address.zip_code, address.house_number)
     if (
         not isinstance(payload, dict)

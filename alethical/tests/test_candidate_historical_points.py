@@ -246,3 +246,54 @@ def test_header_is_plain_json_listing_each_zip_block():
     (length,) = struct.unpack("<I", raw[len(points.MAGIC) : len(points.MAGIC) + 4])
     header = json.loads(raw[len(points.MAGIC) + 4 : len(points.MAGIC) + 4 + length])
     assert set(header) == {"rows", "statuses", "zips"}
+
+
+def test_exactly_2000_matches_are_complete_but_2001_are_cut_off(packaged):
+    packaged({"55075": [row(latitude=44.0 + i / 1e6) for i in range(2000)]})
+    payload = points.historical_point_payload("55075", 500)
+    assert len(payload["features"]) == 2000
+    assert "exceededTransferLimit" not in payload
+
+
+@pytest.mark.parametrize(
+    "moment", [-2_209_161_599_000, -62_135_596_800_000, 0, 1_794_096_000_000]
+)
+def test_unusual_dates_round_trip_exactly(packaged, moment):
+    packaged({"55075": [row(eff_date=moment, ret_date=moment)]})
+    attributes = points.historical_point_payload("55075", 500)["features"][0][
+        "attributes"
+    ]
+    assert attributes["eff_date"] == moment and attributes["ret_date"] == moment
+
+
+def test_a_projection_failure_becomes_a_fallback_and_logs_no_address(
+    packaged, monkeypatch, caplog
+):
+    from pyproj.exceptions import ProjError
+
+    packaged({"55075": [row()]})
+
+    def broken():
+        raise ProjError("projection data missing")
+
+    monkeypatch.setattr(points, "_transformer", broken)
+    with pytest.raises(ValueError):
+        points.historical_point_payload("55075", 500)
+
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return {"features": [{"attributes": {**row(), "zip": "55075"}}]}
+
+    monkeypatch.setattr(
+        candidate_lookup.public_source_session(), "post", lambda *a, **k: Response()
+    )
+    with caplog.at_level("WARNING"):
+        found = candidate_lookup.historical_address_points(
+            StreetAddress("13TH AVE S", "SOUTH ST PAUL", "MN", "55075", 500)
+        )
+    assert found == {(44.881, -93.05)}
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert "ValueError" in logged
+    assert "55075" not in logged and "500" not in logged and "13TH" not in logged

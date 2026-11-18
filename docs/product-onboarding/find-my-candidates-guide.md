@@ -218,8 +218,9 @@ come from a packaged copy of the state's public address file as it stood on Octo
 in a few milliseconds. The state's mapping service, which answers the same question in
 0.8 to 1.8 seconds, is asked only when the file cannot be read. The copy keeps every
 status, effective and retirement date, both
-coordinate readings and the 2,000-row cut-off flag, and each reading stays exact to
-about 1.6 centimetres. No address or coordinate typed by a reader is stored or
+coordinate readings and the 2,000-row cut-off flag. The county's own latitude and
+longitude are kept to 0.1 millimetre; the mapped point is within 1.6 centimetres of
+the state service's. No address or coordinate typed by a reader is stored or
 cached. A current
 street range confirms an address; it cannot establish a past voting district.
 Where the statewide address map lacks a building, the finder can use a dated
