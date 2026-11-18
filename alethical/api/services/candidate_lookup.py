@@ -10,6 +10,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
@@ -21,7 +22,9 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.representative_lookup import (
+    _ADDRESS_POINT_FIELDS,
     _STREET_TYPE_ALIASES,
+    _address_point_label,
     MINNESOTA_ADDRESS_POINTS_URL,
     AddressPointsIncomplete,
     MinnesotaAddressPointGeocoder,
@@ -218,6 +221,73 @@ def _address_label(address: StreetAddress) -> str:
     if suffix == "1/2":
         suffix = f" {suffix}"
     return f"{address.house_number}{suffix} {address.street}{unit}, {address.city}, MN {address.zip_code}"
+
+
+def historical_address_points(address: StreetAddress) -> set[tuple[float, float]]:
+    """Locate the building only. Election-day maps decide the voting districts."""
+    # These values came from an exact SOS range. Check them again before
+    # forming a government GIS filter, which never contains the street or unit.
+    if type(address.house_number) is not int or not re.fullmatch(
+        r"[0-9]{5}", address.zip_code
+    ):
+        return set()
+    try:
+        response = public_source_session().post(
+            MINNESOTA_ADDRESS_POINTS_URL,
+            data={
+                "where": f"anumber = {address.house_number} AND zip = '{address.zip_code}'",
+                "outFields": ",".join(_ADDRESS_POINT_FIELDS),
+                "returnGeometry": "false",
+                "resultRecordCount": "2000",
+                "f": "json",
+            },
+            timeout=(3.05, 8),
+            allow_redirects=False,
+        )
+        if response.status_code != 200:
+            raise CandidateLookupUnavailable("Minnesota address points unavailable")
+        payload = response.json()
+    except (requests.RequestException, ValueError):
+        raise CandidateLookupUnavailable(
+            "Minnesota address points unavailable"
+        ) from None
+    if (
+        not isinstance(payload, dict)
+        or payload.get("error")
+        or not isinstance(payload.get("features"), list)
+    ):
+        raise CandidateLookupUnavailable("Invalid Minnesota address points")
+    if payload.get("exceededTransferLimit"):
+        return set()
+    # A common postal spelling changes only the standalone city word ST to SAINT.
+    # Street direction, house suffix, city, state and ZIP must all agree.
+    street, city, _ = _address_label(replace(address, unit="")).split(", ")
+    expected_city = re.sub(r"\bST\b", "SAINT", city.upper().replace(".", ""))
+    points = set()
+    for feature in payload["features"]:
+        attrs = feature.get("attributes") if isinstance(feature, dict) else None
+        if not isinstance(attrs, dict):
+            raise CandidateLookupUnavailable("Invalid Minnesota address point")
+        if str(attrs.get("status")).upper() != "ACTIVE" or attrs.get(
+            "state_code"
+        ) not in (None, "MN"):
+            continue
+        label, locality, zip_code = _address_point_label(attrs)
+        if (
+            zip_code != address.zip_code
+            or re.sub(r"\bST\b", "SAINT", locality.upper().replace(".", ""))
+            != expected_city
+            or _normal(label.partition(",")[0]) != _normal(street)
+        ):
+            continue
+        try:
+            lat, lon = float(attrs["latitude"]), float(attrs["longitude"])
+        except (ValueError, TypeError, KeyError):
+            return set()
+        if not (43.0 <= lat <= 50.0 and -98.0 <= lon <= -89.0):
+            return set()
+        points.add((lat, lon))
+    return points
 
 
 def _street_json_object(pairs: list[tuple[str, object]]) -> dict:
@@ -421,7 +491,16 @@ class CandidateLookupService:
     def elections(self) -> list[dict]:
         from alethical.api.services.person_records import supported_elections
 
-        return supported_elections()
+        elections = supported_elections()
+        today = self.now().astimezone(ZoneInfo("America/Chicago")).date()
+        for election in elections:
+            if election["canonicalKey"] == "mn-2026-11-03-general" and today > date(
+                2026, 11, 3
+            ):
+                election["capabilities"].update(
+                    addressLookup="historical-ballot", historicalRecords=True
+                )
+        return elections
 
     def streets(self, zip_code: str) -> list[dict]:
         if not re.fullmatch(r"\d{5}", zip_code):
@@ -747,24 +826,48 @@ class CandidateLookupService:
         return matches[0], found
 
     def lookup(
-        self, text: str, election_id: str, confirmed: dict | None = None
+        self,
+        text: str,
+        election_id: str,
+        confirmed: dict | None = None,
+        *,
+        db: Session | None = None,
     ) -> tuple[dict, BallotCatalogue | None]:
         election = next(
             (item for item in self.elections() if item["id"] == election_id), None
         )
         if election is None:
             return {"kind": "no-elections"}, None
-        if election["capabilities"]["addressLookup"] == "unavailable":
-            return {
-                "kind": "historical-match-unavailable",
-                "electionId": election_id,
-                "message": "We couldn’t confirm the races for this address and election",
-                "officialResultsUrl": election["officialResultsUrl"],
-            }, None
+        unavailable = {
+            "kind": "historical-match-unavailable",
+            "electionId": election_id,
+            "message": "We couldn’t confirm the races for this address and election",
+            "officialResultsUrl": election["officialResultsUrl"],
+        }
+        lookup_kind = election["capabilities"]["addressLookup"]
+        if lookup_kind == "unavailable":
+            return unavailable, None
         resolved = self.resolve(text, confirmed)
         if isinstance(resolved, dict):
             return resolved, None
         address, found = resolved
+        if lookup_kind == "historical-ballot":
+            from alethical.api.services.candidate_historical_geography import (
+                historical_geography,
+            )
+            from alethical.api.services.candidate_historical_races import (
+                historical_candidate_results,
+            )
+
+            # A building point cannot distinguish units with different ballots.
+            if found.unit_specific or db is None:
+                return unavailable, None
+            geography = historical_geography(historical_address_points(address))
+            if geography is None:
+                return unavailable, None
+            return historical_candidate_results(
+                db, address=_address_label(address), geography=geography
+            ), None
         range_id = found.range_id
         body = self.fetch(SOURCE_URL, {"prodAddressRangeId": range_id})
         try:

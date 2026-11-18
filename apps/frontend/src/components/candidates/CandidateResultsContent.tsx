@@ -117,6 +117,7 @@ export function CandidateRaceCard({
   showSource = true,
   judicial = false,
   resultsPhase = false,
+  electionEnded = false,
   showResultSource = true,
 }: {
   race: CandidateRace;
@@ -125,6 +126,7 @@ export function CandidateRaceCard({
   showSource?: boolean;
   judicial?: boolean;
   resultsPhase?: boolean;
+  electionEnded?: boolean;
   showResultSource?: boolean;
 }) {
   const entries = [...race.entries].sort((a, b) => entryName(a).localeCompare(entryName(b), 'en'));
@@ -145,7 +147,7 @@ export function CandidateRaceCard({
           (race.seatCount ?? 0) > 0 ? (
             <Text style={styles.metadata}>
               {race.seatCount} {race.seatCount === 1 ? 'seat' : 'seats'}
-              {resultsPhase ? '' : ' to fill'}
+              {resultsPhase || electionEnded ? '' : ' to fill'}
             </Text>
           ) : null}
           {tickets.length > 0 ? (
@@ -157,7 +159,7 @@ export function CandidateRaceCard({
       </View>
       {tickets.length > 0 ? (
         <Text style={styles.ticketHelp}>
-          {resultsPhase
+          {resultsPhase || electionEnded
             ? 'Each ticket is a pair who ran together'
             : 'Each ticket is a pair who run together. You vote for 1 ticket.'}
         </Text>
@@ -191,13 +193,16 @@ export function CandidateRaceCard({
                   />
                   {party ? <Text style={candidateText.party}>{party}</Text> : null}
                 </View>
-                <CandidateLink
-                  internal
-                  url={`/candidates/${encodeURIComponent(id)}`}
-                  label="View profile"
-                  accessibilityLabel={`View profile, ${name}`}
-                  onPress={() => onOpenProfile(id)}
-                />
+                {(entry.kind === 'candidate' ? entry.candidate : entry).profileAvailable !==
+                  false && (
+                  <CandidateLink
+                    internal
+                    url={`/candidates/${encodeURIComponent(id)}`}
+                    label="View profile"
+                    accessibilityLabel={`View profile, ${name}`}
+                    onPress={() => onOpenProfile(id)}
+                  />
+                )}
               </View>
             </View>
           );
@@ -223,10 +228,12 @@ export function CandidateRaceCard({
 export function CandidateCoverage({
   gaps,
   resultsPhase = false,
+  electionEnded = false,
   officialResultsUrl,
 }: {
   gaps: CandidateCoverageGap[];
   resultsPhase?: boolean;
+  electionEnded?: boolean;
   officialResultsUrl?: string;
 }) {
   const headingId = useId();
@@ -281,7 +288,7 @@ export function CandidateCoverage({
             ? 'Coverage varies by race'
             : 'This is a candidate list, not an official sample ballot'}
         </Text>
-        {resultsPhase ? (
+        {resultsPhase || electionEnded ? (
           officialResultsUrl ? (
             <CandidateLink label="Official election results" url={officialResultsUrl} />
           ) : null
@@ -356,11 +363,13 @@ export function CandidateRaceGroups({
   openGroups,
   onGroupOpen,
   resultsPhase = false,
+  electionEnded = false,
 }: {
   races: CandidateRace[];
   election: CandidateElection;
   busy: boolean;
   resultsPhase?: boolean;
+  electionEnded?: boolean;
   onOpenProfile(id: string): void;
   openGroups?: Record<string, boolean>;
   onGroupOpen?(group: string, open: boolean): void;
@@ -491,6 +500,7 @@ export function CandidateRaceGroups({
                 onOpenProfile={onOpenProfile}
                 showSource={!shared}
                 judicial={judicial}
+                electionEnded={electionEnded}
                 resultsPhase={resultsPhase}
                 showResultSource={!sharedResult}
               />

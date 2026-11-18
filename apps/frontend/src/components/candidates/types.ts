@@ -8,7 +8,7 @@ export interface CandidateElection {
   type: 'general' | 'primary' | 'special';
   canonicalKey?: string;
   capabilities?: {
-    addressLookup: 'current-ballot' | 'unavailable';
+    addressLookup: 'current-ballot' | 'historical-ballot' | 'unavailable';
     results: boolean;
     historicalRecords: boolean;
   };
@@ -49,6 +49,7 @@ export interface CandidatePerson {
   id: string;
   name: string;
   sortName: string;
+  profileAvailable?: boolean;
   party?: string;
   role?: string;
   people?: PublicPersonLink[];
@@ -59,6 +60,7 @@ export type CandidateEntry =
   | { kind: 'candidate'; candidate: CandidatePerson }
   | {
       kind: 'ticket';
+      profileAvailable?: boolean;
       id: string;
       label?: string;
       members: CandidatePerson[];

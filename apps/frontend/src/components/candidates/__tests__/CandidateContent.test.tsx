@@ -200,6 +200,32 @@ it('shows notices after races, alphabetical names and real profile links without
   expect(host.textContent).toContain('Candidate records from Example election office');
   expect(host.textContent).not.toMatch(/Claim this (candidate )?profile/);
 });
+it('shows a historical roster without offering missing profiles or linking to a current ballot', async () => {
+  const past = { ...general, date: '2026-11-03', officialResultsUrl: 'https://example.org/2026' };
+  const roster = result(past.id);
+  roster.electionEnded = true;
+  roster.races[0].entries = [
+    {
+      kind: 'candidate',
+      candidate: { id: 'a', name: 'Example A', sortName: 'A', profileAvailable: false },
+    },
+    { kind: 'ticket', id: 'b', label: 'Example B and C', members: [], profileAvailable: false },
+  ];
+  await act(async () =>
+    root.render(
+      <CandidateSearchContent
+        services={{ ...services(async () => roster), getElections: async () => [past] }}
+        initialAddress="100 Example Street"
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  expect(host.textContent).toContain('Example A');
+  expect(host.textContent).toContain('Example B and C');
+  expect(host.textContent).toContain('Each ticket is a pair who ran together');
+  expect(host.querySelector('a[href^="/candidates/"]')).toBeNull();
+  expect(host.querySelector('a[href="https://example.org/2026"]')).not.toBeNull();
+});
 it('keeps old results and election attached while changing selection by keyboard, then retries failure', async () => {
   let reject!: (error: Error) => void;
   const pending = new Promise<CandidateLookupResponse>((_, no) => {

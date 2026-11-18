@@ -1,6 +1,6 @@
 # How Find My Candidates works
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/lib/candidateAddressUnit.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/api/services/admin_access.py, alethical/api/services/candidate_claim_identity.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/api/services/candidate_claim_recheck.py, alethical/api/services/candidate_recheck.py, alethical/api/services/person_records.py, alethical/api/routers/people.py, alethical/api/data/candidate_person_records.json, alethical/pipeline/candidate_person_records.py, alethical/pipeline/data/candidate_recheck_references_2026_v1.json, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0069_candidate_person_records.py, apps/frontend/src/screens/PersonOverviewScreen.tsx, apps/frontend/src/components/candidates/PersonOverviewContent.tsx, apps/frontend/src/components/candidates/PersonResearch.tsx, apps/frontend/src/data/personRecords.ts, apps/frontend/src/lib/personRecords.ts, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts, apps/frontend/src/screens/CandidateFeaturesScreen.tsx, apps/frontend/src/lib/candidateFeatures.ts, apps/frontend/src/lib/profileClaimDraft.ts, apps/frontend/src/components/GoBackLink.tsx -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/lib/candidateAddressUnit.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_historical_geography.py, alethical/api/services/candidate_historical_races.py, scripts/build_2026_candidate_geography.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/api/services/admin_access.py, alethical/api/services/candidate_claim_identity.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/api/services/candidate_claim_recheck.py, alethical/api/services/candidate_recheck.py, alethical/api/services/person_records.py, alethical/api/routers/people.py, alethical/api/data/candidate_person_records.json, alethical/pipeline/candidate_person_records.py, alethical/pipeline/data/candidate_recheck_references_2026_v1.json, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0069_candidate_person_records.py, apps/frontend/src/screens/PersonOverviewScreen.tsx, apps/frontend/src/components/candidates/PersonOverviewContent.tsx, apps/frontend/src/components/candidates/PersonResearch.tsx, apps/frontend/src/data/personRecords.ts, apps/frontend/src/lib/personRecords.ts, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts, apps/frontend/src/screens/CandidateFeaturesScreen.tsx, apps/frontend/src/lib/candidateFeatures.ts, apps/frontend/src/lib/profileClaimDraft.ts, apps/frontend/src/components/GoBackLink.tsx -->
 
 ## Public address lookup
 
@@ -207,9 +207,15 @@ and ZIP. An uncertain match never silently drops or transfers the unit. An expli
 different unit stays visible for selection. The printed selected address and
 submitted address agree; official ballot range validation still decides the match.
 
-The connected source is [Minnesota MyBallot](https://myballotmn.sos.mn.gov/).
-The supported current ballot is the November 3, 2026 general election, MyBallot
-source ID `8334` (the results service uses `201`). The November 5, 2024 general
+The current ballot comes from [Minnesota MyBallot](https://myballotmn.sos.mn.gov/).
+The November 3, 2026 general election has MyBallot ID `8334` and results ID
+`201`. Through election day in Minnesota, lookup uses the current sample ballot.
+After that day, the finder uses the published November candidate registers and
+precinct returns. It checks the street address against official address points,
+then places all matching points on the election's own voting map. A current
+street range confirms an address; it cannot establish a past voting district.
+The [historical lookup build](https://github.com/alethical-org/alethical/issues/2975)
+covers this election. The November 5, 2024 general
 election is also retained, with results source ID `170`. These IDs name elections,
 not counts of candidates. An explicit election choice stays selected. Otherwise,
 choose the nearest supported upcoming election, or the most recent supported past
@@ -221,7 +227,24 @@ Historical address matching requires that election's own geography. The retained
 official results. It never borrows 2026 geography. Adding another election or
 source capability requires reviewed evidence; elapsed time alone does not add it.
 
-Each search reads fresh ballot records. Street tables may be reused for 5 minutes,
+Upcoming-election searches read fresh ballot records. Historical searches read the
+published records for the selected election. The finder shows each race whose
+voting area it can confirm. A school or ward contest in a precinct's returns
+can cover only part of that precinct. An uncertain address, a unit-specific ballot
+with only a building point, or points in different precincts cannot establish
+a historical ballot. When the address's precinct is clear, other confirmed races
+remain available even if a particular district cannot be placed.
+
+The September 2026 voting map matches all 4,105 precincts in the state's
+[November precinct register](https://electionresultsfiles.sos.mn.gov/20261103/PrctTbl.txt).
+School board coverage requires separate evidence for the school's boundaries.
+South St. Paul published different school ballots within precinct 3. A building
+point near an uncertain boundary never picks one side. The
+[map rebuild script](../../scripts/build_2026_candidate_geography.py) pins the
+source editions and lists the local records used for school boundaries.
+The reader's address and coordinates are used for the lookup only.
+
+Street tables may be reused for 5 minutes,
 bounded to 32 ZIP tables and 8 MB of source text. The browser may reuse an identical
 successful search for 60 seconds, with at most 4 searches held in memory. Clearing
 the search or changing signed-in accounts erases these responses. Returning from a profile restores the search;
@@ -398,7 +421,8 @@ After 24 hours, a saved record says it may be out of date. A fresh matching sear
 it. MyBallot has no address-free profile endpoint, so a direct profile visit alone does
 not claim to refresh the official record.
 
-Candidate results open the candidate profile. A confirmed same-person legislator
+A candidate with a verified saved profile has a **View profile** link. A name from
+the historical register remains readable when no matching profile is held. A confirmed same-person legislator
 connection appears near the name with **View legislator profile** and **See their
 bills, votes, and work in office**. The connection register records the official
 identity evidence and validates the exact candidate record and held legislator
@@ -413,7 +437,7 @@ available, preserve its whole proportions, and disappear cleanly on failure. A
 joint ticket retains its shared identity; a linked member's portrait and service
 sit beside that member's name in the legislator panel.
 
-A search saves its whole ballot together: every candidate record and accepted read in
+A current-ballot search saves its whole ballot together: every candidate record and accepted read in
 1 database transaction, with candidate locks taken in candidate-ID order. Results return
 only after every record is saved, so each profile link works at once; a failed save
 returns an error and keeps nothing partial.
