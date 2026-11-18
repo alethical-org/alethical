@@ -661,7 +661,7 @@ Finance's private original-file routes (`/api/v1/finance/media-buys/…`). A TV 
 is keyed by its station and FCC source file id, never by its filename, and every link to
 one names its exact saved version and page.
 
-- **National FCC files**: Members can search the national archive by file and provider metadata, open the original and read its available extracted text. Counts refer to files, not purchases. The full FCC research index includes entries with no saved original and stays internal.
+- **National FCC files**: Members can search the national archive by file and provider metadata, open the original PDF, save a named copy, and read the available page text. Counts refer to files, not purchases. The full FCC research index includes entries with no saved original and stays internal.
 - **Minnesota TV collection in Media buys (`/media-buys`)**: TV political-ad files from KSTP-TV, KARE and KMSP-TV,
   browsed by TV station folders (Station, Year and Category menus), agency names, stations
   and years, with served totals on each tab. Word search searches all 4 browsing categories as the

@@ -57,7 +57,7 @@ database would add millions of rows that member screens never use.
 
 The member database holds file metadata and object references. Browse requests transfer
 a page of matching rows. Finance serves signed-in PDF reads from private object storage. PDF bytes do not cross
-Supabase. Text loads only on demand. Distinguish disk space, query rows, response bytes and
+Supabase. While the original is open, the file preview and **Save PDF** share the same downloaded bytes. Closing the preview or leaving the file releases that copy. Text loads only on demand. Distinguish disk space, query rows, response bytes and
 billed outgoing data using the [Supabase usage guide](supabase-usage.md). The source includes
 facility data, licensing records, file history and OCR progress. Those materials belong to
 research and do not count as member files.

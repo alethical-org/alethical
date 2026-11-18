@@ -9,6 +9,7 @@
     "check:built-links": "node --test scripts/test-built-links.mjs && node scripts/check-built-links.mjs",
     "preview": "vite preview",
     "test": "vitest run",
+    "check:original-pdf": "node --test scripts/test-original-pdf.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "jsdom": "30.0.1",

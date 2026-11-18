@@ -49,6 +49,7 @@ REQUIRED = {
     "node scripts/check-address-suggestion-layering.mjs": 1,
     "node scripts/check-address-recovery.mjs --skip-recovery --only 'address controls'": 1,
     "node scripts/check-candidate-return.mjs": 1,
+    "pnpm run check:original-pdf": 1,
     "node scripts/check-contextual-return.mjs": 1,
     "node scripts/check-candidate-location.mjs": 1,
     "e2e/services-print.spec.ts": 1,
