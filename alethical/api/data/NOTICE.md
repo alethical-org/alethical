@@ -76,3 +76,33 @@ the Minnesota Department of Education's 2025–26 public school program
 directory. They identify buildings. Electoral geography is checked separately.
 [School program locations](https://operations.gis.data.mn.gov/api/publicdownload/download/1148/school_program_locations.csv)
 (SHA-256 `a2deaa62a20469931669fe7e318613e6746bae22e614beee33f365810f6248de`).
+
+The exact-address supplement uses Sibley County GIS's September 17, 2026
+address point edition. Traverse County points must agree in both its October
+20, 2021 archive and its November 18, 2026 service, including the full address
+and all coordinates at the archive's seven-decimal precision. The offline
+index contains lookup keys and coordinates. The county points support address
+placement; the election districts are independently confirmed. An added compass
+direction requires the October 2026 Census to link both street names to the
+same address range on the same side of the same road segment. Each mapped
+county point must be inside that side, within 50 metres of the segment, and
+clear of the ends. Any competing range for the directed name in that county
+and ZIP with the same number and parity disqualifies the alias.
+[Census address range to street name links](https://www2.census.gov/geo/tiger/TIGER2026/ADDRFN/).
+[Sibley County data downloads](https://www.sibleycounty.gov/371/Maps-Geographic-Information-System-GIS),
+[Sibley address layer](https://www.arcgis.com/home/item.html?id=83bff03683ca46359043534b14ebb10b),
+[Traverse County open data](https://data-traversecountymn.opendata.arcgis.com/),
+[Traverse County address layer](https://gis.co.traverse.mn.us/arcgis/rest/services/GIS_Data_Layers/MapServer/0),
+[OpenAddresses archive of the county source](https://data.openaddresses.io/runs/1198403/us/mn/traverse.zip)
+and [rebuild script](../../../scripts/build_2026_candidate_county_addresses.py).
+
+[Sibley County's required data disclaimer](https://www.sibleycounty.gov/DocumentCenter/View/521/Digital-Disclaimer-PDF):
+
+> SIBLEY COUNTY PUBLIC WORKS makes no representations or warranties, expressed or implied, with respect to the reuse of the data provided herewith, regardless of its format or the means of its transmission. There is no guarantee or representation to the user as to the accuracy, currency, suitability, or reliability of the data for any purpose. The user accepts this data "as is", and assumes all risks associated with its use. By acceptance of this data, the user agrees not to transmit this data or provide access to it or any part of it to another party unless the user shall include with the data a copy of this disclaimer. SIBLEY COUNTY PUBLIC WORKS assumes no responsibility for actual or consequential damage incurred as a result of any user's reliance on this data.
+
+The Minnesota Department of Transportation's November 2024 Lancaster city map
+shows one continuous Central Avenue. The election service distinguishes its north
+and south addresses. A dated Census street range corroborates only the precinct
+when every matching side and spelling gives Lancaster's November precinct and
+the full directed election address independently agrees.
+[Lancaster city road map](https://www.dot.state.mn.us/maps/gdma/data/maps/city/Under5000/kittson/lancaster.pdf).

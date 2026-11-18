@@ -124,3 +124,19 @@ def test_missing_supplemental_report_never_assigns_a_street_only_ballot(monkeypa
     )
     with pytest.raises(candidate_lookup.CandidateLookupUnavailable):
         service._historical_match(ADDRESS, StreetRangeMatch(105537))
+
+
+def test_lancaster_road_proves_only_an_unanimous_precinct(monkeypatch):
+    # Synthetic number. The 2024 MnDOT city map names the physical street Central Avenue.
+    a = StreetAddress("CENTRAL AVE N", "LANCASTER", "MN", "56735", 125)
+    source = {"CENTRAL AVENUE": [[101, 199, "O", "350100"]]}
+    monkeypatch.setattr(streets, "_street_ranges", lambda _: source)
+    assert streets.lancaster_central_precinct(a) == "350100"
+    assert streets.lancaster_central_precinct(replace(a, city="HALLOCK")) is None
+    assert (
+        streets.lancaster_central_precinct(replace(a, street="CENTRAL AVE E")) is None
+    )
+    assert streets.lancaster_central_precinct(replace(a, house_number=126)) is None
+    for code in ("", "350115"):
+        source["S CENTRAL AVENUE"] = [[101, 199, "O", code]]
+        assert streets.lancaster_central_precinct(a) is None

@@ -1024,6 +1024,9 @@ class CandidateLookupService:
         found: StreetRangeMatch,
         alternate: StreetAddress | None = None,
     ):
+        from alethical.api.services.candidate_historical_county_addresses import (
+            county_address_points,
+        )
         from alethical.api.services.candidate_historical_geography import (
             corroborated_school,
             historical_geography,
@@ -1032,6 +1035,7 @@ class CandidateLookupService:
         from alethical.api.services.candidate_historical_streets import (
             agrees_with_precinct,
             facility_points,
+            lancaster_central_precinct,
             report_matches_address,
             street_precinct,
             street_school,
@@ -1050,13 +1054,13 @@ class CandidateLookupService:
         if points is None:
             return None
         needs_range_confirmation = not points or alternate is not None
-        points = points | facility_points(address)
+        points = points | facility_points(address) | county_address_points(address)
         if alternate:
-            points |= facility_points(alternate)
+            points |= facility_points(alternate) | county_address_points(alternate)
         if points:
             geography = historical_geography(points)
         else:
-            key = street_precinct(address)
+            key = street_precinct(address) or lancaster_central_precinct(address)
             geography = historical_precinct(key[:2], key[2:]) if key else None
         if geography is None:
             if offline:

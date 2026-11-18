@@ -91,6 +91,38 @@ def street_precinct(address: StreetAddress) -> str | None:
     return None
 
 
+def lancaster_central_precinct(address: StreetAddress) -> str | None:
+    """MnDOT maps one continuous Central Avenue through Lancaster (November 2024).
+
+    The official address still specifies north or south. Use the mapped street
+    solely to establish a precinct if all numbered sides of *every* variant
+    in the ZIP agree. An undirected street never establishes a building point.
+    """
+    from alethical.api.services.candidate_lookup import _normal
+
+    if (
+        address.house_number_suffix
+        or address.zip_code != "56735"
+        or _name(address.city) != "LANCASTER"
+        or _normal(address.street) not in {"CENTRAL AVENUE N", "CENTRAL AVENUE S"}
+    ):
+        return None
+    streets = _street_ranges(address.zip_code)
+    base = "CENTRAL AVENUE"
+    spellings = {base}
+    for direction in ("N", "S", "E", "W", "NE", "NW", "SE", "SW"):
+        spellings.update((f"{direction} {base}", f"{base} {direction}"))
+    parity = "O" if address.house_number % 2 else "E"
+    matches = {
+        row[3]
+        for street in spellings
+        for row in streets.get(street, ())
+        if row[0] <= address.house_number <= row[1] and row[2] in ("B", parity)
+    }
+    # Lancaster's own November precinct. Current SOS confirmation is also mandatory.
+    return "350100" if matches == {"350100"} else None
+
+
 def street_school(address: StreetAddress, geography) -> tuple[str, str] | None:
     """Every compatible segment or address side must confirm the same school."""
     key = geography.county_code + geography.precinct_code
