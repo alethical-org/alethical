@@ -6026,6 +6026,7 @@ class ElectionComparisonPrecinct(Base):
     county: Mapped[str] = mapped_column(String(20), nullable=False)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     __table_args__ = (
+        Index("ix_election_precinct_lookup", "snapshot_id", "key"),
         ForeignKeyConstraint(
             ["snapshot_id", "race_id"],
             ["election_comparison_race.snapshot_id", "election_comparison_race.id"],

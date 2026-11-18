@@ -59,7 +59,7 @@ def _code(value: object, field: str) -> str:
     return result
 
 
-def _identity(parts: tuple[str, ...]) -> str:
+def ballot_identity(parts: tuple[str, ...]) -> str:
     encoded = json.dumps(parts, ensure_ascii=False, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
 
@@ -244,9 +244,9 @@ def parse_candidate_ballot(
             office,
             title,
         )
-        race_id = _identity(race_parts)
+        race_id = ballot_identity(race_parts)
         candidate = BallotCandidate(
-            _identity((*race_parts, candidate_code)),
+            ballot_identity((*race_parts, candidate_code)),
             race_id,
             office,
             candidate_code,
@@ -262,7 +262,7 @@ def parse_candidate_ballot(
         records[candidate_code] = candidate
     races = tuple(
         BallotRace(
-            _identity(
+            ballot_identity(
                 (
                     election_id,
                     election_date.isoformat(),
@@ -325,6 +325,7 @@ class StreetRangeMatch:
     """Temporary lookup handle, never a field in a public candidate index."""
 
     range_id: int
+    unit_specific: bool = False
 
 
 def _same_text(left: str, right: str) -> bool:
@@ -585,4 +586,4 @@ def match_street_range(
         raise CandidateUnitRequired("the source needs a unit for this house")
     if unit_required or unproven or len(matches) != 1:
         raise CandidateAddressNotFound("address range is missing or ambiguous")
-    return StreetRangeMatch(matches[0])
+    return StreetRangeMatch(matches[0], unit_specific=matches[0] in flagged_range_ids)

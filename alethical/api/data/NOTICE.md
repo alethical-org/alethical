@@ -22,3 +22,19 @@ may depict distance, direction, location, or other geographic features.
 
 If you transmit or provide the GIS Data (or any portion of it) to another user, the
 GIS Data must include a copy of this disclaimer.
+
+## November 3, 2026 Minnesota general election
+
+The archived candidate lookup uses Minnesota's September 18 voting precinct
+boundaries and the November 3 results precinct register. The Secretary of State
+advises checking with the city, township or county for definitive precinct lines.
+[Precinct map and use conditions](https://www.arcgis.com/sharing/rest/content/items/6c2c813b33144d49ba993bd86b3a58ba/info/metadata/metadata.xml?format=default&output=html)
+and [election precinct register](https://electionresultsfiles.sos.mn.gov/20261103/PrctTbl.txt).
+
+South St. Paul school boundaries come from Dakota County and the city's published
+ballot styles. Crow Wing County school assignments cover municipalities with one
+school district in both dated county tax-area registers.
+[Dakota County school districts](https://gis2.co.dakota.mn.us/arcgis/rest/services/DCGIS_OL_Schools/MapServer/1),
+[South St. Paul election ballots](https://www.southstpaulmn.gov/224/Elections),
+[Crow Wing County 2026 register](https://www.crowwing.gov/Archive/ViewFile/Item/3159)
+and [October 28, 2026 register](https://www.crowwing.gov/Archive/ViewFile/Item/3321).

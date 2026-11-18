@@ -135,17 +135,20 @@ def lookup(
             request.address,
             request.electionId,
             request.confirmedChoice.model_dump() if request.confirmedChoice else None,
+            db=db,
         )
     except CandidateLookupUnavailable:
         raise _unavailable() from None
-    if catalogue is not None:
-        # A successful result's links must work in a separate browser. Database
-        # failure therefore fails the lookup instead of returning broken links.
-        try:
-            persist_catalogue(db, catalogue)
-        except PublicRecordConflict:
-            db.rollback()
-            raise _unavailable() from None
+    if catalogue is None:
+        # Historical rosters already identify their public source and profile availability.
+        return result
+    # A successful result's links must work in a separate browser. Database
+    # failure therefore fails the lookup instead of returning broken links.
+    try:
+        persist_catalogue(db, catalogue)
+    except PublicRecordConflict:
+        db.rollback()
+        raise _unavailable() from None
     return enrich_lookup_results(
         db, result, today=service.now().astimezone(ZoneInfo("America/Chicago")).date()
     )

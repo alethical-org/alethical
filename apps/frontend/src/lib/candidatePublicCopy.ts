@@ -2,7 +2,7 @@ import type { CandidateElection } from '../components/candidates/types';
 
 export const CANDIDATE_LOOKUP_COPY = {
   heading: 'Find my candidates',
-  intro: 'See who’s running where you live in Minnesota',
+  intro: 'Explore candidates on the ballot where you live in Minnesota',
   addressLabel: 'Full street address',
   addressHelp: 'A city or ZIP code alone cannot identify your local races',
   privacy: 'Address lookup uses Minnesota’s Secretary of State and mapping services',

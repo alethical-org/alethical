@@ -599,6 +599,7 @@ function CandidateSearchSession({
             <View style={{ gap: 40 }}>
               <CandidateRaceGroups
                 races={displayed.results.races}
+                electionEnded={displayed.results.electionEnded}
                 resultsPhase={resultsPhase}
                 election={displayed.election}
                 busy={busy}
@@ -609,6 +610,7 @@ function CandidateSearchSession({
               {!noElection ? (
                 <CandidateCoverage
                   gaps={displayed.results.coverage}
+                  electionEnded={displayed.results.electionEnded}
                   resultsPhase={resultsPhase}
                   officialResultsUrl={displayed.election.officialResultsUrl}
                 />
