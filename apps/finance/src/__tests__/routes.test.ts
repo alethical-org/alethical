@@ -10,6 +10,13 @@ describe('matchRoute', () => {
     }
   });
 
+  it('names national filings and Minnesota station files separately', () => {
+    expect(matchRoute('/media-buys/files/national-CABLE%7C001086%7Cexample')?.route.title).toBe(
+      'National FCC file',
+    );
+    expect(matchRoute('/media-buys/files/KSTP-TV-example')?.route.title).toBe('TV station file');
+  });
+
   it('reads parameters, decoded, and ignores a trailing slash', () => {
     expect(matchRoute('/money/names/EXAMPLE%20MEDIA%20LLC/')).toEqual({
       route: expect.objectContaining({ name: 'payments-under-name' }),
