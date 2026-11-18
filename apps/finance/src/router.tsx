@@ -92,12 +92,23 @@ export function useHistoryNavigationKey(): number {
   );
 }
 
-export function navigate(to: string, { replace = false, preserveFocus = false } = {}) {
+export function navigate(
+  to: string,
+  {
+    replace = false,
+    preserveFocus = false,
+    state = null,
+  }: {
+    replace?: boolean;
+    preserveFocus?: boolean;
+    state?: unknown;
+  } = {},
+) {
   saveScroll();
   arrivedByHistory = false;
   preserveSearchFocus = preserveFocus;
-  if (replace) window.history.replaceState(null, '', to);
-  else window.history.pushState(null, '', to);
+  if (replace) window.history.replaceState(state, '', to);
+  else window.history.pushState(state, '', to);
   notify();
 }
 

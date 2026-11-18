@@ -18,10 +18,11 @@ import { navigate, useLocation } from '../router';
 import { withFrom } from '../returnContext';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+const memberSession = vi.hoisted(() => ({ accessToken: 'test-token', retry: vi.fn() }));
 vi.mock('../auth/session', () => ({
   useFinanceSession: () => ({
     apiBaseUrl: 'https://api.example.test',
-    accessToken: 'test-token',
+    ...memberSession,
   }),
 }));
 
@@ -176,6 +177,8 @@ async function click(text: string) {
 }
 
 beforeEach(() => {
+  memberSession.accessToken = 'test-token';
+  memberSession.retry.mockClear();
   clearReadCache();
   container = document.createElement('div');
   document.body.append(container);
@@ -1934,13 +1937,66 @@ describe('National FCC originals in Media buys', () => {
     ).toBe(true);
   });
 
+  it('holds one private PDF for preview and saving until the member closes it', async () => {
+    const path = '/media-buys/files/national-' + encodeURIComponent(key);
+    const fetcher = serve((url) =>
+      url.pathname.endsWith('/original')
+        ? new Response('%PDF-1.7', { headers: { 'content-type': 'application/pdf' } })
+        : json({ title: 'Order/73.pdf', content_hash: version }),
+    );
+    await render(path + '?version=' + version, () => <StationFile match={matchRoute(path)!} />);
+    const originalRequests = () => fetcher.mock.calls.filter(([url]) => url.includes('/original?'));
+    expect(originalRequests()).toHaveLength(0);
+    await click('Open original PDF');
+    const preview = container.querySelector<HTMLIFrameElement>('iframe[title]');
+    const save = container.querySelector<HTMLAnchorElement>('a[download]');
+    expect(save?.download).toBe('Order-73.pdf');
+    expect(save?.getAttribute('href')).toBe('blob:page');
+    expect(preview?.getAttribute('src')).toBe(save?.getAttribute('href'));
+    expect(originalRequests()).toHaveLength(1);
+    expect(originalRequests()[0][1]?.headers).toEqual({ Authorization: 'Bearer test-token' });
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    await click('Close PDF');
+    expect(container.querySelector('iframe, a[download]')).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:page');
+    expect(window.location.search).toBe('?version=' + version);
+  });
+
+  it('clears the saved PDF on account change and checks access when the new account is refused', async () => {
+    const path = '/media-buys/files/national-' + encodeURIComponent(key);
+    const viewer = path + '?version=' + version + '&original=1';
+    const fetcher = serve((url) => {
+      if (!url.pathname.endsWith('/original'))
+        return json({ title: 'Order', content_hash: version });
+      return memberSession.accessToken === 'test-token'
+        ? new Response('%PDF-1.7', { headers: { 'content-type': 'application/pdf' } })
+        : json({}, 403);
+    });
+    const file = () => <StationFile match={matchRoute(path)!} />;
+    await render(viewer, file);
+    expect(container.querySelector('a[download]')).toBeTruthy();
+    memberSession.accessToken = 'changed-token';
+    await act(async () => root.render(file()));
+    await flush();
+    expect(container.querySelector('iframe, a[download]')).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:page');
+    expect(memberSession.retry).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls.filter(([url]) => url.includes('/original?'))).toHaveLength(2);
+    await click('Close PDF');
+    expect(window.location.search).toBe('?version=' + version);
+  });
+
   it('reads text only on request, uses the exact file version and offers retry when the PDF cannot open', async () => {
     const path = '/media-buys/files/national-' + encodeURIComponent(key);
+    let originalReady = false;
     const fetcher = serve((url) => {
       expect(url.searchParams.get('version')).toBe(version);
       if (url.pathname.endsWith('/text'))
         return json({ pages: [{ page: 1, text: 'Order from the FCC record', method: 'ocr' }] });
-      if (url.pathname.endsWith('/original')) return json({}, 503);
+      if (url.pathname.endsWith('/original'))
+        return originalReady
+          ? new Response('%PDF-1.7', { headers: { 'content-type': 'application/pdf' } })
+          : json({}, 503);
       return json({
         title: 'National invoice',
         service: 'CABLE',
@@ -1960,5 +2016,8 @@ describe('National FCC originals in Media buys', () => {
     expect(text()).toContain('Order from the FCC record');
     await click('Open original PDF');
     expect(text()).toContain('Try opening PDF again');
+    originalReady = true;
+    await click('Try opening PDF again');
+    expect(container.querySelector('a[download]')).toBeTruthy();
   });
 });

@@ -678,6 +678,10 @@ jobs:
             pnpm exec playwright install --with-deps chromium
           fi
 
+      - name: Verify a Finance member can save the displayed original PDF
+        working-directory: apps/finance
+        run: pnpm run check:original-pdf
+
       - name: Run the browser specs against the built site
         run: |
           node scripts/serve-reader-check-build.mjs &

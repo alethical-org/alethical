@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRead } from '../../api/read';
 import { useFinanceSession } from '../../auth/session';
-import { useLocation } from '../../router';
+import { navigate, useLocation } from '../../router';
 import { hrefFor } from '../../routes';
 import { MediaPage, ReadState, mediaPath } from './shared';
 
@@ -47,55 +47,32 @@ export function NationalFile({ fileKey }: { fileKey: string }) {
 }
 
 function NationalDetailView({ fileKey, version }: { fileKey: string; version: string | null }) {
-  const session = useFinanceSession();
   const path = ['national-files', fileKey];
   const read = useRead<NationalDetail>(mediaPath(path, { version }));
   const data = read.data;
   const [textOpen, setTextOpen] = useState(false);
-  const [opening, setOpening] = useState<'ready' | 'busy' | 'error'>('ready');
-  const controller = useRef<AbortController | null>(null);
-  useEffect(
-    () => () => {
-      controller.current?.abort();
-      controller.current = null;
-    },
-    [],
-  );
+  const address = useLocation();
+  const showingPdf = address.searchParams.get('original') === '1';
   const text = useRead<OriginalText>(
     textOpen && data ? mediaPath([...path, 'text'], { version: data.content_hash }) : null,
   );
 
-  async function openOriginal() {
-    if (!data || controller.current) return;
-    const request = new AbortController();
-    controller.current = request;
-    setOpening('busy');
-    const timer = window.setTimeout(() => request.abort(), 120_000);
-    try {
-      const route = mediaPath([...path, 'original'], { version: data.content_hash });
-      const response = await fetch(`${session.apiBaseUrl}/api/v1/${route}`, {
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-        cache: 'no-store',
-        redirect: 'error',
-        signal: request.signal,
-      });
-      if (response.status === 401 || response.status === 403) session.retry();
-      if (!response.ok || response.headers.get('content-type') !== 'application/pdf')
-        throw new Error('PDF unavailable');
-      const pdf = await response.blob();
-      if (request.signal.aborted) return;
-      const url = URL.createObjectURL(pdf);
-      setOpening('ready');
-      window.location.assign(url);
-      // The browser owns the open document after navigation.
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      if (controller.current === request) setOpening('error');
-    } finally {
-      clearTimeout(timer);
-      if (controller.current === request) controller.current = null;
+  function toggleOriginal() {
+    const params = new URLSearchParams(address.search);
+    params.delete('original');
+    const fileAddress = address.pathname + (params.size ? '?' + params : '');
+    if (!showingPdf) {
+      params.set('original', '1');
+      // This entry remembers its parent through a reload or session refresh.
+      navigate(address.pathname + '?' + params, { state: { nationalOriginalFrom: fileAddress } });
+    } else if (window.history.state?.nationalOriginalFrom === fileAddress) {
+      window.history.back();
+    } else {
+      // A copied viewer address can return to its file without leaving Finance.
+      navigate(fileAddress, { replace: true });
     }
   }
+
   return (
     <MediaPage
       fallback={{
@@ -146,16 +123,19 @@ function NationalDetailView({ fileKey, version }: { fileKey: string; version: st
               <button
                 type="button"
                 className="f-btn"
-                aria-disabled={opening === 'busy'}
-                onClick={() => void openOriginal()}
+                aria-expanded={showingPdf}
+                onClick={toggleOriginal}
               >
-                {opening === 'busy'
-                  ? 'Opening…'
-                  : opening === 'error'
-                    ? 'Try opening PDF again'
-                    : 'Open original PDF'}
+                {showingPdf ? 'Close PDF' : 'Open original PDF'}
               </button>
-              {opening === 'error' && <p role="alert">Couldn’t open the original PDF</p>}
+              {showingPdf && (
+                <OriginalPdf
+                  key={data.content_hash}
+                  route={mediaPath([...path, 'original'], { version: data.content_hash })}
+                  title={data.title}
+                  version={data.content_hash}
+                />
+              )}
               {data.source_url && (
                 <p>
                   <a href={data.source_url}>View the FCC source</a>
@@ -195,5 +175,83 @@ function NationalDetailView({ fileKey, version }: { fileKey: string; version: st
         </>
       )}
     </MediaPage>
+  );
+}
+
+function OriginalPdf({ route, title, version }: { route: string; title: string; version: string }) {
+  const { apiBaseUrl, accessToken, retry } = useFinanceSession();
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const request = new AbortController();
+    let active = true;
+    let heldUrl: string | undefined;
+    const timer = window.setTimeout(() => request.abort(), 120_000);
+    async function fetchOriginal() {
+      if (!active) return;
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/v1/${route}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: 'no-store',
+          redirect: 'error',
+          signal: request.signal,
+        });
+        if (!active) return;
+        if (response.status === 401 || response.status === 403) retry();
+        if (!response.ok || response.headers.get('content-type') !== 'application/pdf')
+          throw new Error('PDF unavailable');
+        const pdf = await response.blob();
+        if (!active) return;
+        heldUrl = URL.createObjectURL(pdf);
+        setUrl(heldUrl);
+      } catch {
+        if (active) setFailed(true);
+      } finally {
+        window.clearTimeout(timer);
+      }
+    }
+    queueMicrotask(() => void fetchOriginal());
+    return () => {
+      active = false;
+      request.abort();
+      window.clearTimeout(timer);
+      if (heldUrl) URL.revokeObjectURL(heldUrl);
+    };
+  }, [apiBaseUrl, accessToken, route, retry, attempt]);
+
+  if (failed)
+    return (
+      <>
+        <p role="alert">Couldn’t open the original PDF</p>
+        <button
+          type="button"
+          className="f-btn"
+          onClick={() => {
+            setFailed(false);
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Try opening PDF again
+        </button>
+      </>
+    );
+  if (!url) return <p role="status">Opening PDF…</p>;
+  const stem = Array.from(title.replace(/\.pdf$/i, '').replace(/[^\p{L}\p{M}\p{N} ()_.,-]+/gu, '-'))
+    .slice(0, 60)
+    .join('')
+    .replace(/^[ .-]+|[ .-]+$/g, '');
+  return (
+    <>
+      <a
+        className="f-btn mb-pdf-save"
+        href={url}
+        download={`${stem || 'fcc-' + version.slice(0, 16)}.pdf`}
+      >
+        Save PDF
+      </a>
+      <iframe className="mb-pdf-frame" src={url} title={`Original PDF: ${title}`} />
+    </>
   );
 }
