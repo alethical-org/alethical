@@ -40,11 +40,37 @@ owns member access and coverage. No ongoing national collection runs as part of 
 ## Check every indexed filing for its PDF
 
 `scripts/national_fcc_collect.py` checks each indexed filing that has no held original.
-`worklist` stores the full index as a private work list in R2, marking filings already
-held in the archive release or the Minnesota collection; those are not downloaded again.
-The **Check national FCC filing PDFs** workflow then runs every 30 minutes on GitHub's
-servers, one run at a time, each for up to 5.5 hours. It starts at 4 FCC requests per
-second, rises toward 8 while the FCC answers normally and halves after a busy answer.
+`worklist` stores the full index as the first part of a private work list in R2, marking
+filings already held in the archive release or the Minnesota collection; those are not
+downloaded again. The run's `manifest.json` lists every part in order with its SHA-256,
+and each command refuses a part whose bytes do not match. The manifest's top-level
+digest keeps describing the first part, `worklist.jsonl.gz`.
+
+`sync --inventory-current` reads the compact national inventory
+(`fcc-national/v1/inventory/current.json`, its manifest and its data, digest-checked)
+and appends 1 part, `worklist-<n>.jsonl.gz`, holding every inventory filing that no
+part holds yet, in a fixed shuffle. Filings already listed keep their part, position
+and outcomes. When the inventory gives a listed filing that is still to be checked a
+different download id, the part records the newer id and the next attempt uses it.
+Added filings carry no held marks: archive-held filings are all in the first part, and
+an added filing from the 3 Minnesota stations is checked like any other. Without an
+inventory pointer the command does nothing, and an inventory it has already read adds
+nothing.
+
+The **Check national FCC filing PDFs** workflow runs every 30 minutes on GitHub's
+servers, one run at a time: the sync, then the oversize lane, then the main run for up
+to 4 hours 45 minutes. A failed sync leaves the work list unchanged and the checking continues.
+The main run takes never-checked filings first, from the oldest part forward, then due
+retries. It starts at 4 FCC requests per second, rises toward 8 while the FCC answers
+normally and halves after a busy answer.
+
+Each command keeps the run's state in a SQLite scratch database on local disk, under
+`$FCC_CENSUS_SCRATCH` or the system temporary folder in `fcc-census/<run>/`, so memory
+stays bounded at tens of millions of filings and outcomes. It streams the work-list
+parts and outcome files into SQLite and selects due filings, the status tally and the
+export with SQL. Parts and outcome files are cached there by name, so the main run
+after the oversize lane reads only the outcome files written since. An interrupted
+change is rebuilt from the cache by the next command.
 
 Each attempt appends an outcome file under `fcc-national/v1/recovery/<run>/results/`, so a
 stopped run loses at most a few minutes of work. A readable PDF is stored once under its
@@ -52,10 +78,10 @@ SHA-256 key, and R2 checks that digest before accepting the write. When the down
 address refuses a file (401, 404 or 410; the FCC answers 401 for a missing file) or
 returns bytes that are not a readable PDF, the run asks the FCC file record for another
 download address. A filing becomes confirmed unavailable only after 2 such answers at
-least 6 hours apart. A 403 can mean the FCC blocked the client rather than the file, so it
-is retried like timeouts, busy answers, server errors, other statuses, redirects
-away from the FCC, web pages served in place of a file, cut-off downloads and storage
-failures prove nothing and are retried. Files over 512 MiB wait for the oversize lane,
+least 6 hours apart. A 403 can mean the FCC blocked the client rather than the file, so
+it proves nothing about the filing. Neither do timeouts, busy answers, server errors,
+other statuses, redirects away from the FCC, web pages served in place of a file,
+cut-off downloads or storage failures; all are retried. Files over 512 MiB wait for the oversize lane,
 which runs for up to 30 minutes before each main run at most 2 requests per second and
 accepts up to 8 GiB. Outcome rows carry a version; unreadable outcomes recorded before the
 alternate-address check, and refusals with any other status, are checked again.
