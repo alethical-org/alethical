@@ -256,6 +256,23 @@ def test_search_words_cannot_inject_query_syntax():
     assert search.match_expression("  ") is None
 
 
+def test_national_list_stays_readable_while_a_search_file_loads(monkeypatch):
+    from sqlalchemy.orm import Session
+
+    from alethical.api.problems import problem_exception
+    from alethical.api.services import finance_national_files as national
+    from alethical.db.session import get_engine
+
+    def loading(db):
+        raise problem_exception(503, "Search is starting", "Filings are loading.")
+
+    monkeypatch.setattr(search.FILES, "current", loading)
+    with Session(get_engine()) as db:
+        answer = national.browse(db, "", 1, None)
+    assert answer["tab"] == "national"
+    assert answer["total"] == 0
+
+
 def test_packed_search_file_is_reproducible_and_unpacks_exactly(tmp_path):
     import gzip as gz
 

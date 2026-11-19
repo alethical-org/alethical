@@ -29,10 +29,14 @@ MAX_TEXT_BYTES = 4 * 1024 * 1024
 def browse(
     db: Session, query: str, page: int, version: str | None, preview: bool = False
 ) -> dict:
-    """Saved national originals: the search file's, else the archive release's."""
+    """Saved national originals: the search file's, else the archive release's.
+
+    While a new search file is still copying, the archive release keeps the list
+    readable instead of answering an error.
+    """
     try:
         ready = search.FILES.current(db)
-    except LookupError:
+    except (LookupError, HTTPException):
         ready = None
     if ready is not None:
         token = hashlib.sha256(ready.release_id.encode()).hexdigest()[:16]
