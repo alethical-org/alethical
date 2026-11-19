@@ -1,0 +1,64 @@
+name: Keep the national FCC filing inventory current
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: national-fcc-history
+  cancel-in-progress: false
+
+jobs:
+  # Fetching and folding run as separate jobs so each stays well inside GitHub's
+  # 355-minute limit: folding every stored day took 22 minutes on a laptop.
+  fetch:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 270
+    env:
+      CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+      CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+      CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Store whole FCC history days
+        # A day that still fails after its retries stays incomplete for the next run.
+        run: uv run --no-sync python -m scripts.national_fcc_history fetch --backfill --max-seconds 14400
+
+  compact:
+    # Folds every complete stored day even when some day failed to fetch.
+    needs: fetch
+    if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+      CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+      CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Fold stored days into the inventory
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/fcc-history"
+          mkdir -p "$work"
+          uv run --no-sync python -m scripts.national_fcc_history compact --work-dir "$work"
+          uv run --no-sync python -m scripts.national_fcc_history status

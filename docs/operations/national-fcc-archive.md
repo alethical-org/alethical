@@ -1,12 +1,13 @@
 # National FCC political files in Finance
 
-<!-- describes: scripts/national_fcc_objects.py, scripts/national_fcc_collect.py, .github/workflows/national-fcc-pdf-census.yml, scripts/national_fcc_db.py, alethical/api/services/finance_national_files.py, alethical/api/services/finance_national_search.py, scripts/national_fcc_search.py, apps/finance/src/pages/media/NationalFile.tsx -->
+<!-- describes: scripts/national_fcc_objects.py, scripts/national_fcc_collect.py, .github/workflows/national-fcc-pdf-census.yml, scripts/national_fcc_db.py, alethical/api/services/finance_national_files.py, alethical/api/services/finance_national_search.py, scripts/national_fcc_search.py, scripts/national_fcc_history.py, .github/workflows/national-fcc-history.yml, apps/finance/src/pages/media/NationalFile.tsx -->
 
 Finance members search every indexed filing on **Media buys** and open each verified
 original. The 3 Minnesota stations keep their existing folders, checks and connections. National files
 do not establish payments or add to spending totals. Private researchers can restore the
 national index, including entries without an original. The [Finance architecture](../architecture/alethical-finance-architecture.md#6-media-buys)
-owns member access and coverage. No ongoing national collection runs as part of this import.
+owns member access and coverage. The import itself collects nothing new; the
+[filing inventory](#keep-the-filing-inventory-current) follows the FCC's history separately.
 
 ## Import a supplied archive
 
@@ -117,6 +118,50 @@ or pending counts differ from the active release.
 The November 19, 2026 trial build held 2,704,694 filings, 10,090 stations and providers
 and 292,043 folders in 1,782,939,648 bytes. On a laptop, a page of the newest filings took
 under 1 ms and a search for a word in 1.47 million filings about 0.3 seconds.
+
+## Keep the filing inventory current
+
+`scripts/national_fcc_history.py` keeps 1 private inventory of every national political
+filing's latest known state, built from the FCC's public-file history. The FCC answers a
+whole Eastern-time day per request with `offset=0` and no `count`; paging with a count and
+an offset returns overlapping subsets, so the transfer's monthly history pages miss filings.
+Whole-day answers are therefore the authoritative source.
+
+1. `python -m scripts.national_fcc_history fetch --backfill --max-seconds N` requests every
+   day from January 1, 2012 through the newest day that has ended in Eastern time, at most
+   1 request per second. Busy answers, server errors and timeouts are retried with backoff,
+   honouring `Retry-After`. A day counts as complete only on HTTP 200 with `statusCode` 200
+   and a `history` list; an error or truncated answer never counts as an empty day. Each
+   answer is stored gzip-compressed under its SHA-256 at
+   `fcc-national/v1/history/daily/<day>/<sha>.json.gz`, and the ledger
+   `fcc-national/v1/history/days.json` records its rows, political rows, distinct political
+   filings and bytes. A day whose row count is a round number of at least 10,000 may have
+   hit a server cap, so it stays unverified and is fetched again. Complete days are skipped
+   except the newest 3, which the FCC can still change. A run stops between days at the
+   time limit, and the next run continues.
+2. `python -m scripts.national_fcc_history compact` folds every stored day into 1 row per
+   filing in an on-disk SQLite scratch file. The event with the latest update time, then
+   creation time, then source order sets the filing's state; the row also records its first
+   and last event times and its number of distinct events. The data object and manifest are
+   stored under `fcc-national/v1/inventory/`, read back and checked before
+   `inventory/current.json` points at them. Identical results write nothing. The manifest's
+   `through` date is the last day before which every day since 2012 is complete.
+3. `python -m scripts.national_fcc_history transfer --zip ARCHIVE` adds the transfer
+   archive's history pages as a reconciliation source. Compact folds its events in too, and
+   the manifest lists, per monthly window, filings that only the transfer holds; the
+   expected count is 0.
+4. `python -m scripts.national_fcc_history status` reports the current inventory, its
+   filings per folder year, those transfer-only counts and the missing and unverified days.
+
+The **Keep the national FCC filing inventory current** workflow runs daily at 04:23 UTC:
+one job runs `fetch --backfill` for up to 4 hours, then a separate job runs `compact` (it
+folds every complete stored day even when a fetch failed), so the backfill of about 5,400 days
+finishes over several runs and later runs keep the newest days current. Every command
+accepts `--local-store DIR` to work in a local folder in place of R2.
+
+On November 19, 2026, whole-day answers held 19,152 distinct political filings for
+November 1, 2024, against 799 in the transfer's pages, and 17,553 for October 15, 2026,
+against 14,358.
 
 ## Recover a missing national file
 
