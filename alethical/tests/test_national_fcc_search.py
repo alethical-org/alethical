@@ -680,3 +680,13 @@ def test_a_search_file_in_another_format_is_never_served(tmp_path):
     files.loading = "r1"
     files._load(release, store=None)
     assert files.ready is None and files.failed == "ValueError"
+
+
+def test_a_partial_inventory_never_replaces_the_archive_index():
+    complete = {"through": "2026-11-18", "unverified_days": []}
+    assert builder.inventory_complete(complete)
+    assert not builder.inventory_complete({"through": None})
+    assert not builder.inventory_complete({"through": "2024-06-30"})
+    assert not builder.inventory_complete(
+        complete | {"unverified_days": ["2024-11-04"]}
+    )

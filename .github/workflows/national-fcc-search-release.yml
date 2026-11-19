@@ -32,7 +32,8 @@ jobs:
           CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-        # Reads the compact inventory pointer (else the active archive release), the
+        # Reads the compact inventory pointer once its backfill covers every day through
+        # the archive index (else the active archive release), the
         # census listing and the Minnesota identities first; when their digest equals
         # the active release's, it stops before restoring, building or uploading.
         run: uv run --no-sync python scripts/national_fcc_search.py release --work "$RUNNER_TEMP/fcc-search"

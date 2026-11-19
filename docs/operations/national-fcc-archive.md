@@ -97,8 +97,10 @@ confirmed census outcome) or unchecked. Minnesota copies open the existing TV st
 page; other saved originals open the national file reader by their SHA-256.
 
 The filing list comes from the compact inventory that `fcc-national/v1/inventory/current.json`
-names in private R2. When no inventory is published, it comes from the active archive
-release's recovered index. Both sources give the same filings for the same records.
+names in private R2, once that inventory covers every FCC day through November 16, 2026
+(the archive index's last day) with no unverified day. Until then, it comes from the active
+archive release's recovered index, so a backfill in progress never drops a filing that
+search already holds.
 
 1. Check the inputs with `python scripts/national_fcc_search.py inputs`. It prints the
    SHA-256 of everything that determines the file: the file format, the inventory data's

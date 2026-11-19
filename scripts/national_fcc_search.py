@@ -613,6 +613,20 @@ def inventory_manifest(files) -> dict | None:
     return manifest | {"manifest_key": pointer["manifest_key"]}
 
 
+# The archive index covers political files through this day; the compact inventory
+# replaces it only once every FCC day up to it has been fetched.
+ARCHIVE_THROUGH = "2026-11-16"
+
+
+def inventory_complete(manifest: dict) -> bool:
+    through = manifest.get("through")
+    return (
+        bool(through)
+        and through >= ARCHIVE_THROUGH
+        and not manifest.get("unverified_days")
+    )
+
+
 def fetch_inventory(files, inventory: dict, target: Path) -> Path:
     """Download the inventory data and refuse it unless its digest and size match."""
     body = files._client.get_object(Bucket=files.bucket, Key=inventory["object_key"])[
@@ -726,6 +740,9 @@ def gather_inputs(
     manifest = inventory_manifest(files) if source != "snapshot" else None
     if source == "inventory" and manifest is None:
         raise ValueError("No compact inventory is published")
+    if source == "auto" and manifest is not None and not inventory_complete(manifest):
+        # A backfill still in progress would drop filings the archive index holds.
+        manifest = None
     if manifest is not None:
         inventory = {
             "kind": "inventory",
