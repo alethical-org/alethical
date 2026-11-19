@@ -97,27 +97,90 @@ archive release original, a census save or a Minnesota station copy), unavailabl
 confirmed census outcome) or unchecked. Minnesota copies open the existing TV station file
 page; other saved originals open the national file reader by their SHA-256.
 
-1. Export the census with `python scripts/national_fcc_collect.py export --out CENSUS.jsonl.gz`.
-2. Build with `python scripts/national_fcc_search.py build --inventory RECOVERED_INDEX --census-export CENSUS.jsonl.gz --out SEARCH.sqlite`.
-   The builder reads the active archive release and Minnesota document identities from
-   production, read only. Its printed counts are the release's filing, saved, unavailable
-   and unchecked totals.
-3. Publish with `python scripts/national_fcc_search.py publish --database SEARCH.sqlite --release-id ID`.
+The filing list comes from the compact inventory that `fcc-national/v1/inventory/current.json`
+names in private R2, once that inventory covers every FCC day through November 16, 2026
+(the archive index's last day) with no unverified day. Until then, it comes from the active
+archive release's recovered index, so a backfill in progress never drops a filing that
+search already holds.
+
+1. Check the inputs with `python scripts/national_fcc_search.py inputs`. It prints the
+   SHA-256 of everything that determines the file: the file format, the inventory data's
+   digest (or the archive release's index digest), the key, size and ETag of every census
+   object, the active archive release, the Minnesota document identities and the
+   index-through date. It also says whether the active release was built from the same
+   inputs.
+2. Export the census with `python scripts/national_fcc_collect.py export --out CENSUS.jsonl.gz`.
+3. Build with `python scripts/national_fcc_search.py build --inventory-current --census-export CENSUS.jsonl.gz --out SEARCH.sqlite`,
+   or with `--inventory RECOVERED_INDEX` in place of `--inventory-current` for the archive
+   release's index. The builder refuses an inventory whose SHA-256, size or row count
+   differs from its manifest, and an index that is not the active release's. It reads the
+   active archive release and Minnesota document identities from production, read only,
+   and records the inputs and their digest in the file. Its printed counts are the
+   release's filing, saved, unavailable and unchecked totals.
+4. Publish with `python scripts/national_fcc_search.py publish --database SEARCH.sqlite --release-id ID`.
    It refuses a file that fails SQLite's quick check, stores the compressed file once
-   under its SHA-256 with an R2-verified digest and records an inactive release.
-4. Activate with `python scripts/national_fcc_search.py activate --release ID --from-release CURRENT`
-   (`none` for the first). The API copies the file to local disk, checks both digests and
-   switches to it; the previous copy serves until the new one is ready, and searches
-   answer "Filings are loading" only when no copy is ready. Withdraw by activating the
-   previous release the same way.
+   under its SHA-256 with an R2-verified digest, records an inactive release and saves the
+   file's inputs at `fcc-national/v1/search/inputs/ID.json`.
+5. Activate with `python scripts/national_fcc_search.py activate --release ID --from-release CURRENT`
+   (`none` for the first). Each API process reads the active release from Supabase at
+   most once per 30 seconds, so an activation reaches every server within 30 seconds. The
+   server then copies the file to local disk, checks both digests and switches to it; the
+   previous copy serves until the new one is ready, and searches answer "Filings are
+   loading" only when no copy is ready. A server reads only the file format it was built
+   for and keeps its current copy when the active release has another format. Withdraw by
+   activating the previous release the same way.
 
-The **Publish the Finance national FCC search** workflow runs these steps at 05:41 and
-17:41 UTC with `release`, which publishes and activates only when the saved, unavailable
-or pending counts differ from the active release.
+The **Publish the Finance national FCC search** workflow runs `release` at 05:41 and
+17:41 UTC. It computes the inputs digest first and stops, without restoring, downloading,
+building or uploading anything, when the digest equals the active release's. Any other
+change, including a corrected census outcome that leaves the saved, unavailable and
+unchecked totals equal, builds, publishes and activates a new file. While the census runs,
+each scheduled release finds new outcome files and publishes.
 
-The November 19, 2026 trial build held 2,704,694 filings, 10,090 stations and providers
-and 292,043 folders in 1,782,939,648 bytes. On a laptop, a page of the newest filings took
-under 1 ms and a search for a word in 1.47 million filings about 0.3 seconds.
+### How the file is arranged
+
+- Filing numbers follow file year, then upload date (newest first), then source order;
+  a second number follows file year, then name, then source order. Each year is 1 range
+  of both, so the newest page and the Name A–Z page of any year, at any depth, are
+  direct reads.
+- A record key (`SERVICE|entity|file ID`) is not stored; it is made from the station and
+  the file ID, which is found through 1 index on station and file ID. File and download
+  IDs that are lowercase UUIDs are stored as 16 bytes and SHA-256 digests as 32 bytes.
+  Each folder path is stored once, in the folder table.
+- Each file year has its own word index, and the saved originals have one for the
+  national originals list, so a search reads only its own year's words. A word index
+  stores which filings hold each word, not where, and keeps every 1- and 2-character
+  beginning, so a short word reads 1 list.
+- Every folder path starts "Political Files/" and the year. Those 3 words are left out of
+  the word index. A typed word that starts "political", "files" or the year matches every
+  filing of the year.
+
+### Measurements
+
+Measured on November 19, 2026 on 1 Apple laptop (10 cores, 32 GB), files read from a warm
+disk cache, 333 queries of the same mix on each file: the newest, Name A–Z, Has filing PDF
+and orders pages of every year; page 20,001 (offset 500,000) of 2026; `invoice`, `2026`
+and `spectrum` in 3 years and both sorts; 30 rare words; 30 file ID beginnings; words that
+start the folder prefix; the stations and folders tabs; filing details; and the national
+originals list. The format 1 and format 2 files gave identical answers to all 333.
+
+| | Format 1, 2.7 million filings | Format 2, 2.7 million filings | Format 2, synthetic 27 million filings |
+| --- | ---: | ---: | ---: |
+| File | 1,891,909,632 bytes | 735,309,824 bytes | 6,347,714,560 bytes |
+| Compressed (gzip level 6) | 493,392,621 bytes | 374,907,083 bytes | 1,488,547,246 bytes |
+| Build | 55 seconds | 55 seconds | 511 seconds |
+| Query p50 | 2.79 ms | 0.35 ms | 0.39 ms |
+| Query p95 | 934 ms | 42 ms | 345 ms |
+| Query max | 1,320 ms | 277 ms | 2,950 ms |
+
+The synthetic file repeats each of the 2,704,694 recovered filings 10 times with new file
+IDs, so 2026 alone holds 14,686,230 filings. Its repeated names compress better than real
+ones; at the 2.7 million file's ratio, 25 million filings would compress to about 3.2 GB.
+Its build used 2.3 GB of memory and 24 GB of disk at its peak, including the finished file.
+Every query slower than 1 second on it was a common or 1-letter word in 2026 combined with
+Has filing PDF, orders or Name A–Z, counting 3 million to 12 million matches. A search
+costs in proportion to its own year's filings. Unpacking and checking the 27 million file
+took 7.7 seconds and packing it 91 seconds.
 
 ## Keep the filing inventory current
 
@@ -190,19 +253,28 @@ research and do not count as member files.
 
 ### Review archive usage
 
-The member list selects only the fields shown in results, plus the file identity
-and version used by the link. Search previews return up to 5 rows and full pages up
-to 25. Search waits briefly for typing to pause, and Finance can reuse an identical
-answer for the same account for 1 minute. Adding the source version to the current
-list address does not trigger another fetch. The server reuses the private file
-read grant for up to 5 minutes, cut short by its expiry.
+Member searches on **Media buys** and the national originals list read the server's
+local copy of the search file, not Supabase. For them, each API process makes 1 small
+Supabase read for the active search release at most once per 30 seconds. The server
+reuses the private file read grant for up to 5 minutes, cut short by its expiry; it
+needs the grant to copy a new search file and to open a PDF or its text.
 
-The first live release added about 8.5 MB across the 3 database tables and their
-indexes. Across all 10,797 live records, the largest projected list row was 391
-bytes when encoded as a JSON array. That is under 2 KB of row data for a preview
-and 10 KB for a full page in the same representation. The largest complete file
-metadata row was under 1 KB in JSON. These sizes exclude protocol overhead and
-other queries, including the release and grant reads.
+The archive release tables (10,797 originals) are a fallback. They answer the national
+originals list and the file reader only while that server has no ready copy of the
+search file, for example in the first minutes after it starts.
+
+Search previews return up to 5 rows and full pages up to 25. Search waits briefly for
+typing to pause, and Finance can reuse an identical answer for the same account for 1
+minute. Adding the source version to the current list address does not trigger another
+fetch.
+
+When the fallback answers, the member list selects only the fields shown in results,
+plus the file identity and version used by the link. The first archive release added
+about 8.5 MB across the 3 database tables and their indexes. Across all 10,797 live
+records, the largest projected list row was 391 bytes when encoded as a JSON array. That
+is under 2 KB of row data for a preview and 10 KB for a full page in the same
+representation. The largest complete file metadata row was under 1 KB in JSON. These
+sizes exclude protocol overhead and other queries, including the release and grant reads.
 
 Use the [Supabase usage guide](supabase-usage.md#measurement) to check whether
 archive queries become material as traffic grows. Compare calls and returned
