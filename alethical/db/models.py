@@ -7044,6 +7044,9 @@ class NationalFCCSearchRelease(Base):
             unique=True,
             postgresql_where=text("active"),
         ),
+        # Lives only in private R2 and is rebuilt from retained inputs; never a
+        # Supabase body for the second-copy job.
+        {"info": {"object_store": "national_fcc_search"}},
     )
 
 
