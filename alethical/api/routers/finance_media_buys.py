@@ -27,6 +27,7 @@ from alethical.api.finance_access import require_finance_access
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_media_buys as media
 from alethical.api.services import finance_national_files as national
+from alethical.api.services import finance_national_search as search
 from alethical.api.services import finance_station_checks as checks
 from alethical.api.services import finance_station_queue as station_queue
 from alethical.api.services import tv_ad_review as review
@@ -404,3 +405,76 @@ def national_text(
 ) -> dict:
     row, store = national.held_source(db, key, version)
     return {"data": national.document_text(row, store)}
+
+
+def _ready(db: Session):
+    try:
+        ready = search.FILES.current(db)
+    except LookupError:
+        raise problem_exception(
+            503, "Search unavailable", "Filings could not be loaded. Try again."
+        ) from None
+    # The search reads local disk only. Return the connection first.
+    db.close()
+    return ready
+
+
+@router.get("/filings", **answer(schema.FinanceFilings))
+def all_filings(
+    q: str = Query("", max_length=200),
+    year: int = Query(2026, ge=1990, le=2100),
+    doctype: Literal["all", "orders"] = "all",
+    pdf: Literal["", "yes"] = "",
+    sort: Literal["date", "name"] = "date",
+    page: int = Query(1, ge=1, le=search.MAX_PAGE),
+    preview: bool = False,
+    db: Session = Depends(records),
+) -> dict:
+    ready = _ready(db)
+    return {
+        "data": search.filings(
+            ready,
+            q=q.strip(),
+            year=year,
+            doctype=doctype,
+            pdf_only=pdf == "yes",
+            sort=sort,
+            page=page,
+            preview=preview,
+        )
+    }
+
+
+@router.get("/filing-advertisers", **answer(schema.FinanceFilingFolders))
+def filing_advertisers(
+    q: str = Query("", max_length=200),
+    year: int = Query(2026, ge=1990, le=2100),
+    page: int = Query(1, ge=1, le=search.MAX_PAGE),
+    db: Session = Depends(records),
+) -> dict:
+    ready = _ready(db)
+    return {"data": search.advertisers(ready, q=q.strip(), year=year, page=page)}
+
+
+@router.get("/filing-outlets", **answer(schema.FinanceFilingOutlets))
+def filing_outlets(
+    q: str = Query("", max_length=200),
+    year: int = Query(2026, ge=1990, le=2100),
+    page: int = Query(1, ge=1, le=search.MAX_PAGE),
+    db: Session = Depends(records),
+) -> dict:
+    ready = _ready(db)
+    return {"data": search.outlets(ready, q=q.strip(), year=year, page=page)}
+
+
+@router.get("/filings/{key}", **answer(schema.FinanceFilingDetail))
+def filing_detail(
+    key: str = Path(max_length=200), db: Session = Depends(records)
+) -> dict:
+    ready = _ready(db)
+    try:
+        return {"data": search.filing(ready, key)}
+    except LookupError:
+        raise problem_exception(
+            404, "Not found", "This filing is not in the index."
+        ) from None

@@ -63,6 +63,21 @@ def test_reader_limits_child_and_never_requires_the_parent(signer, monkeypatch):
             )
     with pytest.raises(ValueError):
         grants.store_from_token(token, expires)
+    # A grant issued before the search file existed stays usable until it expires.
+    legacy = {"prefixPaths": list(grants.LEGACY_PREFIXES), "objectPaths": []}
+    grants.store_from_token(
+        jwt.encode(dict(data, paths=legacy), SECRET, algorithm="HS256"), now
+    )
+    widened = {"prefixPaths": [*grants.PREFIXES, "fcc-national/v1/research/"]}
+    with pytest.raises(ValueError):
+        grants.store_from_token(
+            jwt.encode(
+                dict(data, paths=widened | {"objectPaths": []}),
+                SECRET,
+                algorithm="HS256",
+            ),
+            now,
+        )
 
 
 def test_grant_rotation_keeps_newest_and_expired_cache_fails_closed(

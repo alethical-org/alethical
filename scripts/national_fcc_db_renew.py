@@ -51,8 +51,11 @@ def issue(now: int) -> str:
     )
 
 
-def verify(store, original_key, text_key, research_key):
-    for key, prefix in zip((original_key, text_key), PREFIXES, strict=True):
+def verify(store, original_key, text_key, research_key, search_key=None):
+    probes = [(original_key, PREFIXES[0]), (text_key, PREFIXES[1])]
+    if search_key is not None:
+        probes.append((search_key, PREFIXES[2]))
+    for key, prefix in probes:
         if not key.startswith(prefix):
             raise ValueError("Expected a member file from each permitted prefix")
         result = store._client.get_object(
@@ -124,7 +127,17 @@ def renewal_sample(db, allow_staged):
     ).one_or_none()
     if sample is None:
         raise ValueError("No verified member file and text in selected snapshot")
-    return sample.object_key, sample.text_object_key, snapshot.index_object_key
+    search = db.scalar(
+        select(m.NationalFCCSearchRelease.object_key).where(
+            m.NationalFCCSearchRelease.active
+        )
+    )
+    return (
+        sample.object_key,
+        sample.text_object_key,
+        snapshot.index_object_key,
+        search,
+    )
 
 
 def renew_access(db, allow_staged, apply):

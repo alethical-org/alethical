@@ -7017,6 +7017,36 @@ class NationalFCCOriginal(Base):
     page_count: Mapped[Optional[int]] = mapped_column(Integer)
 
 
+class NationalFCCSearchRelease(Base):
+    """One verified Finance search file for every indexed FCC filing; 1 is active."""
+
+    __tablename__ = "national_fcc_search_release"
+    release_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    object_key: Mapped[str] = mapped_column(Text)
+    sqlite_sha256: Mapped[str] = mapped_column(String(64))
+    sqlite_bytes: Mapped[int] = mapped_column(BigInteger)
+    stored_sha256: Mapped[str] = mapped_column(String(64))
+    stored_bytes: Mapped[int] = mapped_column(BigInteger)
+    filings: Mapped[int] = mapped_column(BigInteger)
+    saved: Mapped[int] = mapped_column(BigInteger)
+    unavailable: Mapped[int] = mapped_column(BigInteger)
+    unchecked: Mapped[int] = mapped_column(BigInteger)
+    index_through: Mapped[date] = mapped_column(Date)
+    saved_updated: Mapped[date] = mapped_column(Date)
+    active: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (
+        Index(
+            "uq_national_fcc_search_active",
+            "active",
+            unique=True,
+            postgresql_where=text("active"),
+        ),
+    )
+
+
 class NationalFCCReadGrant(Base):
     """Server-only, short-lived read grant; the parent signing key never enters Postgres."""
 
