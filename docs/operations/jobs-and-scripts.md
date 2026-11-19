@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py, api/search-measurements.ts -->
 
-Net: The repository has 41 GitHub Actions workflows. 35 can start automatically
+Net: The repository has 42 GitHub Actions workflows. 36 can start automatically
 and 6 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
@@ -43,6 +43,7 @@ update work. A listed timer does not establish that its latest records are live.
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
 | [Finance national FCC file access](national-fcc-member-access.md) (`.github/workflows/national-fcc-read-grant.yml`) | Daily at 08:47 UTC on the default branch, or by hand | Skips inactive releases on the daily run. Renews read access to member PDFs and text for 72 hours after 2 one-byte reads and 3 checks for denied access; a failure preserves the previous grant | Public GitHub runner, small database and R2 operations, no AI |
 | [National FCC filing PDF check](national-fcc-archive.md#check-every-indexed-filing-for-its-pdf) (`.github/workflows/national-fcc-pdf-census.yml`) | Every 30 minutes on the default branch, 1 run at a time, or by hand | Checks indexed national filings without a held original for up to 5.5 hours per run at no more than 8 FCC requests per second; stores each readable PDF once in private R2 and appends each outcome; confirms a filing unavailable only after 2 refusals 6 hours apart | No paid AI call; public GitHub runner, free FCC downloads and approved private R2 storage |
+| [Finance national FCC search release](national-fcc-archive.md#finance-search-file) (`.github/workflows/national-fcc-search-release.yml`) | 05:41 and 17:41 UTC on the default branch, or by hand | Restores the held FCC index from private R2, exports the census outcomes, builds the search file and, only when its saved, unavailable or pending counts changed, publishes it and switches Finance to it from the active release | No paid AI call; public GitHub runner, about 0.6 GB of private R2 storage per changed release |
 | FCC political-file archive (`.github/workflows/fcc-political-files.yml`) | Daily at 06:23 UTC while the FCC family is off, or by hand with dry run on by default | Lists all available political folders and years for KSTP-TV, KARE and KMSP-TV; attempts up to 1,000 new, changed or due downloads, up to 2,500 second copies and up to 1,000 local readings; reports source gaps, operational failures and unfinished work in a run summary and 1 continuing issue | No paid AI call; free FCC downloads, existing GitHub runner usage and private Supabase/R2 storage and transfer allowances |
 | Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Checks current files in Supabase and Cloudflare R2, repairs missing second copies, and renews old hash proofs within a 256 MiB combined read budget. Discovers stored-source tables from the database schema, including the 3 Minnesota FCC stations. The national FCC archive uses its own verified Drive and R2 copies | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
@@ -74,12 +75,12 @@ accepted-production flag is `true`, staged off until
 [deployment.md § Profile claim email activation](deployment.md#profile-claim-email-activation)
 passes. Its queue wakeup calls no paid API; only eligible queued messages reach Resend.
 
-The 24 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+The 25 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 6 workflows complete the total of 41:
+These 6 workflows complete the total of 42:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -119,7 +120,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 155 runnable files. GitHub jobs call 51 of them
+The `scripts/` folder has 155 runnable files. GitHub jobs call 53 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
