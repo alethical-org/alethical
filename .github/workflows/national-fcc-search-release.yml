@@ -1,0 +1,42 @@
+name: Publish the Finance national FCC search
+on:
+  schedule:
+    - cron: "41 5,17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: national-fcc-search-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Build from the held index and the census, then release if anything changed
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+          CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/fcc-search"
+          mkdir -p "$work"
+          uv run --no-sync python -m scripts.national_fcc_db --target production restore-index --snapshot fcc-national-20261116 --destination "$work/index.sqlite"
+          uv run --no-sync python scripts/national_fcc_collect.py export --out "$work/census.jsonl.gz"
+          uv run --no-sync python scripts/national_fcc_search.py build --inventory "$work/index.sqlite" --census-export "$work/census.jsonl.gz" --out "$work/search.sqlite"
+          uv run --no-sync python scripts/national_fcc_search.py release --database "$work/search.sqlite"

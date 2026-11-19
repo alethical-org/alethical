@@ -78,6 +78,10 @@ page; other saved originals open the national file reader by their SHA-256.
    answer "Filings are loading" only when no copy is ready. Withdraw by activating the
    previous release the same way.
 
+The **Publish the Finance national FCC search** workflow runs these steps at 05:41 and
+17:41 UTC with `release`, which publishes and activates only when the saved, unavailable
+or pending counts differ from the active release.
+
 The November 19, 2026 trial build held 2,704,694 filings, 10,090 stations and providers
 and 292,043 folders in 1,782,939,648 bytes. On a laptop, a page of the newest filings took
 under 1 ms and a search for a word in 1.47 million filings about 0.3 seconds.
