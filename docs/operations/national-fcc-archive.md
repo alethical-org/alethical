@@ -2,8 +2,8 @@
 
 <!-- describes: scripts/national_fcc_objects.py, scripts/national_fcc_collect.py, .github/workflows/national-fcc-pdf-census.yml, scripts/national_fcc_db.py, alethical/api/services/finance_national_files.py, alethical/api/services/finance_national_search.py, scripts/national_fcc_search.py, apps/finance/src/pages/media/NationalFile.tsx -->
 
-Finance members browse and open original documents under **Media buys → National FCC files**.
-The 3 Minnesota stations keep their existing folders, checks and connections. National files
+Finance members search every indexed filing on **Media buys** and open each verified
+original. The 3 Minnesota stations keep their existing folders, checks and connections. National files
 do not establish payments or add to spending totals. Private researchers can restore the
 national index, including entries without an original. The [Finance architecture](../architecture/alethical-finance-architecture.md#6-media-buys)
 owns member access and coverage. No ongoing national collection runs as part of this import.

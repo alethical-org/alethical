@@ -419,8 +419,8 @@ describe('Media buys', () => {
     expect(unavailable.textContent).toBe('Not available');
     expect(unavailable.querySelector('a')).toBeNull();
     const pending = row('example-exam-contract').querySelectorAll('td')[4];
-    expect(PENDING_LABEL).not.toBe('Not available');
-    expect(pending.textContent).toBe(PENDING_LABEL);
+    expect(PENDING_LABEL).toBe('Check pending');
+    expect(pending.textContent).toBe('Check pending');
     for (const tr of container.querySelectorAll('tbody tr')) {
       expect(tr.querySelectorAll('td')[4].textContent?.trim()).not.toBe('');
       expect(tr.querySelectorAll('td')[5].textContent).toBe('View source');

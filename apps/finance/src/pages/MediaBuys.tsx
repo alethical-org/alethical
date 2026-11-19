@@ -34,11 +34,9 @@ import './media/directory.css';
 import './media/filings.css';
 
 /**
- * NOT APPROVED COPY. A filing whose PDF check has not completed has no reader
- * state in the approved design (v2 Media Buys, Nov 18, 2026: only Open and Not
- * available). This placeholder keeps such a cell from reading as Not available
- * or blank. It must not ship: the page releases only once every filing is checked,
- * or once Alethical approves wording for this state.
+ * The Filing PDF state while a filing's FCC check is unresolved (approved Nov 19,
+ * 2026). Open means a verified saved copy; Not available only follows a conclusive
+ * unsuccessful check; every other filing reads Check pending.
  */
 export const PENDING_LABEL = 'Check pending';
 
