@@ -59,7 +59,7 @@ nothing.
 
 The **Check national FCC filing PDFs** workflow runs every 30 minutes on GitHub's
 servers, one run at a time: the sync, then the oversize lane, then the main run for up
-to 5 hours. A failed sync leaves the work list unchanged and the checking continues.
+to 4 hours 45 minutes. A failed sync leaves the work list unchanged and the checking continues.
 The main run takes never-checked filings first, from the oldest part forward, then due
 retries. It starts at 4 FCC requests per second, rises toward 8 while the FCC answers
 normally and halves after a busy answer.
