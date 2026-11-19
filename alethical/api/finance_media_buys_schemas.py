@@ -377,3 +377,99 @@ class FinanceOriginalTextPage(Model):
 
 class FinanceOriginalText(Model):
     pages: list[FinanceOriginalTextPage]
+
+
+class FinanceFilingAbout(Model):
+    filings: int
+    index_through: str
+    saved: int
+    saved_updated: str
+    complete: bool
+
+
+class FinanceFilingRow(Model):
+    key: str
+    name: str
+    folder: str
+    station: str
+    service: str
+    uploaded: str | None
+    file_id: str
+    pdf: Literal["saved", "unavailable", "unchecked"]
+    minnesota_key: str | None
+
+
+class FinanceFilings(Model):
+    tab: Literal["all-filings"]
+    q: str
+    year: int
+    years: list[int]
+    page: int
+    page_size: int
+    total: int
+    rows: list[FinanceFilingRow]
+    about: FinanceFilingAbout
+
+
+class FinanceFilingFolder(Model):
+    key: str
+    label: str
+    folder: str
+    station: str
+    service: str
+    filings: int
+    with_pdf: int
+
+
+class FinanceFilingFolders(Model):
+    tab: Literal["advertisers"]
+    q: str
+    year: int
+    years: list[int]
+    page: int
+    page_size: int
+    total: int
+    rows: list[FinanceFilingFolder]
+
+
+class FinanceFilingOutlet(Model):
+    key: str
+    name: str
+    service: str
+    ident: str
+    place: str | None
+    years: list[int]
+    filings: int
+    with_pdf: int
+    minnesota_station: str | None
+
+
+class FinanceFilingOutlets(Model):
+    tab: Literal["stations-and-providers"]
+    q: str
+    year: int
+    years: list[int]
+    page: int
+    page_size: int
+    total: int
+    rows: list[FinanceFilingOutlet]
+
+
+class FinanceFilingDetail(Model):
+    key: str
+    name: str
+    folder: str
+    year: int
+    station: str
+    service: str
+    ident: str
+    place: str | None
+    file_id: str
+    uploaded: str | None
+    pdf: Literal["saved", "unavailable", "unchecked"]
+    saved_on: str | None
+    pages: int | None
+    content_hash: str | None
+    has_text: bool
+    minnesota_key: str | None
+    source_url: str | None

@@ -22,7 +22,13 @@ from sqlalchemy import select
 from alethical.db.models import NationalFCCReadGrant
 from alethical.pipeline.raw_file_store import RawFileStore
 
-PREFIXES = ("fcc-national/v1/originals/", "fcc-national/v1/text/")
+PREFIXES = (
+    "fcc-national/v1/originals/",
+    "fcc-national/v1/text/",
+    "fcc-national/v1/search/",
+)
+# A grant issued before the search file existed stays valid until it expires.
+LEGACY_PREFIXES = PREFIXES[:2]
 PURPOSE = "finance-media"
 TTL = 3 * 24 * 60 * 60
 CACHE_SECONDS = 300
@@ -54,7 +60,11 @@ def store_from_token(token: str, now: int) -> tuple[RawFileStore, int]:
         or not 0 < exp - iat <= TTL
         or "scope" in claims
         or claims.get("actions") != ["GetObject"]
-        or claims.get("paths") != {"prefixPaths": list(PREFIXES), "objectPaths": []}
+        or claims.get("paths")
+        not in (
+            {"prefixPaths": list(PREFIXES), "objectPaths": []},
+            {"prefixPaths": list(LEGACY_PREFIXES), "objectPaths": []},
+        )
         or not isinstance(claims.get("iss"), str)
         or not claims["iss"]
         or not isinstance(claims.get("bucket"), str)

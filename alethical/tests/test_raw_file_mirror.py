@@ -497,9 +497,12 @@ def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None
         if "object_key" not in table.columns:
             continue
         policy = table.info.get("object_store", "raw_source")
-        assert policy in {"raw_source", "private_mail", "national_fcc_archive"}, (
-            f"{table.name}: unknown object store"
-        )
+        assert policy in {
+            "raw_source",
+            "private_mail",
+            "national_fcc_archive",
+            "national_fcc_search",
+        }, f"{table.name}: unknown object store"
         if policy == "private_mail":
             assert table.name == "mail_upload_image", (
                 "New private storage needs its own verified backup path"
@@ -517,6 +520,11 @@ def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None
                 "source_manifest_object_key",
                 "index_sha256",
             } <= set(schema.NationalFCCSnapshot.__table__.columns.keys())
+            assert mapper.class_ not in body_tables()
+        elif policy == "national_fcc_search":
+            # A rebuildable search file in private R2, verified by both digests.
+            assert mapper.class_ is schema.NationalFCCSearchRelease
+            columns = ("object_key", "sqlite_sha256", "stored_sha256", "stored_bytes")
             assert mapper.class_ not in body_tables()
         else:
             columns = mirror_module.BODY_COLUMNS

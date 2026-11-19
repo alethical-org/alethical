@@ -1,8 +1,10 @@
 # Finance access to national FCC originals
 
 Finance serves verified member originals and text through its signed-in API. The server
-receives temporary access to read objects under `fcc-national/v1/originals/` and
-`fcc-national/v1/text/` in a single private R2 bucket. The one allowed S3 action is
+receives temporary access to read objects under `fcc-national/v1/originals/`,
+`fcc-national/v1/text/` and `fcc-national/v1/search/` in a single private R2 bucket. A
+grant issued for only the first 2 prefixes stays valid until it expires; the search file
+loads once a grant with all 3 is saved. The one allowed S3 action is
 `GetObject`. [Cloudflare's local signing contract](https://developers.cloudflare.com/r2/api/s3/temporary-credentials/)
 defines the action and prefix limits. The permanent signing secret stays with the existing
 private archive workflow credentials. The API streams an authorized object's bytes. Never
@@ -13,7 +15,8 @@ session token from which R2's delegated secret can be derived.
    manual renewal can select a staged snapshot. Scheduled renewals require an active snapshot.
 2. Run `gh workflow run national-fcc-read-grant.yml --ref main` after the migration,
    then inspect the completed run under **Renew Finance FCC file access**. The job reads
-   1 byte from a member original and 1 from its text, confirms denied access to the
+   1 byte from a member original, 1 from its text and, when a search release is active,
+   1 from the search file, confirms denied access to the
    private research index, listing and object metadata, and only then saves the
    3-day grant. Renewal and withdrawal share a database lock so withdrawal cannot finish
    between the access checks and saving the grant. An equivalent operator command from the project with its existing

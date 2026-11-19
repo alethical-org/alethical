@@ -1,6 +1,6 @@
 # National FCC political files in Finance
 
-<!-- describes: scripts/national_fcc_objects.py, scripts/national_fcc_collect.py, .github/workflows/national-fcc-pdf-census.yml, scripts/national_fcc_db.py, alethical/api/services/finance_national_files.py, apps/finance/src/pages/media/NationalFile.tsx -->
+<!-- describes: scripts/national_fcc_objects.py, scripts/national_fcc_collect.py, .github/workflows/national-fcc-pdf-census.yml, scripts/national_fcc_db.py, alethical/api/services/finance_national_files.py, alethical/api/services/finance_national_search.py, scripts/national_fcc_search.py, apps/finance/src/pages/media/NationalFile.tsx -->
 
 Finance members browse and open original documents under **Media buys → National FCC files**.
 The 3 Minnesota stations keep their existing folders, checks and connections. National files
@@ -55,6 +55,32 @@ filing becomes confirmed unavailable only after 2 such answers at least 6 hours 
 Timeouts, busy answers, server errors and storage failures prove nothing and are retried.
 Run `python scripts/national_fcc_collect.py status` for the current accounting and
 `export --out FILE` for each filing's settled outcome.
+
+## Finance search file
+
+Finance answers Media buys searches from 1 read-only SQLite file that covers every indexed
+filing, so the index rows never enter Supabase. Each filing carries 1 PDF state: saved (an
+archive release original, a census save or a Minnesota station copy), unavailable (a
+confirmed census outcome) or unchecked. Minnesota copies open the existing TV station file
+page; other saved originals open the national file reader by their SHA-256.
+
+1. Export the census with `python scripts/national_fcc_collect.py export --out CENSUS.jsonl.gz`.
+2. Build with `python scripts/national_fcc_search.py build --inventory RECOVERED_INDEX --census-export CENSUS.jsonl.gz --out SEARCH.sqlite`.
+   The builder reads the active archive release and Minnesota document identities from
+   production, read only. Its printed counts are the release's filing, saved, unavailable
+   and unchecked totals.
+3. Publish with `python scripts/national_fcc_search.py publish --database SEARCH.sqlite --release-id ID`.
+   It refuses a file that fails SQLite's quick check, stores the compressed file once
+   under its SHA-256 with an R2-verified digest and records an inactive release.
+4. Activate with `python scripts/national_fcc_search.py activate --release ID --from-release CURRENT`
+   (`none` for the first). The API copies the file to local disk, checks both digests and
+   switches to it; the previous copy serves until the new one is ready, and searches
+   answer "Filings are loading" only when no copy is ready. Withdraw by activating the
+   previous release the same way.
+
+The November 19, 2026 trial build held 2,704,694 filings, 10,090 stations and providers
+and 292,043 folders in 1,782,939,648 bytes. On a laptop, a page of the newest filings took
+under 1 ms and a search for a word in 1.47 million filings about 0.3 seconds.
 
 ## Recover a missing national file
 

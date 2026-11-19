@@ -117,6 +117,7 @@ def test_renewal_reads_only_active_files_unless_bootstrapping(tmp_path):
         original["object_key"],
         original["text_object_key"],
         receipt["index_object_key"],
+        None,  # no active search release to probe
     )
     with get_engine().connect() as db, db.begin() as tx:
         assert renewal_sample(db, False) is None

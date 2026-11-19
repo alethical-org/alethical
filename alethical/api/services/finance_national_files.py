@@ -5,13 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 from botocore.exceptions import BotoCoreError, ClientError
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
+from alethical.api.services import finance_national_search as search
 from alethical.api.services import finance_versions
 from alethical.api.services.campaign_finance_register import name_words_contain
 from alethical.db.models import NationalFCCOriginal as Original
@@ -25,6 +28,59 @@ MAX_TEXT_BYTES = 4 * 1024 * 1024
 
 def browse(
     db: Session, query: str, page: int, version: str | None, preview: bool = False
+) -> dict:
+    """Saved national originals: the search file's, else the archive release's."""
+    try:
+        ready = search.FILES.current(db)
+    except LookupError:
+        ready = None
+    if ready is not None:
+        token = hashlib.sha256(ready.release_id.encode()).hexdigest()[:16]
+        if version is not None and version != token:
+            raise problem_exception(
+                409,
+                "Conflict",
+                "These records changed. Reload the list.",
+                type_slug="records-changed",
+            )
+        answer = search.saved_national(ready, query.strip(), page, preview)
+        return dict(
+            version=token,
+            tab="national",
+            q=query.strip(),
+            page=page,
+            page_size=PAGE_SIZE,
+            total=answer["total"],
+            capped=False,
+            years=[],
+            categories=[],
+            station="",
+            year=None,
+            category="",
+            rows=[
+                dict(
+                    key="national-" + r["record_key"],
+                    name=r["name"],
+                    label=r["name"],
+                    station=r["station"],
+                    folder_label=r["folder"],
+                    year=r["year"],
+                    category=r["service"],
+                    kind=None,
+                    uploaded_at=None,
+                    version_id=r["sha256"],
+                    airing_periods=[],
+                    version_count=1,
+                    source_changed=False,
+                )
+                for r in answer["rows"]
+            ],
+        )
+    return _archive_browse(db, query, page, version, preview)
+
+
+def _archive_browse(
+    db: Session, query: str, page: int, version: str | None, preview: bool
 ) -> dict:
     finance_versions.pin(db)
     release = db.execute(
@@ -114,7 +170,29 @@ def browse(
     )
 
 
-def original(db: Session, key: str, version: str | None) -> Original:
+def original(db: Session, key: str, version: str | None):
+    """A saved original from the active search file, else the archive release."""
+    loading = None
+    try:
+        ready = search.FILES.current(db)
+    except LookupError:
+        ready = None
+    except HTTPException as error:
+        ready, loading = None, error
+    if ready is not None:
+        row = SimpleNamespace(**search.original_record(ready, key))
+        if version is not None and row.content_hash != version:
+            raise LookupError("File not held")
+        return row
+    try:
+        return _archive_original(db, key, version)
+    except LookupError:
+        if loading is not None:
+            raise loading from None
+        raise
+
+
+def _archive_original(db: Session, key: str, version: str | None) -> Original:
     query = (
         select(Original)
         .join(Snapshot, Original.snapshot_id == Snapshot.snapshot_id)
