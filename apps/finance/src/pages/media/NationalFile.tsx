@@ -74,12 +74,7 @@ function NationalDetailView({ fileKey, version }: { fileKey: string; version: st
   }
 
   return (
-    <MediaPage
-      fallback={{
-        to: hrefFor('media-buys', {}, { tab: 'national' }),
-        name: 'National FCC files',
-      }}
-    >
+    <MediaPage fallback={{ to: hrefFor('media-buys'), name: 'Media buys' }}>
       <ReadState read={read} noun="files" />
       {data && (
         <>

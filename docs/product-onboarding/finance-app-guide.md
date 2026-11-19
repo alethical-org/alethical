@@ -661,28 +661,35 @@ Finance's private original-file routes (`/api/v1/finance/media-buys/…`). A TV 
 is keyed by its station and FCC source file id, never by its filename, and every link to
 one names its exact saved version and page.
 
-- **National FCC files**: Members can search the national archive by file and provider metadata, open the original PDF, save a named copy, and read the available page text. Counts refer to files, not purchases. The full FCC research index includes entries with no saved original and stays internal.
-- **Minnesota TV collection in Media buys (`/media-buys`)**: TV political-ad files from KSTP-TV, KARE and KMSP-TV,
-  browsed by TV station folders (Station, Year and Category menus), agency names, stations
-  and years, with served totals on each tab. Word search searches all 4 browsing categories as the
-  reader types or deletes letters, after a 250 ms pause, using the public bills search's
-  shared helper. Clearing the field removes the word filter; Enter or
-  Search applies the words immediately. Each group shows up to 5 rows, with View all
-  opening its full 12-row list. Station, Year and Category apply only to folders;
-  an empty filtered folder group keeps its recovery controls. A changed query resets
-  search pages while preserving the earlier browsing choices for Clear search.
-  Previous results keep their own labels
-  while updating or after a failure; late replies never replace newer results. Station
-  rows name the years held. Each category keeps its own count, page, source version and
-  failure state. Requests retain category-name search semantics, not file-text search.
-  Catalogue tab counts are not query match counts; file counts are never summed across
-  categories. The tab, view, filters, words and group pages stay in the address.
-  A safe earlier page adds its named return
-  link; the top-level list has no invented return. Nested returns keep the nearest 3
-  earlier pages with their filters and section anchors, dropping only the oldest link.
-  A capped count says "At least"; a failed
-  refresh keeps the earlier rows with Try again. About these records states the coverage
-  limits, and Sources and updates names the date the station files were copied.
+- **Media buys (`/media-buys`)**: one search of every indexed national FCC political
+  filing (2,704,694 on the November 16, 2026 index), the same for every signed-in
+  account, whether or not a PDF is held. 3 tabs:
+  - **All filings** (default): search as you type over filename, folder, station or
+    provider and FCC file ID (Enter applies at once; clearing restores the year's list),
+    File year, Document type (All types, or Orders and contracts, which matches filename
+    words only), Has filing PDF and Sort (Newest upload first, Name A–Z). Columns:
+    Filing (with FCC folder), Station or provider (with service), Uploaded, FCC file ID,
+    Order number (Orders and contracts only; "Not checked"), Filing PDF and Source.
+    Filing PDF reads **Open** for a verified saved PDF (Minnesota copies open their TV
+    station file; others open the national file reader), **Not available** only after a
+    conclusive unsuccessful check, and **Check pending** while the FCC check is
+    unresolved. Every row keeps View source, which shows the FCC details without any
+    claim of a separate check. The note beside results says filename or folder matches
+    do not prove a purchase, buyer, order number, document type or price.
+  - **Advertisers**: folder names as printed, each "Folder name as printed · Not checked",
+    with a link to that folder's filings. Only checked facts establish an advertiser;
+    none are held yet.
+  - **Stations and providers**: each station or provider with service, call sign or ID,
+    years, filings in the chosen year and how many have a filing PDF. KSTP-TV, KARE and
+    KMSP-TV link to their TV station pages.
+
+  About these records shows the searchable-filings count with the FCC index date and
+  the saved-PDF count with its own Updated date; both change only with a verified
+  search release. Tab, search, filters, sort and page stay in the address, and Open and
+  Back restore the same results. Older addresses (`?tab=national`, `folders`, `agencies`,
+  `stations`, `years`, `orders-and-contracts`) open the nearest current tab. The
+  KSTP-TV, KARE and KMSP-TV collection keeps its folder, file, agency-name and station
+  pages and its own copy date there.
 - **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
   versions, station upload date and the date those exact contents were first saved,
   and the folder's one checked connection, which never
