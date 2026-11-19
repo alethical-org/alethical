@@ -27,19 +27,11 @@ def feature(**overrides):
 
 
 def reply(monkeypatch, features, **flags):
-    class Response:
-        status_code = 200
-
-        def json(self):
-            return {"features": features, **flags}
-
-    def post(url, **kwargs):
-        assert url == candidate_lookup.MINNESOTA_ADDRESS_POINTS_URL
-        assert kwargs["allow_redirects"] is False
-        assert kwargs["data"]["where"] and "params" not in kwargs
-        return Response()
-
-    monkeypatch.setattr(candidate_lookup.public_source_session(), "post", post)
+    monkeypatch.setattr(
+        candidate_lookup,
+        "historical_point_payload",
+        lambda zip_code, house_number: {"features": features, **flags},
+    )
 
 
 def test_exact_points_keep_all_locations_without_fuzzy_or_partial_matches(monkeypatch):
@@ -243,14 +235,42 @@ def test_malformed_success_body_cannot_fall_back_to_another_location_source(
 ):
     import requests
 
+    def missing_map(zip_code, house_number):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(candidate_lookup, "historical_point_payload", missing_map)
     response = requests.Response()
     response.status_code = 200
     response._content = b'{"features": ['
-    monkeypatch.setattr(
-        candidate_lookup.public_source_session(), "post", lambda *a, **kw: response
-    )
+
+    def post(url, **kwargs):
+        assert url == candidate_lookup.MINNESOTA_ADDRESS_POINTS_URL
+        assert kwargs["allow_redirects"] is False and "params" not in kwargs
+        assert kwargs["data"]["where"] == "anumber = 500 AND zip = '55075'"
+        return response
+
+    monkeypatch.setattr(candidate_lookup.public_source_session(), "post", post)
     with pytest.raises(
         candidate_lookup.CandidateLookupUnavailable,
         match="Invalid Minnesota address points",
     ):
         candidate_lookup.historical_address_points(ADDRESS)
+
+
+def test_historical_building_lookup_reads_the_public_map_locally(monkeypatch):
+    calls = []
+
+    def packaged(zip_code, house_number):
+        calls.append((zip_code, house_number))
+        return {"features": [feature()]}
+
+    monkeypatch.setattr(candidate_lookup, "historical_point_payload", packaged)
+    monkeypatch.setattr(
+        candidate_lookup.public_source_session(),
+        "post",
+        lambda *a, **kw: pytest.fail(
+            "a packaged building lookup made a network request"
+        ),
+    )
+    assert candidate_lookup.historical_address_points(ADDRESS) == {(44.881, -93.05)}
+    assert calls == [("55075", 500)]

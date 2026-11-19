@@ -100,6 +100,21 @@ and [rebuild script](../../../scripts/build_2026_candidate_county_addresses.py).
 
 > SIBLEY COUNTY PUBLIC WORKS makes no representations or warranties, expressed or implied, with respect to the reuse of the data provided herewith, regardless of its format or the means of its transmission. There is no guarantee or representation to the user as to the accuracy, currency, suitability, or reliability of the data for any purpose. The user accepts this data "as is", and assumes all risks associated with its use. By acceptance of this data, the user agrees not to transmit this data or provide access to it or any part of it to another party unless the user shall include with the data a copy of this disclaimer. SIBLEY COUNTY PUBLIC WORKS assumes no responsibility for actual or consequential damage incurred as a result of any user's reliance on this data.
 
+The building lookup reads a packaged copy of the Minnesota Geospatial Information
+Office's public statewide address file as it stood on October 8, 2026 (2,220,021
+records from the 59 counties that contribute, 2,219,991 with a 5-digit ZIP code and
+house number). Each record keeps its address fields, status, effective and
+retirement dates, the county's latitude and longitude, and the mapped point. The
+mapped point is stored in the file's own NAD83 UTM zone 15 metres and converted to
+WGS 84 with Esri's NAD_1983_To_WGS_1984_5 shift, matching the state's service within
+1.6 centimetres on 3,481 sampled records (the default conversion is about 1 metre off).
+The county latitude and longitude are kept to 0.1 millimetre. The service's metadata
+states no separate use limit; the data are provided as is. Counties that do not
+contribute, such as Redwood County, have no records, so those homes use dated street
+records. The file is rebuilt with the [address point builder](../../../scripts/build_2026_candidate_address_points.py).
+[State address file](https://operations.gis.data.mn.gov/api/publicdownload/download/497/loc_addresses_open.gpkg)
+and [address point service](https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mngeo/loc_addresses_open/FeatureServer/0).
+
 The Minnesota Department of Transportation's November 2024 Lancaster city map
 shows one continuous Central Avenue. The election service distinguishes its north
 and south addresses. A dated Census street range corroborates only the precinct

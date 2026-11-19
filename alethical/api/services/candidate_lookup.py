@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import threading
 import time
@@ -20,6 +21,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from alethical.api.services.address_format import normalize_address_format
+from alethical.api.services.candidate_historical_points import historical_point_payload
 from alethical.api.services.representative_lookup import (
     _ADDRESS_POINT_FIELDS,
     _STREET_TYPE_ALIASES,
@@ -51,6 +53,8 @@ from alethical.pipeline.candidate_ballot import (
     parse_unit_ranges,
     validate_street_rows,
 )
+
+logger = logging.getLogger(__name__)
 
 STREETS_URL = "https://myballotmn.sos.mn.gov/api/Streets/GetStreets"
 # The official app reads a flagged range's unit list in 2 steps: the street's
@@ -296,22 +300,13 @@ _AFTER_ELECTION_MS = int(
 )
 
 
-def historical_address_points(
-    address: StreetAddress,
-    alternate_street: str | None = None,
-) -> set[tuple[float, float]] | None:
-    """Locate the building only. Election-day maps decide the voting districts."""
-    # These values came from an exact SOS range. Check them again before
-    # forming a government GIS filter, which never contains the street or unit.
-    if type(address.house_number) is not int or not re.fullmatch(
-        r"[0-9]{5}", address.zip_code
-    ):
-        return set()
+def _live_point_payload(zip_code: str, house_number: int) -> dict:
+    """Read the same official layer when the local edition cannot be opened."""
     try:
         response = public_source_session().post(
             MINNESOTA_ADDRESS_POINTS_URL,
             data={
-                "where": f"anumber = {address.house_number} AND zip = '{address.zip_code}'",
+                "where": f"anumber = {house_number} AND zip = '{zip_code}'",
                 "outFields": ",".join((*_ADDRESS_POINT_FIELDS, "ret_date", "eff_date")),
                 "returnGeometry": "true",
                 "outSR": "4326",
@@ -328,9 +323,31 @@ def historical_address_points(
             "Minnesota address points unavailable"
         ) from None
     try:
-        payload = response.json()
+        return response.json()
     except ValueError:
         raise CandidateLookupUnavailable("Invalid Minnesota address points") from None
+
+
+def historical_address_points(
+    address: StreetAddress,
+    alternate_street: str | None = None,
+) -> set[tuple[float, float]] | None:
+    """Locate the building only. Election-day maps decide the voting districts."""
+    # These values came from an exact SOS range. Check them again before
+    # forming a government GIS filter, which never contains the street or unit.
+    if type(address.house_number) is not int or not re.fullmatch(
+        r"[0-9]{5}", address.zip_code
+    ):
+        return set()
+    try:
+        payload = historical_point_payload(address.zip_code, address.house_number)
+    except (OSError, ValueError) as error:
+        # Only the error's class is logged, never the address or its parts.
+        logger.warning(
+            "Packaged address points unavailable (%s); asking the state service",
+            type(error).__name__,
+        )
+        payload = _live_point_payload(address.zip_code, address.house_number)
     if (
         not isinstance(payload, dict)
         or payload.get("error")

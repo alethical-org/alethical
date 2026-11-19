@@ -45,6 +45,7 @@ BINARY_SUFFIXES = {
     ".woff2",
     ".zip",
     ".gz",
+    ".bin",  # packaged binary data, such as the candidate address points
     ".mp4",
     ".wav",
     ".keystore",
