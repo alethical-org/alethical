@@ -24,7 +24,7 @@ jobs:
           version: 0.12.5
       - name: Install dependencies
         run: uv sync --frozen
-      - name: Build from the held index and the census, then release if anything changed
+      - name: Release a new search file only when its inputs changed
         env:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -32,11 +32,7 @@ jobs:
           CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-        run: |
-          set -euo pipefail
-          work="$RUNNER_TEMP/fcc-search"
-          mkdir -p "$work"
-          uv run --no-sync python -m scripts.national_fcc_db --target production restore-index --snapshot fcc-national-20261116 --destination "$work/index.sqlite"
-          uv run --no-sync python scripts/national_fcc_collect.py export --out "$work/census.jsonl.gz"
-          uv run --no-sync python scripts/national_fcc_search.py build --inventory "$work/index.sqlite" --census-export "$work/census.jsonl.gz" --out "$work/search.sqlite"
-          uv run --no-sync python scripts/national_fcc_search.py release --database "$work/search.sqlite"
+        # Reads the compact inventory pointer (else the active archive release), the
+        # census listing and the Minnesota identities first; when their digest equals
+        # the active release's, it stops before restoring, building or uploading.
+        run: uv run --no-sync python scripts/national_fcc_search.py release --work "$RUNNER_TEMP/fcc-search"
