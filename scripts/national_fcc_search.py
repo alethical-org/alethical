@@ -404,6 +404,20 @@ def object_key(sha: str) -> str:
     return f"{PREFIX}/sha256/{sha[:2]}/{sha}.sqlite.gz"
 
 
+def pack(database: Path) -> Path:
+    """A reproducible gzip copy beside the database: no name or time inside."""
+    packed = database.with_suffix(".sqlite.gz")
+    with (
+        database.open("rb") as src,
+        packed.open("wb") as raw,
+        gzip.GzipFile(
+            filename="", mode="wb", fileobj=raw, compresslevel=6, mtime=0
+        ) as dst,
+    ):
+        shutil.copyfileobj(src, dst, 1 << 20)
+    return packed
+
+
 def cmd_publish(args):
     import base64
 
@@ -420,12 +434,7 @@ def cmd_publish(args):
             raise ValueError("The search file failed SQLite's quick check")
     sha = digest(args.database)
     size = args.database.stat().st_size
-    packed = args.database.with_suffix(".sqlite.gz")
-    with (
-        args.database.open("rb") as src,
-        gzip.open(packed, "wb", compresslevel=6, mtime=0) as dst,
-    ):
-        shutil.copyfileobj(src, dst, 1 << 20)
+    packed = pack(args.database)
     packed_sha = digest(packed)
     key = object_key(sha)
     files = store()

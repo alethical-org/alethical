@@ -254,3 +254,14 @@ def test_details_and_saved_originals_name_only_verified_bytes(ready):
 def test_search_words_cannot_inject_query_syntax():
     assert search.match_expression('NEAR(" a) OR *') == '"NEAR"* AND "a"* AND "OR"*'
     assert search.match_expression("  ") is None
+
+
+def test_packed_search_file_is_reproducible_and_unpacks_exactly(tmp_path):
+    import gzip as gz
+
+    database = tmp_path / "search.sqlite"
+    database.write_bytes(b"SQLite format 3\x00" + bytes(range(256)) * 50)
+    first = builder.pack(database).read_bytes()
+    second = builder.pack(database).read_bytes()
+    assert first == second
+    assert gz.decompress(first) == database.read_bytes()
