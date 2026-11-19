@@ -1,6 +1,6 @@
 # National FCC political files in Finance
 
-<!-- describes: scripts/national_fcc_objects.py, scripts/national_fcc_db.py, alethical/api/services/finance_national_files.py, apps/finance/src/pages/media/NationalFile.tsx -->
+<!-- describes: scripts/national_fcc_objects.py, scripts/national_fcc_collect.py, .github/workflows/national-fcc-pdf-census.yml, scripts/national_fcc_db.py, alethical/api/services/finance_national_files.py, apps/finance/src/pages/media/NationalFile.tsx -->
 
 Finance members browse and open original documents under **Media buys → National FCC files**.
 The 3 Minnesota stations keep their existing folders, checks and connections. National files
@@ -36,6 +36,25 @@ owns member access and coverage. No ongoing national collection runs as part of 
 6. To withdraw a release, use the same activation command with the prior IDs reversed.
    Members then see the preceding release, or an empty national list on first-release
    withdrawal. Private original bytes and research evidence remain available for recovery.
+
+## Check every indexed filing for its PDF
+
+`scripts/national_fcc_collect.py` checks each indexed filing that has no held original.
+`worklist` stores the full index as a private work list in R2, marking filings already
+held in the archive release or the Minnesota collection; those are not downloaded again.
+The **Check national FCC filing PDFs** workflow then runs every 30 minutes on GitHub's
+servers, one run at a time, each for up to 5.5 hours. It starts at 4 FCC requests per
+second, rises toward 8 while the FCC answers normally and halves after a busy answer.
+
+Each attempt appends an outcome file under `fcc-national/v1/recovery/<run>/results/`, so a
+stopped run loses at most a few minutes of work. A readable PDF is stored once under its
+SHA-256 key, and R2 checks that digest before accepting the write. When the download
+address refuses a file (the FCC answers 401 for a missing file) or returns bytes that are
+not a readable PDF, the run asks the FCC file record for another download address. A
+filing becomes confirmed unavailable only after 2 such answers at least 6 hours apart.
+Timeouts, busy answers, server errors and storage failures prove nothing and are retried.
+Run `python scripts/national_fcc_collect.py status` for the current accounting and
+`export --out FILE` for each filing's settled outcome.
 
 ## Recover a missing national file
 
