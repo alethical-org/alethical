@@ -62,7 +62,7 @@ test('Chrome saves the displayed original after the former 60-second expiry', as
   const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
   const version = sha256(pdf);
   const key = encodeURIComponent('TV|42|00000000-0000-4000-8000-000000000001');
-  const listPath = '/api/v1/finance/media-buys/national-files';
+  const listPath = '/api/v1/finance/media-buys/filings';
   const apiPath = '/api/v1/finance/media-buys/national-files/' + key;
   let originalGets = 0;
   await page.route('**/api/v1/**', async (route) => {
@@ -74,25 +74,33 @@ test('Chrome saves the displayed original after the former 60-second expiry', as
       return route.fulfill({
         json: {
           data: {
-            tab: 'national',
+            tab: 'all-filings',
             q: '',
+            year: 2015,
+            years: [2015],
             page: 1,
             page_size: 25,
             total: 1,
-            version: 'c'.repeat(16),
             rows: [
               {
-                key: 'national-' + decodeURIComponent(key),
+                key: decodeURIComponent(key),
                 name: 'Disclosure Schedule.pdf',
-                label: 'Disclosure Schedule.pdf',
-                folder_label: 'Political Files',
+                folder: 'Political Files',
                 station: 'Example TV',
-                year: 2015,
-                category: 'TV',
-                uploaded_at: null,
-                version_id: version,
+                service: 'TV',
+                uploaded: null,
+                file_id: '00000000-0000-4000-8000-000000000001',
+                pdf: 'saved',
+                minnesota_key: null,
               },
             ],
+            about: {
+              filings: 1,
+              index_through: '2026-11-16',
+              saved: 1,
+              saved_updated: '2026-11-17',
+              complete: true,
+            },
           },
         },
       });
@@ -120,7 +128,7 @@ test('Chrome saves the displayed original after the former 60-second expiry', as
     await document.headerValue('content-security-policy'),
     headers['Content-Security-Policy'],
   );
-  const result = page.getByRole('link', { name: /Disclosure Schedule/ });
+  const result = page.getByRole('link', { name: 'Open filing PDF for Disclosure Schedule.pdf' });
   await result.waitFor();
   const directory = page.url();
   await result.click();
