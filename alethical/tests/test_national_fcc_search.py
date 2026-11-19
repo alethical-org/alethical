@@ -282,3 +282,30 @@ def test_packed_search_file_is_reproducible_and_unpacks_exactly(tmp_path):
     second = builder.pack(database).read_bytes()
     assert first == second
     assert gz.decompress(first) == database.read_bytes()
+
+
+def test_scheduled_release_skips_unchanged_outcomes_and_swaps_from_active(
+    ready, monkeypatch, capsys
+):
+    import argparse
+
+    calls = []
+    monkeypatch.setattr(builder, "cmd_publish", lambda a: calls.append(("publish", a)))
+    monkeypatch.setattr(
+        builder, "cmd_activate", lambda a: calls.append(("activate", a))
+    )
+    args = argparse.Namespace(database=ready.path, target="production")
+
+    monkeypatch.setattr(builder, "active_release", lambda t: ("r1", 3, 1, 1))
+    builder.cmd_release(args)
+    assert calls == [] and "no new outcomes" in capsys.readouterr().out
+
+    monkeypatch.setattr(builder, "active_release", lambda t: ("r1", 2, 0, 3))
+    builder.cmd_release(args)
+    (_, published), (_, activated) = calls
+    assert (
+        published.release_id
+        == activated.release
+        == "fcc-search-" + published.release_id[11:]
+    )
+    assert activated.from_release == "r1"

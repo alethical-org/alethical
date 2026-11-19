@@ -542,6 +542,52 @@ def cmd_activate(args):
     print(json.dumps({"active": args.release, "previous": current}))
 
 
+def active_release(target: str):
+    """The active release's ID and counts, or None."""
+    from sqlalchemy import create_engine, text
+
+    from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target
+
+    engine = create_engine(
+        database_url_for_target(target), connect_args=NO_PREPARED_STATEMENTS
+    )
+    with engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT release_id, saved, unavailable, unchecked"
+                " FROM national_fcc_search_release WHERE active"
+            )
+        ).one_or_none()
+    engine.dispose()
+    return row
+
+
+def cmd_release(args):
+    """Publish and activate a built file only when its PDF outcomes changed."""
+    with closing(
+        sqlite3.connect(args.database.resolve().as_uri() + "?mode=ro", uri=True)
+    ) as db:
+        meta = {k: json.loads(v) for k, v in db.execute("SELECT key, value FROM meta")}
+    current = active_release(args.target)
+    counts = (meta["saved"], meta["unavailable"], meta["unchecked"])
+    if current is not None and counts == tuple(current[1:]):
+        print(json.dumps({"skipped": "no new outcomes", "active": current[0]}))
+        return
+    release_id = "fcc-search-" + datetime.now(UTC).strftime("%Y%m%d%H%M")
+    cmd_publish(
+        argparse.Namespace(
+            database=args.database, release_id=release_id, target=args.target
+        )
+    )
+    cmd_activate(
+        argparse.Namespace(
+            release=release_id,
+            from_release=current[0] if current else "none",
+            target=args.target,
+        )
+    )
+
+
 def cli():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--target", default="production")
@@ -561,14 +607,21 @@ def cli():
     p.add_argument(
         "--from-release", required=True, help="The expected active release, or none"
     )
+    p = sub.add_parser(
+        "release", help="Publish and activate a build if its PDF outcomes changed"
+    )
+    p.add_argument("--database", type=Path, required=True)
     return parser
 
 
 def main():
     args = cli().parse_args()
-    {"build": cmd_build, "publish": cmd_publish, "activate": cmd_activate}[
-        args.command
-    ](args)
+    {
+        "build": cmd_build,
+        "publish": cmd_publish,
+        "activate": cmd_activate,
+        "release": cmd_release,
+    }[args.command](args)
 
 
 if __name__ == "__main__":
