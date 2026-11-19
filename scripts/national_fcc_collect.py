@@ -46,7 +46,10 @@ DETAIL = (
 )
 USER_AGENT = "Alethical public-record archive (+https://alethical.com)"
 UUID_PATTERN = re.compile(r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$")
-MISSING_STATUS = {401, 403, 404, 410}
+# 401 is how files.fcc.gov answers for a missing file. 403 also answers a blocked
+# client (a default Python client gets 403 for a file that downloads normally), so it
+# is a retry, never a refusal.
+MISSING_STATUS = {401, 404, 410}
 CONFIRM_ATTEMPTS = 2
 CONFIRM_GAP_SECONDS = 6 * 3600
 MAX_FILE_BYTES = 512 * 1024**2

@@ -196,6 +196,14 @@ def test_unreadable_without_an_alternate_is_marked_with_this_version(
         ),
         ({"status_code": 400}, "unexpected HTTP 400"),
         (
+            {
+                "status_code": 403,
+                "headers": {"content-type": "text/html"},
+                "content": b"<html>Forbidden</html>",
+            },
+            "unexpected HTTP 403",
+        ),
+        (
             {"status_code": 302, "headers": {"location": "https://example.com/x"}},
             "redirect away",
         ),
