@@ -205,6 +205,11 @@
   min-width: 220px;
   overflow-wrap: anywhere;
 }
+/* FCC provider names can join many states with slashes and no spaces. */
+.mbf-station {
+  min-width: 140px;
+  overflow-wrap: anywhere;
+}
 .mbf-sub {
   display: block;
   margin-top: 2px;

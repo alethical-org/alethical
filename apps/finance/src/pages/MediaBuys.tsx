@@ -708,7 +708,7 @@ function FilingResults({
                 {row.name}
                 <span className="mbf-sub">{row.folder}</span>
               </td>
-              <td>
+              <td className="mbf-station">
                 {row.station}
                 <span className="mbf-sub">{row.service}</span>
               </td>
