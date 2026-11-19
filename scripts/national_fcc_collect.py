@@ -46,10 +46,18 @@ DETAIL = (
 )
 USER_AGENT = "Alethical public-record archive (+https://alethical.com)"
 UUID_PATTERN = re.compile(r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$")
-MISSING_STATUS = {401, 403, 404, 410}
+# 401 is how files.fcc.gov answers for a missing file. 403 also answers a blocked
+# client (a default Python client gets 403 for a file that downloads normally), so it
+# is a retry, never a refusal.
+MISSING_STATUS = {401, 404, 410}
 CONFIRM_ATTEMPTS = 2
 CONFIRM_GAP_SECONDS = 6 * 3600
 MAX_FILE_BYTES = 512 * 1024**2
+OVERSIZE_MAX_BYTES = 8 * 1024**3
+# Outcome rows written by this version. Earlier unreadable rows skipped the
+# alternate address and earlier missing rows could hold unexpected statuses;
+# both are read as retries so they are checked again.
+OUTCOME_VERSION = 2
 FLUSH_ROWS = 2000
 FLUSH_SECONDS = 300
 
@@ -257,33 +265,54 @@ def retry_after(value) -> float:
         return 60.0
 
 
-def download(http, pace: Pace, url: str, target: Path):
-    """Return (status, sha, size). Streams to disk; follows only FCC redirects."""
+class Oversize(Exception):
+    def __init__(self, size):
+        super().__init__(f"file larger than {size} bytes")
+        self.size = size
+
+
+def download(http, pace: Pace, url: str, target: Path, limit: int = MAX_FILE_BYTES):
+    """Return (status, sha, size). Streams to disk; follows only FCC redirects.
+
+    Busy covers every answer that says nothing about the filing: busy or failing
+    servers, timeouts, unexpected statuses, redirects away from the FCC and web
+    pages served in place of a file (a challenge or error page).
+    """
     for _ in range(5):
         pace.wait()
         with http.stream("GET", url) as response:
-            if response.status_code in (429, 503):
+            code = response.status_code
+            if code in (429, 503):
                 pace.busy(retry_after(response.headers.get("Retry-After")))
-                raise Busy(f"HTTP {response.status_code}")
+                raise Busy(f"HTTP {code}")
             if response.is_redirect:
-                location = response.headers.get("location", "")
-                url = str(response.url.join(location))
+                url = str(response.url.join(response.headers.get("location", "")))
                 if not re.match(r"^https://([a-z0-9-]+\.)*fcc\.gov/", url):
-                    return "redirect-away", None, 0
+                    raise Busy("redirect away from the FCC")
                 continue
-            if response.status_code != 200:
-                if response.status_code >= 500 or response.status_code == 408:
-                    raise Busy(f"HTTP {response.status_code}")
-                return response.status_code, None, 0
+            if code in MISSING_STATUS:
+                return code, None, 0
+            if code != 200:
+                raise Busy(f"unexpected HTTP {code}")
+            kind = (
+                response.headers.get("content-type", "").split(";")[0].strip().lower()
+            )
+            if kind in ("text/html", "application/xhtml+xml"):
+                raise Busy("web page instead of a file")
+            declared = int(response.headers.get("content-length") or 0)
+            if declared > limit:
+                raise Oversize(declared)
             digest = hashlib.sha256()
             size = 0
             with target.open("wb") as out:
                 for chunk in response.iter_bytes(1 << 16):
                     size += len(chunk)
-                    if size > MAX_FILE_BYTES:
-                        raise Busy("file exceeds the size limit")
+                    if size > limit:
+                        raise Oversize(size)
                     digest.update(chunk)
                     out.write(chunk)
+            if declared and size != declared:
+                raise Busy("download ended early")
             pace.ok()
             return 200, digest.hexdigest(), size
     raise Busy("too many redirects")
@@ -325,40 +354,50 @@ def current_manager(http, pace: Pace, row) -> str | None:
     return None if manager == row["m"] else manager
 
 
-def check(row, http, pace: Pace, store: Store, spool: Path) -> dict:
-    result = {"k": row["k"], "t": int(time.time())}
+def readable(target: Path):
+    try:
+        return pdf_pages(target), None
+    except Exception as error:  # noqa: BLE001 - any parse failure is unreadable
+        return None, type(error).__name__
+
+
+def check(
+    row, http, pace: Pace, store: Store, spool: Path, limit: int = MAX_FILE_BYTES
+) -> dict:
+    result = {"k": row["k"], "t": int(time.time()), "v": OUTCOME_VERSION}
     target = spool / f"{row['k'].replace('|', '_')}.part"
     try:
         manager = row["m"]
         # A filing listed without a download identifier goes straight to its
         # FCC file record, which is the official alternate source.
         status, sha, size = (
-            download(http, pace, DOWNLOAD.format(manager=manager), target)
+            download(http, pace, DOWNLOAD.format(manager=manager), target, limit)
             if manager
             else (404, None, 0)
         )
-        if status in MISSING_STATUS:
+        pages, problem = readable(target) if status == 200 else (None, None)
+        if status in MISSING_STATUS or problem:
             alternate = current_manager(http, pace, row)
             if alternate:
-                manager = alternate
                 result["mg"] = alternate
                 status, sha, size = download(
-                    http, pace, DOWNLOAD.format(manager=alternate), target
+                    http, pace, DOWNLOAD.format(manager=alternate), target, limit
                 )
-        if status != 200:
+                pages, problem = readable(target) if status == 200 else (None, None)
+        if status in MISSING_STATUS:
             return result | {"o": "missing", "h": status}
-        try:
-            pages = pdf_pages(target)
-        except Exception as error:  # noqa: BLE001 - any parse failure is unreadable
+        if problem:
             return result | {
                 "o": "unreadable",
                 "h": 200,
                 "sha": sha,
                 "b": size,
-                "err": type(error).__name__,
+                "err": problem,
             }
         store.save_pdf(target, sha, size)
         return result | {"o": "saved", "sha": sha, "b": size, "p": pages}
+    except Oversize as error:
+        return result | {"o": "oversize", "b": error.size}
     except Busy as error:
         return result | {"o": "retry", "err": str(error)[:120]}
     except Exception as error:  # noqa: BLE001 - recorded, retried, never a verdict
@@ -379,9 +418,16 @@ def latest_state(results):
         current["last"] = row
         if row["o"] == "saved":
             current["final"] = row
-        elif row["o"] in ("missing", "unreadable"):
+        elif counts_as_refusal(row):
             current["verdicts"].append(row["t"])
     return state
+
+
+def counts_as_refusal(row) -> bool:
+    """Only a clear refusal or unreadable bytes, from this version, counts."""
+    if row["o"] == "missing":
+        return row.get("h") in MISSING_STATUS
+    return row["o"] == "unreadable" and row.get("v", 1) >= OUTCOME_VERSION
 
 
 def settled(entry) -> str | None:
@@ -396,9 +442,14 @@ def settled(entry) -> str | None:
     return None
 
 
-def due(entry, now: float) -> bool:
+def due(entry, now: float, oversize_lane: bool = False) -> bool:
     last = entry["last"]
-    if last["o"] == "retry":
+    if last["o"] == "oversize":
+        return oversize_lane
+    if oversize_lane:
+        return False
+    if not entry["verdicts"]:
+        # Retries, and older outcomes that no longer count as refusals.
         backoff = min(6 * 3600, 120 * 2 ** min(entry["tries"], 8))
         return now >= last["t"] + backoff
     # A refusal is checked again only after the confirmation gap.
@@ -454,14 +505,19 @@ def cmd_run(args):
     queue = [
         r
         for r in work
-        if r["k"] not in state
-        or (settled(state[r["k"]]) is None and due(state[r["k"]], now))
+        if (r["k"] not in state and not args.oversize)
+        or (
+            r["k"] in state
+            and settled(state[r["k"]]) is None
+            and due(state[r["k"]], now, args.oversize)
+        )
     ]
     # Never-checked filings first, then retries.
     queue.sort(key=lambda r: r["k"] in state)
     started = time.monotonic()
     deadline = started + args.max_seconds
     pace = Pace(args.rate_start, args.rate_max)
+    limit = OVERSIZE_MAX_BYTES if args.oversize else MAX_FILE_BYTES
     outcomes = Counter()
     pending = []
     flushed_at = time.monotonic()
@@ -533,7 +589,7 @@ def cmd_run(args):
                 if row is None:
                     stop = True
                     break
-                running.add(pool.submit(check, row, http, pace, store, spool))
+                running.add(pool.submit(check, row, http, pace, store, spool, limit))
             if not running:
                 break
             done, running = wait(running, timeout=30, return_when=FIRST_COMPLETED)
@@ -585,7 +641,9 @@ def cmd_status(args):
                 saved_bytes += entry["final"]["b"]
         elif verdict == "unavailable":
             tally["confirmed_" + entry["last"]["o"]] += 1
-        elif entry["last"]["o"] == "retry":
+        elif entry["last"]["o"] == "oversize":
+            tally["oversize_waiting"] += 1
+        elif not entry["verdicts"]:
             tally["retry_waiting"] += 1
         else:
             tally["awaiting_confirmation_" + entry["last"]["o"]] += 1
@@ -657,6 +715,11 @@ def cli():
     p.add_argument("--workers", type=int, default=16)
     p.add_argument("--rate-start", type=float, default=4.0)
     p.add_argument("--rate-max", type=float, default=8.0)
+    p.add_argument(
+        "--oversize",
+        action="store_true",
+        help="Only the files too large for the main run, up to 8 GiB each",
+    )
     sub.add_parser("status", help="Summarize settled and outstanding filings")
     p = sub.add_parser("export", help="Write each filing's settled outcome")
     p.add_argument("--out", type=Path, required=True)

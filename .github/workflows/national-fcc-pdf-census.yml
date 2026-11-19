@@ -30,4 +30,6 @@ jobs:
           CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-        run: uv run --no-sync python scripts/national_fcc_collect.py run --max-seconds 19800 --workers 16 --rate-start 4 --rate-max 8
+        run: |
+          uv run --no-sync python scripts/national_fcc_collect.py run --oversize --max-seconds 1800 --workers 1 --rate-start 1 --rate-max 2
+          uv run --no-sync python scripts/national_fcc_collect.py run --max-seconds 18000 --workers 16 --rate-start 4 --rate-max 8
