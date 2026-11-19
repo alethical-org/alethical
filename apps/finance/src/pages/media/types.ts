@@ -241,3 +241,88 @@ export interface Connected {
     files: FileRow[];
   }[];
 }
+
+/** The national FCC filing search (`/finance/media-buys/filings`,
+ * `filing-advertisers`, `filing-outlets`, `filings/{key}`): every indexed
+ * filing, with and without a saved PDF. `pdf` is the filing PDF check: a saved
+ * copy, a completed check that found none, or a check not yet made. */
+export type FilingPdf = 'saved' | 'unavailable' | 'unchecked';
+export interface FilingAbout {
+  filings: number;
+  /** YYYY-MM-DD: the FCC index refresh. */
+  index_through: string;
+  saved: number;
+  /** YYYY-MM-DD: the last verified save. */
+  saved_updated: string;
+  /** True once no indexed filing waits for its PDF check. */
+  complete: boolean;
+}
+export interface FilingRow {
+  key: string;
+  name: string;
+  folder: string;
+  station: string;
+  service: string;
+  /** YYYY-MM-DD, or null when the FCC gives none. */
+  uploaded: string | null;
+  file_id: string;
+  pdf: FilingPdf;
+  /** The TV station file key when this filing is a held Minnesota file. */
+  minnesota_key: string | null;
+}
+interface FilingList<Tab extends string, Row> {
+  tab: Tab;
+  q: string;
+  year: number;
+  years: number[];
+  page: number;
+  page_size: number;
+  total: number;
+  rows: Row[];
+}
+export interface Filings extends FilingList<'all-filings', FilingRow> {
+  about: FilingAbout;
+}
+export interface FilingFolder {
+  key: string;
+  label: string;
+  folder: string;
+  station: string;
+  service: string;
+  filings: number;
+  with_pdf: number;
+}
+export type FilingFolders = FilingList<'advertisers', FilingFolder>;
+export interface FilingOutlet {
+  key: string;
+  name: string;
+  service: string;
+  ident: string;
+  place: string | null;
+  years: number[];
+  filings: number;
+  with_pdf: number;
+  /** The Minnesota TV station page's key, for a station Finance holds. */
+  minnesota_station: string | null;
+}
+export type FilingOutlets = FilingList<'stations-and-providers', FilingOutlet>;
+export interface FilingDetail {
+  key: string;
+  name: string;
+  folder: string;
+  year: number;
+  station: string;
+  service: string;
+  ident: string;
+  place: string | null;
+  file_id: string;
+  uploaded: string | null;
+  pdf: FilingPdf;
+  /** YYYY-MM-DD: the verified save date of the filing PDF. */
+  saved_on: string | null;
+  pages: number | null;
+  content_hash: string | null;
+  has_text: boolean;
+  minnesota_key: string | null;
+  source_url: string | null;
+}

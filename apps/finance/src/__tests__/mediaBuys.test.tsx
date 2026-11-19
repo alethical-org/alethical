@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearReadCache } from '../api/read';
-import { MediaBuys, browseRow } from '../pages/MediaBuys';
+import { MediaBuys, PENDING_LABEL, filingHref, mediaBuysAddress } from '../pages/MediaBuys';
 import { StationFile } from '../pages/StationFile';
 import {
   PrintedAgency,
@@ -12,6 +12,7 @@ import {
 } from '../pages/StationRecords';
 import { copiedLines, day, savedAt } from '../pages/media/shared';
 import { markQuote } from '../pages/media/evidence';
+import type { FilingRow } from '../pages/media/types';
 import * as routes from '../routes';
 import { matchRoute } from '../routes';
 import { navigate, useLocation } from '../router';
@@ -195,852 +196,591 @@ afterEach(() => {
 });
 
 describe('Media buys', () => {
-  function browseAnswer(url: URL) {
-    const q = url.searchParams.get('q') ?? '';
+  const ABOUT = {
+    filings: 2704694,
+    index_through: '2026-11-16',
+    saved: 10797,
+    saved_updated: '2026-11-17',
+    complete: false,
+  };
+  const ROWS: FilingRow[] = [
+    {
+      key: 'TV|42|a',
+      name: 'example-extv-order-2026-09-14.pdf',
+      folder: 'Political Files / 2026 / Federal / Example Senate Campaign',
+      station: 'EXTV-TV',
+      service: 'TV',
+      uploaded: '2026-09-14',
+      file_id: 'fid-1',
+      pdf: 'unavailable',
+      minnesota_key: null,
+    },
+    {
+      key: 'TV|43|b',
+      name: 'example-kare-invoice.pdf',
+      folder: 'Political File / 2026 / Local / Example Committee',
+      station: 'KARE',
+      service: 'TV',
+      uploaded: null,
+      file_id: 'fid-2',
+      pdf: 'saved',
+      minnesota_key: KEY,
+    },
+    {
+      key: 'FM|7|c',
+      name: 'example-exmp-order-2026-09-02.pdf',
+      folder: 'Political Files / 2026 / State / Example for Governor',
+      station: 'EXMP-FM',
+      service: 'FM radio',
+      uploaded: '2026-09-02',
+      file_id: 'fid-3',
+      pdf: 'saved',
+      minnesota_key: null,
+    },
+    {
+      key: 'AM|9|d',
+      name: 'example-exam-contract-2026-07-21.pdf',
+      folder: 'Political Files / 2026 / Non-Candidate Issue Ads / Example Issue Fund',
+      station: 'EXAM',
+      service: 'AM radio',
+      uploaded: '2026-07-21',
+      file_id: 'fid-4',
+      pdf: 'unchecked',
+      minnesota_key: null,
+    },
+  ];
+  function list(url: URL, tab: string, rows: unknown[], extra: Record<string, unknown> = {}) {
     return json({
-      tab: url.searchParams.get('tab') ?? 'folders',
-      q,
+      tab,
+      q: url.searchParams.get('q') ?? '',
+      year: Number(url.searchParams.get('year') ?? 2026),
+      years: [2026, 2024],
       page: Number(url.searchParams.get('page') ?? 1),
-      page_size: 12,
-      total: 1,
-      years: [2026],
-      categories: ['State'],
-      rows: [{ key: q || 'all', label: q || 'All held records', file_count: 1 }],
+      page_size: 25,
+      total: rows.length,
+      rows,
+      ...extra,
     });
   }
-
-  it.each(['folders', 'agencies', 'stations', 'years'])(
-    'finds an agency name when broad search starts on %s',
-    async (tab) => {
-      const fetcher = serve((url) => {
-        const group = url.searchParams.get('tab');
-        return json({
-          tab: group,
-          q: 'Example',
-          page: 1,
-          page_size: 12,
-          total: group === 'agencies' ? 1 : 0,
-          capped: false,
-          years: [],
-          categories: [],
-          rows:
-            group === 'agencies'
-              ? [
-                  {
-                    key: 'Example Agency',
-                    label: 'Example Agency',
-                    file_count: 2,
-                  },
-                ]
-              : [],
-        });
-      });
-      await render(`/media-buys?tab=${tab}&q=Example`, () => <MediaBuys />);
-      expect(text()).toContain('Example Agency');
-      const groups = fetcher.mock.calls
-        .filter(([url]) => url.includes('/browse'))
-        .map(([url]) => new URL(url));
-      expect(new Set(groups.map((url) => url.searchParams.get('tab')))).toEqual(
-        new Set(['folders', 'agencies', 'stations', 'years']),
-      );
-      expect(groups.every((url) => url.searchParams.get('search_scope') === 'tab')).toBe(true);
+  const FOLDERS = [
+    {
+      key: 'folder-1',
+      label: 'Example Committee',
+      folder: 'Political File / 2026 / Local / Example Committee',
+      station: 'KARE',
+      service: 'TV',
+      filings: 3,
+      with_pdf: 3,
     },
-  );
-
-  it('keeps another category’s results when a broad-search group fails', async () => {
-    serve((url) => {
-      const tab = url.searchParams.get('tab');
-      if (tab === 'folders') return json(null, 503);
-      return json({
-        tab,
-        q: 'Example',
-        page: 1,
-        page_size: 12,
-        total: tab === 'agencies' ? 1 : 0,
-        capped: false,
-        years: [],
-        categories: [],
-        rows:
-          tab === 'agencies'
-            ? [
-                {
-                  key: 'Example Agency',
-                  label: 'Example Agency',
-                  file_count: 2,
-                },
-              ]
-            : [],
-      });
-    });
-    await render('/media-buys?q=Example', () => <MediaBuys />);
-    expect(text()).toContain('Example Agency');
-    expect(text()).toContain('Try again');
-    expect(text()).not.toContain('TV station folders (0)');
-  });
-
-  it('expands to 12 rows, pins each group’s own source version, and keeps the return address', async () => {
-    const fetcher = serve((url) => {
-      const tab = url.searchParams.get('tab') ?? 'folders';
-      const page = Number(url.searchParams.get('page') ?? 1);
-      return json({
-        version: (tab === 'agencies' ? 'a' : 'b').repeat(16),
-        tab,
-        q: url.searchParams.get('q') ?? '',
-        station: '',
-        year: null,
-        category: '',
-        page,
-        page_size: 12,
-        total: tab === 'agencies' ? 30 : 0,
-        capped: false,
-        years: [],
-        categories: [],
-        rows:
-          tab === 'agencies'
-            ? Array.from({ length: 12 }, (_, index) => ({
-                key: `Agency ${page}-${index}`,
-                label: `Agency ${page}-${index}`,
-                file_count: 1,
-              }))
-            : [],
-      });
-    });
-    await render('/media-buys?tab=years&q=Agency&from=%2Fhome', () => <MediaBuys />);
-    expect(container.querySelectorAll('.mb-list li')).toHaveLength(5);
-    expect(container.querySelector('.mb-pager')).toBeNull();
-    container.querySelector<HTMLAnchorElement>('.mb-view-all')!.focus();
-    await click('View all matching agency names');
-    expect(document.activeElement).toBe(container.querySelector('.mb-search-heading h2'));
-    expect(container.querySelectorAll('.mb-list li')).toHaveLength(12);
-    expect(text()).toContain('Page 1 of 3');
-    await click('Next');
-    expect(text()).toContain('Page 2 of 3');
-    const request = fetcher.mock.calls
-      .map(([url]) => new URL(url))
-      .reverse()
-      .find((url) => url.searchParams.get('tab') === 'agencies');
-    expect(request?.searchParams.get('page')).toBe('2');
-    expect(request?.searchParams.get('version')).toBe('a'.repeat(16));
-    const row = container.querySelector<HTMLAnchorElement>('.mb-row')!;
-    expect(new URL(row.href).searchParams.get('from')).toBe(
-      window.location.pathname + window.location.search,
-    );
-    container.querySelector<HTMLAnchorElement>('.mb-all-results')!.focus();
-    await click('Back to all results');
-    expect(document.activeElement).toBe(container.querySelector('.mb-search-heading h2'));
-    expect(container.querySelectorAll('.mb-list li')).toHaveLength(5);
-    await click('Clear search');
-    expect(document.activeElement).toBe(container.querySelector('#tv-search'));
-    expect(new URLSearchParams(window.location.search).get('tab')).toBe('years');
-    expect(new URLSearchParams(window.location.search).get('from')).toBe('/home');
-  });
-
-  it('keeps recovery filters on an empty folder group and restores browsing filters on clear', async () => {
-    const fetcher = serve((url) => {
-      const tab = url.pathname.endsWith('/national-files')
-        ? 'national'
-        : (url.searchParams.get('tab') ?? 'folders');
-      const station = url.searchParams.get('station') ?? '';
-      const browsing = !url.searchParams.get('q');
-      return json({
-        tab,
-        q: url.searchParams.get('q') ?? '',
-        station,
-        year: Number(url.searchParams.get('year')) || null,
-        category: url.searchParams.get('category') ?? '',
-        page: Number(url.searchParams.get('page') ?? 1),
-        page_size: 12,
-        total: tab === 'folders' ? (browsing ? 25 : !station ? 1 : 0) : 0,
-        capped: false,
-        years: [2025],
-        categories: ['State'],
-        rows:
-          (browsing || !station) && tab === 'folders'
-            ? [{ key: 'folder', label: 'Recovered folder', file_count: 1 }]
-            : [],
-      });
-    });
-    await render(
-      '/media-buys?tab=folders&q=Example&station=KARE&year=2025&category=State&page=2',
-      () => <MediaBuys />,
-    );
-    expect(text()).toContain('TV station folders (0)');
-    expect(text()).toContain('Station: KARE');
-    expect(text()).toContain('Clear all');
-    expect(container.querySelector('.mb-list')).toBeNull();
-    await click('Clear all');
-    expect(text()).toContain('Recovered folder');
-    const otherReads = fetcher.mock.calls
-      .map(([url]) => new URL(url))
-      .filter(
-        (url) => url.pathname.endsWith('/browse') && url.searchParams.get('tab') !== 'folders',
-      );
-    expect(
-      otherReads.every(
-        (url) =>
-          !url.searchParams.has('station') &&
-          !url.searchParams.has('year') &&
-          !url.searchParams.has('category'),
-      ),
-    ).toBe(true);
-    await click('Clear search');
-    const restored = new URLSearchParams(window.location.search);
-    expect(restored.get('station')).toBe('KARE');
-    expect(restored.get('year')).toBe('2025');
-    expect(restored.get('category')).toBe('State');
-    expect(restored.get('page')).toBe('2');
-  });
-
-  it('keeps capped query totals separate from catalogue counts', async () => {
-    serve((url) => {
-      const tab = url.searchParams.get('tab');
-      return json({
-        tab,
-        q: 'Example',
-        page: 1,
-        page_size: 12,
-        total: tab === 'folders' ? 500 : 0,
-        capped: tab === 'folders',
-        tab_counts: { folders: 900, agencies: 800, stations: 3, years: 5 },
-        years: [],
-        categories: [],
-        rows: tab === 'folders' ? [{ key: 'folder', label: 'Example folder', file_count: 17 }] : [],
-      });
-    });
-    await render('/media-buys?q=Example', () => <MediaBuys />);
-    expect(text()).toContain('TV station folders (At least 500)');
-    expect(text()).toContain('Results are limited to 500; add a word to narrow the search');
-    expect(text()).toContain('Agency names (0)');
-    expect(text()).not.toContain('900');
-    expect(text()).not.toContain('800');
-  });
-
-  it('restarts only the expanded group when its pinned source changes', async () => {
-    let restarted = false;
-    const fetcher = serve((url) => {
-      const tab = url.searchParams.get('tab') ?? 'folders';
-      if (tab === 'agencies' && url.searchParams.get('page') === '2') {
-        restarted = true;
-        return new Response(
-          JSON.stringify({
-            type: 'https://api.alethical.com/problems/records-changed',
-          }),
-          { status: 409, headers: { 'content-type': 'application/json' } },
-        );
-      }
-      return json({
-        version: (restarted ? 'c' : 'a').repeat(16),
-        tab,
-        q: 'Example',
-        station: '',
-        year: null,
-        category: '',
-        page: 1,
-        page_size: 12,
-        total: tab === 'agencies' ? 25 : 0,
-        capped: false,
-        years: [],
-        categories: [],
-        rows:
-          tab === 'agencies'
-            ? [
-                {
-                  key: 'agency',
-                  label: restarted ? 'Refreshed agency' : 'Held agency',
-                  file_count: 1,
-                },
-              ]
-            : [],
-      });
-    });
-    await render('/media-buys?q=Example&view=agencies', () => <MediaBuys />);
-    await click('Next');
-    expect(text()).toContain('These records changed. Reload the list. Previous results are shown.');
-    expect(text()).toContain('Held agency');
-    const before = fetcher.mock.calls.length;
-    await click('Try again');
-    expect(text()).toContain('Refreshed agency');
-    expect(text()).not.toContain('These records changed');
-    const newReads = fetcher.mock.calls.slice(before).map(([url]) => new URL(url));
-    expect(newReads).toHaveLength(2);
-    expect(newReads.every((url) => url.searchParams.get('tab') === 'agencies')).toBe(true);
-    expect(newReads[1].searchParams.get('version')).toBe('c'.repeat(16));
-    expect(newReads[0].searchParams.get('tab')).toBe('agencies');
-    expect(newReads[0].searchParams.get('page')).toBe('1');
-    expect(newReads[0].searchParams.has('version')).toBe(false);
-  });
-
-  it.each(['&view=agencies&agenciesPage=2', ''])(
-    'validates saved source pins when remounting the exact detail return address (%s)',
-    async (view) => {
-      let changed = false;
-      const fetcher = serve((url) => {
-        const tab = url.searchParams.get('tab') ?? 'folders';
-        const version = (tab === 'agencies' ? (changed ? 'c' : 'a') : 'b').repeat(16);
-        if (url.searchParams.has('version') && url.searchParams.get('version') !== version)
-          return new Response(
-            JSON.stringify({
-              type: 'https://api.alethical.com/problems/records-changed',
-            }),
-            { status: 409, headers: { 'content-type': 'application/json' } },
-          );
-        return json({
-          version,
-          tab,
-          q: 'Example',
-          page: Number(url.searchParams.get('page') ?? 1),
-          page_size: 12,
-          total: tab === 'agencies' ? 25 : 0,
-          years: [],
-          categories: [],
-          rows:
-            tab === 'agencies'
-              ? [
-                  {
-                    key: 'agency',
-                    label: changed ? 'New agency' : 'Old agency',
-                    file_count: 1,
-                  },
-                ]
-              : [],
-        });
-      });
-      await render('/media-buys?q=Example' + view, () => <MediaBuys />);
-      const row = container.querySelector<HTMLAnchorElement>('.mb-row')!;
-      const from = new URL(row.href).searchParams.get('from')!;
-      expect(new URL(from, window.location.origin).searchParams.has('agenciesSource')).toBe(true);
-      await act(async () => root.render(null));
-      clearReadCache();
-      changed = true;
-      const before = fetcher.mock.calls.length;
-      await render(from, () => <MediaBuys />);
-      expect(text()).toContain('These records changed. Reload the list.');
-      expect(text()).not.toContain('Previous results are shown');
-      expect(text()).not.toContain('New agency');
-      const returned = fetcher.mock.calls
-        .slice(before)
-        .map(([url]) => new URL(url))
-        .filter((url) => url.pathname.endsWith('/browse'));
-      expect(returned).toHaveLength(4);
-      expect(
-        returned
-          .find((url) => url.searchParams.get('tab') === 'agencies')
-          ?.searchParams.get('version'),
-      ).toBe('a'.repeat(16));
-      const beforeRetry = fetcher.mock.calls.length;
-      await click('Try again');
-      expect(text()).toContain('New agency');
-      expect(text()).not.toContain('These records changed');
-      const retried = fetcher.mock.calls.slice(beforeRetry).map(([url]) => new URL(url));
-      expect(
-        retried.every(
-          (url) =>
-            url.searchParams.get('tab') === 'agencies' && url.searchParams.get('page') === '1',
-        ),
-      ).toBe(true);
+    {
+      key: 'folder-2',
+      label: 'Example Issue Fund',
+      folder: 'Political Files / 2026 / Non-Candidate Issue Ads / Example Issue Fund',
+      station: 'EXAM',
+      service: 'AM radio',
+      filings: 1,
+      with_pdf: 0,
     },
-  );
-
-  it('recovers a stale group page address to the last page without claiming no matches', async () => {
-    const fetcher = serve((url) => {
-      const tab = url.searchParams.get('tab') ?? 'folders';
-      const page = Number(url.searchParams.get('page') ?? 1);
-      return json({
-        version: 'a'.repeat(16),
-        tab,
-        q: 'Example',
-        page,
-        page_size: 12,
-        total: tab === 'agencies' ? 25 : 0,
-        years: [],
-        categories: [],
-        rows:
-          tab === 'agencies' && page <= 3
-            ? [{ key: 'agency', label: 'Last agency', file_count: 1 }]
-            : [],
-      });
-    });
-    await render('/media-buys?q=Example&view=agencies&agenciesPage=42&foldersPage=2', () => (
-      <MediaBuys />
-    ));
-    expect(text()).toContain('Last agency');
-    expect(text()).toContain('Page 3 of 3');
-    expect(text()).not.toContain('No matches');
-    expect(new URLSearchParams(window.location.search).get('agenciesPage')).toBe('3');
-    expect(new URLSearchParams(window.location.search).get('foldersPage')).toBe('2');
-    expect(
-      fetcher.mock.calls
-        .map(([url]) => new URL(url))
-        .some(
-          (url) =>
-            url.searchParams.get('tab') === 'agencies' &&
-            url.searchParams.get('page') === '3' &&
-            url.searchParams.get('version') === 'a'.repeat(16),
-        ),
-    ).toBe(true);
-  });
-
-  it('keeps the selected station label and recovery when source options fail', async () => {
-    const fetcher = serve(browseAnswer);
-    const fallback = fetcher.getMockImplementation()!;
-    fetcher.mockImplementation((input, init) =>
-      new URL(input).pathname.endsWith('/sources')
-        ? Promise.resolve(json({}, 503))
-        : fallback(input, init),
-    );
-    await render('/media-buys?station=KARE', () => <MediaBuys />);
-    expect(text()).toContain('Station: KARE');
-    await click('Clear all');
-    expect(text()).toContain('Station: All stations');
-    expect(new URLSearchParams(window.location.search).has('station')).toBe(false);
-  });
-
-  it.each([404, 503, 200])(
-    'does not call a retained empty group empty after an unavailable reply (%s)',
-    async (status) => {
-      serve((url) => {
-        const tab = url.searchParams.get('tab') ?? 'folders';
-        const q = url.searchParams.get('q') ?? '';
-        if (q === 'Unavailable' && tab === 'folders') return json({ state: 'unavailable' }, status);
-        return json({
-          tab,
-          q,
-          page: 1,
-          page_size: 12,
-          total: tab === 'agencies' ? 1 : 0,
-          capped: false,
-          years: [],
-          categories: [],
-          rows: tab === 'agencies' ? [{ key: 'agency', label: 'Held agency', file_count: 1 }] : [],
-        });
-      });
-      await render('/media-buys?q=First', () => <MediaBuys />);
-      await typeSearch('Unavailable');
-      await settleSearch();
-      const group = container.querySelector<HTMLElement>('[aria-label="TV station folders"]')!;
-      expect(group.textContent).toContain('Try again');
-      expect(group.textContent).not.toContain('No matches');
-      expect(group.querySelector('h3')?.textContent).toBe('TV station folders');
-      expect(text()).toContain('Held agency');
-      expect(text()).not.toContain('This record is no longer available');
+  ];
+  const OUTLETS = [
+    {
+      key: 'outlet-1',
+      name: 'KARE',
+      service: 'TV',
+      ident: 'KARE',
+      place: 'Minneapolis, MN',
+      years: [2026, 2024],
+      filings: 12,
+      with_pdf: 9,
+      minnesota_station: 'kare',
     },
-  );
+    {
+      key: 'outlet-2',
+      name: 'Example Satellite TV',
+      service: 'Satellite TV',
+      ident: 'Satellite provider',
+      place: null,
+      years: [2024],
+      filings: 0,
+      with_pdf: 0,
+      minnesota_station: null,
+    },
+  ];
+  function answer(url: URL) {
+    if (url.pathname.endsWith('/filings')) return list(url, 'all-filings', ROWS, { about: ABOUT });
+    if (url.pathname.endsWith('/filing-advertisers')) return list(url, 'advertisers', FOLDERS);
+    if (url.pathname.endsWith('/filing-outlets'))
+      return list(url, 'stations-and-providers', OUTLETS);
+    const key = decodeURIComponent(url.pathname.split('/filings/')[1] ?? '');
+    const row = ROWS.find((item) => item.key === key);
+    if (!row) return json(null, 404);
+    return json({
+      ...row,
+      year: 2026,
+      ident: row.station,
+      place: null,
+      saved_on: row.pdf === 'saved' ? '2026-11-03' : null,
+      pages: 1,
+      content_hash: null,
+      has_text: false,
+      source_url: null,
+    });
+  }
+  const reads = (fetcher: ReturnType<typeof serve>, route: string) =>
+    fetcher.mock.calls.map(([input]) => new URL(input)).filter((u) => u.pathname.endsWith(route));
+  const row = (name: string) =>
+    [...container.querySelectorAll<HTMLTableRowElement>('tbody tr')].find((tr) =>
+      tr.textContent?.includes(name),
+    )!;
+  const headers = () =>
+    [...container.querySelectorAll('thead th')].map((th) => th.textContent?.trim());
+  const address = () => new URLSearchParams(window.location.search);
 
   async function typeSearch(value: string) {
-    const input = container.querySelector<HTMLInputElement>('#tv-search')!;
+    const input = container.querySelector<HTMLInputElement>('#mbf-q')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
-
   async function settleSearch() {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 300));
     });
     await flush();
   }
+  async function choose(menu: string, option: string) {
+    await click(`${menu}:`);
+    const choice = [
+      ...container.querySelectorAll<HTMLButtonElement>('[role="option"] button'),
+    ].find((button) => button.textContent?.includes(option));
+    expect(choice, option).toBeTruthy();
+    await act(async () => choice!.click());
+    await flush();
+  }
 
-  it.each(['folders', 'agencies', 'stations', 'years'])(
-    'updates and clears the %s search without submitting, retaining filters and context',
-    async (tab) => {
-      const fetcher = serve(browseAnswer);
-      await render(
-        `/media-buys?tab=${tab}&q=demuth&page=2&station=KARE&year=2026&category=State&from=%2Fhome`,
-        () => <MediaBuys />,
-      );
-      const count = fetcher.mock.calls.length;
-      await typeSearch('d');
-      await typeSearch('de');
-      await typeSearch(' dem ');
-      expect(fetcher).toHaveBeenCalledTimes(count);
-      await settleSearch();
-      expect(fetcher).toHaveBeenCalledTimes(count + 5);
-      expect(container.querySelector('.mb-search-heading h2')?.textContent).toBe(
-        'Results for “dem”',
-      );
-      const params = new URLSearchParams(window.location.search);
-      expect(params.get('q')).toBe('dem');
-      expect(params.get('page')).toBe('2');
-      expect(params.get('tab')).toBe(tab);
-      expect(params.get('station')).toBe('KARE');
-      expect(params.get('year')).toBe('2026');
-      expect(params.get('category')).toBe('State');
-      expect(params.get('from')).toBe('/home');
-      await typeSearch('');
-      await settleSearch();
-      expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
-      expect(container.querySelector('.mb-count')?.textContent).not.toContain('matching');
-      expect(text()).toContain('All held records');
-    },
-  );
-
-  it('still submits immediately and does not repeat the request after the typing delay', async () => {
-    const fetcher = serve(browseAnswer);
+  it('opens on All filings: the national search, both filing PDF states and the About lines', async () => {
+    const fetcher = serve(answer);
     await render('/media-buys', () => <MediaBuys />);
-    await typeSearch('demuth');
+    expect(container.querySelector('h1')?.textContent).toBe('Media buys');
+    expect(text()).toContain(
+      'FCC political ad filings from TV and radio stations, cable systems and satellite providers across the U.S.',
+    );
+    expect(
+      [...container.querySelectorAll('[role="tab"]')].map((tab) => [
+        tab.textContent,
+        tab.getAttribute('aria-selected'),
+      ]),
+    ).toEqual([
+      ['All filings', 'true'],
+      ['Advertisers', 'false'],
+      ['Stations and providers', 'false'],
+    ]);
+    const [request] = reads(fetcher, '/finance/media-buys/filings');
+    expect([...request.searchParams.keys()]).toEqual([]);
+    expect(container.querySelector('label[for="mbf-q"]')?.textContent).toBe('Search filings');
+    expect(container.querySelector('#mbf-q')?.getAttribute('aria-describedby')).toBe('mbf-q-hint');
+    expect(container.querySelector('#mbf-q-hint')?.textContent).toBe(
+      'Filename, folder, station, provider or FCC file ID',
+    );
+    expect(container.querySelector<HTMLInputElement>('.mbf-toggle input')?.checked).toBe(false);
+    expect(text()).toContain('Sort by: Newest upload first');
+    expect(text()).toContain('File year: 2026');
+    expect(text()).toContain('4 results');
+    expect(headers()).toEqual([
+      'Filing',
+      'Station or provider',
+      'Uploaded',
+      'FCC file ID',
+      'Filing PDF',
+      'Source',
+    ]);
+    expect(text().split('Filename or folder matches do not prove').length).toBe(2);
+    expect(text()).toContain(
+      'Filename or folder matches do not prove a purchase, buyer, order number, document type or price',
+    );
+
+    // Saved: Open, named for its file; Minnesota files open their TV station file.
+    const minnesota = container.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Open filing PDF for example-kare-invoice.pdf"]',
+    )!;
+    expect(minnesota.textContent).toBe('Open');
+    const mnHref = new URL(minnesota.href);
+    expect(mnHref.pathname).toBe(`/media-buys/files/${KEY}`);
+    expect(mnHref.searchParams.get('from')).toBe('/media-buys');
+    const national = container.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Open filing PDF for example-exmp-order-2026-09-02.pdf"]',
+    )!;
+    expect(decodeURIComponent(new URL(national.href).pathname)).toBe(
+      '/media-buys/files/national-FM|7|c',
+    );
+    // Not available is plain text; an unchecked filing never reads as Not available or blank.
+    const unavailable = row('example-extv-order').querySelectorAll('td')[4];
+    expect(unavailable.textContent).toBe('Not available');
+    expect(unavailable.querySelector('a')).toBeNull();
+    const pending = row('example-exam-contract').querySelectorAll('td')[4];
+    expect(PENDING_LABEL).toBe('Check pending');
+    expect(pending.textContent).toBe('Check pending');
+    for (const tr of container.querySelectorAll('tbody tr')) {
+      expect(tr.querySelectorAll('td')[4].textContent?.trim()).not.toBe('');
+      expect(tr.querySelectorAll('td')[5].textContent).toBe('View source');
+    }
+    expect(row('example-kare-invoice').querySelectorAll('td')[2].textContent).toBe('Not given');
+    expect(row('example-extv-order').querySelectorAll('td')[2].textContent).toBe('Sep 14, 2026');
+    expect(row('example-extv-order').querySelectorAll('td')[0].textContent).toContain(
+      'Political Files / 2026 / Federal / Example Senate Campaign',
+    );
+    expect(row('example-exmp-order').querySelectorAll('td')[1].textContent).toBe('EXMP-FMFM radio');
+
+    const about = container.querySelector<HTMLElement>('section[aria-labelledby="about-h"]')!;
+    const lines = [...about.querySelectorAll('li')].map((li) =>
+      li.textContent?.replace(' (opens in a new tab)', ''),
+    );
+    expect(lines).toEqual([
+      '2,704,694 searchable filings · FCC Public Inspection Files through Nov 16, 2026',
+      '10,797 filings with a saved PDF of the original paperwork a station or provider filed with the FCC · Updated Nov 17, 2026',
+    ]);
+    const fcc = about.querySelector<HTMLAnchorElement>('a')!;
+    expect(fcc.href).toBe('https://publicfiles.fcc.gov/');
+    expect(fcc.target).toBe('_blank');
+    expect(about.querySelectorAll('a')).toHaveLength(1);
+    expect(text()).not.toContain('Sources and updates');
+    expect(text()).not.toContain('Add to report');
+    expect(text()).not.toContain('Create report');
+  });
+
+  it('keeps the reading guide closed until asked, with its 4 entries only when open', async () => {
+    serve(answer);
+    await render('/media-buys', () => <MediaBuys />);
+    const button = container.querySelector<HTMLButtonElement>('#mbf-guide-button')!;
+    expect(button.textContent).toBe('What can a filing show?');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('#mbf-guide')).toBeNull();
+    expect(text()).not.toContain('Who requested the ad.');
+    await act(async () => button.click());
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    const entries = [...container.querySelectorAll('#mbf-guide p')];
+    expect(entries.map((p) => p.querySelector('strong')?.textContent)).toEqual([
+      'Who requested the ad.',
+      'What was booked and what aired.',
+      'What was billed or paid.',
+      'How filings fit together.',
+    ]);
+    expect(entries[2].textContent).toBe(
+      'What was billed or paid. An invoice can show the price per ad, total charges, agency commission and balance due. Some also show payments received.',
+    );
+    await act(async () => button.click());
+    expect(container.querySelector('#mbf-guide')).toBeNull();
+    expect(document.activeElement === button || document.activeElement === document.body).toBe(
+      true,
+    );
+  });
+
+  it('searches as you type, applies Enter at once and restores the full list when cleared', async () => {
+    const fetcher = serve(answer);
+    await render('/media-buys?year=2024&from=%2Fhome', () => <MediaBuys />);
+    const count = reads(fetcher, '/filings').length;
+    await typeSearch('exam');
+    expect(reads(fetcher, '/filings')).toHaveLength(count);
+    await settleSearch();
+    expect(address().get('q')).toBe('exam');
+    expect(address().get('year')).toBe('2024');
+    expect(address().get('from')).toBe('/home');
+    expect(reads(fetcher, '/filings').at(-1)?.searchParams.get('q')).toBe('exam');
+    await typeSearch('example contract');
     await act(async () => {
       container
         .querySelector('form')!
         .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     await flush();
-    expect(text()).toContain('“demuth”');
-    const count = fetcher.mock.calls.length;
+    expect(address().get('q')).toBe('example contract');
+    const afterEnter = reads(fetcher, '/filings').length;
     await settleSearch();
-    expect(fetcher).toHaveBeenCalledTimes(count);
-  });
-
-  it('preserves a word separator when typing pauses before the next word', async () => {
-    serve(browseAnswer);
-    await render('/media-buys', () => <MediaBuys />);
-    await typeSearch('lisa ');
-    await settleSearch();
-    const input = container.querySelector<HTMLInputElement>('#tv-search')!;
-    expect(input.value).toBe('lisa ');
-    expect(new URLSearchParams(window.location.search).get('q')).toBe('lisa');
-    await typeSearch(input.value + 'demuth');
-    await settleSearch();
-    expect(new URLSearchParams(window.location.search).get('q')).toBe('lisa demuth');
-    expect(container.querySelector('.mb-search-heading h2')?.textContent).toBe(
-      'Results for “lisa demuth”',
-    );
-  });
-
-  it('keeps earlier results during typing requests and failures, and ignores late answers', async () => {
-    const finishOld: Array<(response: Response) => void> = [];
-    serve((url) => {
-      if (url.searchParams.get('q') === 'dem')
-        return new Promise<Response>((resolve) => {
-          finishOld.push(resolve);
-        });
-      if (url.searchParams.get('q') === 'failed') return json(null, 503);
-      return browseAnswer(url);
-    });
-    await render('/media-buys?q=demuth', () => <MediaBuys />);
-    await typeSearch('dem');
-    await settleSearch();
-    expect(text()).toContain('“demuth”');
-    expect(text()).toContain('Updating');
+    expect(reads(fetcher, '/filings')).toHaveLength(afterEnter);
     await typeSearch('');
     await settleSearch();
-    expect(text()).toContain('All held records');
-    for (const finish of finishOld)
-      finish(browseAnswer(new URL('https://api.example.test/browse?q=dem')));
-    await settleSearch();
-    expect(text()).toContain('All held records');
-    expect(container.querySelector('.mb-count')?.textContent).not.toContain('matching');
-    await typeSearch('failed');
-    await settleSearch();
-    expect(text()).toContain('All held records');
-    expect(text()).toContain('Try again');
-    expect(text()).not.toContain('No TV station folders match');
+    expect(address().has('q')).toBe(false);
+    expect(container.querySelector<HTMLInputElement>('#mbf-q')?.value).toBe('');
+    expect(text()).toContain('4 results');
   });
 
-  it('cancels pending typing when browser history restores another query', async () => {
-    const fetcher = serve(browseAnswer);
-    await render('/media-buys?q=demuth', () => <MediaBuys />);
-    await typeSearch('unfinished');
-    await act(async () => {
-      window.history.replaceState(null, '', '/media-buys?q=restored');
-      window.dispatchEvent(new PopStateEvent('popstate'));
+  it('puts year, document type, the filing PDF filter, sort and page in the address', async () => {
+    const fetcher = serve(answer);
+    await render('/media-buys', () => <MediaBuys />);
+    const pushes = vi.spyOn(window.history, 'pushState');
+    await choose('File year', '2024');
+    expect(address().get('year')).toBe('2024');
+    await choose('Document type', 'Orders and contracts');
+    expect(address().get('doctype')).toBe('orders');
+    // Orders and contracts adds Order number between FCC file ID and Filing PDF.
+    expect(headers()).toEqual([
+      'Filing',
+      'Station or provider',
+      'Uploaded',
+      'FCC file ID',
+      'Order number',
+      'Filing PDF',
+      'Source',
+    ]);
+    expect(row('example-extv-order').querySelectorAll('td')[4].textContent).toBe('Not checked');
+    await act(async () => container.querySelector<HTMLInputElement>('.mbf-toggle input')!.click());
+    await flush();
+    expect(address().get('pdf')).toBe('yes');
+    expect(pushes).toHaveBeenCalledTimes(3);
+    await choose('Sort by', 'Name A–Z');
+    expect(address().get('sort')).toBe('name');
+    expect(pushes).toHaveBeenCalledTimes(3);
+    const last = reads(fetcher, '/filings').at(-1)!;
+    expect(Object.fromEntries(last.searchParams)).toEqual({
+      year: '2024',
+      doctype: 'orders',
+      pdf: 'yes',
+      sort: 'name',
     });
-    await settleSearch();
-    expect(container.querySelector<HTMLInputElement>('#tv-search')?.value).toBe('restored');
-    expect(window.location.search).toBe('?q=restored');
-    expect(fetcher.mock.calls.some(([url]) => url.includes('unfinished'))).toBe(false);
-    await typeSearch('leaving');
-    await act(async () => root.render(null));
-    await settleSearch();
-    expect(window.location.search).toBe('?q=restored');
-  });
-
-  it('cancels a draft when history returns to another tab with the same applied query', async () => {
-    const fetcher = serve(browseAnswer);
-    await render('/media-buys?year=2026', () => <MediaBuys />);
-    await typeSearch('unfinished');
-    await act(async () => {
-      window.history.replaceState(null, '', '/media-buys?tab=years');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-    await settleSearch();
-    expect(container.querySelector<HTMLInputElement>('#tv-search')?.value).toBe('');
-    expect(window.location.search).toBe('?tab=years');
-    expect(fetcher.mock.calls.some(([url]) => url.includes('unfinished'))).toBe(false);
-  });
-
-  it('returns a station-filtered list to its safe earlier station with query intact', async () => {
-    const fetcher = serve(() =>
-      json({
-        tab: 'folders',
-        q: '',
-        page: 1,
-        page_size: 12,
-        total: 0,
-        capped: false,
-        years: [2025],
-        categories: [],
-        rows: [],
-      }),
+    // Each filter has a removable chip of its own name; the year has none.
+    const chips = [...container.querySelectorAll('.mbf-chip')].map((chip) =>
+      chip.getAttribute('aria-label'),
     );
-    const station = withFrom('/media-buys/stations/kare', '/media-buys?tab=stations');
-    await render(withFrom('/media-buys?station=KARE&year=2025', station), () => <MediaBuys />);
-    const back = container.querySelector<HTMLAnchorElement>('a.f-back');
-    expect(back?.textContent).toBe('Back to TV station');
-    expect(back?.getAttribute('href')).toBe(station);
-    expect(
-      fetcher.mock.calls.some(
-        ([url]) => String(url).includes('station=KARE') && String(url).includes('year=2025'),
-      ),
-    ).toBe(true);
-    await click('Back to TV station');
-    expect(window.location.pathname + window.location.search).toBe(station);
+    expect(chips).toEqual(['Remove Document type: Orders and contracts', 'Remove Has filing PDF']);
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Remove Has filing PDF"]')!.click(),
+    );
+    await flush();
+    expect(address().has('pdf')).toBe(false);
+    expect(container.querySelector<HTMLInputElement>('.mbf-toggle input')?.checked).toBe(false);
+    await click('Clear all');
+    expect(address().has('doctype')).toBe(false);
+    expect(address().get('year')).toBe('2024');
+    expect(address().get('sort')).toBe('name');
+    await choose('Sort by', 'Newest upload first');
+    expect(address().has('sort')).toBe(false);
+  });
+
+  it('pages through results in the address and opens a later page from a copied link', async () => {
+    const many = Array.from({ length: 25 }, (_, index) => ({
+      ...ROWS[0],
+      key: `TV|42|${index}`,
+      name: `filing-${index}.pdf`,
+    }));
+    const fetcher = serve((url) =>
+      url.pathname.endsWith('/filings')
+        ? list(url, 'all-filings', many, { total: 60, about: ABOUT })
+        : answer(url),
+    );
+    await render('/media-buys?page=2', () => <MediaBuys />);
+    expect(reads(fetcher, '/filings')[0].searchParams.get('page')).toBe('2');
+    expect(text()).toContain('Page 2 of 3');
+    await click('Next');
+    expect(address().get('page')).toBe('3');
+    expect(reads(fetcher, '/filings').at(-1)?.searchParams.get('page')).toBe('3');
+    await render('/media-buys?page=9', () => <MediaBuys />);
+    expect(address().get('page')).toBe('3');
   });
 
   it.each([
-    undefined,
-    'https://outside.test/',
-    '//outside.test/media-buys',
-    '/\\outside.test',
-    '/not-a-page',
-    '/sign-in',
-    '%broken',
-  ])('keeps the top-level list without an invented return for %s', async (from) => {
-    serve(() =>
-      json({
-        tab: 'folders',
-        q: '',
-        page: 1,
-        page_size: 12,
-        total: 0,
-        capped: false,
-        years: [],
-        categories: [],
-        rows: [],
-      }),
-    );
-    await render(
-      '/media-buys?station=KARE&year=2025' +
-        (from === undefined ? '' : '&from=' + encodeURIComponent(from)),
-      () => <MediaBuys />,
-    );
-    expect(container.querySelector('a.f-back')).toBeNull();
-    expect(container.querySelector('h1')?.textContent).toBe('Media buys');
+    ['?tab=overview', '', 'filings'],
+    ['?tab=source-documents&scope=member', '', 'filings'],
+    ['?tab=national&page=43', '', 'filings'],
+    ['?scope=index&q=example', '?q=example', 'filings'],
+    ['?tab=orders-and-contracts', '?doctype=orders', 'filings'],
+    ['?tab=stations', '?tab=stations-and-providers', 'filing-outlets'],
+    ['?tab=folders&station=KARE', '?q=KARE', 'filings'],
+    ['?station=KARE&year=2026', '?year=2026&q=KARE', 'filings'],
+    ['?tab=agencies', '?tab=advertisers', 'filing-advertisers'],
+    ['?tab=years&year=2024', '?year=2024', 'filings'],
+    ['?tab=all-filings&year=2026&q=Example', '?year=2026&q=Example', 'filings'],
+    ['?tab=stations&from=%2Fhome', '?tab=stations-and-providers&from=%2Fhome', 'filing-outlets'],
+  ])('opens the older link %s as %s without a Back step', async (old, current, route) => {
+    const fetcher = serve(answer);
+    const pushes = vi.spyOn(window.history, 'pushState');
+    await render('/media-buys' + old, () => <MediaBuys />);
+    expect(window.location.search).toBe(current);
+    expect(pushes).toHaveBeenCalledTimes(1);
+    const routes = fetcher.mock.calls
+      .map(([input]) => new URL(input).pathname.split('/media-buys/')[1])
+      .filter(Boolean);
+    expect(new Set(routes)).toEqual(new Set([route]));
   });
 
-  it('reads the private browse route and prints each tab’s rows as the drawing does', async () => {
-    const fetcher = serve(() =>
-      json({
-        tab: 'agencies',
-        q: '',
-        page: 1,
-        page_size: 12,
-        total: 500,
-        capped: true,
-        years: [2026],
-        categories: [],
-        rows: [
-          {
-            key: 'opaque-key',
-            label: 'EXAMPLE AGENCY LLC',
-            file_count: 2,
-            unchecked: true,
-            stations: ['KARE', 'KSTP-TV'],
-          },
-        ],
-      }),
+  it('opens a filing’s FCC details and returns focus to its View source button', async () => {
+    const fetcher = serve(answer);
+    await render('/media-buys?q=example', () => <MediaBuys />);
+    const before = window.location.href;
+    const button = row('example-extv-order').querySelector<HTMLButtonElement>('button')!;
+    button.focus();
+    await act(async () => button.click());
+    await flush();
+    const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.querySelector('h2')?.textContent).toBe('example-extv-order-2026-09-14.pdf');
+    expect(dialog.textContent).toContain('FCC Public Inspection Files');
+    const pairs = [...dialog.querySelectorAll('.f-sources-row')].map((pair) => [
+      pair.querySelector('dt')?.textContent,
+      pair.querySelector('dd')?.textContent,
+    ]);
+    expect(pairs).toEqual([
+      ['Station or provider', 'EXTV-TV · TV'],
+      ['Folder', 'Political Files / 2026 / Federal / Example Senate Campaign'],
+      ['FCC file ID', 'fid-1'],
+      ['Uploaded', 'Sep 14, 2026'],
+      ['Filing PDF', 'Not available'],
+    ]);
+    // The details claim no evidence check of their own.
+    expect(dialog.textContent).not.toContain('Not checked');
+    expect(dialog.textContent).not.toContain('Checked on');
+    expect(reads(fetcher, '/filings/TV%7C42%7Ca')).toHaveLength(1);
+    expect(window.location.href).toBe(before);
+    await act(async () =>
+      dialog.querySelector<HTMLButtonElement>('[aria-label="Close source evidence"]')!.click(),
     );
-    await render('/media-buys?tab=agencies', () => <MediaBuys />);
-    const text = container.textContent ?? '';
-    expect(text).toContain('At least 500 agency names');
-    // The shared scrolling tab row (Round 35): 1 line, with a cue on phone.
-    expect(document.querySelector('.f-scroll-tabs [role="tablist"]')).not.toBeNull();
-    expect(text).toContain('Names as printed, with each spelling listed separately');
-    expect(text).toContain('KARE, KSTP-TV');
-    expect(text).toContain('Not checked');
-    expect(text).toContain('2 files');
-    expect(text).toContain('Machine-read names are marked Not checked');
-    expect(text).toContain('About these records');
-    expect(text).toContain('TV station files copied Oct 22, 2026');
-    expect(
-      container.querySelector('a[href^="/media-buys/agencies/opaque-key?from="]'),
-    ).toBeTruthy();
-    const browse = fetcher.mock.calls
-      .map(([url]) => String(url))
-      .find((url) => url.includes('/browse'));
-    expect(browse).toContain('tab=agencies');
-    expect(browse).not.toContain('station=');
+    await flush();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(button);
+    expect(window.location.href).toBe(before);
+
+    const saved = row('example-kare-invoice').querySelector<HTMLButtonElement>('button')!;
+    await act(async () => saved.click());
+    await flush();
+    const savedPairs = [...container.querySelectorAll('[role="dialog"] .f-sources-row')].map(
+      (pair) => [pair.querySelector('dt')?.textContent, pair.querySelector('dd')?.textContent],
+    );
+    expect(savedPairs).toContainEqual(['Uploaded', 'Not given']);
+    expect(savedPairs).toContainEqual(['Filing PDF', 'Saved Nov 3, 2026']);
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    await flush();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(saved);
   });
 
-  it('names the broad query when all categories are empty', async () => {
-    serve(() =>
-      json({
-        tab: 'folders',
-        q: 'walz',
-        page: 1,
-        page_size: 12,
-        total: 0,
-        capped: false,
-        years: [],
-        categories: [],
-        rows: [],
-      }),
+  it('lists folder names on Advertisers as not checked, linking to their filings', async () => {
+    const fetcher = serve(answer);
+    await render('/media-buys?q=example', () => <MediaBuys />);
+    const pushes = vi.spyOn(window.history, 'pushState');
+    await click('Advertisers');
+    expect(pushes).toHaveBeenCalledTimes(1);
+    expect(address().get('tab')).toBe('advertisers');
+    expect(address().get('q')).toBe('example');
+    expect(reads(fetcher, '/filing-advertisers')[0].searchParams.get('q')).toBe('example');
+    expect(container.querySelector('label[for="mbf-q"]')?.textContent).toBe(
+      'Search by advertiser or folder name',
     );
-    await render('/media-buys?q=walz', () => <MediaBuys />);
-    expect(text()).toContain('No matches for “walz”');
-    expect(container.querySelector('.mb-list')).toBeNull();
-    act(() => root.unmount());
-    root = createRoot(container);
+    expect(container.querySelector('#mbf-q')?.getAttribute('placeholder')).toBe(
+      'Advertiser or folder name',
+    );
+    expect(headers()).toEqual(['Name', 'Basis', 'Filings']);
+    const cells = [...row('Example Committee').querySelectorAll('td')];
+    expect(cells[1].textContent).toBe('Folder name as printed · Not checked');
+    const link = cells[2].querySelector<HTMLAnchorElement>('a')!;
+    expect(link.textContent).toBe('3 filings');
+    expect(cells[2].textContent).toContain('KARE');
+    const href = new URL(link.href);
+    expect(href.pathname).toBe('/media-buys');
+    expect(href.searchParams.get('year')).toBe('2026');
+    expect(href.searchParams.get('q')).toBe('Example Committee');
+    expect(href.searchParams.has('tab')).toBe(false);
+    expect(row('Example Issue Fund').querySelectorAll('td')[2].textContent).toContain('1 filing');
+    expect(text()).toContain(
+      'Only checked facts establish an advertiser. Folder names are listed separately so they are not read as checked.',
+    );
+    expect(text()).not.toContain('About these records');
+    expect(text()).not.toContain('Sort by');
   });
 
-  it('shows served tab totals, station years and tab-scoped search requests', async () => {
-    const fetcher = serve(() =>
-      json({
-        tab: 'stations',
-        q: 'KARE',
-        page: 1,
-        page_size: 12,
-        total: 1,
-        capped: false,
-        years: [2026, 2024],
-        categories: [],
-        tab_counts: { folders: 700, agencies: 610, stations: 3, years: 5 },
-        rows: [
-          {
-            key: 'KARE',
-            label: 'KARE',
-            file_count: 80,
-            folder_count: 12,
-            years: [2026, 2024],
-          },
-        ],
-      }),
+  it('lists stations and providers with Minnesota stations linked to their pages', async () => {
+    serve(answer);
+    await render('/media-buys?tab=stations-and-providers&year=2026', () => <MediaBuys />);
+    expect(container.querySelector('label[for="mbf-q"]')?.textContent).toBe(
+      'Search stations and providers',
     );
-    await render('/media-buys?tab=stations&q=KARE', () => <MediaBuys />);
-    expect(
-      fetcher.mock.calls
-        .map(([url]) => String(url))
-        .some((url) => url.includes('search_scope=tab')),
-    ).toBe(true);
-    expect(text()).not.toContain('TV station folders700');
-    expect(text()).not.toContain('Agency names610');
-    expect(text()).toContain('Stations (1)');
-    expect(text()).toContain('Results for “KARE”');
-    expect(container.textContent).toContain('Folders held for 2026, 2024');
+    expect(container.querySelector('#mbf-q')?.getAttribute('placeholder')).toBe(
+      'Station, call sign or provider',
+    );
+    expect(headers()).toEqual([
+      'Station or provider',
+      'Service',
+      'Call sign or ID',
+      'Years',
+      'Filings in 2026',
+      'With filing PDF',
+    ]);
+    const kare = [...row('Minneapolis, MN').querySelectorAll('td')].map((td) => td.textContent);
+    expect(kare).toEqual(['KAREMinneapolis, MN', 'TV', 'KARE', '2026, 2024', '12', '9']);
+    const link = row('Minneapolis, MN').querySelector<HTMLAnchorElement>('a')!;
+    expect(new URL(link.href).pathname).toBe('/media-buys/stations/kare');
+    const satellite = [...row('Example Satellite TV').querySelectorAll('td')].map(
+      (td) => td.textContent,
+    );
+    expect(satellite).toEqual([
+      'Example Satellite TV',
+      'Satellite TV',
+      'Satellite provider',
+      '2024',
+      'None held',
+      '',
+    ]);
+    expect(row('Example Satellite TV').querySelector('a')).toBeNull();
+    expect(text()).not.toContain('About these records');
   });
 
-  it.each(['stations', 'agencies'])(
-    'names empty %s results without calling them files',
-    async (tab) => {
-      serve(() =>
-        json({
-          tab,
-          q: 'unknown',
-          page: 1,
-          page_size: 12,
-          total: 0,
-          rows: [],
-          years: [],
-          categories: [],
-        }),
-      );
-      await render(`/media-buys?tab=${tab}&q=unknown`, () => <MediaBuys />);
-      expect(container.textContent).toContain('No matches for “unknown”');
-      expect(container.textContent).not.toContain('No TV station files match');
-    },
-  );
-
-  it('shows the checking entrance only once its page is built', async () => {
-    serve(() =>
-      json({
-        tab: 'folders',
-        q: '',
-        page: 1,
-        page_size: 12,
-        total: 0,
-        capped: false,
-        years: [],
-        categories: [],
-        rows: [],
-      }),
-    );
-    await render('/media-buys', () => <MediaBuys />);
-    expect(container.textContent).not.toContain('Check TV station files');
-    expect(container.textContent).toContain('No matches');
-    act(() => root.unmount());
-    root = createRoot(container);
-    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
-    await render('/media-buys', () => <MediaBuys />);
-    expect(
-      container.querySelector('a[href^="/media-buys/check"]')?.textContent?.replace(/\u00a0/g, ' '),
-    ).toContain('Check TV station files');
-  });
-
-  it('keeps earlier rows after a failed filter change and never calls them empty', async () => {
+  it('says results could not load, with Try again, while the search is starting', async () => {
+    let ready = false;
     serve((url) =>
-      url.searchParams.get('station') === 'KARE'
-        ? json(null, 503)
-        : json({
-            tab: 'folders',
-            q: '',
-            page: 1,
-            page_size: 12,
-            total: 1,
-            capped: false,
-            years: [2026],
-            categories: [],
-            rows: [
-              {
-                key: 'kare-f',
-                label: 'Political File / 2026 / Held folder',
-                file_count: 2,
-                station: 'KARE',
-                year: 2026,
-                category: 'Local',
-              },
-            ],
-          }),
+      url.pathname.endsWith('/filings') && !ready
+        ? new Response(JSON.stringify({ detail: 'Filings are loading. Try again in a moment.' }), {
+            status: 503,
+            headers: { 'content-type': 'application/problem+json' },
+          })
+        : answer(url),
     );
     await render('/media-buys', () => <MediaBuys />);
-    expect(container.textContent).toContain('Held folder');
-    expect(container.textContent).toContain('KARE · 2026 · Local');
-    await click('Station:');
-    await click('KARE');
-    expect(container.textContent).toContain('Held folder');
-    expect(container.textContent).toContain('Previous results are shown');
-    expect(container.textContent).toContain('Try again');
-    expect(container.textContent).not.toContain('No TV station files match');
+    expect(text()).toContain('Couldn’t load results');
+    expect(text()).not.toContain('No matching records');
+    expect(text()).not.toContain('Not available');
+    ready = true;
+    await click('Try again');
+    expect(text()).not.toContain('Couldn’t load results');
+    expect(text()).toContain('4 results');
   });
 
-  it('opens a search result at its exact version', () => {
-    expect(browseRow('folders', { ...FILE, match_label: 'Matched the file name' }).href).toBe(
-      `/media-buys/files/${KEY}?version=${VERSION}`,
+  it('says nothing matched without calling any filing PDF unavailable', async () => {
+    serve((url) =>
+      url.pathname.endsWith('/filings')
+        ? list(url, 'all-filings', [], { about: ABOUT })
+        : answer(url),
     );
-    expect(
-      browseRow('years', {
-        key: '2024',
-        label: '2024',
-        year: 2024,
-        file_count: 3,
-        folder_count: 1,
-      }),
-    ).toMatchObject({
-      note: '1 TV station folder',
-      end: '3 files',
-      href: '/media-buys?year=2024',
-    });
-    expect(
-      browseRow('stations', {
-        key: 'kare',
-        label: 'KARE',
-        file_count: 1,
-        folder_count: 2,
-      }),
-    ).toMatchObject({
-      mid: '2 folders',
-      end: '1 file',
-      href: '/media-buys/stations/kare',
-    });
+    await render('/media-buys?q=zzz', () => <MediaBuys />);
+    expect(text()).toContain('0 results');
+    expect(text()).toContain('No matching records');
+    expect(text()).not.toContain('Not available');
+    // About these records is national: it stays, whatever the search.
+    expect(text()).toContain('2,704,694 searchable filings');
+  });
+
+  it('shows each filing as a card on phone, Filing PDF beside its value, then View source', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767px)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    serve(answer);
+    await render('/media-buys', () => <MediaBuys />);
+    expect(container.querySelector('table')).toBeNull();
+    const card = [...container.querySelectorAll<HTMLElement>('.mbf-card')].find((item) =>
+      item.textContent?.includes('example-extv-order'),
+    )!;
+    const terms = [...card.querySelectorAll('dt')].map((dt) => [
+      dt.textContent,
+      dt.nextElementSibling?.textContent,
+    ]);
+    expect(terms).toEqual([
+      ['Station or provider', 'EXTV-TVTV'],
+      ['Uploaded', 'Sep 14, 2026'],
+      ['FCC file ID', 'fid-1'],
+      ['Filing PDF', 'Not available'],
+    ]);
+    expect(card.lastElementChild?.textContent).toBe('View source');
   });
 
   it('names each station’s copy date only when the dates differ', () => {
@@ -1049,6 +789,29 @@ describe('Media buys', () => {
       'KSTP-TV: TV station files copied Oct 22, 2026',
       'KARE: TV station files copied Oct 20, 2026',
     ]);
+  });
+
+  it('opens Minnesota files at the TV station file and national ones in the national reader', () => {
+    expect(filingHref({ key: 'x', minnesota_key: KEY })).toBe(`/media-buys/files/${KEY}`);
+    expect(decodeURIComponent(filingHref({ key: 'TV|1|2', minnesota_key: null }))).toBe(
+      '/media-buys/files/national-TV|1|2',
+    );
+    expect(mediaBuysAddress('tab=national&nationalPage=4&browseSource=x&from=%2Fhome')).toBe(
+      'from=%2Fhome',
+    );
+  });
+
+  it('shows the checking entrance only once its page is built', async () => {
+    serve(answer);
+    await render('/media-buys', () => <MediaBuys />);
+    expect(container.textContent).not.toContain('Check TV station files');
+    act(() => root.unmount());
+    root = createRoot(container);
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    await render('/media-buys', () => <MediaBuys />);
+    expect(
+      container.querySelector('a[href^="/media-buys/check"]')?.textContent?.replace(/ /g, ' '),
+    ).toContain('Check TV station files');
   });
 });
 
@@ -1134,7 +897,7 @@ describe('TV station folder, station and printed agency name', () => {
     expect(container.textContent).toContain('Checked on Nov 1, 2026');
     expect(container.textContent).not.toContain('Each spelling is kept separate');
   });
-  it('keeps filtered-list context through folder, file and related station returns', async () => {
+  it('keeps searched-list context through folder, file and related station returns', async () => {
     function Flow() {
       const location = useLocation();
       const match = matchRoute(location.pathname)!;
@@ -1157,36 +920,33 @@ describe('TV station folder, station and printed agency name', () => {
           files: [FILE],
         });
       return json({
-        tab: 'folders',
-        q: '',
-        page: 1,
-        page_size: 12,
-        total: 1,
-        capped: false,
+        tab: 'all-filings',
+        q: url.searchParams.get('q') ?? '',
+        year: 2025,
         years: [2025],
-        categories: [],
-        rows: [
-          {
-            key: 'kare-folder',
-            label: 'Example Committee',
-            station: 'KARE',
-            year: 2025,
-            file_count: 1,
-          },
-        ],
+        page: 1,
+        page_size: 25,
+        total: 0,
+        rows: [],
+        about: {
+          filings: 1,
+          index_through: '2026-11-16',
+          saved: 1,
+          saved_updated: '2026-11-17',
+          complete: true,
+        },
       });
     });
-    const station = withFrom('/media-buys/stations/kare', '/media-buys?tab=stations');
-    const filtered = withFrom('/media-buys?station=KARE&year=2025', station);
-    await render(filtered, () => <Flow />);
-    await click('Example Committee');
+    const station = withFrom('/media-buys/stations/kare', '/media-buys?tab=stations-and-providers');
+    const searched = withFrom('/media-buys?q=KARE&year=2025', station);
+    await render(withFrom('/media-buys/folders/kare-folder', searched), () => <Flow />);
     const originalFolder = window.location.pathname + window.location.search;
     const related = container.querySelector<HTMLAnchorElement>(
       'a[href^="/media-buys/stations/KARE"]',
     )!;
     const relatedFrom = new URL(related.href).searchParams.get('from')!;
     expect(new URL(relatedFrom, 'https://finance.test').searchParams.get('from')).toContain(
-      'station=KARE&year=2025',
+      'q=KARE&year=2025',
     );
     await click('invoice.pdf');
     expect(new URLSearchParams(window.location.search).get('version')).toBe(VERSION);
@@ -1195,7 +955,7 @@ describe('TV station folder, station and printed agency name', () => {
     expect(window.location.search).not.toBe('');
     await click('Back to Media buys');
     expect(window.location.pathname).toBe('/media-buys');
-    expect(new URLSearchParams(window.location.search).get('station')).toBe('KARE');
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('KARE');
     expect(new URLSearchParams(window.location.search).get('year')).toBe('2025');
     expect(container.querySelector('a.f-back')?.textContent).toBe('Back to TV station');
     expect(originalFolder).toContain('from=');
@@ -1880,61 +1640,74 @@ describe('National FCC originals in Media buys', () => {
   const key = 'CABLE|000123|test';
   const version = 'b'.repeat(64);
 
-  it('opens an exact national original from a later results page and preserves the return address', async () => {
+  it('opens a national original from a later results page and returns to the same address', async () => {
+    function Flow() {
+      const location = useLocation();
+      const match = matchRoute(location.pathname)!;
+      if (match.route.name === 'station-file') return <StationFile match={match} />;
+      return <MediaBuys />;
+    }
     const fetcher = serve((url) => {
-      expect(url.pathname.endsWith('/national-files')).toBe(true);
-      const page = Number(url.searchParams.get('page'));
-      return json({
-        tab: 'national',
-        q: '',
-        page,
-        page_size: 25,
-        total: 1097,
-        version: 'c'.repeat(16),
-        rows: [
-          {
-            key: 'national-' + key,
-            name: 'Original ' + page,
-            label: 'Original ' + page,
-            folder_label: 'Political Files/2026/State',
-            station: 'Held Cable',
-            year: 2026,
-            category: 'CABLE',
-            uploaded_at: null,
-            version_id: version,
+      if (url.pathname.endsWith('/filings'))
+        return json({
+          tab: 'all-filings',
+          q: url.searchParams.get('q') ?? '',
+          year: 2026,
+          years: [2026],
+          page: Number(url.searchParams.get('page') ?? 1),
+          page_size: 25,
+          total: 60,
+          rows: [
+            {
+              key,
+              name: 'Original.pdf',
+              folder: 'Political Files/2026/State',
+              station: 'Held Cable',
+              service: 'Cable',
+              uploaded: '2026-09-02',
+              file_id: 'test',
+              pdf: 'saved',
+              minnesota_key: null,
+            },
+          ],
+          about: {
+            filings: 60,
+            index_through: '2026-11-16',
+            saved: 1,
+            saved_updated: '2026-11-17',
+            complete: true,
           },
-        ],
-      });
+        });
+      return json({ title: 'Original.pdf', content_hash: version, folder_path: 'x' });
     });
-    await render('/media-buys?tab=national&page=43', () => <MediaBuys />);
-    expect(text()).toContain('Page 43 of 44');
-    const requests = () =>
-      fetcher.mock.calls
-        .map(([input]) => new URL(input))
-        .filter((u) => u.pathname.endsWith('/national-files'));
-    expect(requests()).toHaveLength(1);
-    expect(requests()[0].searchParams.has('version')).toBe(false);
-    const copied = window.location.pathname + window.location.search;
-    expect(new URLSearchParams(window.location.search).has('browseSource')).toBe(true);
-    await click('Next');
-    expect(text()).toContain('Original 44');
-    expect(requests()).toHaveLength(2);
-    expect(requests()[1].searchParams.get('version')).toBe('c'.repeat(16));
-    const link = container.querySelector<HTMLAnchorElement>('.mb-list a')!;
+    await render('/media-buys?q=held&page=2', () => <Flow />);
+    const directory = window.location.pathname + window.location.search;
+    const link = container.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Open filing PDF for Original.pdf"]',
+    )!;
     const href = new URL(link.href);
     expect(decodeURIComponent(href.pathname)).toBe('/media-buys/files/national-' + key);
-    expect(href.searchParams.get('version')).toBe(version);
-    expect(href.searchParams.get('from')).toContain('page=44');
-    await act(async () => root.render(null));
-    clearReadCache();
-    await render(copied, () => <MediaBuys />);
-    expect(requests()).toHaveLength(3);
-    expect(requests()[2].searchParams.get('version')).toBe('c'.repeat(16));
-    expect(
-      fetcher.mock.calls.some(
-        ([url]) => new URL(url).searchParams.get('version') === 'c'.repeat(16),
-      ),
-    ).toBe(true);
+    expect(href.searchParams.has('version')).toBe(false);
+    expect(href.searchParams.get('from')).toBe(directory);
+    await act(async () => link.click());
+    await flush();
+    const detail = fetcher.mock.calls
+      .map(([input]) => new URL(input))
+      .find((u) => u.pathname.includes('/national-files/'))!;
+    expect(decodeURIComponent(detail.pathname)).toContain('/national-files/' + key);
+    expect(detail.searchParams.has('version')).toBe(false);
+    expect(text()).toContain('Original.pdf');
+    await click('Back to Media buys');
+    expect(window.location.pathname + window.location.search).toBe(directory);
+  });
+
+  it('names Media buys as the national file’s return without earlier context', async () => {
+    const path = '/media-buys/files/national-' + encodeURIComponent(key);
+    serve(() => json({ title: 'Order', content_hash: version }));
+    await render(path, () => <StationFile match={matchRoute(path)!} />);
+    const back = container.querySelector<HTMLAnchorElement>('a.f-back')!;
+    expect(back.textContent).toBe('Back to Media buys');
+    expect(new URL(back.href).pathname + new URL(back.href).search).toBe('/media-buys');
   });
 
   it('holds one private PDF for preview and saving until the member closes it', async () => {

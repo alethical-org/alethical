@@ -1,0 +1,429 @@
+/* Media buys: the national FCC filing search (v2 Media Buys drawing, Nov 18,
+   2026). Bands: phone below 768, tablet 768 to 1099, computer 1100 and up.
+   Hover applies at tablet and computer only; focus keeps the shared ring. */
+.mbf-tabs {
+  margin-top: 20px;
+}
+.mbf-panel {
+  margin-top: 22px;
+  min-width: 0;
+}
+
+/* ---------- Search, filters and sort ---------- */
+.mbf-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+.mbf-search {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mbf-controls[data-wide] .mbf-search {
+  flex-basis: 100%;
+}
+.mbf-search label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.mbf-search #mbf-q-hint {
+  margin-top: -4px;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.mbf-search .f-field {
+  width: 100%;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 15px;
+}
+.mbf-menus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  position: relative;
+  z-index: 40;
+}
+.mbf-menus:has([data-open]) {
+  z-index: 41;
+}
+.mbf-toggle {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 0 12px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.mbf-toggle[data-checked] {
+  border-color: var(--fill);
+}
+.mbf-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--fill);
+  cursor: pointer;
+}
+.mbf-toggle:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.mbf-toggle input:focus-visible {
+  outline: none;
+}
+
+.mbf-chips {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.mbf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 8px 0 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mbf-chips .f-clear {
+  min-height: 32px;
+}
+
+.mbf-note {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--tint);
+  border: 1px solid rgba(14, 106, 130, 0.25);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.mbf-note svg {
+  flex: none;
+  margin-top: 1px;
+}
+.mbf-alert {
+  margin-top: 16px;
+}
+
+/* ---------- Results ---------- */
+.mbf-results {
+  outline: none;
+  min-width: 0;
+}
+.mbf-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding-top: 24px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.mbf-results > .f-skeleton,
+.mbf-results > .f-empty-box,
+.mbf-rows {
+  margin-top: 12px;
+}
+.mbf-rows {
+  transition: opacity 0.15s ease;
+}
+.mbf-rows[data-busy] {
+  opacity: 0.6;
+}
+.mbf-table-box {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+.mbf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.mbf-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+.mbf-table td {
+  padding: 12px 16px;
+  vertical-align: top;
+  border-top: 1px solid rgba(20, 27, 34, 0.08);
+  font-variant-numeric: tabular-nums;
+}
+.mbf-table tbody tr:first-child td {
+  border-top: 0;
+}
+.mbf-table .mbf-num {
+  text-align: right;
+}
+.mbf-table th.mbf-source-head {
+  padding-left: 22px;
+}
+.mbf-table td.mbf-source-cell {
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+.mbf-name {
+  min-width: 220px;
+  overflow-wrap: anywhere;
+}
+.mbf-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.mbf-missing {
+  color: var(--secondary);
+}
+.mbf-figure {
+  font-weight: 700;
+}
+.mbf-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--tint);
+  border: 1px solid rgba(14, 106, 130, 0.25);
+  color: var(--link);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mbf-link {
+  color: var(--link);
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  border-radius: 3px;
+}
+.mbf-source {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mbf-source:active {
+  background: var(--tint-selected);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .mbf-table tbody tr:hover td {
+    background: var(--row-hover);
+  }
+  .mbf-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .mbf-source:hover {
+    background: var(--tint);
+    border-color: rgba(14, 106, 130, 0.25);
+  }
+  .mbf-chip:hover,
+  .mbf-toggle:hover {
+    border-color: var(--fill);
+    background: var(--tint);
+  }
+}
+
+/* Phone: each row is a card; Filing PDF keeps its value beside it, then View source. */
+.mbf-cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.mbf-card {
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+}
+.mbf-card-head {
+  min-width: 0;
+}
+.mbf-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mbf-card dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
+  gap: 4px 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.mbf-card dt {
+  color: var(--muted);
+}
+.mbf-card dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.mbf-card .mbf-source {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 12px;
+  margin-left: -12px;
+  border: 0;
+  font-size: 15px;
+}
+
+/* ---------- About these records and the reading guide ---------- */
+.mbf-about {
+  margin-top: 48px;
+}
+.mbf-about h2 {
+  font-size: 16px;
+}
+.mbf-about ul {
+  gap: 4px;
+  font-size: 14px;
+}
+.mbf-about a {
+  font-weight: 600;
+  text-underline-offset: 3px;
+  border-radius: 3px;
+}
+.mbf-guide {
+  margin-top: 12px;
+}
+.mbf-guide h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.mbf-guide button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.mbf-guide button svg {
+  flex: none;
+  transition: transform 0.15s ease;
+}
+.mbf-guide button[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+.mbf-guide button:active {
+  background: #e2e8ed;
+}
+.mbf-guide #mbf-guide {
+  padding-top: 4px;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--secondary);
+}
+.mbf-guide #mbf-guide p {
+  margin: 0;
+}
+.mbf-guide strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .mbf-guide button:hover {
+    background: #eef2f5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mbf-guide button svg,
+  .mbf-rows {
+    transition: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .mbf-search {
+    flex-basis: 100%;
+  }
+  .mbf-search .f-field,
+  .mbf-toggle {
+    height: 44px;
+  }
+  .mbf-menus {
+    flex: 1 1 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mbf-menus > .f-dropdown,
+  .mbf-menus > .f-dropdown > button {
+    width: 100%;
+  }
+  .mbf-menus .f-dropdown-button {
+    min-height: 44px;
+  }
+  .mbf-chip,
+  .mbf-chips .f-clear {
+    min-height: 44px;
+  }
+  .mbf-guide button {
+    min-height: 48px;
+  }
+}

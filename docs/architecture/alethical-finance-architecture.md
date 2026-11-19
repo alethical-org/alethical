@@ -808,10 +808,13 @@ similarity scan. This read changes no source, check, identity, publication or ad
 - Finance names the station-file collection **Media buys**, the umbrella for TV, radio,
   cable, streaming, print and online ad purchases. The Minnesota folder, agency, station and year views cover KSTP-TV, KARE and KMSP-TV
   ([FCC station collection](../implementation/fcc-political-files.md)). A separate national
-  catalogue in Media buys shows political-file originals from TV, radio, cable and satellite
-  providers. The full historical FCC index is private to internal researchers. Member file
-  counts exclude index-only records, failed downloads and research materials. Distinct FCC
-  identities survive when their original bytes match. The national archive is an imported
+  search in Media buys covers every filing in the national FCC index for every signed-in
+  account, read from a verified search file on the API server rather than Supabase
+  ([national FCC archive](../operations/national-fcc-archive.md#finance-search-file)).
+  Each filing's PDF state is Open (a verified saved copy), Check pending (the FCC check is
+  unresolved) or Not available (a conclusive unsuccessful check). Saved-PDF counts exclude
+  pending and unavailable filings. Distinct FCC identities survive when their original
+  bytes match, and Minnesota station copies count once. The national archive is an imported
   snapshot with separate dates and coverage from the recurring Minnesota collection.
 - Every Finance account sees original station files and their machine-read text, marked Not
   checked. Original files carry campaign staff and agency contact details as the stations
