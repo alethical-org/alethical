@@ -49,10 +49,15 @@ second, rises toward 8 while the FCC answers normally and halves after a busy an
 Each attempt appends an outcome file under `fcc-national/v1/recovery/<run>/results/`, so a
 stopped run loses at most a few minutes of work. A readable PDF is stored once under its
 SHA-256 key, and R2 checks that digest before accepting the write. When the download
-address refuses a file (the FCC answers 401 for a missing file) or returns bytes that are
-not a readable PDF, the run asks the FCC file record for another download address. A
-filing becomes confirmed unavailable only after 2 such answers at least 6 hours apart.
-Timeouts, busy answers, server errors and storage failures prove nothing and are retried.
+address refuses a file (401, 403, 404 or 410; the FCC answers 401 for a missing file) or
+returns bytes that are not a readable PDF, the run asks the FCC file record for another
+download address. A filing becomes confirmed unavailable only after 2 such answers at
+least 6 hours apart. Timeouts, busy answers, server errors, other statuses, redirects
+away from the FCC, web pages served in place of a file, cut-off downloads and storage
+failures prove nothing and are retried. Files over 512 MiB wait for the oversize lane,
+which runs for up to 30 minutes before each main run at most 2 requests per second and
+accepts up to 8 GiB. Outcome rows carry a version; unreadable outcomes recorded before the
+alternate-address check, and refusals with any other status, are checked again.
 Run `python scripts/national_fcc_collect.py status` for the current accounting and
 `export --out FILE` for each filing's settled outcome.
 
