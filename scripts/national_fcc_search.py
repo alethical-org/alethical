@@ -388,9 +388,15 @@ def build(
         src,
     ) in enumerate(rows, start=1):
         year_match = YEAR.match(folder or "")
-        if not year_match:
-            raise ValueError(f"Filing without a folder year: {key}")
-        year = int(year_match[1])
+        if year_match:
+            year = int(year_match[1])
+        else:
+            # A few FCC folders carry no year; file such a filing under the year it
+            # was uploaded so it stays searchable. Its folder shows as the FCC wrote it.
+            uploaded = re.match(r"(\d{4})-", str(created or ""))
+            if not uploaded:
+                raise ValueError(f"Filing without a folder or upload year: {key}")
+            year = int(uploaded[1])
         outlet_key = (service, entity)
         if outlet_key not in outlets:
             label, ident, place = outlet_fields(src, service, entity)

@@ -306,10 +306,14 @@ def backoff(attempt: int) -> float:
     return min(300.0, 5.0 * 2**attempt)
 
 
-def fetch_day(http, day: str, pace: Pace, sleep) -> tuple[bytes, dict]:
+def fetch_day(
+    http, day: str, pace: Pace, sleep, end: str | None = None
+) -> tuple[bytes, dict]:
     import httpx
 
     url = DAILY_URL.format(day=day)
+    if end is not None:
+        url = url.replace(f"endDate={day}", f"endDate={end}")
     reason = "no answer"
     for attempt in range(ATTEMPTS):
         pace.wait()
@@ -364,6 +368,26 @@ def store_day(store, day: str, body: bytes, payload: dict, known: dict | None) -
     }
 
 
+def confirm_round_day(client, day: str, record: dict, pace: Pace, sleep) -> str | None:
+    """A round count is the whole day when the 2-day window holds exactly 1 more day.
+
+    The FCC answers a 2-day window with both days' events. When that answer is
+    larger than the round count and equals it plus the next day's own count, the
+    round count was not a cap.
+    """
+    following = (date.fromisoformat(day) + timedelta(days=1)).isoformat()
+    try:
+        _, next_payload = fetch_day(client, following, pace, sleep)
+        _, pair = fetch_day(client, day, pace, sleep, end=following)
+    except DayFailed:
+        return None
+    next_rows = len(next_payload["history"])
+    pair_rows = len(pair["history"])
+    if next_rows > 0 and pair_rows == record["rows"] + next_rows:
+        return f"{day}..{following}: {pair_rows} = {record['rows']} + {next_rows}"
+    return None
+
+
 def due_days(ledger_days: dict, first: date, last: date, newest: date, force: bool):
     """Recent days first, newest first; then every other incomplete day, oldest first."""
     recent_from = newest - timedelta(days=RECHECK_DAYS - 1)
@@ -414,6 +438,11 @@ def cmd_fetch(args, store, http=None, sleep=time.sleep, clock=time.monotonic, no
                 continue
             known = ledger["days"].get(name)
             record = store_day(store, name, body, payload, known)
+            if record["status"] == "unverified":
+                confirmed = confirm_round_day(client, name, record, pace, sleep)
+                if confirmed:
+                    record["status"] = "complete"
+                    record["confirmed_by"] = confirmed
             record["seconds"] = round(clock() - began, 2)
             record["fetched_at"] = now.isoformat(timespec="seconds")
             changed = not known or known.get("key") != record["key"]
