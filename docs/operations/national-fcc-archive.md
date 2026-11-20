@@ -53,17 +53,24 @@ and appends 1 part, `worklist-<n>.jsonl.gz`, holding every inventory filing that
 part holds yet, in a fixed shuffle. Filings already listed keep their part, position
 and outcomes. When the inventory gives a listed filing that is still to be checked a
 different download id, the part records the newer id and the next attempt uses it.
-Added filings carry no held marks: archive-held filings are all in the first part, and
-an added filing from the 3 Minnesota stations is checked like any other. Without an
-inventory pointer the command does nothing, and an inventory it has already read adds
-nothing.
+Each filing still to be checked also gets its FCC folder year (`Political Files/<YEAR>/...`
+in the inventory): an added filing carries it in its own row, and a listed filing gets a
+`{"k", "y"}` row whenever the year is missing from the work list or has changed. A work
+list without years gets every listed year once, and later inventories add almost none.
+Parts already written are never rewritten. Added filings carry no held marks:
+archive-held filings are all in the first part, and an added filing from the 3 Minnesota
+stations is checked like any other. Without an inventory pointer the command does
+nothing. The manifest records the inventory read for filings (`synced_inventory`) and for
+years (`prioritized_inventory`), and an inventory already read for both adds nothing.
 
 The **Check national FCC filing PDFs** workflow runs every 30 minutes on GitHub's
 servers, one run at a time: the sync, then the oversize lane, then the main run for up
 to 4 hours 45 minutes. A failed sync leaves the work list unchanged and the checking continues.
-The main run takes never-checked filings first, from the oldest part forward, then due
-retries. It starts at 4 FCC requests per second, rises toward 8 while the FCC answers
-normally and halves after a busy answer.
+The main run takes never-checked filings first, newest folder year first (2026, 2025 and
+so on back to 2012), then filings with no readable year; within a year it keeps work-list
+order, from the oldest part forward. Due retries follow, in work-list order. It starts
+at 4 FCC requests per second, rises toward 8 while the FCC answers normally and halves
+after a busy answer.
 
 Each command keeps the run's state in a SQLite scratch database on local disk, under
 `$FCC_CENSUS_SCRATCH` or the system temporary folder in `fcc-census/<run>/`, so memory
@@ -86,7 +93,8 @@ cut-off downloads or storage failures; all are retried. Files over 512 MiB wait 
 which runs for up to 30 minutes before each main run at most 2 requests per second and
 accepts up to 8 GiB. Outcome rows carry a version; unreadable outcomes recorded before the
 alternate-address check, and refusals with any other status, are checked again.
-Run `python scripts/national_fcc_collect.py status` for the current accounting and
+Run `python scripts/national_fcc_collect.py status` for the current accounting, including
+never-checked filings by folder year in the order the run takes them, and
 `export --out FILE` for each filing's settled outcome.
 
 ## Finance search file
