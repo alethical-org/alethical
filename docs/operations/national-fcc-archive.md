@@ -65,7 +65,7 @@ years (`prioritized_inventory`), and an inventory already read for both adds not
 
 The **Check national FCC filing PDFs** workflow runs every 30 minutes on GitHub's
 servers, one run at a time: the sync, then the oversize lane, then the main run for up
-to 4 hours 45 minutes. A failed sync leaves the work list unchanged and the checking continues.
+to 4 hours 30 minutes. A failed sync leaves the work list unchanged and the checking continues.
 The main run takes never-checked filings first, newest folder year first (2026, 2025 and
 so on back to 2012), then filings with no readable year; within a year it keeps work-list
 order, from the oldest part forward. Due retries follow, in work-list order. It starts
