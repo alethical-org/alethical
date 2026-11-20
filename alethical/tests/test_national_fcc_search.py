@@ -707,3 +707,17 @@ def test_manifests_larger_than_one_mebibyte_are_read_whole():
 
     files = SimpleNamespace(_client=Client(), bucket="b")
     assert len(builder.read_json(files, "k")["days"]) == 20000
+
+
+def test_release_export_call_matches_the_census_command_line():
+    """The release calls the census export directly; its arguments must match the CLI."""
+    import inspect
+
+    from scripts import national_fcc_collect
+
+    parsed = national_fcc_collect.cli().parse_args(["export", "--out", "x"])
+    source = inspect.getsource(builder.prepare_release)
+    for name in vars(parsed):
+        if name in ("command", "out", "run_id"):
+            continue
+        assert f"{name}=" in source, f"prepare_release does not pass {name}"
