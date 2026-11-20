@@ -55,7 +55,7 @@ def _facilities() -> dict[tuple, set[tuple[float, float]]]:
 
 @lru_cache(maxsize=1)
 def civic_zip_codes() -> dict[tuple[str, ...], tuple[str, ...]]:
-    """Each city's ZIPs from the packaged public facility list (538 city names).
+    """Each city's ZIPs from the packaged public facility list (529 distinct city names).
 
     Only proposes which public ZIP street tables to read; it never places a
     voter. The list is incomplete, so a missing city means no proposal.

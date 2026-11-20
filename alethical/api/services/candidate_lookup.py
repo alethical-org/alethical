@@ -301,6 +301,10 @@ def _allowed_edits(word: str) -> int:
 
 
 def _close_word(typed: str, official: str) -> int | None:
+    if typed == official:
+        return 0
+    if _allowed_edits(typed) == 0 or _allowed_edits(official) == 0:
+        return None  # A number or short word on either side must match exactly.
     cost = _edits(typed, official)
     return cost if cost <= _allowed_edits(official) else None
 
@@ -346,7 +350,10 @@ def _near_street(supplied: str, expected: str) -> int | None:
     if not e_name or any(word in _DIRECTIONS or word == e_kind for word in s_name):
         return None
     extra = len(s_name) - len(e_name)
-    if extra not in (0, 1):
+    # An extra word is only read as part of the name when the street type
+    # follows it ("Ojibwa Park Rd"). Without a typed type it could be a unit
+    # with no label ("Upper") or another place's name, never to be dropped.
+    if extra not in (0, 1) or (extra and s_kind is None):
         return None
     best = None
     for skip in range(len(s_name)) if extra else (None,):
@@ -703,6 +710,10 @@ def _parse_rows_once(
         remainder = remainder[: state.start()].strip(" ,")
     matches: dict[tuple, StreetAddress] = {}
     costs: dict[tuple, int] = {}
+    # Near-miss scoring repeats for every range row of a street; score each
+    # distinct spelling once per call. Nothing typed outlives this call.
+    city_scores: dict[tuple[str, str], tuple[int, int] | None] = {}
+    street_scores: dict[tuple[str, str], int | None] = {}
     city_spellings: dict[tuple, str] = {}
     for row in rows:
         street, city = row.get("FullStreetName"), row.get("CityName")
@@ -714,9 +725,14 @@ def _parse_rows_once(
         city_cost = 0
         # Postal city belongs to the address match, never to a municipal race.
         city_match = _city_ending(city).search(requested)
+        close = None
+        if not city_match and near_miss:
+            if (city, requested) not in city_scores:
+                city_scores[(city, requested)] = _close_city_ending(city, requested)
+            close = city_scores[(city, requested)]
         if city_match:
             requested = requested[: city_match.start()].strip(" ,")
-        elif near_miss and (close := _close_city_ending(city, requested)):
+        elif close:
             city_start, city_cost = close
             requested = requested[:city_start].strip(" ,")
         elif "," in requested:
@@ -734,8 +750,14 @@ def _parse_rows_once(
         if near_miss:
             if expected == supplied or _spelling_choice(supplied, expected):
                 street_cost = 0
-            elif (street_cost := _near_street(supplied, expected)) is None:
-                continue
+            else:
+                if (supplied, expected) not in street_scores:
+                    street_scores[(supplied, expected)] = _near_street(
+                        supplied, expected
+                    )
+                street_cost = street_scores[(supplied, expected)]
+                if street_cost is None:
+                    continue
             cost = city_cost + street_cost
             if cost == 0:
                 continue
@@ -1089,7 +1111,7 @@ class CandidateLookupService:
 
         Used only after the state map has no answer, which happens for whole
         areas it does not cover. The city's possible ZIPs come from a packaged
-        public list; only those public ZIP street tables are read, so the
+        public list of 529 city names; only those public ZIP street tables are read, so the
         address itself never leaves. Each ZIP must answer: a failed table could
         hide a conflicting address, so a failure is unavailable, never a choice.
         """
@@ -1163,17 +1185,21 @@ class CandidateLookupService:
                         for choice in choices
                         if choice["address"][-5:] == confirmed["address"][-5:]
                     ]
-                    if confirmed not in self._eligible_choices(
-                        same_zip
-                    ) and confirmed not in self._city_zip_choices(text):
+                    if confirmed not in self._eligible_choices(same_zip) and (
+                        choices or confirmed not in self._city_zip_choices(text)
+                    ):
                         return {"kind": "no-match"}
                 # Resolve only the chosen address. A source failure for an
                 # unrelated alternative must not block a valid confirmation.
                 text = confirmed["address"]
                 confirmed = None
             else:
-                choices = self._eligible_choices(choices) or self._city_zip_choices(
-                    text
+                # The city's ZIP tables are read only when the map has no answer,
+                # the same condition the confirmation above recomputes.
+                choices = (
+                    self._eligible_choices(choices)
+                    if choices
+                    else self._city_zip_choices(text)
                 )
                 # Even one geocoded answer may correct the street or locality.
                 # The reader must explicitly choose that complete address.
@@ -1320,7 +1346,10 @@ class CandidateLookupService:
         if not points and not offline:
             # Many rural homes are filed under a township, not the postal city.
             # needs_range_confirmation stays set: the range report must agree.
-            points = historical_township_points(address) or set()
+            try:
+                points = historical_township_points(address) or set()
+            except _AddressPointServiceOffline:
+                points = set()
         points = points | facility_points(address) | county_address_points(address)
         if alternate:
             points |= facility_points(alternate) | county_address_points(alternate)

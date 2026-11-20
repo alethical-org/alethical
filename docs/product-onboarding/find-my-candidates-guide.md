@@ -44,13 +44,14 @@ election-range checks.
 With a ZIP, an address that matches no official street exactly, and no known
 respelling, is checked for a close misspelling. A street or postal city word may be
 off by 1 letter when it has up to 5 letters, or by 2 letters when longer, and
-swapped neighbouring letters count as 1. The street name may also carry 1 extra word:
+swapped neighbouring letters count as 1. When the street type is typed, the street name may also carry 1 extra word:
 `6284 Ojibwa Park Road Breainerd MN 56401` offers **6284 OJIBWA RD, BRAINERD, MN
 56401**. House numbers, words with digits (so **1st** never becomes **2nd**), words of
 3 letters or fewer, compass directions (so **NE** never becomes **NW**), the street
 type and any unit must still agree exactly, and the house number must sit inside the
 offered street's official range. A city that differs by more, such as another town's
-name, still gives no match. Up to 5 corrections are offered, closest first, and the
+name, still gives no match, and a word after the street with no street type typed,
+such as a duplex's **Upper**, is never dropped to make a match. Up to 5 corrections are offered, closest first, and the
 reader must choose 1; a choice is recomputed from the typed address before any
 ballot is read.
 
@@ -152,7 +153,7 @@ such as **First Assessment Unorganized Territory**, instead of their postal city
 the map's place name finds no official street, the house number, street and ZIP alone
 must find exactly 1 official street, which is then offered with its postal city.
 When the map finds nothing and the typed address names a Minnesota city, the city's
-possible ZIPs come from a packaged list of public facility addresses (538 city
+possible ZIPs come from a packaged list of public facility addresses (529 city
 names). At most 6 ZIPs are read; a city with more, or one not on the list, gets no
 such check. Each of those public ZIP street tables must answer, and the typed street,
 number, city and unit must pass the same official checks before the address is

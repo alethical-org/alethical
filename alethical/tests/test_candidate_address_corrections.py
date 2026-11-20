@@ -98,6 +98,9 @@ def test_close_misspellings_are_offered_as_the_official_address_to_confirm(
         ("OJIBWA RD", "100 OJIBWA RD SOMEWHERE 99999"),  # unknown words
         ("EXAMPLE ST N", "101 EXAMPEL ST N, EXAMPLE CITY, MN 99999"),  # parity
         ("CLEVELAND AVE N", "100 KLAVELEND AVE N, EXAMPLE CITY, MN 99999"),
+        ("CLEVELAND AVE N", "100 C1EVELAND AVE N, EXAMPLE CITY, MN 99999"),
+        ("OJIBWA RD", "100 Ojibwa Wayzata 99999"),  # another town, no type typed
+        ("EXAMPLE ST N", "100 Example Upper N, Example City, MN 99999"),  # duplex
     ],
 )
 def test_a_close_spelling_never_changes_numbers_compass_type_city_or_unit(
@@ -322,3 +325,19 @@ def test_a_township_point_still_needs_the_official_range_report_to_agree(monkeyp
             monkeypatch,
             CandidateLookupUnavailable("Official ballot service unavailable"),
         )
+
+
+def test_a_city_zip_address_is_confirmable_only_when_the_map_had_no_answer(
+    monkeypatch,
+):
+    city_zips(monkeypatch, "99999")
+    elsewhere = ADDRESS.replace("99999", "99998")
+    lookup, _ = service(
+        rows=[street(), street(ZipCode="99998", ProdAddressRangeId=124)],
+        geocoder=MapAnswer(elsewhere),
+    )
+    typed = "100 Example St N, Example City, MN"
+    assert lookup.resolve(typed)["choices"] == [candidate_lookup._choice(elsewhere)]
+    assert lookup.resolve(typed, candidate_lookup._choice(ADDRESS)) == {
+        "kind": "no-match"
+    }
