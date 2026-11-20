@@ -126,7 +126,9 @@ search already holds.
    most once per 30 seconds, so an activation reaches every server within 30 seconds. The
    server then copies the file to local disk, checks both digests and switches to it; the
    previous copy serves until the new one is ready, and searches answer "Filings are
-   loading" only when no copy is ready. A server reads only the file format it was built
+   loading" only when no copy is ready. A starting server reports ready (`/readyz`) only
+   once its copy is loaded, or after 4 minutes, so a deploy or restart keeps the previous
+   server answering searches meanwhile. A server reads only the file format it was built
    for and keeps its current copy when the active release has another format. Withdraw by
    activating the previous release the same way.
 
