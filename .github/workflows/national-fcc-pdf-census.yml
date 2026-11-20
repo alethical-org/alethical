@@ -6,6 +6,8 @@ on:
 
 permissions:
   contents: read
+  # Lets a finished run start the next one (see the last step).
+  actions: write
 concurrency:
   group: national-fcc-pdf-census
   cancel-in-progress: false
@@ -39,3 +41,11 @@ jobs:
         run: |
           uv run --no-sync python scripts/national_fcc_collect.py run --oversize --max-seconds 1800 --workers 1 --rate-start 1 --rate-max 2
           uv run --no-sync python scripts/national_fcc_collect.py run --max-seconds 16200 --workers 16 --rate-start 4 --rate-max 8
+      # The schedule fires only a few times a day, which left hours idle between
+      # runs. Each successful run queues the next one at once; the concurrency
+      # group holds it until this run ends. The schedule stays as a fallback.
+      - name: Start the next run
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run national-fcc-pdf-census.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
