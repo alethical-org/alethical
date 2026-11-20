@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.candidate_historical_points import historical_point_payload
+from alethical.api.services.candidate_historical_streets import civic_zip_codes
 from alethical.api.services.representative_lookup import (
     _ADDRESS_POINT_FIELDS,
     _STREET_TYPE_ALIASES,
@@ -33,7 +34,10 @@ from alethical.api.services.representative_lookup import (
     RepresentativeLookupUpstreamError,
     public_source_session,
 )
-from alethical.api.services.zip_state_reference import SUPPORTED_STATES
+from alethical.api.services.zip_state_reference import (
+    SUPPORTED_STATES,
+    load_zip_state_reference,
+)
 from alethical.pipeline.candidate_ballot import (
     AUTHORITY,
     SOURCE_URL,
@@ -250,6 +254,114 @@ def _spelling_choice(supplied: str, expected: str) -> bool:
     return normalized in _official_spellings(expected)
 
 
+# 2-letter state codes a Minnesota street can end with: "Brussels Ct", "Ave NE".
+_STATE_LOOKALIKES = frozenset(
+    code
+    for code in SUPPORTED_STATES
+    if code in _DIRECTIONS or code in _ALIASES.values() or code in _STREET_TYPE_ALIASES
+)
+
+
+def _names_a_state(before: str, code: str, zip_code: str) -> bool:
+    """Whether the 2 letters just before the ZIP are a state, not the street's end.
+
+    "516 Brussels Ct 56258" names a Court, not Connecticut, and "Ave NE 55413"
+    names northeast, not Nebraska. A comma before the letters, or a ZIP that
+    the ZIP reference does not place in Minnesota, keeps them a state.
+    """
+    if code not in SUPPORTED_STATES:
+        return False
+    if code in _STATE_LOOKALIKES and not before.rstrip().endswith(","):
+        reference = load_zip_state_reference()
+        if reference is not None and reference.state_for(zip_code) == "MN":
+            return False
+    return True
+
+
+def _edits(left: str, right: str) -> int:
+    """Letter edits between 2 words; swapping 2 neighbouring letters counts as 1."""
+    previous2: list[int] = []
+    previous = list(range(len(right) + 1))
+    for i, a in enumerate(left, 1):
+        current = [i]
+        for j, b in enumerate(right, 1):
+            best = min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a != b))
+            if i > 1 and j > 1 and a == right[j - 2] and left[i - 2] == b:
+                best = min(best, previous2[j - 2] + 1)
+            current.append(best)
+        previous2, previous = previous, current
+    return previous[-1]
+
+
+def _allowed_edits(word: str) -> int:
+    """Short words and anything with a digit ("1ST", "35W") must match exactly."""
+    if any(ch.isdigit() for ch in word) or len(word) <= 3:
+        return 0
+    return 1 if len(word) <= 5 else 2
+
+
+def _close_word(typed: str, official: str) -> int | None:
+    cost = _edits(typed, official)
+    return cost if cost <= _allowed_edits(official) else None
+
+
+def _close_city_ending(city: str, requested: str) -> tuple[int, int] | None:
+    """Where a misspelled postal city starts in the typed text, and its edits."""
+    words = _city_words(city)
+    tokens = list(re.finditer(r"[A-Z0-9'&/.-]+", requested))
+    if len(tokens) <= len(words):
+        return None  # The street must come before the city.
+    tail = tokens[-len(words) :]
+    typed = _city_words(" ".join(token.group() for token in tail))
+    if len(typed) != len(words):
+        return None
+    costs = [_close_word(a, b) for a, b in zip(typed, words, strict=True)]
+    if None in costs or not 0 < sum(costs) <= 2:
+        return None
+    return tail[0].start(), sum(costs)
+
+
+def _street_parts(street: str) -> tuple[str | None, str | None, str | None, list]:
+    words = [_ORDINALS.get(word, word) for word in street.split()]
+    before = words.pop(0) if len(words) > 1 and words[0] in _DIRECTIONS else None
+    after = words.pop() if len(words) > 1 and words[-1] in _DIRECTIONS else None
+    kind = words.pop() if len(words) > 1 and words[-1] in _STREET_TYPES else None
+    return before, after, kind, words
+
+
+def _near_street(supplied: str, expected: str) -> int | None:
+    """Edit cost when the typed street is a close misspelling of the official one.
+
+    Compass points, the street type and every word with a digit must agree
+    exactly, so "1st" never becomes "2nd" and "NE" never becomes "NW". The
+    name may carry 1 extra word ("Ojibwa Park Rd" for "Ojibwa Rd") and each
+    name word may be off by 1 letter (up to 5 letters long) or 2 (longer).
+    A result is only ever offered as a choice for the reader to confirm.
+    """
+    s_before, s_after, s_kind, s_name = _street_parts(supplied)
+    e_before, e_after, e_kind, e_name = _street_parts(expected)
+    if (s_before, s_after) != (e_before, e_after) or s_kind not in (None, e_kind):
+        return None
+    # A compass point or the official street type cannot hide inside the name.
+    if not e_name or any(word in _DIRECTIONS or word == e_kind for word in s_name):
+        return None
+    extra = len(s_name) - len(e_name)
+    if extra not in (0, 1):
+        return None
+    best = None
+    for skip in range(len(s_name)) if extra else (None,):
+        if skip is not None and _allowed_edits(s_name[skip]) == 0:
+            continue  # Never ignore a number or a short word.
+        kept = [word for i, word in enumerate(s_name) if i != skip]
+        costs = [_close_word(a, b) for a, b in zip(kept, e_name, strict=True)]
+        if None in costs:
+            continue
+        cost = sum(costs) + 2 * extra
+        if cost <= 3 and (best is None or cost < best):
+            best = cost
+    return best
+
+
 def _choice(address: str) -> dict:
     return {
         "id": hashlib.sha256(address.encode()).hexdigest(),
@@ -333,6 +445,29 @@ def historical_address_points(
     alternate_street: str | None = None,
 ) -> set[tuple[float, float]] | None:
     """Locate the building only. Election-day maps decide the voting districts."""
+    return _historical_points(address, alternate_street)
+
+
+_RURAL_PLACE = re.compile(r"\b(?:TOWNSHIP|TWP|UNORGANIZED TERRITORY)\b")
+
+
+def historical_township_points(
+    address: StreetAddress,
+) -> set[tuple[float, float]] | None:
+    """Building points the state map files under a township, not the postal city.
+
+    Weaker than a postal-city match: callers must still confirm the official
+    range report against the precinct these points fall in.
+    """
+    return _historical_points(address, None, township=True)
+
+
+def _historical_points(
+    address: StreetAddress,
+    alternate_street: str | None,
+    *,
+    township: bool = False,
+) -> set[tuple[float, float]] | None:
     # These values came from an exact SOS range. Check them again before
     # forming a government GIS filter, which never contains the street or unit.
     if type(address.house_number) is not int or not re.fullmatch(
@@ -376,7 +511,14 @@ def historical_address_points(
             or str(attrs.get("anumberpre") or "").strip()
         ):
             continue
-        if not any(
+        if township:
+            # No postal city at all, and filed under a township or unorganized
+            # territory, which is never itself a postal city.
+            if str(attrs.get("postcomm") or "").strip() or not _RURAL_PLACE.search(
+                str(attrs.get("ctu_name") or "").upper()
+            ):
+                continue
+        elif not any(
             _city_words(str(attrs.get(field) or "")) == expected_city
             for field in ("postcomm", "ctu_name")
         ):
@@ -457,6 +599,7 @@ def _parse_with_rows(
     *,
     prefix: bool = False,
     alternate_spelling: bool = False,
+    near_miss: bool = False,
 ) -> list[StreetAddress]:
     """Match all supplied words against source streets, not coordinates or incumbents.
 
@@ -465,7 +608,11 @@ def _parse_with_rows(
     the city) is read as that unit. 2 different units are never reconciled.
     """
     matches = _parse_rows_once(
-        text, rows, prefix=prefix, alternate_spelling=alternate_spelling
+        text,
+        rows,
+        prefix=prefix,
+        alternate_spelling=alternate_spelling,
+        near_miss=near_miss,
     )
     if matches:
         return matches
@@ -489,6 +636,7 @@ def _parse_with_rows(
             rows,
             prefix=prefix,
             alternate_spelling=alternate_spelling,
+            near_miss=near_miss,
         )
         if matches:
             return matches
@@ -499,6 +647,7 @@ def _parse_with_rows(
         rows,
         prefix=prefix,
         alternate_spelling=alternate_spelling,
+        near_miss=near_miss,
         unit=unit_text,
     )
 
@@ -532,6 +681,7 @@ def _parse_rows_once(
     *,
     prefix: bool = False,
     alternate_spelling: bool = False,
+    near_miss: bool = False,
     unit: str = "",
 ) -> list[StreetAddress]:
     supplied_unit = " ".join(unit.upper().split())
@@ -544,11 +694,15 @@ def _parse_rows_once(
     number, fraction, suffix, remainder, zip_code = found.groups()
     remainder = remainder.strip(" ,")
     state = re.search(r"(?:,?\s+)([A-Z]{2}|MINNESOTA)$", remainder)
-    if state and state.group(1) in SUPPORTED_STATES | {"MINNESOTA"}:
+    if state and (
+        state.group(1) == "MINNESOTA"
+        or _names_a_state(remainder[: state.start(1)], state.group(1), zip_code)
+    ):
         if state.group(1) not in ("MN", "MINNESOTA"):
             return []
         remainder = remainder[: state.start()].strip(" ,")
     matches: dict[tuple, StreetAddress] = {}
+    costs: dict[tuple, int] = {}
     city_spellings: dict[tuple, str] = {}
     for row in rows:
         street, city = row.get("FullStreetName"), row.get("CityName")
@@ -557,10 +711,14 @@ def _parse_rows_once(
         if row.get("StateCode") != "MN" or row.get("ZipCode") != zip_code:
             continue
         requested = remainder
+        city_cost = 0
         # Postal city belongs to the address match, never to a municipal race.
         city_match = _city_ending(city).search(requested)
         if city_match:
             requested = requested[: city_match.start()].strip(" ,")
+        elif near_miss and (close := _close_city_ending(city, requested)):
+            city_start, city_cost = close
+            requested = requested[:city_start].strip(" ,")
         elif "," in requested:
             continue
         unit = supplied_unit
@@ -572,7 +730,16 @@ def _parse_rows_once(
             # "Street, Apt 3, City" leaves the separating comma behind.
             requested = requested[:unit_start].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)
-        if alternate_spelling:
+        cost = 0
+        if near_miss:
+            if expected == supplied or _spelling_choice(supplied, expected):
+                street_cost = 0
+            elif (street_cost := _near_street(supplied, expected)) is None:
+                continue
+            cost = city_cost + street_cost
+            if cost == 0:
+                continue
+        elif alternate_spelling:
             if not _spelling_choice(supplied, expected):
                 continue
         elif not (expected.startswith(supplied) if prefix else expected == supplied):
@@ -619,8 +786,13 @@ def _parse_rows_once(
             return []
         city_spellings[city_key] = address.city
         matches[key] = address
-    return list(matches.values())
+        costs[key] = min(cost, costs.get(key, cost))
+    # Closest spellings first; the source order breaks ties (sorted is stable).
+    return [matches[key] for key in sorted(matches, key=costs.__getitem__)]
 
+
+# A typed city's possible ZIPs are each read once; more than this is too broad.
+CITY_ZIP_LIMIT = 6
 
 # A shared street-table fetch is bounded by official_bytes (about 23 seconds).
 STREET_FETCH_WAIT_SECONDS = 30
@@ -757,6 +929,13 @@ class CandidateLookupService:
                 matches = _parse_with_rows(
                     choice["address"], rows, alternate_spelling=True
                 )
+                if not matches:
+                    # The state map names many rural homes by their township
+                    # ("First Assessment Unorganized Territory"), not their
+                    # postal city. The house, street and ZIP alone must then
+                    # find exactly 1 official street; the reader confirms it.
+                    street = choice["address"].partition(",")[0]
+                    matches = _parse_with_rows(f"{street} MN {zip_code}", rows)
                 if len(matches) == 1:
                     choice = _choice(_address_label(matches[0]))
             if len(matches) != 1:
@@ -782,7 +961,9 @@ class CandidateLookupService:
             rows = self.streets(zip_match.group(1))
             addresses = _parse_with_rows(text, rows, prefix=True)
             if not addresses:
-                addresses = _parse_with_rows(text, rows, alternate_spelling=True)
+                addresses = _parse_with_rows(
+                    text, rows, alternate_spelling=True
+                ) or _parse_with_rows(text, rows, near_miss=True)
             return self._eligible_choices(
                 [_choice(_address_label(address)) for address in addresses[:5]]
             )
@@ -903,6 +1084,51 @@ class CandidateLookupService:
                 "Official unit records unavailable"
             ) from None
 
+    def _city_zip_choices(self, text: str) -> list[dict]:
+        """Official addresses for typed text with a Minnesota city but no ZIP.
+
+        Used only after the state map has no answer, which happens for whole
+        areas it does not cover. The city's possible ZIPs come from a packaged
+        public list; only those public ZIP street tables are read, so the
+        address itself never leaves. Each ZIP must answer: a failed table could
+        hide a conflicting address, so a failure is unavailable, never a choice.
+        """
+        upper = normalize_address_format(text).upper().strip(" ,.")
+        state = re.search(r"(?:,?\s+)([A-Z]{2}|MINNESOTA)$", upper)
+        if state:
+            if state.group(1) not in ("MN", "MINNESOTA"):
+                return []
+            upper = upper[: state.start()].strip(" ,")
+        if not re.match(r"\d", upper):
+            return []
+        words = re.findall(r"[A-Z0-9'&/.-]+", upper)
+        zip_codes = None
+        for size in (4, 3, 2, 1):  # The longest city name wins.
+            if len(words) > size:
+                found = civic_zip_codes().get(
+                    tuple(_city_words(" ".join(words[-size:])))
+                )
+                if found:
+                    zip_codes = found
+                    break
+        if not zip_codes or len(zip_codes) > CITY_ZIP_LIMIT:
+            return []
+        with ThreadPoolExecutor(max_workers=len(zip_codes)) as executor:
+            tables = dict(zip(zip_codes, executor.map(self.streets, zip_codes)))
+        addresses: list[StreetAddress] = []
+        for zip_code in zip_codes:
+            candidate = f"{upper} MN {zip_code}"
+            addresses += _parse_with_rows(candidate, tables[zip_code]) or (
+                _parse_with_rows(candidate, tables[zip_code], alternate_spelling=True)
+            )
+        return self._eligible_choices(
+            list(
+                {
+                    _address_label(a): _choice(_address_label(a)) for a in addresses
+                }.values()
+            )
+        )
+
     def resolve(
         self, text: str, confirmed: dict | None = None
     ) -> tuple[StreetAddress, StreetRangeMatch] | dict:
@@ -916,7 +1142,7 @@ class CandidateLookupService:
             except RepresentativeLookupOutsideMinnesota:
                 return {"kind": "outside-minnesota"}
             except RepresentativeLookupNotFound:
-                return {"kind": "no-match"}
+                matches = []
             except (requests.RequestException, RepresentativeLookupUpstreamError):
                 raise CandidateLookupUnavailable(
                     "Government address service unavailable"
@@ -934,14 +1160,18 @@ class CandidateLookupService:
                         for choice in choices
                         if choice["address"][-5:] == confirmed["address"][-5:]
                     ]
-                    if confirmed not in self._eligible_choices(same_zip):
+                    if confirmed not in self._eligible_choices(
+                        same_zip
+                    ) and confirmed not in self._city_zip_choices(text):
                         return {"kind": "no-match"}
                 # Resolve only the chosen address. A source failure for an
                 # unrelated alternative must not block a valid confirmation.
                 text = confirmed["address"]
                 confirmed = None
             else:
-                choices = self._eligible_choices(choices)
+                choices = self._eligible_choices(choices) or self._city_zip_choices(
+                    text
+                )
                 # Even one geocoded answer may correct the street or locality.
                 # The reader must explicitly choose that complete address.
                 return (
@@ -955,12 +1185,25 @@ class CandidateLookupService:
         state_match = re.search(
             r"(?:,?\s+)([A-Z]{2})[, ]+\d{5}(?:-\d{4})?$", text.upper()
         )
-        if state_match and state_match.group(1) in SUPPORTED_STATES - {"MN"}:
+        if (
+            state_match
+            and state_match.group(1) != "MN"
+            and _names_a_state(
+                text.upper()[: state_match.start(1)],
+                state_match.group(1),
+                zip_match.group(1),
+            )
+        ):
             return {"kind": "outside-minnesota"}
         rows = self.streets(zip_match.group(1))
         matches = _parse_with_rows(text, rows)
         if not matches:
-            alternatives = _parse_with_rows(text, rows, alternate_spelling=True)
+            # Exact first; then known respellings; then close misspellings of
+            # the street or postal city. Every correction is a choice the
+            # reader must confirm, recomputed from this text on confirmation.
+            alternatives = _parse_with_rows(
+                text, rows, alternate_spelling=True
+            ) or _parse_with_rows(text, rows, near_miss=True)
             if alternatives:
                 choices = self._eligible_choices(
                     [_choice(_address_label(a)) for a in alternatives]
@@ -1071,6 +1314,10 @@ class CandidateLookupService:
         if points is None:
             return None
         needs_range_confirmation = not points or alternate is not None
+        if not points and not offline:
+            # Many rural homes are filed under a township, not the postal city.
+            # needs_range_confirmation stays set: the range report must agree.
+            points = historical_township_points(address) or set()
         points = points | facility_points(address) | county_address_points(address)
         if alternate:
             points |= facility_points(alternate) | county_address_points(alternate)
