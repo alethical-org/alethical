@@ -721,3 +721,17 @@ def test_a_new_server_waits_for_its_search_file_before_taking_traffic(monkeypatc
     monkeypatch.setattr(search.FILES, "ready", None)
     monkeypatch.setattr(search, "_warm", {"started": 100.0, "no_release": True})
     assert search.ready_for_traffic(now=150.0)
+
+
+def test_release_export_call_matches_the_census_command_line():
+    """The release calls the census export directly; its arguments must match the CLI."""
+    import inspect
+
+    from scripts import national_fcc_collect
+
+    parsed = national_fcc_collect.cli().parse_args(["export", "--out", "x"])
+    source = inspect.getsource(builder.prepare_release)
+    for name in vars(parsed):
+        if name in ("command", "out", "run_id"):
+            continue
+        assert f"{name}=" in source, f"prepare_release does not pass {name}"

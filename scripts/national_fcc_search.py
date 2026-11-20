@@ -1066,7 +1066,9 @@ def prepare_release(target: str, files, inputs: dict, work: Path) -> Path:
             national_fcc_db.restore_index(snapshot, inventory, files)
     census = work / "census.jsonl.gz"
     national_fcc_collect.cmd_export(
-        argparse.Namespace(run_id=inputs["census"]["run"], out=census)
+        argparse.Namespace(
+            run_id=inputs["census"]["run"], out=census, scratch=work / "census"
+        )
     )
     database = work / "search.sqlite"
     print(
