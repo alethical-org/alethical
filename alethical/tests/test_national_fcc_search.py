@@ -735,3 +735,41 @@ def test_release_export_call_matches_the_census_command_line():
         if name in ("command", "out", "run_id"):
             continue
         assert f"{name}=" in source, f"prepare_release does not pass {name}"
+
+
+def test_a_filing_whose_folder_has_no_year_is_searchable_under_its_upload_year(
+    tmp_path,
+):
+    rows = ROWS[:1] + [
+        (
+            "FM",
+            "30191",
+            "Political Files",
+            "Undated folder order",
+            "2025-03-04T10:00:00-05:00",
+            {"callsign": "WBVX", "city": "Lexington", "state": "KY"},
+        )
+    ]
+    out = tmp_path / "s.sqlite"
+    builder.build(
+        inventory(tmp_path / "inv.sqlite", rows),
+        out,
+        release=RELEASE,
+        originals=ORIGINALS,
+        minnesota=MINNESOTA,
+        census=CENSUS,
+        index_through="2026-11-16",
+    )
+    ready = search.Ready("r1", out, search._meta(out))
+    answer = search.filings(
+        ready,
+        q="undated",
+        year=2025,
+        doctype="all",
+        pdf_only=False,
+        sort="date",
+        page=1,
+    )
+    assert [(r["name"], r["folder"]) for r in answer["rows"]] == [
+        ("Undated folder order", "Political Files")
+    ]

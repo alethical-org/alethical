@@ -111,6 +111,11 @@ names in private R2, once that inventory covers every FCC day through November 1
 archive release's recovered index, so a backfill in progress never drops a filing that
 search already holds.
 
+A filing whose FCC folder carries no year (57 of the November 20, 2026 inventory's
+filings) is filed under the year it was uploaded, so it stays searchable; its folder
+shows as the FCC wrote it. The release job builds on the runner's larger `/mnt` disk,
+because a full-inventory build needs about 25 GB of scratch space at its peak.
+
 1. Check the inputs with `python scripts/national_fcc_search.py inputs`. It prints the
    SHA-256 of everything that determines the file: the file format, the inventory data's
    digest (or the archive release's index digest), the key, size and ETag of every census
@@ -209,7 +214,10 @@ Whole-day answers are therefore the authoritative source.
    `fcc-national/v1/history/daily/<day>/<sha>.json.gz`, and the ledger
    `fcc-national/v1/history/days.json` records its rows, political rows, distinct political
    filings and bytes. A day whose row count is a round number of at least 10,000 may have
-   hit a server cap, so it stays unverified and is fetched again. Complete days are skipped
+   hit a server cap. It becomes complete when the 2-day window with the next day returns
+   exactly its count plus the next day's (`confirmed_by` in the ledger); otherwise it stays
+   unverified and is fetched again. On November 20, 2026, 2022-05-20 (16,000 rows) and
+   2025-07-02 (64,000 rows) were confirmed this way. Complete days are skipped
    except the newest 3, which the FCC can still change. A run stops between days at the
    time limit, and the next run continues.
 2. `python -m scripts.national_fcc_history compact` folds every stored day into 1 row per

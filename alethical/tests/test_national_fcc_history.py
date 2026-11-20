@@ -66,12 +66,13 @@ def fcc(days: dict):
 
     def handler(request: httpx.Request) -> httpx.Response:
         start = request.url.params["startDate"]
-        assert request.url.params["endDate"] == start
+        end = request.url.params["endDate"]
         assert request.url.params["offset"] == "0"
         assert "count" not in request.url.params
         assert request.headers["User-Agent"] == history.USER_AGENT
-        calls.append(start)
-        queue = days.get(start, [answer([])])
+        name = start if end == start else f"{start}..{end}"
+        calls.append(name)
+        queue = days.get(name, [answer([])])
         item = queue.pop(0) if len(queue) > 1 else queue[0]
         if isinstance(item, httpx.Response):
             return item
@@ -191,7 +192,7 @@ def test_a_round_capped_looking_day_is_kept_unverified_and_fetched_again(tmp_pat
     fetch(store, http, FakeTime(), "--from", "2024-10-01", "--to", "2024-10-01")
     assert history.load_ledger(store)["days"]["2024-10-01"]["status"] == "unverified"
     fetch(store, http, FakeTime(), "--from", "2024-10-01", "--to", "2024-10-01")
-    assert calls == ["2024-10-01", "2024-10-01"]
+    assert [c for c in calls if c == "2024-10-01"] == ["2024-10-01", "2024-10-01"]
     status = io.StringIO()
 
     with contextlib.redirect_stdout(status):
@@ -330,3 +331,38 @@ def test_transfer_events_reconcile_and_filings_only_it_holds_are_reported(tmp_pa
         rows["TV|035097|a"]["ev"] == 2
     )  # the same event from both sources counts once
     assert rows["TV|035097|a"]["h"] == "new"
+
+
+def test_a_round_day_is_complete_when_the_two_day_window_adds_exactly_the_next_day(
+    tmp_path,
+):
+    store = store_at(tmp_path)
+    round_day = [event(f"id{i}") for i in range(10_000)]
+    next_day = [event(f"nx{i}") for i in range(37)]
+    http, calls = fcc(
+        {
+            "2024-10-01": [answer(round_day)],
+            "2024-10-02": [answer(next_day)],
+            "2024-10-01..2024-10-02": [answer(round_day + next_day)],
+        }
+    )
+    fetch(store, http, FakeTime(), "--from", "2024-10-01", "--to", "2024-10-01")
+    day = history.load_ledger(store)["days"]["2024-10-01"]
+    assert day["status"] == "complete"
+    assert day["confirmed_by"] == "2024-10-01..2024-10-02: 10037 = 10000 + 37"
+
+
+def test_a_capped_two_day_window_keeps_the_round_day_unverified(tmp_path):
+    store = store_at(tmp_path)
+    round_day = [event(f"id{i}") for i in range(10_000)]
+    http, _ = fcc(
+        {
+            "2024-10-01": [answer(round_day)],
+            "2024-10-02": [answer([event("nx1")])],
+            # A server cap answers the larger window with the same round count.
+            "2024-10-01..2024-10-02": [answer(round_day)],
+        }
+    )
+    fetch(store, http, FakeTime(), "--from", "2024-10-01", "--to", "2024-10-01")
+    day = history.load_ledger(store)["days"]["2024-10-01"]
+    assert day["status"] == "unverified" and "confirmed_by" not in day
