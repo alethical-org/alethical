@@ -63,9 +63,12 @@ stations is checked like any other. Without an inventory pointer the command doe
 nothing. The manifest records the inventory read for filings (`synced_inventory`) and for
 years (`prioritized_inventory`), and an inventory already read for both adds nothing.
 
-The **Check national FCC filing PDFs** workflow runs every 30 minutes on GitHub's
-servers, one run at a time: the sync, then the oversize lane, then the main run for up
-to 4 hours 30 minutes. A failed sync leaves the work list unchanged and the checking continues.
+The **Check national FCC filing PDFs** workflow runs back to back on GitHub's servers,
+one run at a time: the sync, then the oversize lane, then the main run for up to 4 hours
+30 minutes, then a step that starts the next run. GitHub fired the 30-minute schedule only
+3 times in 24 hours on Nov 19 to 20, 2026, leaving 1.5 to 4.5 hours idle between runs, so
+the schedule is only the fallback after a failed run. A failed sync leaves the work list
+unchanged and the checking continues.
 The main run takes never-checked filings first, newest folder year first (2026, 2025 and
 so on back to 2012), then filings with no readable year; within a year it keeps work-list
 order, from the oldest part forward. Due retries follow, in work-list order. It starts
