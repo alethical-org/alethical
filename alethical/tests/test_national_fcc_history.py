@@ -156,6 +156,26 @@ def test_the_newest_event_sets_the_latest_state_whatever_the_source_order(tmp_pa
     assert row["ls"] == "2024-11-03T13:30:00Z"
 
 
+def test_the_upload_time_is_the_earliest_event_not_a_later_delete(tmp_path):
+    store = store_at(tmp_path)
+    uploaded = event("f", "new", "2012-09-10T11:00:00-04:00")
+    uploaded["create_ts"] = "2012-09-10T11:00:00-04:00"
+    # The FCC writes a delete event's own time into create_ts.
+    deleted = event("f", "delete", "2024-11-03T10:49:25-05:00")
+    deleted["create_ts"] = "2024-11-03T10:49:25-05:00"
+    http, _ = fcc(
+        {"2012-09-10": [answer([uploaded])], "2024-11-03": [answer([deleted])]}
+    )
+    fetch(store, http, FakeTime(), "--from", "2012-09-10", "--to", "2012-09-10")
+    fetch(store, http, FakeTime(), "--from", "2024-11-03", "--to", "2024-11-03")
+    compact(store, tmp_path)
+    _, rows = inventory(store)
+    row = rows["TV|035097|f"]
+    assert row["h"] == "delete"
+    assert row["c"] == "2024-11-03T10:49:25-05:00"
+    assert row["uc"] == "2012-09-10T11:00:00-04:00"
+
+
 def test_a_busy_answer_is_retried_and_the_day_then_completes(tmp_path):
     store = store_at(tmp_path)
     busy = httpx.Response(503, headers={"Retry-After": "30"})

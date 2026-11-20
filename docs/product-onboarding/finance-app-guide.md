@@ -668,7 +668,8 @@ one names its exact saved version and page.
     provider and FCC file ID (Enter applies at once; clearing restores the year's list),
     File year, Document type (All types, or Orders and contracts, which matches filename
     words only), Has filing PDF and Sort (Newest upload first, Name A–Z). Columns:
-    Filing (with FCC folder), Station or provider (with service), Uploaded, FCC file ID,
+    Filing (with FCC folder), Station or provider (with service), Uploaded (the original
+    upload date, also for a filing the station later deleted), FCC file ID,
     Order number (Orders and contracts only; "Not checked"), Filing PDF and Source.
     Filing PDF reads **Open** for a verified saved PDF (Minnesota copies open their TV
     station file; others open the national file reader), **Not available** only after a

@@ -567,10 +567,12 @@ class Fold:
     """Latest state per filing, folded in an on-disk SQLite scratch file."""
 
     UPSERT = """
-        INSERT INTO latest (k, o, row, src, tw) VALUES (?, ?, ?, ?, ?)
+        INSERT INTO latest (k, o, row, src, tw, fo, fc) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (k) DO UPDATE SET
           row = CASE WHEN excluded.o > latest.o THEN excluded.row ELSE latest.row END,
           o = max(latest.o, excluded.o),
+          fc = CASE WHEN excluded.fo < latest.fo THEN excluded.fc ELSE latest.fc END,
+          fo = min(latest.fo, excluded.fo),
           src = latest.src | excluded.src,
           tw = coalesce(min(latest.tw, excluded.tw), latest.tw, excluded.tw)
     """
@@ -591,7 +593,8 @@ class Fold:
         )
         self.db.execute(
             "CREATE TABLE latest (k TEXT PRIMARY KEY, o TEXT NOT NULL,"
-            " row BLOB NOT NULL, src INTEGER NOT NULL, tw TEXT) WITHOUT ROWID"
+            " row BLOB NOT NULL, src INTEGER NOT NULL, tw TEXT,"
+            " fo TEXT NOT NULL, fc TEXT) WITHOUT ROWID"
         )
         self.events = []
         self.states = []
@@ -612,8 +615,18 @@ class Fold:
         created = utc(event.get("create_ts"))
         order = f"{updated or ZERO_TIME}{created or ZERO_TIME}{self.seq:015d}"
         self.events.append((row["k"], digest, updated or created))
+        # The earliest event's create_ts, as the FCC wrote it, is the upload time:
+        # a later delete, rename or move carries its own date in create_ts.
         self.states.append(
-            (row["k"], order, zlib.compress(dumps(row).encode(), 1), source, window)
+            (
+                row["k"],
+                order,
+                zlib.compress(dumps(row).encode(), 1),
+                source,
+                window,
+                f"{created or updated or ZERO_TIME}{self.seq:015d}",
+                event.get("create_ts"),
+            )
         )
         if len(self.states) >= BATCH:
             self.flush()
@@ -629,14 +642,17 @@ class Fold:
         rows = 0
         years = Counter()
         transfer_only = Counter()
-        states = self.db.execute("SELECT k, row, src, tw FROM latest ORDER BY k")
+        states = self.db.execute("SELECT k, row, src, tw, fc FROM latest ORDER BY k")
         events = self.db.cursor().execute(
             "SELECT k, min(t), max(t), count(*) FROM ev GROUP BY k ORDER BY k"
         )
         with gzip_writer(target) as out:
-            for (key, packed, source, window), (other, first, last, count) in zip(
-                states, events, strict=True
-            ):
+            for (key, packed, source, window, first_created), (
+                other,
+                first,
+                last,
+                count,
+            ) in zip(states, events, strict=True):
                 if key != other:
                     raise RuntimeError(f"Fold tables disagree at {key} / {other}")
                 row = json.loads(zlib.decompress(packed))
@@ -644,6 +660,8 @@ class Fold:
                     row["fs"] = first
                     row["ls"] = last
                 row["ev"] = count
+                if first_created:
+                    row["uc"] = first_created
                 out.write((dumps(row) + "\n").encode())
                 rows += 1
                 year = YEAR.match(row.get("p", ""))
