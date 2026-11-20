@@ -359,6 +359,8 @@ def create_app() -> FastAPI:
     def readyz() -> JSONResponse:
         if not database_schema_is_ready():
             return JSONResponse(status_code=503, content={"status": "not_ready"})
+        if not finance_national_search.ready_for_traffic():
+            return JSONResponse(status_code=503, content={"status": "loading_search"})
         return JSONResponse(content={"status": "ready"})
 
     app.include_router(mail_upload_router, prefix="/api/v1")

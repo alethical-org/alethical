@@ -709,6 +709,20 @@ def test_manifests_larger_than_one_mebibyte_are_read_whole():
     assert len(builder.read_json(files, "k")["days"]) == 20000
 
 
+def test_a_new_server_waits_for_its_search_file_before_taking_traffic(monkeypatch):
+    monkeypatch.setattr(search, "_warm", {"started": 100.0, "no_release": False})
+    monkeypatch.setattr(search.FILES, "ready", None)
+    monkeypatch.setattr(search.FILES, "failed", None)
+    monkeypatch.setattr(search.FILES, "loading", "r1")
+    assert not search.ready_for_traffic(now=150.0)
+    assert search.ready_for_traffic(now=100.0 + search.WARM_GRACE_SECONDS)
+    monkeypatch.setattr(search.FILES, "ready", object())
+    assert search.ready_for_traffic(now=150.0)
+    monkeypatch.setattr(search.FILES, "ready", None)
+    monkeypatch.setattr(search, "_warm", {"started": 100.0, "no_release": True})
+    assert search.ready_for_traffic(now=150.0)
+
+
 def test_release_export_call_matches_the_census_command_line():
     """The release calls the census export directly; its arguments must match the CLI."""
     import inspect

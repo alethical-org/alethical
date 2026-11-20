@@ -63,7 +63,7 @@ Adding an optional setting to production also requires adding its intended live 
 
 ## Backend on Railway
 
-Use the repository `railway.json` config from the repo root. It configures a service named `alethical-api` using the RAILPACK builder. Railway runs Alembic before starting the new API, then checks `/readyz`; that endpoint returns success only when the database is reachable and is at the migration version the code expects. A failed migration or readiness check leaves the previous API serving.
+Use the repository `railway.json` config from the repo root. It configures a service named `alethical-api` using the RAILPACK builder. Railway runs Alembic before starting the new API, then checks `/readyz`; that endpoint returns success only when the database is reachable and is at the migration version the code expects, and once the national FCC search file is loaded (or 4 minutes after start, whichever comes first). A failed migration or readiness check leaves the previous API serving.
 
 ### Restricted political mail activation
 

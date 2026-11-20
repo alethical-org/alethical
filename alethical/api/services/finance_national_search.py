@@ -204,18 +204,40 @@ FILES = SearchFiles(
 )
 
 
+# A new server reports ready once its search file is loaded, so a deploy or
+# restart keeps the previous server answering searches meanwhile. After this
+# long it reports ready anyway and searches answer "Filings are loading".
+WARM_GRACE_SECONDS = 240
+_warm = {"started": None, "no_release": False}
+
+
 def warm() -> None:
     """Start copying the active search file when the server starts."""
     from alethical.db.session import get_session_factory
+
+    _warm["started"] = time.monotonic()
 
     def run():
         try:
             with get_session_factory()() as db:
                 FILES.current(db)
+        except LookupError:
+            _warm["no_release"] = True
         except Exception:  # noqa: BLE001 - a search request retries the load
             pass
 
     threading.Thread(target=run, daemon=True).start()
+
+
+def ready_for_traffic(now: float | None = None) -> bool:
+    started = _warm["started"]
+    if started is None or _warm["no_release"] or FILES.ready is not None:
+        return True
+    if FILES.failed and FILES.loading is None:
+        return True
+    return (
+        now if now is not None else time.monotonic()
+    ) - started >= WARM_GRACE_SECONDS
 
 
 # ------------------------------------------------------------------ queries
