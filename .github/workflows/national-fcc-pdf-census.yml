@@ -33,9 +33,9 @@ jobs:
       # work list as it was, so checking continues either way.
       - name: Add new inventory filings to the work list
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 35
         run: uv run --no-sync python scripts/national_fcc_collect.py sync --inventory-current
       - name: Check filings until the time limit
         run: |
           uv run --no-sync python scripts/national_fcc_collect.py run --oversize --max-seconds 1800 --workers 1 --rate-start 1 --rate-max 2
-          uv run --no-sync python scripts/national_fcc_collect.py run --max-seconds 17100 --workers 16 --rate-start 4 --rate-max 8
+          uv run --no-sync python scripts/national_fcc_collect.py run --max-seconds 16200 --workers 16 --rate-start 4 --rate-max 8

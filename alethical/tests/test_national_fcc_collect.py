@@ -291,13 +291,17 @@ def memory_queue(work, results, now, lane=False):
             )
         )
     ]
-    queue.sort(key=lambda r: r["k"] in state)
+    # Never-checked first, newest folder year first and no year last; then retries.
+    # Each in work-list order.
+    queue.sort(
+        key=lambda r: (r["k"] in state, -(r.get("y") or 0) * (r["k"] not in state))
+    )
     return [(r["k"], r["m"]) for r in queue]
 
 
 def memory_status(work, results):
     state = collect.latest_state(results)
-    tally, shas, saved_bytes = Counter(), set(), 0
+    tally, years, shas, saved_bytes = Counter(), Counter(), set(), 0
     for row in work:
         if "held" in row:
             tally["held_" + row["held"]] += 1
@@ -305,6 +309,7 @@ def memory_status(work, results):
         entry = state.get(row["k"])
         if entry is None:
             tally["not_checked"] += 1
+            years[row.get("y", 0)] += 1
             continue
         verdict = collect.settled(entry)
         if verdict == "saved":
@@ -323,6 +328,10 @@ def memory_status(work, results):
     return {
         "work_rows": len(work),
         "filings": dict(sorted(tally.items())),
+        "not_checked_by_year": {
+            str(year or "none"): years[year]
+            for year in sorted(years, key=lambda y: -y or 1)
+        },
         "distinct_saved_pdfs": len(shas),
         "distinct_saved_bytes": saved_bytes,
     }
@@ -407,6 +416,8 @@ def sample_run(seed=7, filings=300, rows=1500):
     for i in range(filings):
         row = {"k": f"TV|{i % 37}|f{i}", "s": "TV", "e": i % 37, "f": f"f{i}"}
         row |= {"m": f"{i:08x}-0000-0000-0000-000000000000", "n": i}
+        if i % 5:
+            row["y"] = 2012 + i % 15  # the rest have no folder year
         if i % 23 == 0:
             row["held"] = "archive"
         elif i % 31 == 0:
@@ -449,9 +460,12 @@ def census_for(tmp_path, store):
 def check_equal(census, work, results):
     for now in (0, 86400, 2 * 86400, 4 * 86400, 10**6 + 16_000, 10**6 + 21_609, 10**9):
         for lane in (False, True):
-            got = [(r["k"], r["m"]) for r in census.queue(now, lane, batch=7)]
-            assert got == memory_queue(work, results, now, lane)
-            assert census.queue_size(now, lane) == len(got)
+            expected = memory_queue(work, results, now, lane)
+            # Batches resume where the last stopped: every filing once, in order.
+            for batch in (1, 7, 5000):
+                got = [(r["k"], r["m"]) for r in census.queue(now, lane, batch=batch)]
+                assert got == expected
+            assert census.queue_size(now, lane) == len(expected)
     assert census.status() == memory_status(work, results)
     assert list(census.export_rows()) == list(memory_export(work, results))
 
@@ -606,6 +620,7 @@ def test_sync_appends_new_filings_and_newer_download_ids(tmp_path):
         "part": 2,
         "new": 41,
         "updates": 2,
+        "years": 0,
     }
     manifest = json.loads(store.objects[f"{PREFIX}/manifest.json"])
     # Older readers still find part 1 under its unchanged top-level digest.
@@ -665,6 +680,7 @@ def test_a_later_inventory_adds_only_filings_no_part_holds(tmp_path):
         "part": None,
         "new": 0,
         "updates": 0,
+        "years": 0,
     }
     manifest = json.loads(store.objects[f"{PREFIX}/manifest.json"])
     assert len(manifest["parts"]) == 3 and manifest["synced_inventory"] == "inv-3"
@@ -681,3 +697,208 @@ def test_sync_refuses_an_inventory_that_fails_its_digest(tmp_path):
     with pytest.raises(ValueError):
         census_for(tmp_path, store).sync_inventory()
     assert "parts" not in json.loads(store.objects[f"{PREFIX}/manifest.json"])
+
+
+# ---------------------------------------------------------------- newest years first
+
+
+def folder(year):
+    return f"Political Files/{year}/Federal/US House/District 5"
+
+
+def keys(census, now=10**9, batch=3):
+    return [r["k"] for r in census.queue(now, batch=batch)]
+
+
+def test_sync_records_folder_years_and_the_run_takes_the_newest_first(tmp_path):
+    store = ObjectStore()
+    put_worklist(store, first_part())
+    put_results(
+        store, "1700000000-1-00001.jsonl.gz", [outcome("retry", 0) | {"k": "TV|2|c"}]
+    )
+    put_inventory(
+        store,
+        "inv-1",
+        [
+            inv("TV|1|a", M1, p=folder(2014)),
+            inv("TV|1|b", p=folder(2026)),
+            inv("TV|2|c", M1, p=folder(2026)),  # checked once: a retry keeps id order
+            inv("TV|2|d", M1, p="Political Files/2020"),  # the year folder itself
+            inv("TV|3|g", M1, p=folder(2026)),  # held, so no year is recorded
+            inv("TV|28010|e", M1, p=folder(2026)),  # held Minnesota copy
+            inv("CABLE|9|n1", M2, p=folder(2024)),
+            inv("CABLE|9|n2", M2, p="Political Files/20x4/Federal"),  # no year
+            inv("CABLE|9|n3", M2, p=folder(2026)),
+            inv("CABLE|9|n4", M2),  # no folder at all
+        ],
+    )
+    census = census_for(tmp_path, store)
+    assert census.sync_inventory() == {
+        "sync": "appended",
+        "inventory_id": "inv-1",
+        "part": 2,
+        "new": 4,
+        "updates": 0,
+        "years": 4,
+    }
+    manifest = json.loads(store.objects[f"{PREFIX}/manifest.json"])
+    assert manifest["prioritized_inventory"] == manifest["synced_inventory"] == "inv-1"
+    assert manifest["parts"][1]["years"] == 4
+    rows = list(collect.read_gz_lines(store.objects[f"{PREFIX}/worklist-2.jsonl.gz"]))
+    added = [r for r in rows if "s" in r]
+    # Added filings carry their year; listed filings get 1 year row each.
+    assert {r["k"]: r.get("y") for r in added} == {
+        "CABLE|9|n1": 2024,
+        "CABLE|9|n2": None,
+        "CABLE|9|n3": 2026,
+        "CABLE|9|n4": None,
+    }
+    assert [r for r in rows if "s" not in r] == [
+        {"k": "TV|1|a", "y": 2014},
+        {"k": "TV|1|b", "y": 2026},
+        {"k": "TV|2|c", "y": 2026},
+        {"k": "TV|2|d", "y": 2020},
+    ]
+
+    reopened = census_for(tmp_path, store)
+    reopened.load(reopened.manifest())
+    no_year = [r["k"] for r in added if "y" not in r]
+    expected = [
+        "TV|1|b",  # 2026, part 1
+        "CABLE|9|n3",  # 2026, part 2
+        "CABLE|9|n1",  # 2024
+        "TV|2|d",  # 2020
+        "TV|1|a",  # 2014
+        *no_year,  # no year, in work-list order
+        "TV|2|c",  # the due retry
+    ]
+    for batch in (1, 2, 3, 100):
+        assert keys(reopened, batch=batch) == expected
+    assert reopened.queue_size(10**9) == len(expected)
+    status = reopened.status()
+    assert status["not_checked_by_year"] == {
+        "2026": 2,
+        "2024": 1,
+        "2020": 1,
+        "2014": 1,
+        "none": 2,
+    }
+    assert status["filings"]["not_checked"] == 7
+    assert status["work_rows"] == 6 + 4  # year rows are not filings
+
+
+def test_years_are_written_once_and_only_when_missing_or_changed(tmp_path):
+    store = ObjectStore()
+    put_worklist(store, first_part())
+    put_inventory(
+        store,
+        "inv-1",
+        [inv("TV|1|a", M1, p=folder(2012)), inv("TV|1|b", p=folder(2014))],
+    )
+    census = census_for(tmp_path, store)
+    assert census.sync_inventory()["years"] == 2
+    census.load(census.manifest())
+    assert keys(census) == ["TV|1|b", "TV|1|a", "TV|2|c", "TV|2|d"]
+
+    # The same inventory again writes nothing.
+    before = dict(store.objects)
+    assert census_for(tmp_path, store).sync_inventory()["sync"] == "current"
+    assert store.objects == before
+    # A later inventory with the same years writes no part.
+    put_inventory(
+        store,
+        "inv-2",
+        [inv("TV|1|a", M1, p=folder(2012)), inv("TV|1|b", p=folder(2014))],
+    )
+    assert census.sync_inventory() | {"inventory_id": None} == {
+        "sync": "nothing new",
+        "inventory_id": None,
+        "part": None,
+        "new": 0,
+        "updates": 0,
+        "years": 0,
+    }
+    # A changed year and a newly readable one are written; the latest wins.
+    put_inventory(
+        store,
+        "inv-3",
+        [
+            inv("TV|1|a", M1, p=folder(2016)),
+            inv("TV|1|b", p=folder(2014)),
+            inv("TV|2|d", M1, p=folder(2026)),
+        ],
+    )
+    assert census.sync_inventory()["years"] == 2
+    expected = ["TV|2|d", "TV|1|a", "TV|1|b", "TV|2|c"]
+    census.load(census.manifest())
+    assert keys(census) == expected
+    # A fresh scratch database reads every part at once and agrees.
+    fresh = census_for(tmp_path / "fresh", store)
+    fresh.load(fresh.manifest())
+    assert keys(fresh) == expected
+
+
+def test_a_run_already_synced_with_the_inventory_gets_a_years_only_part(tmp_path):
+    store = ObjectStore()
+    put_worklist(store, first_part())
+    # As an earlier version left the run: the inventory's 1 new filing in part 2,
+    # no years, and the inventory recorded as read.
+    put_inventory(
+        store,
+        "inv-1",
+        [inv("TV|1|a", M1, p=folder(2026)), inv("CABLE|9|x", M2, p=folder(2020))],
+    )
+    body = collect.gz_lines([inv("CABLE|9|x", M2) | {"n": 0}])
+    store.objects[f"{PREFIX}/worklist-2.jsonl.gz"] = body
+    manifest = json.loads(store.objects[f"{PREFIX}/manifest.json"])
+    manifest["parts"] = [
+        *collect.manifest_parts(manifest),
+        {
+            "key": "worklist-2.jsonl.gz",
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "bytes": len(body),
+            "rows": 1,
+        },
+    ]
+    manifest["synced_inventory"] = "inv-1"
+    store.objects[f"{PREFIX}/manifest.json"] = json.dumps(manifest).encode()
+    census = census_for(tmp_path, store)
+    census.load(census.manifest())
+    assert keys(census) == ["TV|1|a", "TV|1|b", "TV|2|c", "TV|2|d", "CABLE|9|x"]
+    status_before = census.status()
+
+    assert census.sync_inventory() == {
+        "sync": "appended",
+        "inventory_id": "inv-1",
+        "part": 3,
+        "new": 0,
+        "updates": 0,
+        "years": 2,
+    }
+    rows = list(collect.read_gz_lines(store.objects[f"{PREFIX}/worklist-3.jsonl.gz"]))
+    assert rows == [{"k": "CABLE|9|x", "y": 2020}, {"k": "TV|1|a", "y": 2026}]
+    census.load(census.manifest())
+    assert keys(census) == ["TV|1|a", "CABLE|9|x", "TV|1|b", "TV|2|c", "TV|2|d"]
+    # Only the order changed: the same filings and the same tallies.
+    status_after = census.status()
+    assert status_after["not_checked_by_year"] == {"2026": 1, "2020": 1, "none": 3}
+    for status in (status_before, status_after):
+        del status["not_checked_by_year"]
+    assert status_after == status_before
+    assert census.sync_inventory()["sync"] == "current"
+
+
+def test_a_work_list_without_years_keeps_work_list_order(tmp_path):
+    work, results = sample_run(seed=5)
+    for row in work:
+        row.pop("y", None)
+    store = ObjectStore()
+    put_worklist(store, work)
+    put_results(store, "1700000000-1-00001.jsonl.gz", results)
+    census = census_for(tmp_path, store)
+    census.load(census.manifest())
+    check_equal(census, work, results)
+    checked = {r["k"] for r in results}
+    never = [r["k"] for r in work if "held" not in r and r["k"] not in checked]
+    assert never and keys(census, batch=7)[: len(never)] == never
+    assert census.status()["not_checked_by_year"] == {"none": len(never)}

@@ -491,7 +491,7 @@ def due(entry, now: float, oversize_lane: bool = False) -> bool:
 # bounded however many filings and outcomes a run holds. The tests hold the two
 # equal on the same rows.
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 INSERT_BATCH = 50_000
 QUEUE_BATCH = 5000
 UUID_GLOB = "-".join("[0-9a-f]" * n for n in (8, 4, 4, 4, 12))
@@ -500,17 +500,21 @@ INVENTORY_POINTER = f"{PREFIX}/inventory/current.json"
 SCHEMA_SQL = """
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE work (id INTEGER PRIMARY KEY, part INTEGER, k TEXT, s, e, f, m TEXT, n,
-                   held TEXT, mn TEXT, upd);
+                   held TEXT, mn TEXT, upd, y INTEGER);
 CREATE TABLE results (id INTEGER PRIMARY KEY, k TEXT, o TEXT, t, v, h, sha TEXT, b, p,
                       mg TEXT);
 CREATE TABLE loaded (name TEXT PRIMARY KEY);
 """
 
 # Each line is bound as ?1 and read with SQLite's JSON operators, which keep JSON
-# integers as integers and strings as text, as Python's json module does.
+# integers as integers and strings as text, as Python's json module does. A filing
+# row always has "s". A row without it changes a listed filing: upd 1 for a newer
+# download id ("update"), upd 2 for the filing's folder year (``{"k", "y"}``).
 WORK_INSERT = (
-    "INSERT INTO work (part, k, s, e, f, m, n, held, mn, upd) SELECT ?2, j->>'k',"
-    " j->>'s', j->>'e', j->>'f', j->>'m', j->>'n', j->>'held', j->>'mn', j->>'update'"
+    "INSERT INTO work (part, k, s, e, f, m, n, held, mn, upd, y) SELECT ?2, j->>'k',"
+    " j->>'s', j->>'e', j->>'f', j->>'m', j->>'n', j->>'held', j->>'mn',"
+    " CASE WHEN j->>'update' IS NOT NULL THEN 1"
+    " WHEN json_type(j, '$.s') IS NULL THEN 2 END, j->>'y'"
     " FROM (SELECT ?1 AS j)"
 )
 RESULT_INSERT = (
@@ -518,17 +522,43 @@ RESULT_INSERT = (
     " j->>'t', j->>'v', j->>'h', j->>'sha', j->>'b', j->>'p', j->>'mg'"
     " FROM (SELECT ?1 AS j)"
 )
+# A filing's year is its FCC folder's: "Political Files/<YEAR>/...".
+FOLDER_YEAR = (
+    "CASE WHEN j->>'p' GLOB 'Political Files/[0-9][0-9][0-9][0-9]'"
+    " OR j->>'p' GLOB 'Political Files/[0-9][0-9][0-9][0-9]/*'"
+    " THEN CAST(substr(j->>'p', 17, 4) AS INTEGER) END"
+)
 INVENTORY_INSERT = (
-    "INSERT OR IGNORE INTO inv.filings (k, s, e, f, m, n) SELECT j->>'k', j->>'s',"
+    "INSERT OR IGNORE INTO inv.filings (k, s, e, f, m, n, y) SELECT j->>'k', j->>'s',"
     " j->>'e', j->>'f', CASE WHEN lower(j->>'m') GLOB ?2 THEN lower(j->>'m') ELSE ''"
-    " END, COALESCE(j->>'z', 0) FROM (SELECT ?1 AS j)"
+    f" END, COALESCE(j->>'z', 0), {FOLDER_YEAR} FROM (SELECT ?1 AS j)"
 )
 # A later part's newer download id replaces the one a filing was listed with.
 APPLY_UPDATES = """
-UPDATE work SET m = (SELECT u.m FROM work u WHERE u.upd IS NOT NULL AND u.k = work.k
+UPDATE work SET m = (SELECT u.m FROM work u WHERE u.upd = 1 AND u.k = work.k
                      ORDER BY u.id DESC LIMIT 1)
-WHERE upd IS NULL AND k IN (SELECT k FROM work WHERE upd IS NOT NULL)
+WHERE upd IS NULL AND k IN (SELECT k FROM work WHERE upd = 1)
 """
+# A later part's year for a listed filing. Year rows move to a keyed table, the
+# latest replacing earlier ones, before the work list's key index is built. The
+# update then reads the work list in order; the unary + keeps SQLite from probing
+# it by key instead. On 20 million filings this took 77 s against 140 s for an
+# update joined by key.
+STAGE_YEARS = (
+    "DROP TABLE IF EXISTS temp.years",
+    "CREATE TEMP TABLE years (k TEXT PRIMARY KEY, y) WITHOUT ROWID",
+    "INSERT OR REPLACE INTO years SELECT k, y FROM work WHERE upd = 2 ORDER BY id",
+    "DELETE FROM work WHERE upd = 2",
+)
+APPLY_YEARS = """
+UPDATE work SET y = (SELECT years.y FROM years WHERE years.k = work.k)
+WHERE +work.k IN (SELECT k FROM years)
+"""
+# Never-checked filings go newest folder year first and filings with no year last,
+# in work-list order within a year. The partial index holds that order, and each
+# batch resumes after the last (rank, id) it returned.
+NEXT_INDEX = "CREATE INDEX work_next ON work(COALESCE(-y, 0), id) WHERE held IS NULL"
+FIRST_RANK = -(1 << 62)
 
 # counts_as_refusal, settled and due, as SQL.
 REFUSAL_SQL = (
@@ -559,14 +589,28 @@ DUE_SQL = (
     f" ELSE :now >= s.vmax + {CONFIRM_GAP_SECONDS} END"
 )
 QUEUE_COLUMNS = ("k", "s", "e", "f", "m", "n")
+# The rest of the last batch's year, then the later years. Written as 2 index
+# ranges: SQLite does not seek an expression index by a row-value comparison.
 NEVER_CHECKED_SQL = """
-SELECT w.id, w.k, w.s, w.e, w.f, w.m, w.n FROM work w
-WHERE w.id > :after AND w.held IS NULL
-  AND NOT EXISTS (SELECT 1 FROM state s WHERE s.k = w.k)
-ORDER BY w.id LIMIT :limit
+SELECT * FROM (
+  SELECT COALESCE(-w.y, 0), w.id, w.k, w.s, w.e, w.f, w.m, w.n FROM work w
+  WHERE w.held IS NULL AND COALESCE(-w.y, 0) = :rank AND w.id > :after
+    AND NOT EXISTS (SELECT 1 FROM state s WHERE s.k = w.k)
+  ORDER BY w.id LIMIT :limit)
+UNION ALL
+SELECT * FROM (
+  SELECT COALESCE(-w.y, 0), w.id, w.k, w.s, w.e, w.f, w.m, w.n FROM work w
+  WHERE w.held IS NULL AND COALESCE(-w.y, 0) > :rank
+    AND NOT EXISTS (SELECT 1 FROM state s WHERE s.k = w.k)
+  ORDER BY COALESCE(-w.y, 0), w.id LIMIT :limit)
+ORDER BY 1, 2 LIMIT :limit
+"""
+NEVER_CHECKED_COUNT_SQL = """
+SELECT COUNT(*) FROM work w
+WHERE w.held IS NULL AND NOT EXISTS (SELECT 1 FROM state s WHERE s.k = w.k)
 """
 DUE_RETRY_SQL = f"""
-SELECT w.id, w.k, w.s, w.e, w.f, w.m, w.n FROM work w JOIN state s ON s.k = w.k
+SELECT 0, w.id, w.k, w.s, w.e, w.f, w.m, w.n FROM work w JOIN state s ON s.k = w.k
 WHERE w.id > :after AND w.held IS NULL AND s.verdict IS NULL AND ({DUE_SQL})
 ORDER BY w.id LIMIT :limit
 """
@@ -578,8 +622,9 @@ SELECT CASE
   WHEN s.verdict = 'unavailable' THEN 'confirmed_' || s.last_o
   WHEN s.last_o = 'oversize' THEN 'oversize_waiting'
   WHEN s.vcount = 0 THEN 'retry_waiting'
-  ELSE 'awaiting_confirmation_' || s.last_o END AS bucket, COUNT(*)
-FROM work w LEFT JOIN state s ON s.k = w.k GROUP BY bucket
+  ELSE 'awaiting_confirmation_' || s.last_o END AS bucket,
+  CASE WHEN w.held IS NULL AND s.k IS NULL THEN w.y END AS year, COUNT(*)
+FROM work w LEFT JOIN state s ON s.k = w.k GROUP BY bucket, year
 """
 # Distinct saved PDFs; each digest's size comes from its first filing in work order.
 SAVED_SQL = """
@@ -764,11 +809,17 @@ class Census:
         ]
         with self.changing():
             self.db.execute("DROP INDEX IF EXISTS work_k")
+            self.db.execute("DROP INDEX IF EXISTS work_next")
             for number, path in enumerate(paths, start=len(loaded) + 1):
                 self._insert_lines(WORK_INSERT, path, number)
+            for sql in STAGE_YEARS:
+                self.db.execute(sql)
             self.db.execute("CREATE INDEX work_k ON work(k)")
             self.db.execute(APPLY_UPDATES)
             self.db.execute("DELETE FROM work WHERE upd IS NOT NULL")
+            self.db.execute(APPLY_YEARS)
+            self.db.execute("DROP TABLE temp.years")
+            self.db.execute(NEXT_INDEX)
             self.set_meta("parts", json.dumps(digests))
 
     def load_results(self):
@@ -817,11 +868,11 @@ class Census:
 
     def queue_size(self, now: float, oversize_lane: bool = False) -> int:
         params = {"now": now, "lane": int(oversize_lane), "after": 0, "limit": -1}
-        total = 0
-        for sql in self._queue_sql(oversize_lane):
-            total += self.db.execute(
-                f"SELECT COUNT(*) FROM ({sql})", params
-            ).fetchone()[0]
+        total = self.db.execute(
+            f"SELECT COUNT(*) FROM ({DUE_RETRY_SQL})", params
+        ).fetchone()[0]
+        if not oversize_lane:
+            total += self.db.execute(NEVER_CHECKED_COUNT_SQL).fetchone()[0]
         return total
 
     @staticmethod
@@ -829,16 +880,18 @@ class Census:
         return [DUE_RETRY_SQL] if oversize_lane else [NEVER_CHECKED_SQL, DUE_RETRY_SQL]
 
     def queue(self, now: float, oversize_lane: bool = False, batch=QUEUE_BATCH):
-        """Never-checked filings in work-list order (oldest part first), then due
-        retries in the same order, selected batch by batch."""
+        """Never-checked filings, newest folder year first and filings with no year
+        last, in work-list order (oldest part first) within a year; then due retries
+        in work-list order. Selected batch by batch, each resuming after the last."""
         for sql in self._queue_sql(oversize_lane):
-            after = 0
+            rank, after = FIRST_RANK, 0
             while True:
                 rows = self.db.execute(
                     sql,
                     {
                         "now": now,
                         "lane": int(oversize_lane),
+                        "rank": rank,
                         "after": after,
                         "limit": batch,
                     },
@@ -846,15 +899,26 @@ class Census:
                 if not rows:
                     break
                 for row in rows:
-                    yield dict(zip(QUEUE_COLUMNS, row[1:]))
-                after = rows[-1][0]
+                    yield dict(zip(QUEUE_COLUMNS, row[2:]))
+                rank, after = rows[-1][:2]
 
     def status(self) -> dict:
-        tally = dict(self.db.execute(STATUS_SQL).fetchall())
+        tally, years = Counter(), Counter()
+        for bucket, year, count in self.db.execute(STATUS_SQL):
+            tally[bucket] += count
+            if bucket == "not_checked":
+                years["none" if year is None else str(year)] += count
         distinct, size = self.db.execute(SAVED_SQL).fetchone()
         return {
             "work_rows": self.db.execute("SELECT COUNT(*) FROM work").fetchone()[0],
             "filings": dict(sorted(tally.items())),
+            # In the order the run takes them.
+            "not_checked_by_year": {
+                year: years[year]
+                for year in sorted(
+                    years, key=lambda y: (1, 0) if y == "none" else (0, -int(y))
+                )
+            },
             "distinct_saved_pdfs": distinct,
             "distinct_saved_bytes": size,
         }
@@ -896,7 +960,9 @@ class Census:
 
     def sync_inventory(self) -> dict:
         """Appends 1 work-list part with every inventory filing no part holds yet,
-        plus newer download ids for listed filings still to be checked."""
+        newer download ids for listed filings still to be checked, and the folder
+        year of each listed filing still to be checked whose year it lacks or that
+        changed. Each kind is written at most once per inventory."""
         pointer = self.store.get_optional(INVENTORY_POINTER)
         if pointer is None:
             return {"sync": "skipped", "reason": "no inventory pointer yet"}
@@ -905,7 +971,9 @@ class Census:
         if inventory["inventory_id"] != pointer["inventory_id"]:
             raise ValueError("The inventory pointer and its manifest disagree")
         manifest = self.manifest()
-        if manifest.get("synced_inventory") == inventory["inventory_id"]:
+        synced = manifest.get("synced_inventory") == inventory["inventory_id"]
+        prioritized = manifest.get("prioritized_inventory") == inventory["inventory_id"]
+        if synced and prioritized:
             return {"sync": "current", "inventory_id": inventory["inventory_id"]}
         cache = self.root.parent / "inventory"
         cache.mkdir(exist_ok=True)
@@ -924,7 +992,7 @@ class Census:
             self.db.execute("PRAGMA inv.journal_mode=OFF")
             self.db.execute("PRAGMA inv.synchronous=OFF")
             self.db.execute(
-                "CREATE TABLE inv.filings (k TEXT PRIMARY KEY, s, e, f, m TEXT, n)"
+                "CREATE TABLE inv.filings (k TEXT PRIMARY KEY, s, e, f, m TEXT, n, y)"
             )
             self.db.execute("CREATE TABLE inv.ord (pos INTEGER PRIMARY KEY, rid)")
             self.db.execute("BEGIN")
@@ -936,7 +1004,9 @@ class Census:
             # Filings no part holds, in key order, then the fixed shuffle.
             fresh = array(
                 "q",
-                (
+                ()
+                if synced
+                else (
                     rid
                     for (rid,) in self.db.execute(
                         "SELECT i.rowid FROM inv.filings i WHERE NOT EXISTS"
@@ -955,20 +1025,41 @@ class Census:
             counts = Counter()
             path = self.root / "parts" / f"new-{number}.jsonl.gz"
             with gzip.GzipFile(path, "wb", compresslevel=6, mtime=0) as out:
-                for row in self.db.execute(
-                    "SELECT i.k, i.s, i.e, i.f, i.m, i.n FROM inv.ord o"
+                for *row, year in self.db.execute(
+                    "SELECT i.k, i.s, i.e, i.f, i.m, i.n, i.y FROM inv.ord o"
                     " JOIN inv.filings i ON i.rowid = o.rid ORDER BY o.pos"
                 ):
-                    out.write(_line(dict(zip(QUEUE_COLUMNS, row))))
+                    filing = dict(zip(QUEUE_COLUMNS, row))
+                    if year is not None:
+                        filing["y"] = year
+                    out.write(_line(filing))
                     counts["new"] += 1
                 # Newer download ids for listed filings that are still checked.
-                for k, m in self.db.execute(
-                    "SELECT i.k, i.m FROM inv.filings i JOIN main.work w ON w.k = i.k"
-                    " WHERE w.held IS NULL AND i.m != '' AND i.m != COALESCE(w.m, '')"
-                    " GROUP BY i.k ORDER BY i.k"
+                for k, m in (
+                    ()
+                    if synced
+                    else self.db.execute(
+                        "SELECT i.k, i.m FROM inv.filings i JOIN main.work w"
+                        " ON w.k = i.k WHERE w.held IS NULL AND i.m != ''"
+                        " AND i.m != COALESCE(w.m, '') GROUP BY i.k ORDER BY i.k"
+                    )
                 ):
                     out.write(_line({"k": k, "m": m, "update": 1}))
                     counts["updates"] += 1
+                # Folder years for listed filings that are still checked, so the
+                # run takes the newest years first. Only a missing or changed year
+                # is written, so a later inventory adds almost none.
+                for k, year in (
+                    ()
+                    if prioritized
+                    else self.db.execute(
+                        "SELECT i.k, i.y FROM inv.filings i JOIN main.work w"
+                        " ON w.k = i.k WHERE w.held IS NULL AND i.y IS NOT NULL"
+                        " AND i.y IS NOT w.y GROUP BY i.k ORDER BY i.k"
+                    )
+                ):
+                    out.write(_line({"k": k, "y": year}))
+                    counts["years"] += 1
         finally:
             if self.db.in_transaction:
                 self.db.execute("COMMIT")
@@ -979,6 +1070,7 @@ class Census:
             "part": number,
             "new": counts["new"],
             "updates": counts["updates"],
+            "years": counts["years"],
         }
         if counts:
             sha = file_sha256(path)
@@ -993,6 +1085,7 @@ class Census:
                     "bytes": path.stat().st_size,
                     "rows": counts["new"],
                     "updates": counts["updates"],
+                    "years": counts["years"],
                     "inventory_id": inventory["inventory_id"],
                     "through": inventory.get("through"),
                     "synced_at": int(time.time()),
@@ -1002,6 +1095,7 @@ class Census:
             path.unlink(missing_ok=True)
             summary["part"] = None
         manifest["synced_inventory"] = inventory["inventory_id"]
+        manifest["prioritized_inventory"] = inventory["inventory_id"]
         self.store.put_small(
             f"{self.prefix}/manifest.json",
             json.dumps(manifest).encode(),
