@@ -704,15 +704,23 @@ def cmd_compact(args, store, now=None):
         sha = file_sha(data)
         current = load_json(store, CURRENT)
         parent = load_json(store, current["manifest_key"]) if current else None
-        if parent and parent["sha256"] == sha:
+        through = contiguous_through(ledger["days"])
+        unverified = sorted(
+            d for d, r in ledger["days"].items() if r["status"] != "complete"
+        )
+        # The same filings can still need a new manifest: a confirmed day moves
+        # the date the inventory is complete through without changing a row.
+        if (
+            parent
+            and parent["sha256"] == sha
+            and parent.get("through") == through
+            and parent.get("unverified_days", []) == unverified
+        ):
             print(dumps({"unchanged": parent["inventory_id"], "rows": counts["rows"]}))
             return 0
         object_key = f"{INVENTORY}/sha256/{sha[:2]}/{sha}.jsonl.gz"
         store.put_once(object_key, data, "application/gzip")
         inventory_id = "inv-" + now.strftime("%Y%m%d%H%M")
-        unverified = sorted(
-            d for d, r in ledger["days"].items() if r["status"] != "complete"
-        )
         manifest = {
             "format": 1,
             "inventory_id": inventory_id,
@@ -720,7 +728,7 @@ def cmd_compact(args, store, now=None):
             "sha256": sha,
             "bytes": data.stat().st_size,
             "rows": counts["rows"],
-            "through": contiguous_through(ledger["days"]),
+            "through": through,
             "windows": (transfer or {}).get("windows", {}),
             "sources": sources,
             "parent": parent["inventory_id"] if parent else None,

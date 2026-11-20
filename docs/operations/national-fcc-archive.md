@@ -225,7 +225,8 @@ Whole-day answers are therefore the authoritative source.
    creation time, then source order sets the filing's state; the row also records its first
    and last event times and its number of distinct events. The data object and manifest are
    stored under `fcc-national/v1/inventory/`, read back and checked before
-   `inventory/current.json` points at them. Identical results write nothing. The manifest's
+   `inventory/current.json` points at them. Identical results write nothing; the same filings
+   with a new `through` date or unverified-day list get a new manifest. The manifest's
    `through` date is the last day before which every day since 2012 is complete.
 3. `python -m scripts.national_fcc_history transfer --zip ARCHIVE` adds the transfer
    archive's history pages as a reconciliation source. Compact folds its events in too, and
