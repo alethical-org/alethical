@@ -1094,11 +1094,14 @@ class CandidateLookupService:
         hide a conflicting address, so a failure is unavailable, never a choice.
         """
         upper = normalize_address_format(text).upper().strip(" ,.")
-        state = re.search(r"(?:,?\s+)([A-Z]{2}|MINNESOTA)$", upper)
-        if state:
-            if state.group(1) not in ("MN", "MINNESOTA"):
+        # The last word alone (a linear split, not a backtracking search).
+        last = upper.replace(",", " ").split()[-1:] or [""]
+        if last[0] == "MINNESOTA" or (
+            len(last[0]) == 2 and last[0] in SUPPORTED_STATES
+        ):
+            if last[0] not in ("MN", "MINNESOTA"):
                 return []
-            upper = upper[: state.start()].strip(" ,")
+            upper = upper[: -len(last[0])].strip(" ,")
         if not re.match(r"\d", upper):
             return []
         words = re.findall(r"[A-Z0-9'&/.-]+", upper)
