@@ -481,6 +481,29 @@ def test_an_inventory_that_fails_its_digest_is_refused(tmp_path):
         list(builder.inventory_rows(short, expected_rows=5))
 
 
+def test_a_deleted_filing_keeps_its_original_upload_time(tmp_path):
+    row = {
+        "k": "TV|23338|f",
+        "s": "TV",
+        "e": "23338",
+        "f": "f",
+        "m": "f",
+        "n": "Invoice 1",
+        "p": "Political Files/2012/Federal/President/BARACK OBAMA/69364",
+        "c": "2026-07-15T10:40:04-04:00",
+        "uc": "2012-09-10T11:00:00-04:00",
+        "h": "delete",
+    }
+    path = tmp_path / "inventory.jsonl.gz"
+    path.write_bytes(gzip.compress((json.dumps(row) + "\n").encode(), mtime=0))
+    (only,) = builder.inventory_rows(path)
+    assert only[6] == "2012-09-10T11:00:00-04:00"
+    del row["uc"]
+    path.write_bytes(gzip.compress((json.dumps(row) + "\n").encode(), mtime=0))
+    (only,) = builder.inventory_rows(path)
+    assert only[6] == "2026-07-15T10:40:04-04:00"
+
+
 def test_no_inventory_pointer_means_the_recovered_index():
     assert builder.inventory_manifest(FakeStore({})) is None
 

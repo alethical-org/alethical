@@ -226,7 +226,11 @@ Whole-day answers are therefore the authoritative source.
 2. `python -m scripts.national_fcc_history compact` folds every stored day into 1 row per
    filing in an on-disk SQLite scratch file. The event with the latest update time, then
    creation time, then source order sets the filing's state; the row also records its first
-   and last event times and its number of distinct events. The data object and manifest are
+   and last event times, its number of distinct events and, as `uc`, the earliest event's
+   `create_ts` as the FCC wrote it. That is the upload time Media buys shows: the FCC writes
+   a delete, rename or move event's own time into `create_ts`, so the latest event's value
+   would show a 2012 filing deleted on Jul 15, 2026 as uploaded that day. Deleted filings stay
+   searchable, because their PDFs still download from the FCC. The data object and manifest are
    stored under `fcc-national/v1/inventory/`, read back and checked before
    `inventory/current.json` points at them. Identical results write nothing; the same filings
    with a new `through` date or unverified-day list get a new manifest. The manifest's

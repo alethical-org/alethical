@@ -245,7 +245,7 @@ def inventory_rows(path: Path, expected_rows: int | None = None):
                 r["e"],
                 r.get("p"),
                 r.get("n"),
-                r.get("c"),
+                r.get("uc") or r.get("c"),
                 (r.get("m") or "").lower(),
                 {
                     "callsign": r.get("cs"),
