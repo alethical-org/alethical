@@ -119,6 +119,39 @@ Only Supabase auth, OpenAI (AI summaries + chat), and district lookup read
 secrets. The government data ingestion (Revisor bills, legislator roster, votes)
 needs no configuration. See `.env.example` for what each variable does.
 
+## Local and cloud startup details
+
+- **Install the 3 local Git hooks before any `git worktree add`.** `just install-hooks`
+  registers the tracked `.githooks/post-checkout` hook that locks new worktrees; git
+  cannot carry `core.hooksPath` in a clone, so until it runs worktrees are unprotected.
+- **Docker may not be running at session start.** On a VM, start it once before
+  `just up` or `just migrate`: `sudo bash -c 'nohup dockerd >/var/log/dockerd.log 2>&1 &'`,
+  then `sudo chmod 666 /var/run/docker.sock` if the socket is not group-accessible. The
+  first `just up` builds the image and installs dependencies inside the containers; watch
+  `docker compose ps` for `healthy`. Health check:
+  `curl http://localhost:8000/healthz` → `{"status":"ok"}`. `just up` applies pending
+  Alembic migrations to the dev database (port 54329) as the backend starts, unless
+  `ALETHICAL_SKIP_MIGRATIONS=1`.
+- **On Linux, `uv sync` compiles `erlpack` from source.** It has no wheel (it comes in
+  through `oban`). If its C++ build fails because the uv-managed Python's compiler cannot
+  find `libstdc++`, make GCC the default `c++` and `cc` and leave it that way.
+- **On a VM with rootful Docker, host `uv run pytest` needs its own log dir.** The
+  Dockerized backend runs as root and
+  writes the bind-mounted `logs/alethical-backend.log` as root, so host pytest cannot
+  open it: run `ALETHICAL_LOG_DIR=/tmp/alethical-logs uv run pytest`. Pytest seeds
+  `scripts/load_sample_data.py` into its own temporary Postgres, not the running app's
+  database.
+- **Keep `OPENAI_API_KEY` unset in `.env` for keyless local dev.** The `.env.example`
+  placeholder `sk-xxx` makes the code hit the real OpenAI API, so a RAG test fails with
+  401 and AI features fail at run time; unset, it falls back to hash embeddings (matches
+  CI). The AI summaries and Ask surface need a real key;
+  browsing and search do not.
+- **The app database starts empty; full ingestion is not required to see content.** With
+  `DATABASE_URL` unset, `uv run python scripts/load_sample_data.py` loads the sample
+  records (e.g. bill `SF 1832`) into the dev database on port 54329, which is what the
+  web app renders for a quick end-to-end check.
+
+
 ## Everyday commands
 
 | Command | What it does |
@@ -305,8 +338,9 @@ tests to write; this section says when a test is evidence.
 **Never commit directly to `main`.** Pushing to `main` triggers a production
 deploy (see below), so all changes go through pull requests.
 
-The workflow's single home is [`.claude/rules/workflow.md`](.claude/rules/workflow.md) —
-ten bullets of shape at the top, then the numbered rules. The short version:
+The full working policy is in [workflow.md](.claude/rules/workflow.md);
+[development-workflow.md](docs/operations/development-workflow.md) indexes its sections.
+The short version:
 
 1. **Branch off `origin/main` in your own worktree** (`just worktree <branch>`), one
    topic per branch, named literally with a topic prefix (`feat/`, `fix/`, `docs/`,
