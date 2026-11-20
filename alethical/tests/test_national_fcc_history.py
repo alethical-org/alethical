@@ -256,6 +256,31 @@ def test_compacting_the_same_sources_twice_writes_nothing_new(tmp_path):
     assert sorted(p.name for p in (tmp_path / "r2").rglob("*")) == before
 
 
+def test_a_confirmed_day_writes_a_new_manifest_with_the_same_filings(tmp_path):
+    store = store_at(tmp_path)
+    http, _ = fcc({"2024-11-01": [answer([event("a"), event("b")])]})
+    fetch(store, http, FakeTime(), "--from", "2024-11-01", "--to", "2024-11-01")
+    ledger = history.load_ledger(store)
+    ledger["days"]["2024-11-01"]["status"] = "unverified"
+    history.save_ledger(store, ledger)
+    compact(store, tmp_path)
+    first = json.loads(
+        store.get(json.loads(store.get(history.CURRENT))["manifest_key"])
+    )
+    assert first["unverified_days"] == ["2024-11-01"]
+    ledger["days"]["2024-11-01"]["status"] = "complete"
+    history.save_ledger(store, ledger)
+
+    compact(store, tmp_path, now=datetime(2024, 11, 6, tzinfo=UTC))
+
+    second = json.loads(
+        store.get(json.loads(store.get(history.CURRENT))["manifest_key"])
+    )
+    assert second["inventory_id"] != first["inventory_id"]
+    assert second["sha256"] == first["sha256"]
+    assert second["unverified_days"] == []
+
+
 def test_a_replay_after_an_interrupted_fetch_gives_the_same_inventory(tmp_path):
     days = {
         "2024-11-01": [answer([event("a"), event("b", "new")])],
