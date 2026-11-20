@@ -690,3 +690,20 @@ def test_a_partial_inventory_never_replaces_the_archive_index():
     assert not builder.inventory_complete(
         complete | {"unverified_days": ["2024-11-04"]}
     )
+
+
+def test_manifests_larger_than_one_mebibyte_are_read_whole():
+    import io
+
+    class Body(io.BytesIO):
+        pass
+
+    payload = json.dumps({"days": {str(i): "x" * 100 for i in range(20000)}}).encode()
+    assert len(payload) > 1 << 20
+
+    class Client:
+        def get_object(self, Bucket, Key):
+            return {"Body": Body(payload)}
+
+    files = SimpleNamespace(_client=Client(), bucket="b")
+    assert len(builder.read_json(files, "k")["days"]) == 20000

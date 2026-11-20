@@ -573,6 +573,9 @@ def _missing(error) -> bool:
     return error.response.get("Error", {}).get("Code") in ("NoSuchKey", "404")
 
 
+JSON_LIMIT = 64 * 1024**2
+
+
 def read_json(files, key: str):
     """A small JSON object, or None when it does not exist."""
     from botocore.exceptions import ClientError
@@ -584,9 +587,14 @@ def read_json(files, key: str):
             return None
         raise
     try:
-        return json.loads(body.read(1 << 20))
+        # Inventory manifests carry a per-day ledger and exceed 1 MiB; refuse only
+        # an object far beyond any manifest so a bad key cannot exhaust memory.
+        data = body.read(JSON_LIMIT + 1)
     finally:
         body.close()
+    if len(data) > JSON_LIMIT:
+        raise ValueError(f"{key} is larger than {JSON_LIMIT} bytes")
+    return json.loads(data)
 
 
 def inventory_manifest(files) -> dict | None:
