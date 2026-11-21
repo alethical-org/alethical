@@ -53,6 +53,24 @@ def _facilities() -> dict[tuple, set[tuple[float, float]]]:
     return sites
 
 
+@lru_cache(maxsize=1)
+def civic_zip_codes() -> dict[tuple[str, ...], tuple[str, ...]]:
+    """Each city's ZIPs from the packaged public facility list (529 distinct city names).
+
+    Only proposes which public ZIP street tables to read; it never places a
+    voter. The list is incomplete, so a missing city means no proposal.
+    """
+    from alethical.api.services.candidate_lookup import _city_words
+
+    zip_codes: dict[tuple[str, ...], set[str]] = {}
+    with ZipFile(INDEX) as archive:
+        for zipcode, _number, _street, city, _lat, _lon in json.loads(
+            archive.read("civic")
+        ):
+            zip_codes.setdefault(tuple(_city_words(city)), set()).add(zipcode)
+    return {city: tuple(sorted(codes)) for city, codes in zip_codes.items()}
+
+
 def facility_points(address: StreetAddress) -> set[tuple[float, float]]:
     from alethical.api.services.candidate_lookup import _city_words, _normal
 

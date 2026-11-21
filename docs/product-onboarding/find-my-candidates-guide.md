@@ -37,14 +37,32 @@ city, state and ZIP+4; it does not discard another country, unknown trailing wor
 or other characters to force a match.
 
 For a postal city beginning with Saint, **SAINT**, **ST** and **ST.** are equivalent.
-The remaining city words still must match the election source exactly. This keeps
-Minnesota's **SAINT PAUL** map addresses usable with the election source's **ST PAUL**
-records without relaxing house number, street, ZIP, unit or election-range checks.
+This keeps Minnesota's **SAINT PAUL** map addresses usable with the election
+source's **ST PAUL** records without relaxing house number, street, ZIP, unit or
+election-range checks.
+
+With a ZIP, an address that matches no official street exactly, and no known
+respelling, is checked for a close misspelling. A street or postal city word may be
+off by 1 letter when it has up to 5 letters, or by 2 letters when longer, and
+swapped neighbouring letters count as 1. When the street type is typed, the street name may also carry 1 extra word:
+`6284 Ojibwa Park Road Breainerd MN 56401` offers **6284 OJIBWA RD, BRAINERD, MN
+56401**. House numbers, words with digits (so **1st** never becomes **2nd**), words of
+3 letters or fewer, compass directions (so **NE** never becomes **NW**), the street
+type and any unit must still agree exactly, and the house number must sit inside the
+offered street's official range. A city that differs by more, such as another town's
+name, still gives no match, and a word after the street with no street type typed,
+such as a duplex's **Upper**, is never dropped to make a match. Up to 5 corrections are offered, closest first, and the
+reader must choose 1; a choice is recomputed from the typed address before any
+ballot is read.
 
 A failed official match says **Couldn’t match that address to election records**,
 on `/candidates` and the homepage candidate search. A mapped street address can
 still lack a matching election street range; this message does not assert that
 the reader mistyped it. Missing-input and outside-Minnesota messages remain distinct.
+2 letters just before a Minnesota ZIP that also end a street, **CT** (Court) and
+**NE** (northeast), are read as the street, not Connecticut or Nebraska:
+`516 Brussels Ct 56258` and `1601 University Ave NE 55413` are read as Minnesota addresses.
+A comma before those letters, or a ZIP outside Minnesota, still reads them as a state.
 
 A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an explicit
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
@@ -130,6 +148,17 @@ service checks that its complete address resolves to exactly 1 official election
 street range. This includes house number, parity, direction, city, ZIP, suffix and
 unit. Map addresses absent from the election source, or belonging to overlapping
 ranges, are omitted. This does not establish that an omitted address is invalid.
+The state map names many rural homes by their township or unorganized territory,
+such as **First Assessment Unorganized Territory**, instead of their postal city. When
+the map's place name finds no official street, the house number, street and ZIP alone
+must find exactly 1 official street, which is then offered with its postal city.
+When the map finds nothing and the typed address names a Minnesota city, the city's
+possible ZIPs come from a packaged list of public facility addresses (529 city
+names). At most 6 ZIPs are read; a city with more, or one not on the list, gets no
+such check. Each of those public ZIP street tables must answer, and the typed street,
+number, city and unit must pass the same official checks before the address is
+offered as a choice. Only the ZIP codes leave Alethical on this route. A table that
+cannot be read makes the search unavailable rather than offering a partial answer.
 The legislator finder keeps its separate map-based coverage; it does not require
 an election street range. Choosing a typing suggestion revalidates the printed
 complete address and then loads its ballot; an earlier suggestion never bypasses
@@ -223,6 +252,10 @@ longitude are kept to 0.1 millimetre; the mapped point is within 1.6 centimetres
 the state service's. No address or coordinate typed by a reader is stored or
 cached. A current
 street range confirms an address; it cannot establish a past voting district.
+A building point filed with no postal city, under a township or unorganized
+territory, can stand in when no point names the postal city. It is weaker evidence,
+so the official ballot-range report for that address must then agree with the
+point's November precinct, county and legislative districts.
 Where the statewide address map lacks a building, the finder can use a dated
 record from the county, a mapped public facility or a numbered Census street
 segment inside one November precinct. At a boundary, the Census block on that
