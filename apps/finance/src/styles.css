@@ -214,13 +214,28 @@ a.access-logo:focus-visible {
   background: #0b5668;
   border-color: #0b5668;
 }
-.access-card .secondary,
-.access-card .secondary:hover:not(:disabled) {
+/* White buttons in the card: Continue with Google (with Google's mark) and the
+ * secondary actions. Same specificity as the teal rule above, so they win. */
+.access-card button.google:not(.link),
+.access-card button.secondary:not(.link),
+.access-card .button.secondary {
   background: #fff;
-  color: #0b5c72;
+  border-color: rgba(20, 27, 34, 0.28);
+  color: #141b22;
+  font-weight: 600;
 }
-.access-card .secondary:hover:not(:disabled) {
-  background: #eef5f7;
+.access-card button.google:not(.link) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px 0 13px;
+}
+.access-card button.google:not(.link):hover:not(:disabled),
+.access-card button.secondary:not(.link):hover:not(:disabled),
+.access-card .button.secondary:hover {
+  background: #eef2f5;
+  border-color: rgba(20, 27, 34, 0.45);
 }
 .access-card .link {
   color: #0b5c72;

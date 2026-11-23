@@ -96,7 +96,9 @@ Ordinary `/sign-in` has the heading **Sign in** and no investor option. The sepa
 `/investor-access` page has the heading **Investor access**, one **Code** field and an
 **Enter** button (**Opening…** while pending). Sign in, investor access, the no-access answer
 and the signing-in step share 1 layout: the ALETHICAL.AI logo on the dark ground above a white
-card. On sign-in and investor access the logo links to the landing page; on the no-access
+card. **Continue with Google** is a white button with Google's mark; **Sign in with email**,
+when switched on, is the teal button below it. On sign-in and investor access the logo links to
+the landing page; on the no-access
 and signing-in pages it is not a link. The investor field shows the code as typed and
 disables automatic capitalization, correction and spellcheck. "Enter your code" and "That
 code is not right. Try again." appear under the field; "Too many attempts. Wait a minute and
