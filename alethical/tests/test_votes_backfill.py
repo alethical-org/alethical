@@ -1158,3 +1158,107 @@ def test_cross_chamber_mirror_is_not_an_unmatched_or_failed_source(monkeypatch):
     assert stats.cross_chamber_mirror == 1
     assert stats.no_source_match == stats.source_errors == 0
     source.assert_not_called()
+
+
+def _parsed(yes: int, no: int, motion: str) -> votes.ParsedVote:
+    return votes.ParsedVote(
+        motion_text=motion,
+        occurred_at=None,
+        journal_page=None,
+        yes_count=yes,
+        no_count=no,
+        affirmative_names=[],
+        negative_names=[],
+        official_url="https://www.senate.mn/journals/2025-2026/2025060901_ss1.pdf",
+    )
+
+
+def test_a_special_session_bill_asks_the_house_for_its_own_session(monkeypatch):
+    """The House files the June 2025 special session under its own vote key (304);
+    asking the regular session's key (302) returns no roll call at all."""
+    asked: list[str] = []
+    monkeypatch.setattr(
+        votes, "get_text", lambda url, **_kw: asked.append(url) or "<main></main>"
+    )
+    action = SimpleNamespace(roll_call_text="68-65", journal_page="14", action_at=None)
+    house = SimpleNamespace(slug="house")
+    for bill_key, key in (("94-2025s1-HF-1", "304"), ("94-2026-HF-1", "302")):
+        votes._source_vote_for_action(
+            action,
+            SimpleNamespace(bill_key=bill_key, file_type="HF", file_number=1),
+            house,
+            source_session=None,
+            house_cache={},
+            senate_cache={},
+        )
+        assert f"SessionKey={key}" in asked[-1]
+    asked.clear()
+    votes._source_vote_for_action(
+        action,
+        SimpleNamespace(bill_key="94-2027s3-HF-1", file_type="HF", file_number=1),
+        house,
+        source_session=None,
+        house_cache={},
+        senate_cache={},
+    )
+    assert asked == []  # an unknown session is refused, never sent to 302
+
+
+def test_senate_special_session_votes_come_from_that_session_s_journal(monkeypatch):
+    """A special session's journal pages start again at 1, so its page numbers
+    never go through the regular journal's page lookup."""
+    listing = (
+        '<a href="/journals//2025-2026/2025060901.pdf">'
+        '<a href="/journals//2025-2026/2025060901_ss1.pdf">'
+        '<a href="/journals//2025-2026/2025index_ss1.pdf">'
+    )
+    monkeypatch.setattr(votes, "get_text", lambda *_a, **_kw: listing)
+    special = votes.senate_journal_index(special_suffix="_ss1")
+    regular = votes.senate_journal_index()
+    assert special == {
+        "20250609": "https://www.senate.mn/journals/2025-2026/2025060901_ss1.pdf"
+    }
+    assert regular == {
+        "20250609": "https://www.senate.mn/journals/2025-2026/2025060901.pdf"
+    }
+
+    def page_lookup(*_a, **_kw):
+        raise AssertionError("special-session page sent to the regular journal")
+
+    monkeypatch.setattr(votes, "senate_pdf_for_page", page_lookup)
+    monkeypatch.setattr(votes, "pdf_full_text", lambda *_a, **_kw: "journal")
+    monkeypatch.setattr(
+        votes,
+        "parse_senate_votes_scoped",
+        lambda *_a, **_kw: [_parsed(47, 20, "Passage of the bill")],
+    )
+    vote = votes._source_vote_for_action(
+        SimpleNamespace(
+            roll_call_text="47-20",
+            journal_page="16",
+            action_at=datetime(2025, 6, 9, tzinfo=UTC),
+            action_text="Third reading Passed",
+        ),
+        SimpleNamespace(bill_key="94-2025s1-SF-1", file_type="SF", file_number=1),
+        SimpleNamespace(slug="senate"),
+        source_session=None,
+        house_cache={},
+        senate_cache={},
+    )
+    assert vote is not None and vote.yes_count == 47
+
+
+def test_a_tied_tally_goes_to_passage_only_for_a_passage_action():
+    """HF 2, 9 June 2025: the Senate voted 34-33 on a ruling of the chair and
+    34-33 on passage. Only a passage action may take the passage vote."""
+    tied = [
+        _parsed(34, 33, '"Shall the decision of the President be the judgment?"'),
+        _parsed(34, 33, "Passage of the bill"),
+    ]
+    passed = SimpleNamespace(action_text="Third reading Passed", journal_page="43")
+    vote = votes.find_matching_vote(tied, passed, 34, 33)
+    assert vote is tied[1]
+    other = SimpleNamespace(action_text="Motion prevailed", journal_page="43")
+    assert votes.find_matching_vote(tied, other, 34, 33) is None
+    two_passages = [_parsed(34, 33, "Passage of the bill")] * 2
+    assert votes.find_matching_vote(two_passages, passed, 34, 33) is None

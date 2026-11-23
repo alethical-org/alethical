@@ -362,8 +362,11 @@ this section exists to prevent.
 Revisor gives roll-call _totals_ (e.g. `34-33`) but not individual legislators, so
 votes need dedicated adapters (User-Agent `Alethical Vote Backfill/0.1`):
 
-- **House:** `GET https://www.house.mn.gov/votes/Details?...` (HTML) → parses
-  `"N YEA and M Nay"` plus affirmative/negative name tables.
+- **House:** `GET https://www.house.mn.gov/votes/Details?BillNumber=HF0001&SessionKey=...`
+  (HTML) → parses `"N YEA and M Nay"` plus affirmative/negative name tables. Each session has
+  its own key (`HOUSE_VOTE_SESSION_KEYS` in `alethical/pipeline/votes.py`): 302 for the
+  2025–2026 regular session and 304 for the 2025 special session. Asking a special-session bill
+  under 302 returns no roll call, and a session with no key is refused rather than guessed.
 - **Senate:** two hops —
   1. `GET https://www.senate.mn/api/journal/gotopage?page={p}&ls=94` → JSON with
      `fileBiennium`, `filename`, `internal_page`.
@@ -371,8 +374,18 @@ votes need dedicated adapters (User-Agent `Alethical Vote Backfill/0.1`):
      text with the **`pdftotext` CLI** (poppler — a system dependency), then
      regex-parse names.
 
+  A special session has its own journal (`2025060901_ss1.pdf`) whose page numbers start again
+  at 1, so the page lookup above cannot reach it. A special-session roll call is found in that
+  day's journal instead, from the Senate's journal list filtered to the session's `_ss` files.
+
+When 2 roll calls on 1 bill share a tally (HF 2 on 9 June 2025: a 34-33 appeal of the chair's
+ruling and a 34-33 passage), a passage action takes the 1 vote the journal labels as passage;
+any other tie stays unmatched.
+
 Votes are **optional** — a bill legitimately has zero vote events if there was no
-recorded roll call or the source can't be matched deterministically.
+recorded roll call or the source can't be matched deterministically. An official roll call the
+job cannot match is counted on the public health issue (`report_source_refresh_health.py`), so a
+gap is visible rather than a bare "review required".
 
 The daily job still fills only missing roll calls. Saved roll calls use a separate correction
 path: an accepted changed bill action rechecks that exact bill, and a small rotating sample catches

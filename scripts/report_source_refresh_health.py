@@ -118,6 +118,22 @@ def finding_lines(finding: dict) -> list[str]:
             f"  - The Board is ahead of our totals for {int(finding['board_ahead_count'])} "
             "committee-year(s); a totals refresh is requested at most every 6 hours."
         )
+    # The votes job's counts. A roll call the official record lists but no vote
+    # page matches leaves its bill showing no vote, so the count says so.
+    missing = finding.get("missing")
+    unmatched = missing.get("no_source_match") if isinstance(missing, dict) else None
+    if type(unmatched) is int and unmatched > 0:
+        lines.append(
+            f"  - {unmatched} official roll call(s) matched no House vote page or "
+            "Senate journal, so their bills show no recorded vote."
+        )
+    corrections = finding.get("corrections")
+    rejected = corrections.get("rejected") if isinstance(corrections, dict) else None
+    if type(rejected) is int and rejected > 0:
+        lines.append(
+            f"  - {rejected} saved roll call(s) no longer match the official record "
+            "and were kept unchanged until a person checks them."
+        )
     return lines
 
 
