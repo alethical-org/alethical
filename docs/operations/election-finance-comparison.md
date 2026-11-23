@@ -79,7 +79,11 @@ Within-feed reconciliation does not establish independent canvass validation.
 
 Replace `prepare` with `stage` and add `--target production --execute` only for an
 authorized release. Staging retains and reads back source bytes before committing
-the complete generation. It does not make a generation visible to readers.
+the complete generation. It does not make a generation visible to readers. An
+original that is already retained is checked by reading its stored object back to
+the exact bytes, not by compressing it again, because gzip output differs between
+zlib builds (a Mac and GitHub's Linux runners write different compressed bytes for
+the same file).
 
 ## Prepare and stage report collections
 

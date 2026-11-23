@@ -96,8 +96,21 @@ def generation_digest(generation: dict) -> str:
 
 
 def archive_source(db: Session, store, body: bytes) -> str:
-    """Read back the compressed source before any database reference exists."""
+    """Read back the compressed source before any database reference exists.
+
+    An already-retained source is verified by reading its stored object back
+    to these exact bytes, never compressed again: gzip output differs between
+    zlib builds, so another machine's stream for the same original is a
+    different, equally valid object under the same content-addressed key.
+    """
     source_hash = hashlib.sha256(body).hexdigest()
+    retained = db.get(m.ElectionResultSource, source_hash, populate_existing=True)
+    if retained is not None:
+        if retained.byte_size != len(body) or read_source(store, retained) != body:
+            raise ComparisonImportError(
+                "Retained source does not read back to the verified bytes"
+            )
+        return source_hash
     compressed = gzip.compress(body, mtime=0)
     compressed_hash = hashlib.sha256(compressed).hexdigest()
     key = f"elections/returns/{source_hash}.gz"

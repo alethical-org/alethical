@@ -98,6 +98,51 @@ def test_archive_repeated_bytes_round_trip_and_corruption(db, prepared):
         storage.read_source(store, record)
 
 
+def test_retained_source_from_another_zlib_build_is_verified_not_recompressed(
+    db, prepared
+):
+    """gzip bytes differ between zlib builds (macOS 1.2.12 vs Linux 1.3.1).
+
+    A source retained on one machine must be accepted on another after its
+    stored object reads back to the exact original, never re-uploaded or
+    compared with this machine's compression.
+    """
+    import gzip
+    import zlib
+
+    store = MemoryStore()
+    source = next(iter(prepared[1].values()))
+    content_hash = hashlib.sha256(source).hexdigest()
+    # Another machine's gzip stream for the same bytes: a different level gives
+    # different compressed bytes that decompress to the same original.
+    other = gzip.compress(source, compresslevel=1, mtime=0)
+    assert other != gzip.compress(source, mtime=0)
+    assert zlib.decompress(other, 31) == source
+    key = f"elections/returns/{content_hash}.gz"
+    store.objects[key] = other
+    db.add(
+        m.ElectionResultSource(
+            content_hash=content_hash,
+            object_key=key,
+            byte_size=len(source),
+            compressed_hash=hashlib.sha256(other).hexdigest(),
+            compressed_byte_size=len(other),
+            compression="gzip",
+        )
+    )
+    db.flush()
+    store.put_and_verify = lambda *a, **k: pytest.fail("retained source re-uploaded")
+    assert storage.archive_source(db, store, source) == content_hash
+    assert store.objects[key] == other
+
+    store.objects[key] = bytes([other[0] ^ 1]) + other[1:]
+    with pytest.raises(storage.ComparisonImportError, match="fingerprint"):
+        storage.archive_source(db, store, source)
+    del store.objects[key]
+    with pytest.raises(StorageObjectMissingError):
+        storage.archive_source(db, store, source)
+
+
 def test_missing_originals_cannot_create_or_publish_snapshot(db, prepared):
     with pytest.raises(storage.ComparisonImportError, match="Archive"):
         storage.stage_generation(db, prepared[0])
