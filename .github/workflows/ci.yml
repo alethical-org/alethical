@@ -445,7 +445,7 @@ jobs:
       # modules only through packages/shared, whose test fails if anything it
       # re-exports reaches React Native or alethical.com's app-only code. The
       # built-links check reads what the build ships, shared code included, and
-      # fails on any alethical.com address or page path.
+      # fails on a path-only link to an alethical.com page.
       - name: Check the Alethical Finance app
         working-directory: ${{ github.workspace }}
         run: |
