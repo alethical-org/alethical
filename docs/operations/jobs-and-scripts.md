@@ -228,7 +228,7 @@ and enables its replacement; manual repair paths remain. No family is active by
 default. [Independent public-record wakeups](source-refresh-dispatch.md#staged-family-activation)
 owns the setup, proof and rollback steps.
 [Coverage and recovery](public-record-refresh-status.md#current-state) records the
-6 enabled families and their automatic-run evidence.
+7 enabled families and their automatic-run evidence.
 The shared health warning closes only when the current source state is clear;
 private evidence and exception text never enter its public issue. A failed
 collection's stage, check names, committee numbers and years do appear there, and a

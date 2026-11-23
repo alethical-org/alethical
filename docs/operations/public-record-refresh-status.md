@@ -17,7 +17,7 @@ reader corrections that followed ([2719](https://github.com/alethical-org/alethi
 [2722](https://github.com/alethical-org/alethical/pull/2722),
 [2724](https://github.com/alethical-org/alethical/pull/2724)). The shared updater was activated on October 25, 2026. GitHub
 `SOURCE_REFRESH_FAMILIES` and Railway `ALETHICAL_SOURCE_REFRESH_FAMILIES` both hold
-`["campaign","notices","legislative","lobbying","supporting","fcc"]`.
+`["campaign","notices","legislative","lobbying","supporting","fcc","elections"]`.
 `SOURCE_REFRESH_BILL_EMBEDDINGS_APPROVED=true` retains the existing changed-text
 search approval; recurring summaries and user emails remain disabled in the worker.
 Railway `ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED=true` enables the existing API's
@@ -93,6 +93,32 @@ Verification turns on October 24–25, 2026:
 
 Each change cleared Cloudflare's saved API answers and the website's saved pages.
 
+### Election returns family
+
+The `elections` family was added to both lists on November 23, 2026, after Railway
+deployment `d0abf08b-2449-4a1e-ba1c-869dc3bf3f9a` (merge `b165eb9b`) was running
+code that knows the name. Its 1 job, `election-results`, runs daily while a
+counting window is open; the 2026 general window closes after December 31, 2026
+([pull request 3005](https://github.com/alethical-org/alethical/pull/3005)).
+
+The first verification turn, [run 45193228822](https://github.com/alethical-org/alethical/actions/runs/45193228822),
+published nothing: staging refused every original already retained from a Mac,
+because gzip bytes differ between zlib builds. [Pull request 3006](https://github.com/alethical-org/alethical/pull/3006)
+now verifies a retained original by reading it back. The second turn,
+[run 45202718922](https://github.com/alethical-org/alethical/actions/runs/45202718922)
+(attempt finished 15:17:49 UTC), found 11 changed official vote files from the
+November 19 canvass. It published generation `a695385c…` over `d35d714c…` with
+5,023 of 5,023 races reconciled and the same races and candidacies, reading the
+status page fresh. Precinct totals above the reported voter count went from 84 to 85.
+
+Read-back: the Finance read service serves the new generation with U.S. Senator
+totals equal to the official precinct file (2,832,868 votes), result status
+`unofficial` and outcome `unreviewed`. The public candidate lookup's November
+ballot moved its checked date from 2026-11-11 to 2026-11-23 with the same 28 races.
+The previous generation remains staged and published-before, so
+`election_comparison.py publish --restore` can return to it. No winner is certified
+automatically; outcome decisions still need retained certification evidence.
+
 ### State money recovery
 
 The [totals decision](https://github.com/alethical-org/alethical/issues/2667#issuecomment-6389566384)
@@ -113,7 +139,7 @@ comparisons stay withheld until its file is accepted again.
 
 ## Coverage by record type
 
-All 6 families are enabled. The middle column records the prior schedule, which
+All 7 families are enabled. The middle column records the prior schedule, which
 resumes if its family is disabled. This review does not authorize
 additional datasets or a new public timing promise.
 
@@ -129,6 +155,7 @@ additional datasets or a new public timing promise.
 | Candidates and election changes | Live official lookup plus saved profile records | Hourly source-contract check for review; no visitor address kept |
 | Address suggestions | Copy checked every 5 minutes, replaced after 12 hours | Unchanged; separate from candidate, district and ballot freshness |
 | District maps, ZIP references and session rollover | Reviewed source replacements | Map releases checked hourly, ZIP and sessions daily; replacements stay reviewed |
+| Election returns in Finance and the November candidate lookup | Hand-run prepare, stage and publish | Daily while the election's counting window is open; changed vote files in the same races and candidacies publish through the compare-and-swap pointer; anything else fails visibly without publishing |
 | FCC advertising files | Daily collection for KSTP, KARE and KMSP | Hourly turns of the same 3-station collector; unserved files go to review |
 | Article sources, guides and research | Weekly source-copy/change check plus link checks | Unchanged |
 | Search, Ask, summaries and saved public pages | Publication-specific clearing | Every accepted change clears Cloudflare and the website's saved pages; a failed clear stays owed and is retried |
