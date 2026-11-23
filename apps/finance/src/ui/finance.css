@@ -840,22 +840,13 @@
   outline-offset: -4px;
 }
 .f-nav-wordmark {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  letter-spacing: 0.18em;
-  line-height: 1;
+  font-size: 15px;
 }
-.f-nav-divider {
-  width: 1px;
-  height: 16px;
-  background: rgba(255, 255, 255, 0.28);
-}
-.f-nav-product {
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--chrome-muted);
-  line-height: 1;
+@media (max-width: 767px) {
+  .f-nav-wordmark {
+    font-size: 14px;
+    letter-spacing: 0.14em;
+  }
 }
 .f-nav-families {
   display: flex;

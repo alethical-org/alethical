@@ -543,7 +543,7 @@ The 6 build settings are public values: `VITE_SUPABASE_URL`,
 `VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`.
 For the private beta, `VITE_EMAIL_SIGN_IN` is `off` and the API's emailed-code switch is
 disabled. To open the emailed-code flow for a later rollout, enable both switches as described in
-[sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in).
+[sign-in-guide.md § Alethical.AI sign-in](../product-onboarding/sign-in-guide.md#alethicalai-sign-in).
 `VITE_FINANCE_SCREENS` is `on`, so a listed account reaches the signed-in screens built so far;
 unset, the site serves only
 the landing page and sign-in
@@ -586,7 +586,7 @@ Before anyone can sign in at that address:
 For a later emailed-code rollout, confirm the API has its `SUPABASE_SECRET_KEY` (a
 Supabase secret key, added by a person) and working email sender settings. Set
 `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` to `1`, then set `VITE_EMAIL_SIGN_IN` to `on` and redeploy Finance
-([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+([sign-in-guide.md § Alethical.AI sign-in](../product-onboarding/sign-in-guide.md#alethicalai-sign-in)).
 
 Investor sign-in needs `ALETHICAL_FINANCE_RESEARCH_EMAIL` set privately on the API
 and that research account created through `scripts/finance_research_access.py`.

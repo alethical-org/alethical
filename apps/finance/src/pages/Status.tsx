@@ -60,7 +60,7 @@ export function NotFound() {
     <main id="main" className="page">
       <h1 tabIndex={-1}>Couldn’t find that page</h1>
       <Link to="/" className="text-link">
-        Go to Finance home
+        Go to Alethical.AI
       </Link>
     </main>
   );

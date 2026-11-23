@@ -56,7 +56,7 @@ export function useScreenFocus(screen: string) {
     if (current.preserve) return;
     window.scrollTo(0, current.scroll);
     document
-      .querySelector<HTMLElement>('main h1, main[tabindex="-1"]')
+      .querySelector<HTMLElement>('main h1, .lp-hero h1, main[tabindex="-1"]')
       ?.focus({ preventScroll: true });
   }, [screen]);
 }

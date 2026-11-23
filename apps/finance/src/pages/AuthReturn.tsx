@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { takeReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
 import { Link, navigate } from '../router';
+import { AccessPage } from './AccessPage';
 
 /**
  * What the address carried when the page opened, read once. Finance's emails
@@ -56,10 +57,7 @@ export function AuthReturn() {
   }, [arrival, screens, supabase]);
 
   return (
-    <main className="access" id="main">
-      <p className="lockup">
-        Alethical <span>Finance</span>
-      </p>
+    <AccessPage linked={false}>
       {state === 'finishing' && (
         <h1 ref={heading} tabIndex={-1}>
           Signing in…
@@ -79,6 +77,6 @@ export function AuthReturn() {
           </Link>
         </div>
       )}
-    </main>
+    </AccessPage>
   );
 }

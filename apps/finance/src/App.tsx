@@ -1,6 +1,7 @@
 import { lazy, useEffect, type ReactNode } from 'react';
 
 import { useFinanceSession } from './auth/session';
+import { Investors } from './landing/Investors';
 import { Landing } from './landing/Landing';
 import './landing/fonts.css';
 import { AuthReturn } from './pages/AuthReturn';
@@ -139,6 +140,7 @@ export function App() {
   const pageVisible = signedOutRoute || status === 'granted';
   useEffect(() => {
     if (match?.route.name === 'landing') document.title = 'Alethical.AI';
+    else if (match?.route.name === 'investors') document.title = 'Alethical.AI for investors';
     else if (!pageVisible) document.title = 'Alethical.AI';
     else if (match) document.title = `${match.route.title} · Alethical.AI`;
     else document.title = 'Page not found · Alethical.AI';
@@ -179,6 +181,7 @@ export function App() {
       ),
     );
   }
+  if (match?.route.name === 'investors') return eager(<Investors />);
   if (match?.route.name === 'auth-return') return eager(<AuthReturn />);
   if (status === 'loading' || status === 'checking' || status === 'signed-out')
     return eager(<Checking />);

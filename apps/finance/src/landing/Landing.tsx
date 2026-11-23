@@ -4,85 +4,99 @@ import { useFinanceSession } from '../auth/session';
 import { Link } from '../router';
 import { Diagram } from './Diagram';
 import { LandingShare } from './LandingShare';
-import { copyDate, fetchCounts, figuresFrom, type ServedCounts } from './counts';
+import { Logo } from '../parts/Logo';
+import {
+  dateOf,
+  fetchCounts,
+  figureGroups,
+  recordsHeading,
+  type CountKey,
+  type ServedCounts,
+} from './counts';
 import { startSilk, type Silk } from './silk';
 import './fonts.css';
 import './landing.css';
 
 /**
- * Alethical Finance's public landing page, built from the approved Design drawing
- * "Product Landing" (Alethical B2B project). Its words are the drawing's; its
- * counts and source dates are read live (./counts.ts).
+ * Alethical.AI's public landing page, built from Design's "Product Landing"
+ * drawing (Alethical.AI landing and investor pages handoff, 23 Nov 2026). Its
+ * words are the drawing's; its counts and dates are read live (./counts.ts).
  */
+
+export const CONTACT_URL = 'https://www.alethical.com/about/contact?purpose=alethical-ai';
+const PLATFORM_URL = 'https://www.alethical.com/';
+const NO_DATE = 'Copy date not recorded';
 
 const BENEFITS = [
   {
     title: 'See who gives, who spends and who gets paid',
     detail:
-      'Follow contributions and payments across candidate campaigns, Committees and Funds, and Party Units. See who funds a campaign, who receives its spending and who pays for outside support or opposition.',
+      'See who gave to a campaign, who its committee paid and what outside groups reported spending for or against candidates',
   },
   {
     title: 'Understand the people behind the records',
     detail:
-      'Explore professional roles, firm ties, affiliations and political giving, including committee chairs, treasurers and officer history. Expand the connections around a profile to follow your next lead.',
+      'See the fundraising committee a candidate registered and a legislator’s service in the Legislature. We plan to train the analyst on expert-checked examples of names that refer to the same person or organization.',
   },
   {
     title: 'Put lobbying and legislation in context',
     detail:
-      'Connect lobbyists, firms and the clients they represent. Compare reported spending and explore documented involvement in bills, committee work and regulatory issues.',
+      'See who is registered to lobby, which clients they represent and what spending they report. Explore bills, votes and committee work.',
   },
   {
     title: 'See the business behind a media buy',
     detail:
-      'Find an agency, client or station and explore the purchases that connect them. See who arranged and signed a buy, compare documented purchase amounts and commissions, and open the contracts and invoices behind them.',
+      'Find political ad filings by station or advertiser. An invoice can name the agency, show what each spot cost and list the agency’s commission.',
   },
   {
     title: 'Compare political money with election results',
     detail:
-      'Compare campaign money and outside support or opposition with race and precinct results. See how candidates a contributor backed performed across races and election cycles.',
+      'Compare Minnesota election results with campaign money and outside spending where filings are available',
   },
 ];
 
-function Flow({ steps }: { steps: readonly [string, string, string] }) {
-  return (
-    <ol className="lp-flow" role="list">
-      {steps.map((step, index) => (
-        <li key={step}>
-          <span className="lp-dot" aria-hidden="true" />
-          {step}
-          {index < steps.length - 1 && (
-            <svg viewBox="0 0 24 26" width="24" height="26" aria-hidden="true" focusable="false">
-              <path d="M0 0 C0 15 24 10 24 26" />
-            </svg>
-          )}
-        </li>
-      ))}
-    </ol>
-  );
-}
+const BUILDING = [
+  {
+    title: 'Bring your own research',
+    detail: 'Upload a report and compare its findings with the public records it cites',
+  },
+  {
+    title: 'See what changed',
+    detail: 'Save a comparison and run it again when new filings arrive',
+  },
+  {
+    title: 'Finish a brief with your team',
+    detail:
+      'Keep the files, sources and feedback together so your team can review and approve the brief in one place',
+  },
+];
 
-function Mark({ size }: { size: number }) {
+/** The logo as a picture: the landing page is where it would link to. */
+function LandingLogo() {
   return (
-    <svg width={size} height={size} viewBox="8 9 84 84" aria-hidden="true" focusable="false">
-      <path d="M8,92 L46,10 L46,92 Z" fill="#5CC2DC" />
-      <path d="M92,92 L54,10 L54,92 Z" fill="#5CC2DC" />
-    </svg>
-  );
-}
-
-function Lockup({ className }: { className: string }) {
-  return (
-    <div className={`lp-lockup ${className}`}>
-      <Mark size={className === 'lp-lockup--bar' ? 20 : 22} />
-      <span className="lp-wordmark">ALETHICAL</span>
-      <span className="lp-divider" aria-hidden="true" />
-      <span className="lp-product">Finance</span>
+    <div className="lp-logo" role="img" aria-label="Alethical.AI">
+      <Logo className="lp-wordmark" />
     </div>
   );
 }
 
+/** For investors and Sign in, in both the opening header and the slim bar. */
+function LandingNav({ hidden }: { hidden: boolean }) {
+  const tab = hidden ? -1 : 0;
+  return (
+    <nav aria-label="Alethical.AI" className="lp-nav">
+      <Link to="/investors" className="lp-investors" tabIndex={tab}>
+        For investors
+      </Link>
+      <Link to="/sign-in" className="lp-signin" tabIndex={tab}>
+        Sign in
+      </Link>
+    </nav>
+  );
+}
+
 export function Landing() {
-  const { apiBaseUrl, screens } = useFinanceSession();
+  const { apiBaseUrl } = useFinanceSession();
   const hero = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const silk = useRef<Silk | null>(null);
@@ -128,126 +142,145 @@ export function Landing() {
     );
   }
 
-  const figures = figuresFrom(counts);
+  const groups = figureGroups(counts);
+  // A source's own date shows only where it differs from its figure group's
+  // date; a missing one is said plainly, never guessed.
+  const sourceDate = (key: CountKey, label?: string, verb = 'copied') => {
+    const date = dateOf(counts, key);
+    const group = groups.find((each) => each.figures.some((figure) => figure.key === key));
+    if (date && date === group?.date) return null;
+    if (!label) return date ? `${verb[0].toUpperCase()}${verb.slice(1)} ${date}` : NO_DATE;
+    return date ? `${label} ${verb} ${date}` : `${label}: ${NO_DATE.toLowerCase()}`;
+  };
+  const money = sourceDate('campaign_money_records');
+  const lobbying = sourceDate('lobbying_spending_reports');
   const sources = [
     {
       name: 'Minnesota Campaign Finance and Public Disclosure Board',
-      lines: [
-        ['Campaign money · Payment files', copyDate(counts, 'campaign_money_records')],
-        ['Lobbying · Spending file; lobbyist list', copyDate(counts, 'lobbying_spending_reports')],
-      ],
+      href: 'https://cfb.mn.gov/',
+      supplies: 'Campaign money and lobbying',
+      dates:
+        money === lobbying
+          ? [money]
+          : [
+              sourceDate('campaign_money_records', 'Campaign money'),
+              sourceDate('lobbying_spending_reports', 'Lobbying'),
+            ],
     },
     {
       name: 'Minnesota Legislature',
-      lines: [['Legislation · Bills', copyDate(counts, 'current_legislature_bills'), 'updated']],
+      href: 'https://www.leg.mn.gov/',
+      supplies: 'Bills and recorded votes',
+      dates: [sourceDate('current_legislature_bills', undefined, 'updated')],
     },
     {
       name: 'Federal Communications Commission',
-      lines: [
-        ['Media buys · KSTP-TV, KARE and KMSP-TV files', copyDate(counts, 'tv_station_files')],
-        ['National political files'],
+      href: 'https://publicfiles.fcc.gov/',
+      supplies:
+        'Nationwide political ad filings and the locally copied KSTP-TV, KARE and KMSP-TV files',
+      dates: [
+        sourceDate('national_fcc_filings', 'Nationwide index', 'as of'),
+        sourceDate('tv_station_files', 'Station files'),
       ],
+    },
+    {
+      name: 'Minnesota Secretary of State',
+      href: 'https://www.sos.state.mn.us/',
+      supplies: 'Election results and their published status',
+      dates: [sourceDate('election_races_with_results')],
     },
   ];
 
   return (
     <div className="lp">
       <div className={`lp-bar${pastHero ? ' lp-bar--shown' : ''}`} aria-hidden={!pastHero}>
-        <Lockup className="lp-lockup--bar" />
-        <Link to="/sign-in" className="lp-signin lp-signin--bar" tabIndex={pastHero ? 0 : -1}>
-          Sign in
-        </Link>
+        <LandingLogo />
+        <LandingNav hidden={!pastHero} />
       </div>
-      <main id="main">
-        <div className="lp-hero" ref={hero} onMouseMove={point}>
-          <canvas className="lp-silk" ref={canvas} aria-hidden="true" />
-          <div className="lp-wrap">
-            <header className="lp-top">
-              <Lockup className="lp-lockup--hero" />
-              <Link
-                to="/sign-in"
-                className="lp-signin"
-                tabIndex={pastHero ? -1 : 0}
-                aria-hidden={pastHero}
-              >
-                Sign in
-              </Link>
-            </header>
-            <div className="lp-hero-copy">
-              <h1 tabIndex={-1}>Connect political money, people and policy</h1>
-              <p>Political intelligence for law firms, PACs and research teams</p>
-              {screens && (
-                <Link className="lp-demo" to="/investor-access">
-                  Investor access
-                </Link>
-              )}
+      <header className="lp-hero" ref={hero} onMouseMove={point}>
+        <canvas className="lp-silk" ref={canvas} aria-hidden="true" />
+        <div className="lp-wrap">
+          <div className="lp-top">
+            <LandingLogo />
+            <div aria-hidden={pastHero} className="lp-top-nav">
+              <LandingNav hidden={pastHero} />
             </div>
           </div>
+          <div className="lp-hero-copy">
+            <h1 tabIndex={-1}>A clearer view of money and media in elections and legislation</h1>
+            <p>
+              We’re building a specialized AI analyst for political and policy researchers who need
+              answers no single filing can give. Today, bring your question to our team. You’ll get
+              a report with links to the original filings.
+            </p>
+            <a className="lp-demo" href={CONTACT_URL}>
+              Contact our team
+            </a>
+          </div>
         </div>
+      </header>
+      <main id="main">
         <section className="lp-story lp-wrap" aria-labelledby="lp-story-heading">
           <h2 id="lp-story-heading">Start with a name, follow the connections</h2>
           <p className="lp-story-intro">
-            Search across candidates, contributors, committees and organizations, then explore the
-            money, people and activity connected to them
+            Start with a candidate, committee or agency. Our team compares the records that name
+            them. We’re building an AI analyst to help researchers follow the same trail.
           </p>
           <Diagram />
-          <div className="lp-benefits">
+          <ul className="lp-benefits">
             {BENEFITS.map(({ title, detail }) => (
-              <div key={title} className="lp-benefit">
+              <li key={title} className="lp-benefit">
                 <h3>{title}</h3>
                 <p>{detail}</p>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
-        <div className="lp-research">
-          <div className="lp-support lp-wrap">
-            <section aria-labelledby="lp-import-heading">
-              <h2 id="lp-import-heading">Put your research to work</h2>
-              <p>
-                Upload reports, review the evidence and add selected findings to relevant profiles
-                and records
-              </p>
-              <Flow steps={['Your reports', 'Supported findings', 'Connected records']} />
-            </section>
-            <div className="lp-support-stack">
-              <section aria-labelledby="lp-repeat-heading">
-                <h2 id="lp-repeat-heading">Build on your research</h2>
-                <p>Save sourced reports and comparisons, run them again and see what changed</p>
-              </section>
-              <section aria-labelledby="lp-evidence-heading">
-                <h2 id="lp-evidence-heading">Go straight to the evidence</h2>
-                <p>
-                  Open the filing, source document or passage behind a figure or relationship, so
-                  you can check the basis for your decisions
-                </p>
-              </section>
-            </div>
-          </div>
-        </div>
-        <section className="lp-support lp-service lp-wrap" aria-labelledby="lp-service-heading">
-          <div>
-            <h2 id="lp-service-heading">Keep client work moving</h2>
-            <p>
-              Bring files, research requests, feedback and approvals together in a private
-              workspace. Review and receive briefs with the sources behind them.
+        <section className="lp-building" aria-labelledby="lp-building-heading">
+          <div className="lp-wrap">
+            <h2 id="lp-building-heading">What we’re building</h2>
+            <p className="lp-building-intro">
+              We’re building a private workspace where you can ask a question in your own words and
+              follow the answer back to the filings
             </p>
+            <ul className="lp-plans">
+              {BUILDING.map(({ title, detail }) => (
+                <li key={title} className="lp-plan">
+                  <h3>{title}</h3>
+                  <p>{detail}</p>
+                </li>
+              ))}
+            </ul>
           </div>
-          <Flow steps={['Files and requests', 'Research and review', 'Delivered briefs']} />
         </section>
-        <div className="lp-dark">
+        <section className="lp-dark" aria-labelledby={groups.length ? 'lp-fig-heading' : undefined}>
           <div className="lp-glow lp-glow--one" aria-hidden="true" />
           <div className="lp-glow lp-glow--two" aria-hidden="true" />
-          {figures.length > 0 && (
+          {groups.length > 0 && (
             <div className="lp-figures">
-              <h2 className="lp-eyebrow">BUILT ON MINNESOTA PUBLIC RECORDS</h2>
-              <div className="lp-figure-grid">
-                {figures.map((figure) => (
-                  <div key={figure.key} className="lp-figure">
-                    <div className="lp-figure-value">{figure.value}</div>
-                    <div className="lp-figure-text">
-                      <div className="lp-figure-label">{figure.label}</div>
-                      {figure.span && <div className="lp-figure-span">{figure.span}</div>}
+              <h2 id="lp-fig-heading">{recordsHeading(groups)}</h2>
+              <div className="lp-figure-groups">
+                {groups.map((group) => (
+                  <div
+                    key={group.id}
+                    role="group"
+                    aria-labelledby={group.id}
+                    className={`lp-figure-group lp-figure-group--${group.figures.length > 1 ? 'many' : 'one'}`}
+                  >
+                    <div id={group.id} className="lp-figure-group-head">
+                      <h3 className="lp-eyebrow">{group.name}</h3>
+                      {group.date && <span>As of {group.date}</span>}
+                    </div>
+                    <div className="lp-figure-grid">
+                      {group.figures.map((figure) => (
+                        <div key={figure.key} className="lp-figure">
+                          <div className="lp-figure-value">{figure.value}</div>
+                          <div className="lp-figure-text">
+                            <div className="lp-figure-label">{figure.label}</div>
+                            {figure.span && <div className="lp-figure-span">{figure.span}</div>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -255,7 +288,7 @@ export function Landing() {
             </div>
           )}
           <LandingShare />
-        </div>
+        </section>
       </main>
       <section className="lp-sources" aria-labelledby="land-src-h">
         <div className="lp-sources-inner">
@@ -263,16 +296,13 @@ export function Landing() {
           <dl>
             {sources.map((source) => (
               <div key={source.name}>
-                <dt>{source.name}</dt>
-                {source.lines.map(([what, date, verb = 'copied']) => (
-                  <dd key={what}>
-                    {what}
-                    {date && (
-                      <>
-                        {` ${verb} `}
-                        <span className="lp-nowrap">{date}</span>
-                      </>
-                    )}
+                <dt>
+                  <a href={source.href}>{source.name}</a>
+                </dt>
+                <dd>{source.supplies}</dd>
+                {source.dates.filter(Boolean).map((date) => (
+                  <dd key={date} className="lp-source-date">
+                    {date}
                   </dd>
                 ))}
               </div>
@@ -280,6 +310,12 @@ export function Landing() {
           </dl>
         </div>
       </section>
+      <footer className="lp-footer">
+        <p>
+          Alethical.AI is the professional research product on the{' '}
+          <a href={PLATFORM_URL}>Alethical platform</a>
+        </p>
+      </footer>
     </div>
   );
 }

@@ -253,9 +253,9 @@ Exclusion from traffic counts is a separate decision and grants no private acces
 
 Sign out ends only the ordinary session on this browser or device.
 
-## Alethical Finance sign-in
+## Alethical.AI sign-in
 
-Ordinary Alethical Finance accounts use the same Supabase accounts, with Google or a code
+Ordinary Alethical.AI accounts use the same Supabase accounts, with Google or a code
 emailed to the address. Shared research accounts use one operator-managed access code without entering an
 email, and cannot change records. The code is a password for the server-selected
 shared account. Their sign-in, sessions and password changes follow

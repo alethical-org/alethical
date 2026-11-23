@@ -5,6 +5,7 @@ import { forgetCodeRequest, readCodeRequest, rememberCodeRequest } from '../auth
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
 import { Link, navigate, useLocation } from '../router';
+import { AccessPage } from './AccessPage';
 import { safeReturnPath } from '../routes';
 
 type Step = 'options' | 'email' | 'code' | 'password';
@@ -201,20 +202,10 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
   const finishing = verified && (status === 'loading' || status === 'checking');
 
   return (
-    <main
-      className="access access--sign-in"
-      id="main"
-      tabIndex={investor ? -1 : undefined}
-      aria-label={investor ? 'Investor access' : undefined}
-    >
-      <Link to="/" className="lockup" aria-label="Alethical Finance home">
-        Alethical&nbsp;<span>Finance</span>
-      </Link>
-      {!investor && (
-        <h1 id="sign-in-heading" tabIndex={-1}>
-          Sign in
-        </h1>
-      )}
+    <AccessPage>
+      <h1 id="sign-in-heading" tabIndex={-1}>
+        {investor ? 'Investor access' : 'Sign in'}
+      </h1>
 
       {step === 'options' && (
         <div className="stack">
@@ -248,7 +239,14 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
 
       {step === 'password' && (
         <form className="stack investor-access-form" onSubmit={passwordSignIn} noValidate>
-          <label htmlFor="password">Investor access code</label>
+          {error && error !== 'credentials' && error !== 'password-refused' && (
+            <p role="alert" className="error-box">
+              {error === 'rate-limited'
+                ? 'Too many attempts. Wait a minute and try again.'
+                : 'Couldn’t open investor access. Try again.'}
+            </p>
+          )}
+          <label htmlFor="password">Code</label>
           <input
             id="password"
             type="text"
@@ -260,17 +258,13 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
             onChange={(event) => setPassword(event.target.value)}
             disabled={busy !== null || finishing}
             aria-invalid={error === 'credentials' || error === 'password-refused'}
-            aria-describedby={error ? 'password-error' : undefined}
+            aria-describedby={
+              error === 'credentials' || error === 'password-refused' ? 'password-error' : undefined
+            }
           />
-          {error && (
+          {(error === 'credentials' || error === 'password-refused') && (
             <p id="password-error" role="alert" className="error">
-              {error === 'credentials'
-                ? 'Enter your access code'
-                : error === 'password-refused'
-                  ? 'That access code is not right. Try again.'
-                  : error === 'rate-limited'
-                    ? 'Too many attempts. Wait a minute and try again.'
-                    : 'Couldn’t open investor access. Try again.'}
+              {error === 'credentials' ? 'Enter your code' : 'That code is not right. Try again.'}
             </p>
           )}
           <button type="submit" disabled={busy !== null || finishing}>
@@ -379,6 +373,6 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
           </button>
         </form>
       )}
-    </main>
+    </AccessPage>
   );
 }
