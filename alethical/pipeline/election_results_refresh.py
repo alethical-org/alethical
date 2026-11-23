@@ -27,6 +27,7 @@ import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
@@ -110,6 +111,9 @@ class Published:
     races: dict[str, dict]
     coverage: dict
     outcome_decisions: int
+    #: Generations of this election already published with a later observation
+    #: than the current one: nonzero after a deliberate restore.
+    newer_published: int = 0
 
 
 def _candidate_ids(candidates) -> list[str]:
@@ -158,6 +162,15 @@ def read_published(db: Session, election_key: str) -> Published | None:
             )
         ).all()
     )
+    newer = len(
+        db.scalars(
+            select(m.ElectionComparisonSnapshot.id).where(
+                m.ElectionComparisonSnapshot.election_key == election_key,
+                m.ElectionComparisonSnapshot.first_published_at.is_not(None),
+                m.ElectionComparisonSnapshot.fetched_at > snapshot.fetched_at,
+            )
+        ).all()
+    )
     return Published(
         snapshot.id,
         snapshot.fetched_at,
@@ -165,7 +178,33 @@ def read_published(db: Session, election_key: str) -> Published | None:
         races,
         dict(snapshot.coverage),
         decisions,
+        newer,
     )
+
+
+class _Visible(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.parts, self.hidden = [], 0
+
+    def handle_starttag(self, tag, attrs):
+        self.hidden += tag in ("script", "style")
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style"):
+            self.hidden = max(0, self.hidden - 1)
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.parts.append(data)
+
+
+def _bot_check(body: bytes) -> bool:
+    """A challenge page, by the visible words the importer also refuses."""
+    parser = _Visible()
+    parser.feed(body.decode("utf-8", errors="replace"))
+    text = " ".join(" ".join(parser.parts).split()).lower()
+    return "captcha" in text or "access denied" in text
 
 
 def capture_manifest(published: Published, window: ResultsWindow) -> list[dict]:
@@ -311,16 +350,18 @@ def refresh_window(
     if published is None:
         # A first publication stays a reviewed manual release.
         raise RefreshStop("no_published_generation")
-    if published.outcome_decisions:
-        raise RefreshStop(
-            "outcome_decisions_on_published_generation",
-            decisions=published.outcome_decisions,
-        )
     requests = capture_manifest(published, window)
     context = _context_files(published, window)
     capture_dir = workdir / "capture"
     inventory = download(requests, capture_dir, max_bytes=MAX_SOURCE_BYTES)
     receipts = {r["id"]: r for r in inventory["sources"]}
+    home = status_file(published, window)
+    if receipts.get(home, {}).get("state") == "captured" and _bot_check(
+        (capture_dir / receipts[home]["file"]).read_bytes()
+    ):
+        # A challenge page served with HTTP 200 is a refused read, not a
+        # status page; it is treated like any other failed context fetch.
+        receipts[home] = {**receipts[home], "state": "bot_check"}
     failed = sorted(
         name
         for name in (r["id"] for r in requests)
@@ -353,6 +394,20 @@ def refresh_window(
     }
     if not changed:
         return {**result, "status": "unchanged"}
+    # Both holds below matter only when there is something to publish.
+    if published.newer_published:
+        # Someone restored an older generation on purpose; publishing forward
+        # would undo that. A person decides, then removes this hold by
+        # publishing forward or by stopping the job.
+        raise RefreshStop(
+            "current_generation_was_restored", newer=published.newer_published
+        )
+    if published.outcome_decisions:
+        # Outcome decisions belong to the exact published generation.
+        raise RefreshStop(
+            "outcome_decisions_on_published_generation",
+            decisions=published.outcome_decisions,
+        )
     if CANDIDATE_REGISTERS & set(changed):
         raise RefreshStop(
             "candidate_register_changed",

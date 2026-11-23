@@ -388,20 +388,72 @@ def test_importer_refusal_is_reported_without_publishing(current):
     assert production.publishes == []
 
 
-def test_recorded_outcomes_or_no_first_publication_stop_before_download(current):
+def canvass_files(**extra):
+    canvass = precinct(ellison=390)
+    return files(
+        **{
+            "allracesbyprecinct.txt": canvass,
+            "allracesbycounty.txt": canvass.replace(b";0005;", b";;"),
+        },
+        **extra,
+    )
+
+
+def test_no_first_publication_stops_before_download(current):
     official = Official(files())
-    for published, reason in (
-        (
-            published_from_decisions(current),
-            "outcome_decisions_on_published_generation",
-        ),
-        (None, "no_published_generation"),
-    ):
-        production = Production(current)
-        production.read = lambda key, p=published: p
-        code, finding = check(production, official)
-        assert code == 1 and finding["elections"][0]["reason"] == reason
+    production = Production(current)
+    production.read = lambda key: None
+    code, finding = check(production, official)
+    assert code == 1
+    assert finding["elections"][0]["reason"] == "no_published_generation"
     assert official.calls == 0
+
+
+def test_recorded_outcomes_stay_quiet_until_a_change_needs_review(current):
+    held = published_from_decisions(current)
+    production = Production(held)
+    code, finding = check(production, Official(files()))
+    assert code == 0 and finding["elections"][0]["status"] == "unchanged"
+    code, finding = check(production, Official(canvass_files()))
+    assert code == 1
+    assert (
+        finding["elections"][0]["reason"] == "outcome_decisions_on_published_generation"
+    )
+    assert production.staged == [] and production.publishes == []
+
+
+def test_a_deliberate_restore_is_not_undone_by_the_next_run(current):
+    restored = refresh.Published(
+        current.snapshot_id,
+        current.fetched_at,
+        current.sources,
+        current.races,
+        current.coverage,
+        0,
+        1,
+    )
+    production = Production(restored)
+    code, finding = check(production, Official(canvass_files()))
+    assert code == 1
+    assert finding["elections"][0]["reason"] == "current_generation_was_restored"
+    assert production.staged == [] and production.publishes == []
+    # Nothing to publish: the restored generation simply stays, quietly.
+    code, finding = check(production, Official(files()))
+    assert code == 0 and finding["elections"][0]["status"] == "unchanged"
+
+
+def test_a_challenge_page_served_as_200_is_not_a_status_page(current):
+    challenge = b"<html><body><h1>Radware Captcha Page</h1><p>Please solve this CAPTCHA</p></body></html>"
+    original = files()["home.html"]
+    retained = {hashlib.sha256(original).hexdigest(): original}
+    production = Production(current)
+    code, finding = check(
+        production,
+        Official(canvass_files(**{"home.html": challenge})),
+        retained=retained.__getitem__,
+    )
+    assert code == 0 and finding["elections"][0]["status"] == "published", finding
+    assert finding["elections"][0]["context_pages_retained"] == ["home.html"]
 
 
 def published_from_decisions(current):

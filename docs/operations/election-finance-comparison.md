@@ -229,11 +229,11 @@ own window entry.
 
 Each run requests exactly the files listed in the published generation, from the
 same official addresses, into a new temporary folder. Every vote file must download
-completely; a 404, refusal, redirect or partial body stops the run. When only the
-results status page or the canvass statute has changed, nothing is published. When
-those 2 context pages cannot be read again (the state's bot check can refuse the
-status page), the hash-verified copy retained with the published generation is used
-and the finding names it. Changed vote files go through `prepare_from_files`,
+completely; a 404, refusal, redirect to an unlisted host or partial body stops the
+run. When only the results status page or the canvass statute has changed, nothing
+is published. When those 2 context pages cannot be read again, including a bot-check
+challenge page served in place of the status page, the hash-verified copy retained
+with the published generation is used and the finding names it. Changed vote files go through `prepare_from_files`,
 `execute_stage` and `execute_publish` from `scripts/election_comparison.py`, with
 the pointer read at the start as `--expected-previous`. A concurrent writer makes
 publication refuse.
@@ -252,8 +252,15 @@ issue, when:
 - excluded result or summary rows increase, or the precinct register changes;
 - the importer refuses the files, including a test-data or unavailable status page;
 - the published generation already has outcome decisions, which belong to that
-  exact generation; or
-- no generation has been published for the election.
+  exact generation;
+- a later generation of the election was published before the current one, which
+  means someone restored an older generation on purpose; or
+- no generation has been published for the election, so a window that opens on
+  election day fails until the reviewed first publication.
+
+The last 3 holds apply only when vote files changed; unchanged files stay a quiet
+success. A failure still open when its window closes leaves the health issue with
+the job, so extend `checks_until` rather than let an unreviewed change lapse.
 
 Precinct totals above the reported voter count are official figures the comparison
 already shows; the finding reports the count before and after. Results remain
@@ -272,7 +279,13 @@ PYTHONPATH=. uv run python scripts/refresh_election_results.py --target producti
 The finding's `restore_to` names the replaced generation. Restore it with
 `election_comparison.py publish --restore`, passing the new current generation as
 `--expected-previous`, as described in [Publish and restore](#publish-and-restore).
-To stop the job, remove `elections` from both family lists.
+After a restore, later runs that find changed files stop with
+`current_generation_was_restored` instead of publishing forward again. To stop the
+job, remove `elections` from both family lists.
+
+Federal and local finance generations stay pinned to the result snapshot they were
+prepared against, so their views keep that snapshot's returns until they are
+prepared again.
 
 ## Federal and local finance generations
 
