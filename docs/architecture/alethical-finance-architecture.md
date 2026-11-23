@@ -4,8 +4,7 @@
 
 **Net:** Alethical Finance is a sign-in-only research product for law firms and their
 political committees. It runs on the same records, database, server and product rules as
-alethical.com; only its screens are separate. Ordinary accounts have the same access; shared research accounts can only read, nothing in Finance links back to alethical.com, and every research tool lives in
-Finance.
+alethical.com; only its screens are separate. Ordinary accounts have the same access; shared research accounts can only read, and every research tool lives in Finance.
 
 Finance's primary address is [alethical.ai](https://alethical.ai).
 Links to [alethicalfinance.com](https://alethicalfinance.com) and
@@ -860,9 +859,14 @@ check date is the latest held check on a saved version, never proof that every f
 checked. A missing date stays null. These fields supplement the separately labelled
 all-years counts and preserve the distinction between files, contents and purchases.
 
-## 7. Finance never links to alethical.com
+## 7. Links to alethical.com use its full address
 
-Every record and tool opens inside Finance. Contact actions use email addresses.
+Alethical.AI may link to alethical.com pages, such as the company contact form and the
+platform line in the landing footer. Every research tool still opens inside Alethical.AI.
+A link to an alethical.com page carries alethical.com's full address: a path-only link such
+as `/bills/${id}` opens on alethical.ai and lands on its not-found page. The production
+build check (`pnpm run check:built-links`) fails on a path-only link to one of
+alethical.com's page routes.
 
 ## 8. Minnesota's commercial-use rule
 
