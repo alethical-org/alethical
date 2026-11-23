@@ -74,7 +74,9 @@ remain in effect.
 
 The repository variable `SOURCE_REFRESH_FAMILIES` and the API secret
 `ALETHICAL_SOURCE_REFRESH_FAMILIES` hold the same JSON list. Supported names are
-`campaign`, `notices`, `legislative`, `lobbying`, `supporting` and `fcc`. Both default
+`campaign`, `notices`, `legislative`, `lobbying`, `supporting`, `fcc` and `elections`.
+The API must run code that knows a name before its list includes it; an unknown name
+stops the API's wake. Both default
 to `[]`. A disabled family is reported as disabled, not overdue or completed.
 The legacy campaign-money, notice, vote and FCC schedules remain until their
 matching family is enabled. The source worker and old FCC workflow use the same

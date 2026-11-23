@@ -192,3 +192,29 @@ def test_concurrent_collection_serializes_each_host_and_preserves_manifest_order
     assert [row["id"] for row in result["sources"]] == [str(i) for i in range(5)]
     assert len(list(tmp_path.glob("*.body"))) == 1
     assert len((tmp_path / "attempts.jsonl").read_text().splitlines()) == 5
+
+
+def test_capture_keeps_the_publishers_last_modified_date(tmp_path):
+    headers = {
+        "Content-Type": "text/plain",
+        "Last-Modified": "Thu, 19 Nov 2026 20:38:32 GMT",
+    }
+    receipt = sources.capture(
+        SPEC, tmp_path, get=lambda *a, **k: Response(headers=headers)
+    )
+    assert receipt["last_modified"] == "Thu, 19 Nov 2026 20:38:32 GMT"
+    plain = sources.capture(SPEC, tmp_path, get=lambda *a, **k: Response())
+    assert "last_modified" not in plain
+
+
+def test_collect_passes_a_larger_size_limit_to_each_capture(tmp_path, monkeypatch):
+    seen = []
+
+    def capture(spec, directory, *, get, max_bytes):
+        seen.append(max_bytes)
+        return {"id": spec["id"], "state": "captured"}
+
+    monkeypatch.setattr(sources, "capture", capture)
+    sources.collect([SPEC], tmp_path / "default")
+    sources.collect([SPEC], tmp_path / "large", max_bytes=100_000_000)
+    assert seen == [20_000_000, 100_000_000]

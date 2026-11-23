@@ -213,6 +213,67 @@ pointer-removal transaction and its saved read-back before release if withdrawal
 is needed. Removing a current pointer does not erase the first-publication marker
 or previously published source access.
 
+## Daily official-returns check
+
+`scripts/refresh_election_results.py` rechecks a published result generation once
+a day during that election's counting window, as the `election-results` job of the
+shared [public-record updater](source-refresh-dispatch.md) (family `elections`).
+`ResultsWindow` entries in `alethical/pipeline/election_results_refresh.py` set each
+window: from election day through `checks_until`, in Minnesota time. The 2026
+general window runs through December 31, 2026. The results home page states that
+the State Canvassing Board met on November 19, 2026 to certify state and federal
+results and that completed recounts amend the official files; the window covers
+that period. Outside every window the job is not registered, so it neither runs
+nor reports overdue. A new election needs a reviewed first publication and its
+own window entry.
+
+Each run requests exactly the files listed in the published generation, from the
+same official addresses, into a new temporary folder. Every vote file must download
+completely; a 404, refusal, redirect or partial body stops the run. When only the
+results status page or the canvass statute has changed, nothing is published. When
+those 2 context pages cannot be read again (the state's bot check can refuse the
+status page), the hash-verified copy retained with the published generation is used
+and the finding names it. Changed vote files go through `prepare_from_files`,
+`execute_stage` and `execute_publish` from `scripts/election_comparison.py`, with
+the pointer read at the start as `--expected-previous`. A concurrent writer makes
+publication refuse.
+
+Automatic publication covers a canvass or recount that changes vote records in
+the same races and candidacies. The run publishes nothing and fails visibly, with
+a red workflow run and a line in the grouped "Public-record updates need attention"
+issue, when:
+
+- a vote file is missing or incomplete;
+- `cand.txt` or `LocalCandTbl.txt` changed (finance collections and account reviews
+  pin the published register's bytes);
+- a race or candidacy appears or disappears;
+- a race reconciled in the published generation stops reconciling;
+- a race's expected canvassing authority changes, including to unknown;
+- excluded result or summary rows increase, or the precinct register changes;
+- the importer refuses the files, including a test-data or unavailable status page;
+- the published generation already has outcome decisions, which belong to that
+  exact generation; or
+- no generation has been published for the election.
+
+Precinct totals above the reported voter count are official figures the comparison
+already shows; the finding reports the count before and after. Results remain
+`unofficial`. The job never records an outcome, never turns a leading vote count
+into a winner and never marks a race certified. A certified outcome still requires
+`review_election_outcome.py` with retained certification evidence for the exact
+snapshot and race, recorded after the generation it refers to is published.
+
+Dry run, then the same check with publication:
+
+```sh
+PYTHONPATH=. uv run python scripts/refresh_election_results.py --target production
+PYTHONPATH=. uv run python scripts/refresh_election_results.py --target production --execute
+```
+
+The finding's `restore_to` names the replaced generation. Restore it with
+`election_comparison.py publish --restore`, passing the new current generation as
+`--expected-previous`, as described in [Publish and restore](#publish-and-restore).
+To stop the job, remove `elections` from both family lists.
+
 ## Federal and local finance generations
 
 `scripts/review_external_election_finance.py` keeps preparation, account review

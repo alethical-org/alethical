@@ -506,7 +506,10 @@ an unavailable source is not a no-match result.
   Finance access; shared links restore the selected race and evidence, with no
   account token or private return context. Changed records require a reload; failed
   sections offer retry without replacing available figures with zeros. The existing
-  calendar-year view remains available. The comparison does not infer winners or
+  calendar-year view remains available. During an election's counting window the
+  returns are rechecked daily against the Secretary of State's files; a canvass or
+  recount change replaces the shown generation, with each file's own copy date, and
+  the result status stays unofficial. The comparison does not infer winners or
   measure whether spending caused an outcome. The [source operating contract](../operations/election-finance-comparison.md)
   owns collection, account review, publication and restoration.
 - **Campaign expense report (`report=expenses` in Money by race)**: the selected

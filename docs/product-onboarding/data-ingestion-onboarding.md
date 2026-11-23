@@ -451,7 +451,12 @@ global campaign-money release. A candidacy/account relationship requires an expl
 source-backed review before money appears beside that candidate. Names alone never
 confirm it. The [election comparison operating contract](../operations/election-finance-comparison.md)
 owns the three operator commands, required evidence, publication, restoration and
-coverage acceptance. These commands have no automatic schedule or paid AI step.
+coverage acceptance. Once an election's first generation is published, the
+`election-results` job rechecks its official files daily during the configured
+counting window and republishes changed vote records through the same guarded
+pointer; see [Daily official-returns check](../operations/election-finance-comparison.md#daily-official-returns-check).
+Financial collections, account reviews and outcome decisions have no automatic
+schedule. None of these steps makes a paid AI call.
 
 ## H — Campaign finance (MN Campaign Finance Board)
 

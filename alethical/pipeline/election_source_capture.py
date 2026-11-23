@@ -158,6 +158,9 @@ def capture(
                         with path.open("xb") as handle:
                             handle.write(original)
                 content_type = response.headers.get("Content-Type", "")
+                if last_modified := response.headers.get("Last-Modified"):
+                    # The publisher's own date for these bytes, kept as sent.
+                    receipt["last_modified"] = last_modified[:200]
                 receipt.update(
                     state="captured",
                     sha256=fingerprint,
@@ -178,7 +181,13 @@ def capture(
     return receipt
 
 
-def collect(manifest: list[dict], directory: Path, *, workers: int = 4) -> dict:
+def collect(
+    manifest: list[dict],
+    directory: Path,
+    *,
+    workers: int = 4,
+    max_bytes: int = 20_000_000,
+) -> dict:
     """Resume successful verified units; keep each failed attempt for retry.
 
     At most four requests globally and one per host, including redirect targets.
@@ -232,7 +241,9 @@ def collect(manifest: list[dict], directory: Path, *, workers: int = 4) -> dict:
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {
-            pool.submit(capture, spec, directory, get=limited_get): spec
+            pool.submit(
+                capture, spec, directory, get=limited_get, max_bytes=max_bytes
+            ): spec
             for spec in pending
         }
         for future in as_completed(futures):
