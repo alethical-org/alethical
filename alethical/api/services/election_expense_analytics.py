@@ -3125,7 +3125,7 @@ def _external_csv_rows(data):
         original = metadata.get(h, {})
         return {
             "Source SHA256": h,
-            "Source URL": f"https://alethicalfinance.com/elections/{quote(data['election_key'], safe='')}/sources/{h}?"
+            "Source URL": f"{_FINANCE_PUBLIC_ORIGIN}/elections/{quote(data['election_key'], safe='')}/sources/{h}?"
             + urlencode({"kind": "external", "generation_id": generation})
             if h
             else None,

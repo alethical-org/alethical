@@ -2228,7 +2228,11 @@ def test_external_exclusion_pagination_csv_and_original_dates(db, own_external):
     assert payments[0]["Reported payment amount"] == "-12.34"
     assert payments[0]["Payment paid USD"] == ""
     assert payments[0]["Excluded payee"] == "Yes"
-    assert "kind=external&generation_id=" in payments[0]["Source URL"]
+    assert payments[0]["Source URL"] == (
+        f"https://alethical.ai/elections/{ctx.g['election_key']}/sources/"
+        f"{payment_source['source_sha256']}?kind=external&"
+        f"generation_id={first['external_generation_id']}"
+    )
     assert len([r for r in rows if r["Row type"] == "External memo detail"]) == 1
 
 
