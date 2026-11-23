@@ -133,8 +133,7 @@ export const GROUPS: readonly { title: string; runs: readonly Run[] }[] = [
           ['agencies', 0, 6],
           ['signers', 0, 8],
           ['buys', 1, 4],
-          ['stations', 2, 3],
-          ['spending', 2, 5],
+          ['stations', 2, 4],
         ],
         connections: [
           ['campaigns', 'buys'],
@@ -143,7 +142,6 @@ export const GROUPS: readonly { title: string; runs: readonly Run[] }[] = [
           ['agencies', 'buys'],
           ['signers', 'buys'],
           ['buys', 'stations'],
-          ['buys', 'spending'],
         ],
       },
     ],

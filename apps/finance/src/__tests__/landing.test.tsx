@@ -5,7 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SessionProvider } from '../auth/session';
 import { screensApproved } from '../config';
-import { copyDate, fetchCounts, figuresFrom, type ServedCounts } from '../landing/counts';
+import {
+  copyDate,
+  fetchCounts,
+  figureGroups,
+  recordsHeading,
+  type ServedCounts,
+} from '../landing/counts';
 import { FinanceSite, PublicSite } from '../landing/PublicSite';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -13,6 +19,23 @@ import { FinanceSite, PublicSite } from '../landing/PublicSite';
 const API = 'https://api.example.test';
 
 const SERVED: ServedCounts = {
+  national_fcc_filings: {
+    state: 'reported',
+    count: 19647383,
+    first_year: 2012,
+    last_year: 2026,
+    copied_at: null,
+    as_of: '2026-11-22',
+  },
+  election_races_with_results: {
+    state: 'reported',
+    count: 5023,
+    first_year: 2026,
+    last_year: 2026,
+    copied_at: '2026-11-18T15:00:00+00:00',
+    election_label: 'November 2026 general election',
+    results_status: 'unofficial',
+  },
   campaign_money_records: {
     state: 'reported',
     count: 1084277,
@@ -34,6 +57,7 @@ const SERVED: ServedCounts = {
     first_year: 2025,
     last_year: 2026,
     copied_at: '2026-07-14T18:48:17+00:00',
+    roll_calls: 568,
   },
   tv_station_files: {
     state: 'unavailable',
@@ -104,16 +128,20 @@ describe('the public Finance site', () => {
     await renderAt('/');
     const text = container.textContent ?? '';
     for (const words of [
-      'Connect political money, people and policy',
-      'Political intelligence for law firms, PACs and research teams',
+      'A clearer view of money and media in elections and legislation',
+      'Today, bring your question to our team.',
+      'Contact our team',
       'Start with a name, follow the connections',
+      'We’re building an AI analyst to help researchers follow the same trail.',
       'See who gives, who spends and who gets paid',
       'Compare political money with election results',
-      'Put your research to work',
-      'Build on your research',
-      'Go straight to the evidence',
-      'Keep client work moving',
-      'BUILT ON MINNESOTA PUBLIC RECORDS',
+      'What we’re building',
+      'Bring your own research',
+      'See what changed',
+      'Finish a brief with your team',
+      'More than 20 million public records',
+      'NATIONWIDE',
+      'MINNESOTA',
       'Share Alethical.AI',
       'Sources and updates',
       'Minnesota Campaign Finance and Public Disclosure Board',
@@ -121,6 +149,17 @@ describe('the public Finance site', () => {
     ]) {
       expect(text).toContain(words);
     }
+    for (const gone of [
+      'Put your research to work',
+      'Build on your research',
+      'Go straight to the evidence',
+      'Keep client work moving',
+      'law firms',
+      'Alethical Finance',
+    ]) {
+      expect(text).not.toContain(gone);
+    }
+    expect(text).toContain('Alethical.AI is the professional research product on the');
     expect(text).not.toContain('Printed names not yet confirmed');
     expect(text).not.toContain('alethical.ai');
     expect(document.title).toBe('Alethical.AI');
@@ -144,28 +183,45 @@ describe('the public Finance site', () => {
     expect(container.querySelector('[data-copied="true"]')?.textContent).toBe('Link copied');
   });
 
-  it('opens investor access only from the hero and keeps ordinary sign-in separate', async () => {
+  it('links For investors from the header and Contact our team to the company form', async () => {
     await renderAt('/', { data: SERVED }, 200, { screens: true });
-    const investor = [...container.querySelectorAll('a')].filter(
+    const contact = [...container.querySelectorAll('a')].find(
+      (a) => a.textContent === 'Contact our team',
+    );
+    expect(contact?.getAttribute('href')).toBe(
+      'https://www.alethical.com/about/contact?purpose=alethical-ai',
+    );
+    expect(contact?.closest('.lp-hero-copy')).not.toBeNull();
+    expect(container.querySelector('a[href="https://www.alethical.com/"]')?.textContent).toBe(
+      'Alethical platform',
+    );
+    expect(
+      [...container.querySelectorAll('a')].some((a) => a.textContent === 'Investor access'),
+    ).toBe(false);
+    const logos = container.querySelectorAll('[role="img"][aria-label="Alethical.AI"]');
+    expect(logos.length).toBe(2);
+    const investors = container.querySelector<HTMLAnchorElement>('.lp-top a[href="/investors"]')!;
+    expect(investors.textContent).toBe('For investors');
+    for (const link of container.querySelectorAll('.lp-bar a')) {
+      expect(link.getAttribute('tabindex')).toBe('-1');
+    }
+    await act(async () => investors.click());
+    expect(window.location.pathname).toBe('/investors');
+    expect(document.title).toBe('Alethical.AI for investors');
+    expect(container.querySelector('h1')?.textContent).toBe('Alethical.AI for investors');
+    expect(container.querySelector('a[aria-current="page"]')?.textContent).toBe('For investors');
+    expect(container.textContent).not.toMatch(/SAFE|minimum investment/i);
+    const access = [...container.querySelectorAll('a')].filter(
       (a) => a.textContent === 'Investor access',
     );
-    expect(investor).toHaveLength(1);
-    expect(investor[0].getAttribute('href')).toBe('/investor-access');
-    expect(investor[0].closest('.lp-hero-copy')).not.toBeNull();
-    expect(container.textContent).not.toContain('Request access');
-    expect(container.querySelector('.lp-close')).toBeNull();
-    const signIns = [...container.querySelectorAll('a')].filter((a) => a.textContent === 'Sign in');
-    expect(signIns.length).toBeGreaterThan(0);
-    for (const link of signIns) expect(link.getAttribute('href')).toBe('/sign-in');
-    await act(async () => investor[0].click());
+    expect(access).toHaveLength(1);
+    await act(async () => access[0].click());
     expect(window.location.pathname).toBe('/investor-access');
-    expect(container.querySelector('h1')).toBeNull();
-    expect(container.querySelector('label')?.textContent).toBe('Investor access code');
-    const home = container.querySelector<HTMLAnchorElement>(
-      'a[aria-label="Alethical Finance home"]',
-    );
+    expect(container.querySelector('h1')?.textContent).toBe('Investor access');
+    expect(container.querySelector('label')?.textContent).toBe('Code');
+    const home = container.querySelector<HTMLAnchorElement>('a[aria-label="Alethical.AI"]');
     expect(home?.getAttribute('href')).toBe('/');
-    expect(document.activeElement).toBe(container.querySelector('main'));
+    expect(document.activeElement).toBe(container.querySelector('h1'));
     expect(container.querySelector('#password')?.getAttribute('type')).toBe('text');
     expect(container.querySelector('input[type="email"]')).toBeNull();
     expect(container.textContent).not.toContain('Sign in with email');
@@ -178,22 +234,42 @@ describe('the public Finance site', () => {
     expect(fetcher).toHaveBeenCalledWith(`${API}/api/v1/finance/landing/counts`);
     expect(fetcher).toHaveBeenCalledTimes(1);
     const text = container.textContent ?? '';
+    expect(text).toContain('19.6 million');
+    expect(text).toContain('Indexed nationwide since 2012');
+    expect(text).toContain('As of Nov 22, 2026');
     expect(text).toContain('1,084,277');
     expect(text).toContain('From 3,184 organizations, 2014 to 2025');
-    expect(text).toContain('2025–2026 Legislature');
+    expect(text).toContain('2025–2026 Legislature, with 568 roll calls');
+    expect(text).toContain(
+      'November 2026 general election. Results were unofficial at the time of this count.',
+    );
+    // The Minnesota figures' dates differ, so the group gives their range and
+    // each source says its own.
+    expect(text).toContain('As of Jul 14 to Nov 18, 2026');
+    expect(text).toContain('Campaign money copied Sep 1, 2026');
+    expect(text).toContain('Lobbying copied Aug 28, 2026');
+    expect(text).toContain('Copied Nov 18, 2026');
+    expect(text).toContain('Updated Jul 14, 2026');
+    expect(text).not.toContain('Nationwide index as of');
+    // The station files stay named; their unsupported date is said, not guessed.
+    expect(text).toContain('Station files: copy date not recorded');
     expect(text).not.toContain('TV station files on political ad time');
-    expect(text).toContain('Payment files copied Sep 1, 2026');
-    expect(text).toContain('Bills updated Jul 14, 2026');
-    // The station source stays named; only its unsupported date is left out.
-    expect(text).toContain('Media buys · KSTP-TV, KARE and KMSP-TV files');
-    expect(text).toContain('National political files');
-    expect(text).not.toMatch(/Station files copied/);
+    const sourceLinks = [...container.querySelectorAll('.lp-sources a')].map((a) =>
+      a.getAttribute('href'),
+    );
+    expect(sourceLinks).toEqual([
+      'https://cfb.mn.gov/',
+      'https://www.leg.mn.gov/',
+      'https://publicfiles.fcc.gov/',
+      'https://www.sos.state.mn.us/',
+    ]);
   });
 
   it('shows no count tiles, and no 0, when the counts cannot be read', async () => {
     await renderAt('/', { detail: 'down' }, 503);
     const text = container.textContent ?? '';
-    expect(text).not.toContain('BUILT ON MINNESOTA PUBLIC RECORDS');
+    expect(text).not.toContain('million public records');
+    expect(text).not.toContain('NATIONWIDE');
     expect(text).toContain('Sources and updates');
     expect(container.querySelector('.lp-figure-value')).toBeNull();
   });
@@ -262,7 +338,7 @@ describe('the public Finance site', () => {
 
 describe('landing counts', () => {
   it('never draws a 0, a negative or a missing count', () => {
-    const figures = figuresFrom({
+    const groups = figureGroups({
       campaign_money_records: { ...SERVED.campaign_money_records!, count: 0 },
       lobbying_spending_reports: {
         ...SERVED.lobbying_spending_reports!,
@@ -272,6 +348,8 @@ describe('landing counts', () => {
         ...SERVED.current_legislature_bills!,
         count: null,
       },
+      election_races_with_results: { ...SERVED.election_races_with_results!, state: 'unavailable' },
+      national_fcc_filings: { ...SERVED.national_fcc_filings!, count: null },
       tv_station_files: {
         state: 'reported',
         count: 5070,
@@ -280,20 +358,61 @@ describe('landing counts', () => {
         copied_at: null,
       },
     });
-    expect(figures.map((f) => [f.label, f.value, f.span])).toEqual([
-      ['TV station files on political ad time', '5,070', '2022 to 2026'],
-    ]);
+    expect(groups).toEqual([]);
+    expect(recordsHeading(groups)).toBe('Public records');
   });
 
-  it('drops a lobbying organizations clause it cannot support, and a missing year', () => {
-    const [figure] = figuresFrom({
+  it('drops clauses it cannot support and leaves an undated group undated', () => {
+    const [group] = figureGroups({
       lobbying_spending_reports: {
         ...SERVED.lobbying_spending_reports!,
         organizations: 0,
         first_year: null,
       },
+      current_legislature_bills: { ...SERVED.current_legislature_bills!, roll_calls: null },
+      election_races_with_results: {
+        ...SERVED.election_races_with_results!,
+        results_status: 'official',
+        copied_at: null,
+      },
     });
-    expect(figure.span).toBe('2025');
+    expect(group.figures.map((figure) => figure.span)).toEqual([
+      '2025',
+      '2025–2026 Legislature',
+      'November 2026 general election',
+    ]);
+    expect(group.date).toBeNull();
+  });
+
+  it('rounds the nationwide count down and reads its day without shifting it', () => {
+    const [national, minnesota] = figureGroups(SERVED);
+    expect(national.figures[0].value).toBe('19.6 million');
+    expect(national.date).toBe('Nov 22, 2026');
+    expect(minnesota.date).toBe('Jul 14 to Nov 18, 2026');
+    const sameDay = figureGroups({
+      campaign_money_records: SERVED.campaign_money_records,
+      lobbying_spending_reports: {
+        ...SERVED.lobbying_spending_reports!,
+        copied_at: '2026-09-01T15:00:00+00:00',
+      },
+    });
+    expect(sameDay[0].date).toBe('Sep 1, 2026');
+    const acrossYears = figureGroups({
+      campaign_money_records: SERVED.campaign_money_records,
+      lobbying_spending_reports: {
+        ...SERVED.lobbying_spending_reports!,
+        copied_at: '2025-12-30T15:00:00+00:00',
+      },
+    });
+    expect(acrossYears[0].date).toBe('Dec 30, 2025 to Sep 1, 2026');
+    expect(
+      figureGroups({
+        national_fcc_filings: { ...SERVED.national_fcc_filings!, count: 19999999 },
+      })[0].figures[0].value,
+    ).toBe('19.9 million');
+    expect(recordsHeading([national, minnesota])).toBe('More than 20 million public records');
+    const exact = [{ ...national, figures: [{ ...national.figures[0], count: 20_000_000 }] }];
+    expect(recordsHeading(exact)).toBe('More than 19 million public records');
   });
 
   it('dates in Minnesota time', () => {
@@ -332,7 +451,7 @@ describe('the connections diagram', () => {
       paths.find(({ sources }) => sources.includes(source))!.targets;
     expect(
       paths.reduce((sum, { sources, targets }) => sum + sources.length * targets.length, 0),
-    ).toBe(57);
+    ).toBe(56);
     expect(targetsOf('Contributions')).toEqual([
       'Campaign committees',
       'Committees and Funds',

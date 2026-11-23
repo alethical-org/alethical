@@ -62,7 +62,7 @@ On an approved copy, suggestions sit beside the fact and connection forms, each 
 
 Source or target changes clear earlier review attestations. Saving and retry controls keep their positions and prevent repeat submissions. Failed operations report the failure and allow correction. Withdrawal takes effect on later reader and image requests; old links do not restore approval. Review actions remain in private audit history. Account or sign-in identity deletion removes the reviewer’s account identifier while retaining the source evidence and decisions, including older campaign-payment review history; [user-data-retention-policy.md §6](user-data-retention-policy.md#6-what-deletion-should-mean) owns that policy.
 
-## In Alethical Finance (Media buys)
+## In Alethical.AI (Media buys)
 
 Every Finance account reads the same station files under Media buys
 (`/api/v1/finance/media-buys/...`, `alethical/api/services/finance_media_buys.py`), through

@@ -13,6 +13,7 @@ export type RouteName =
   | 'election-source'
   | 'sign-in'
   | 'investor-access'
+  | 'investors'
   | 'auth-return'
   | 'search'
   | 'organization'
@@ -70,6 +71,12 @@ export const ROUTES: readonly RouteDefinition[] = [
     pattern: '/home',
     title: 'Home',
     returnName: 'Research public records',
+  },
+  {
+    name: 'investors',
+    pattern: '/investors',
+    title: 'Alethical.AI for investors',
+    signedOut: true,
   },
   {
     name: 'investor-access',
@@ -264,6 +271,7 @@ export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'election-source',
   'sign-in',
   'investor-access',
+  'investors',
   'auth-return',
   'search',
   'people',

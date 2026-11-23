@@ -490,7 +490,7 @@ of approval to build the graph frontend.
   Alethical sends its own 8-digit codes, only to listed addresses, and answers every
   address alike, so sign-in never shows whether an address is a client; the Supabase
   account is created or found only after a code is proved
-  ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+  ([sign-in-guide.md § Alethical.AI sign-in](../product-onboarding/sign-in-guide.md#alethicalai-sign-in)).
   An account that signs in but is not on the list sees the no-access state. Google returns
   to the page's own address, so Supabase's list of allowed return addresses needs
   `https://alethical.ai/**`.

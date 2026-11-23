@@ -5,6 +5,7 @@ import { useFinanceSession } from '../auth/session';
 import { clearSavedScroll, Link, navigate, useLocation } from '../router';
 import { hrefFor, isBuilt, type NavSection, type RouteName } from '../routes';
 import { useBand } from '../ui/band';
+import { Logo } from '../parts/Logo';
 
 /** The record families, in the approved order (Media buys directly after Money) and
  * the drawing's words (Finance Nav). A family whose page is not built yet is left
@@ -26,14 +27,8 @@ export function navItems() {
 
 function Lockup() {
   return (
-    <Link to={hrefFor('home')} aria-label="Alethical Finance home" className="f-nav-lockup">
-      <svg width="20" height="20" viewBox="8 9 84 84" aria-hidden="true">
-        <path d="M8,92 L46,10 L46,92 Z" fill="#5CC2DC" />
-        <path d="M92,92 L54,10 L54,92 Z" fill="#5CC2DC" />
-      </svg>
-      <span className="f-nav-wordmark">ALETHICAL</span>
-      <span aria-hidden="true" className="f-nav-divider" />
-      <span className="f-nav-product">Finance</span>
+    <Link to={hrefFor('home')} aria-label="Alethical.AI home" className="f-nav-lockup">
+      <Logo className="f-nav-wordmark" />
     </Link>
   );
 }

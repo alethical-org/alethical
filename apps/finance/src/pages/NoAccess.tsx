@@ -1,5 +1,6 @@
 import { useFinanceSession } from '../auth/session';
 import { navigate } from '../router';
+import { AccessPage } from './AccessPage';
 
 export const CONTACT_ADDRESS = 'ask@alethical.com';
 
@@ -9,10 +10,7 @@ export const CONTACT_ADDRESS = 'ask@alethical.com';
 export function NoAccess() {
   const { email, signOut, revoked } = useFinanceSession();
   return (
-    <main className="access" id="main">
-      <p className="lockup">
-        Alethical <span>Finance</span>
-      </p>
+    <AccessPage linked={false}>
       {revoked ? (
         <>
           <h1 tabIndex={-1}>This account does not have access to Alethical.AI</h1>
@@ -41,6 +39,6 @@ export function NoAccess() {
           Contact us
         </a>
       </div>
-    </main>
+    </AccessPage>
   );
 }

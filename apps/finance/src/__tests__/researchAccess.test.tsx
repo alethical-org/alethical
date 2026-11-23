@@ -134,7 +134,8 @@ async function type(id: string, value: string) {
 async function passwordForm() {
   await render('/investor-access?next=%2Fmedia-buys');
   expect(container.querySelector('#email')).toBeNull();
-  expect(text()).toContain('Investor access code');
+  expect(container.querySelector('h1')?.textContent).toBe('Investor access');
+  expect(container.querySelector('label[for="password"]')?.textContent).toBe('Code');
   await type('#password', 'demo-test-password');
 }
 it('signs in without a mailbox, keeps the requested page, and hides edit controls', async () => {
@@ -172,7 +173,7 @@ it.each([
   ).toBe(false);
 });
 it.each([
-  [401, 'That access code is not right'],
+  [401, 'That code is not right. Try again.'],
   [429, 'Too many attempts'],
   [503, 'Couldn’t open investor access'],
 ])('keeps entered fields for a retry after %i', async (status, message) => {
