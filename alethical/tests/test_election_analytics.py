@@ -1337,7 +1337,7 @@ def test_exact_retained_download_checks_hash_and_access(
         if r["Row type"] == "Payment" and r["Dataset"] == "contributions"
     )
     app_url = urlsplit(row["Source URL"])
-    assert app_url.netloc == "alethicalfinance.com" and app_url.scheme == "https"
+    assert app_url.netloc == "alethical.ai" and app_url.scheme == "https"
     assert app_url.path == f"/elections/{KEY}/sources/contributions"
     query = parse_qs(app_url.query)
     assert query == {
@@ -1788,8 +1788,7 @@ def test_flat_funder_csv_keeps_single_payment_and_distinct_summary_amounts(
     assert any(r["Row type"] == "Funder" for r in rows)
     assert any(r["Row type"] == "Candidate" for r in rows)
     assert all(
-        r["Source URL"].startswith("https://alethicalfinance.com/elections/")
-        for r in payments
+        r["Source URL"].startswith("https://alethical.ai/elections/") for r in payments
     )
 
 

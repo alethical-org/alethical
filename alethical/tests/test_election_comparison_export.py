@@ -642,7 +642,7 @@ def test_plain_source_links_ignore_untrusted_host(finance_api, originals):
     )
     urls = [r["Source URL"] for r in rows if r["Source URL"]]
     assert urls and all(
-        url.startswith("https://alethicalfinance.com/elections/") for url in urls
+        url.startswith("https://alethical.ai/elections/") for url in urls
     )
     assert all("token=" not in url and "foreign.example" not in url for url in urls)
 

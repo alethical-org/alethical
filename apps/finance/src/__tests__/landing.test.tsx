@@ -122,8 +122,26 @@ describe('the public Finance site', () => {
       expect(text).toContain(words);
     }
     expect(text).not.toContain('Printed names not yet confirmed');
-    expect(text).not.toContain('alethicalfinance.com');
+    expect(text).not.toContain('alethical.ai');
     expect(document.title).toBe('Alethical Finance');
+  });
+
+  it('copies the primary Finance address from the landing page', async () => {
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal(
+      'navigator',
+      Object.assign(Object.create(navigator), {
+        clipboard: { writeText },
+      }),
+    );
+    await renderAt('/');
+    const share = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Share Alethical Finance',
+    );
+    expect(share).toBeDefined();
+    await act(async () => share!.click());
+    expect(writeText).toHaveBeenCalledWith('https://alethical.ai/');
+    expect(container.querySelector('[data-copied="true"]')?.textContent).toBe('Link copied');
   });
 
   it('opens investor access only from the hero and keeps ordinary sign-in separate', async () => {

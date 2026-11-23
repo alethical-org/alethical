@@ -3008,7 +3008,7 @@ def _csv_payment_locations(payment):
 
 # Canonical Finance address: docs/architecture/alethical-finance-architecture.md.
 # Exported links must work away from the API and must never trust request Host.
-_FINANCE_PUBLIC_ORIGIN = "https://alethicalfinance.com"
+_FINANCE_PUBLIC_ORIGIN = "https://alethical.ai"
 
 
 def _csv_source_url(url):
@@ -3125,7 +3125,7 @@ def _external_csv_rows(data):
         original = metadata.get(h, {})
         return {
             "Source SHA256": h,
-            "Source URL": f"https://alethicalfinance.com/elections/{quote(data['election_key'], safe='')}/sources/{h}?"
+            "Source URL": f"{_FINANCE_PUBLIC_ORIGIN}/elections/{quote(data['election_key'], safe='')}/sources/{h}?"
             + urlencode({"kind": "external", "generation_id": generation})
             if h
             else None,

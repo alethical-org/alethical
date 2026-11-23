@@ -206,7 +206,7 @@ def test_excerpt_public_pdf_url_and_csv_pins_resolve_exact_original(
         if r["Row type"] == "Source" and r["Source role"] == "report_excerpt"
     )
     link = urlsplit(source["Source URL"])
-    assert link.netloc == "alethicalfinance.com"
+    assert link.netloc == "alethical.ai"
     assert parse_qs(link.query) == {
         "kind": ["report"],
         "collection_id": [ctx.collection.id],

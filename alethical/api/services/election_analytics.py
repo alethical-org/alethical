@@ -2055,7 +2055,7 @@ _CSV_MEASURES = {
     "independent_Against": "Independent spending against",
     "independent_unknown": "Independent spending unknown direction",
 }
-_FINANCE_PUBLIC_ORIGIN = "https://alethicalfinance.com"
+_FINANCE_PUBLIC_ORIGIN = "https://alethical.ai"
 
 
 def _app_source(

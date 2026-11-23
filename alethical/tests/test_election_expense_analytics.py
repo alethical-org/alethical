@@ -1666,7 +1666,7 @@ def test_csv_flat_sources_addresses_vendor_and_all_text_are_injection_safe(
         payment["Payment paid USD"] == "-10.00"
         and payment["Payment total USD"] == "-5.00"
     )
-    assert payment["Source URL"].startswith("https://alethicalfinance.com/elections/")
+    assert payment["Source URL"].startswith("https://alethical.ai/elections/")
     assert (
         "page 3" in payment["Source references"]
         and "line 5" in payment["Source references"]
@@ -1792,7 +1792,7 @@ def test_csv_actual_selected_report_uses_one_build_and_no_extra_original_reads(
         report["Report key"].lstrip("'") == "2" * 64
         and report["Period end"] == "2026-08-01"
     )
-    assert report["Source URL"].startswith("https://alethicalfinance.com/elections/")
+    assert report["Source URL"].startswith("https://alethical.ai/elections/")
     assert not any(key.startswith("_csv") for key in json_data)
 
 
@@ -1832,9 +1832,7 @@ def test_csv_official_result_party_source_keeps_its_own_hash_and_row(held, monke
         "official result" in candidate_row["Source references"]
         and "row number 9" in candidate_row["Source references"]
     )
-    assert (
-        "https://alethicalfinance.com/elections/" in candidate_row["Source references"]
-    )
+    assert "https://alethical.ai/elections/" in candidate_row["Source references"]
     assert "f" * 64 in candidate_row["Source references"]
 
 
@@ -1871,7 +1869,7 @@ def test_csv_source_links_use_trusted_app_origin_and_exact_pins(held, monkeypatc
         }:
             continue
         parsed = urlsplit(row["Source URL"])
-        assert parsed.scheme == "https" and parsed.netloc == "alethicalfinance.com"
+        assert parsed.scheme == "https" and parsed.netloc == "alethical.ai"
         assert parsed.path == f"/elections/{KEY}/sources/{row['Source SHA256']}"
         query = parse_qs(parsed.query)
         if row["Row type"] == "Candidate":
@@ -2012,7 +2010,7 @@ def test_csv_raw_source_links_preserve_finance_collection_pin():
     url = f"/api/v1/finance/elections/{KEY}/finance/sources/{'a' * 64}/raw?collection_id={'b' * 64}"
     assert (
         s._csv_source_url(url)
-        == f"https://alethicalfinance.com/elections/{KEY}/sources/{'a' * 64}?kind=finance&collection_id={'b' * 64}"
+        == f"https://alethical.ai/elections/{KEY}/sources/{'a' * 64}?kind=finance&collection_id={'b' * 64}"
     )
 
 
@@ -2230,7 +2228,11 @@ def test_external_exclusion_pagination_csv_and_original_dates(db, own_external):
     assert payments[0]["Reported payment amount"] == "-12.34"
     assert payments[0]["Payment paid USD"] == ""
     assert payments[0]["Excluded payee"] == "Yes"
-    assert "kind=external&generation_id=" in payments[0]["Source URL"]
+    assert payments[0]["Source URL"] == (
+        f"https://alethical.ai/elections/{ctx.g['election_key']}/sources/"
+        f"{payment_source['source_sha256']}?kind=external&"
+        f"generation_id={first['external_generation_id']}"
+    )
     assert len([r for r in rows if r["Row type"] == "External memo detail"]) == 1
 
 

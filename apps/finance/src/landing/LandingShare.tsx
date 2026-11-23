@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 
-const PUBLIC_LANDING_URL = 'https://alethicalfinance.com/';
+const PUBLIC_LANDING_URL = 'https://alethical.ai/';
 
 export function LandingShare() {
   const share = useRef<HTMLDivElement>(null);
