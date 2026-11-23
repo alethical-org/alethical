@@ -60,6 +60,11 @@ def workflow_problems() -> list[dict]:
 def public_detail(result: dict) -> str | None:
     """Describe known findings without forwarding source bodies or error strings."""
     source, status = result.get("source", ""), result.get("status")
+    if source == "election-results" and status == "failed":
+        return (
+            "Official election returns could not be checked, or changed in a way "
+            "that needs review; the published returns stay in place."
+        )
     if status == "unavailable":
         return (
             "The official source could not be checked; retrying keeps the held records."

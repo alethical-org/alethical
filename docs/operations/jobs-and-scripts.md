@@ -121,7 +121,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 156 runnable files. GitHub jobs call 53 of them
+The `scripts/` folder has 157 runnable files. GitHub jobs call 53 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -134,7 +134,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 
 | Purpose | Files |
 | --- | --- |
-| Run and observe saved public-record deadlines | `refresh_public_records.py`, `report_source_refresh_health.py`, `discover_campaign_records.py`, `check_campaign_money_completion.py` (keeps filed campaign reports owed until totals and legislators' pages catch up), `discover_legislative_records.py`, `discover_reference_records.py` (roster, map and lobbying release signals), `clear_source_record_pages.py` (retries owed saved-page clearing without collecting), `refresh_fcc_records.py`, `run_scheduled_bill_refresh.py`, `refresh_legislative_records.py`, `refresh_lobbying_records.py` |
+| Run and observe saved public-record deadlines | `refresh_public_records.py`, `report_source_refresh_health.py`, `discover_campaign_records.py`, `check_campaign_money_completion.py` (keeps filed campaign reports owed until totals and legislators' pages catch up), `discover_legislative_records.py`, `discover_reference_records.py` (roster, map and lobbying release signals), `clear_source_record_pages.py` (retries owed saved-page clearing without collecting), `refresh_fcc_records.py`, `refresh_election_results.py` (daily official-returns check during a counting window), `run_scheduled_bill_refresh.py`, `refresh_legislative_records.py`, `refresh_lobbying_records.py` |
 | Recover exact historical action committee links | `recover_bill_action_committee_links.py` (one bill; retained official XML and read-only plan required; guarded apply and receipt-based rollback; never run ingestion) |
 | Continue a finite committee-link recovery pass | `run_committee_link_recovery.py` (explicit inventory or one leased, paced turn; plan-only by default; retained per-bill evidence; no automatic scheduling or ingestion) |
 | Supervise a reviewed finite recovery window | `supervise_committee_link_recovery.py` (explicit launch only; pinned clean release, schema and frozen inventory; existing turn limits plus local 60-second quiet floor; durable stop/resume and tested owner return route) |
@@ -212,6 +212,7 @@ The API wakeup does not guarantee immediate availability of a GitHub runner.
 | Donor evidence | Daily preparation | Private evidence bundle only; no automatic donor-proof approval or publication |
 | Session codes and candidate source changes | Session codes daily; candidate sources hourly | Review findings; unknown session/election mappings are not guessed |
 | District map and HUD ZIP source changes | Map release discovery hourly; map contents and ZIP references daily | Review findings; approved geometry and ZIP references remain until reviewed replacement |
+| Election returns | Daily during each configured counting window (2026 general: November 3 to December 31, 2026, Minnesota time); not registered outside a window | Changed official vote files in the same races and candidacies, published through the compare-and-swap pointer with the previous generation restorable; changed candidate registers, race or candidacy sets, reconciliation, authorities or excluded rows fail visibly without publishing; results stay unofficial and no outcome is recorded |
 | Cited article sources | Existing weekly archive schedule | Retained source versions; repeated unavailable sources fail visibly |
 
 `source_refresh_state` keeps next due time, ownership, progress and outcome;

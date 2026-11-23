@@ -295,3 +295,27 @@ def test_skipped_collection_with_successful_plan_is_not_a_failure(monkeypatch):
     monkeypatch.setenv("SOURCE_REFRESH_COLLECT_RESULT", "skipped")
     assert report.main() == 0
     assert len(calls) == 1
+
+
+def test_election_returns_failure_names_what_stays_published():
+    finding = {
+        "status": "failed",
+        "finding_key": "a1b2",
+        "elections": [{"reason": "download_incomplete", "files": [{"file": "x"}]}],
+        "results": [
+            {"source": "election-results", "status": "failed", "finding_key": "a1b2"}
+        ],
+    }
+    body, _, needs_attention = report.packet(
+        [
+            row(
+                "election-results",
+                status="failed",
+                source="https://electionresults.sos.mn.gov/",
+                finding=finding,
+            )
+        ]
+    )
+    assert needs_attention
+    assert "published returns stay in place" in body
+    assert "download_incomplete" not in body

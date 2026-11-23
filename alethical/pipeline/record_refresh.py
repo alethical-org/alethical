@@ -39,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CLEARING_JOB = "source-clearing"
 #: Runs only while a money check it can perform, or money page clearing, is owed.
 CHECK_JOB = "campaign-rechecks"
+#: Daily official-returns check during an election's counting window.
+ELECTION_RESULTS_JOB = "election-results"
 #: Where a collector writes its own stage records (``collection_run_summary.py``).
 SUMMARY_ENV = "COLLECTION_RUN_SUMMARY"
 
@@ -443,6 +445,32 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
         ]
     )
+    from alethical.pipeline.election_results_refresh import (
+        active_windows,
+        minnesota_today,
+    )
+
+    if active_windows(minnesota_today(now)):
+        # Registered only inside a configured counting window, so the job stops by
+        # itself once every window has closed and is never reported overdue after.
+        definitions.append(
+            RefreshJob(
+                ELECTION_RESULTS_JOB,
+                timedelta(days=1),
+                timedelta(minutes=45),
+                (
+                    "scripts/refresh_election_results.py",
+                    "--target",
+                    "{target}",
+                    "--execute",
+                ),
+                "https://electionresults.sos.mn.gov/",
+                "Publish changed official election returns through the guarded pointer",
+                capture_json=True,
+                lane="election-results",
+                priority=3,
+            )
+        )
     definitions.append(
         RefreshJob(
             CLEARING_JOB,
@@ -459,7 +487,15 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
     return {job.name: job for job in definitions}
 
 
-FAMILIES = {"campaign", "notices", "legislative", "lobbying", "supporting", "fcc"}
+FAMILIES = {
+    "campaign",
+    "notices",
+    "legislative",
+    "lobbying",
+    "supporting",
+    "fcc",
+    "elections",
+}
 
 
 def job_family(name: str) -> str:
@@ -487,6 +523,8 @@ def job_family(name: str) -> str:
         return "lobbying"
     if name in {"fcc", "lobbying"}:
         return name
+    if name == ELECTION_RESULTS_JOB:
+        return "elections"
     return "supporting"
 
 
