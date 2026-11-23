@@ -50,7 +50,7 @@ export function LandingShare() {
   return (
     <div className="lp-share lp-wrap" ref={share}>
       <button type="button" className="lp-signin" onClick={() => void copy()} ref={button}>
-        Share Alethical Finance
+        Share Alethical.AI
       </button>
       <p
         className="lp-share-result"

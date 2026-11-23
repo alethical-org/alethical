@@ -326,10 +326,10 @@ def _send(settings: _Settings, email: str, code: str, code_id: str) -> None:
             json={
                 "from": settings.from_address,
                 "to": [email],
-                "subject": "Your Alethical Finance sign-in code",
+                "subject": "Your Alethical.AI sign-in code",
                 "text": "\n".join(
                     [
-                        f"Your Alethical Finance sign-in code is {code}.",
+                        f"Your Alethical.AI sign-in code is {code}.",
                         "",
                         f"It works once, for the next {minutes} minutes.",
                         "If you did not ask to sign in, you can ignore this email:"

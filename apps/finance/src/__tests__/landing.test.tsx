@@ -114,7 +114,7 @@ describe('the public Finance site', () => {
       'Go straight to the evidence',
       'Keep client work moving',
       'BUILT ON MINNESOTA PUBLIC RECORDS',
-      'Share Alethical Finance',
+      'Share Alethical.AI',
       'Sources and updates',
       'Minnesota Campaign Finance and Public Disclosure Board',
       'Federal Communications Commission',
@@ -123,7 +123,7 @@ describe('the public Finance site', () => {
     }
     expect(text).not.toContain('Printed names not yet confirmed');
     expect(text).not.toContain('alethical.ai');
-    expect(document.title).toBe('Alethical Finance');
+    expect(document.title).toBe('Alethical.AI');
   });
 
   it('copies the primary Finance address from the landing page', async () => {
@@ -136,7 +136,7 @@ describe('the public Finance site', () => {
     );
     await renderAt('/');
     const share = [...container.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Share Alethical Finance',
+      (button) => button.textContent === 'Share Alethical.AI',
     );
     expect(share).toBeDefined();
     await act(async () => share!.click());

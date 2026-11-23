@@ -2399,7 +2399,7 @@ def _csv_export(data, races):
         "Support and opposition": data["definitions"]["support"]
         + "; "
         + data["definitions"]["opposition"],
-        "Source links": "Source URL opens the exact retained source in Finance; sign in if needed. Source record means a CSV record number, not a physical text line.",
+        "Source links": "Source URL opens the exact retained source in Alethical.AI; sign in if needed. Source record means a CSV record number, not a physical text line.",
         "Text values": "An initial apostrophe protects formula-like text and long or zero-prefixed identifiers in spreadsheets; it is not part of the original source value.",
     }.items():
         write({"Row type": "Guide", "Context field": label, "Context value": text})

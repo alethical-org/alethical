@@ -28,7 +28,9 @@ router = APIRouter(
     prefix="/finance/identities", dependencies=[Depends(require_finance_access)]
 )
 
-SHARED = "Every Finance account can read this, so never write anything confidential."
+SHARED = (
+    "Every Alethical.AI account can read this, so never write anything confidential."
+)
 
 
 class _Request(BaseModel):

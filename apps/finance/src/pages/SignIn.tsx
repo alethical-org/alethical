@@ -242,7 +242,7 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
               Sign in with email
             </button>
           )}
-          {!googleSignIn && !emailSignIn && <p>Sign-in to Alethical Finance is not open yet.</p>}
+          {!googleSignIn && !emailSignIn && <p>Sign-in to Alethical.AI is not open yet.</p>}
         </div>
       )}
 
@@ -320,7 +320,7 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
       {step === 'code' && (
         <form className="stack" onSubmit={verifyCode} noValidate>
           <h2>Enter the newest code</h2>
-          <p>If {email.trim()} has access to Alethical Finance, a code is on its way to it.</p>
+          <p>If {email.trim()} has access to Alethical.AI, a code is on its way to it.</p>
           {resent && <p role="status">New code requested</p>}
           <label htmlFor="code">Code</label>
           <input
