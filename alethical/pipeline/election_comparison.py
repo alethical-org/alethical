@@ -21,7 +21,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
-from alethical.pipeline.raw_file_store import sha256_of_file
+from alethical.pipeline.raw_file_store import StorageObjectMissingError, sha256_of_file
 
 
 class ComparisonImportError(ValueError):
@@ -106,11 +106,18 @@ def archive_source(db: Session, store, body: bytes) -> str:
     source_hash = hashlib.sha256(body).hexdigest()
     retained = db.get(m.ElectionResultSource, source_hash, populate_existing=True)
     if retained is not None:
-        if retained.byte_size != len(body) or read_source(store, retained) != body:
-            raise ComparisonImportError(
-                "Retained source does not read back to the verified bytes"
-            )
-        return source_hash
+        try:
+            stored = read_source(store, retained)
+        except StorageObjectMissingError:
+            # A lost object is written again below and must then match the
+            # recorded metadata, exactly as before.
+            stored = None
+        if stored is not None:
+            if retained.byte_size != len(body) or stored != body:
+                raise ComparisonImportError(
+                    "Retained source does not read back to the verified bytes"
+                )
+            return source_hash
     compressed = gzip.compress(body, mtime=0)
     compressed_hash = hashlib.sha256(compressed).hexdigest()
     key = f"elections/returns/{source_hash}.gz"

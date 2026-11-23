@@ -138,8 +138,11 @@ def test_retained_source_from_another_zlib_build_is_verified_not_recompressed(
     store.objects[key] = bytes([other[0] ^ 1]) + other[1:]
     with pytest.raises(storage.ComparisonImportError, match="fingerprint"):
         storage.archive_source(db, store, source)
+    # A lost object is written again and must match the recorded metadata;
+    # this machine's different stream does not, so it is refused.
     del store.objects[key]
-    with pytest.raises(StorageObjectMissingError):
+    del store.put_and_verify
+    with pytest.raises(storage.ComparisonImportError, match="metadata"):
         storage.archive_source(db, store, source)
 
 
