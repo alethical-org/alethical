@@ -62,13 +62,13 @@ export const ROUTES: readonly RouteDefinition[] = [
   {
     name: 'landing',
     pattern: '/',
-    title: 'Alethical Finance',
+    title: 'Alethical.AI',
     signedOut: true,
   },
   {
     name: 'home',
     pattern: '/home',
-    title: 'Finance Home',
+    title: 'Home',
     returnName: 'Research public records',
   },
   {

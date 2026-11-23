@@ -50,7 +50,7 @@ export function NotFound() {
         </h1>
         <p>
           <Link to="/home" className="f-dest">
-            <WithArrow>Go to Finance Home</WithArrow>
+            <WithArrow>Go to Home</WithArrow>
           </Link>
         </p>
       </main>
@@ -69,7 +69,7 @@ export function NotFound() {
 export function NotConfigured() {
   return (
     <main id="main" className="access">
-      <h1>Alethical Finance is not configured</h1>
+      <h1>Alethical.AI is not configured</h1>
       <p>This copy of the app is missing its sign-in or server settings.</p>
     </main>
   );

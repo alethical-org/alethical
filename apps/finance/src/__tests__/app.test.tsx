@@ -167,7 +167,7 @@ describe('the Finance shell', () => {
     await click('Continue');
     expect(fetcher).toHaveBeenCalledWith(`${API}/api/v1/finance/sign-in/code`, expect.anything());
     expect(container.textContent).toContain(
-      'If reader@example.test has access to Alethical Finance, a code is on its way to it.',
+      'If reader@example.test has access to Alethical.AI, a code is on its way to it.',
     );
     await type('#code', ' 12345678 ');
     await click('Continue');
@@ -193,7 +193,7 @@ describe('the Finance shell', () => {
     expect(container.querySelector('header [role="search"]')).toBeNull();
     expect(container.querySelectorAll('main [role="search"]')).toHaveLength(1);
     expect(container.querySelector('h1')?.textContent).toBe('Research public records');
-    expect(document.title).toBe('Finance Home · Alethical Finance');
+    expect(document.title).toBe('Home · Alethical.AI');
   });
 
   it('enters each directory from Home and keeps the checking tools off it', async () => {
@@ -240,7 +240,7 @@ describe('the Finance shell', () => {
   it('answers an unknown address with the not-found page', async () => {
     await renderAt('/money/nothing-here', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('h1')?.textContent).toBe('Couldn’t find that page');
-    expect(document.title).toBe('Page not found · Alethical Finance');
+    expect(document.title).toBe('Page not found · Alethical.AI');
   });
 
   it('keeps identity review unavailable even through a direct URL', async () => {
@@ -249,7 +249,7 @@ describe('the Finance shell', () => {
       fakeSupabase(SIGNED_IN),
     );
     expect(container.querySelector('h1')?.textContent).toBe('Couldn’t find that page');
-    expect(document.title).toBe('Page not found · Alethical Finance');
+    expect(document.title).toBe('Page not found · Alethical.AI');
     expect(fetcher.mock.calls.some(([url]) => url.includes('/finance/identities'))).toBe(false);
     expect(container.textContent).not.toContain('Confirm identities');
   });
@@ -257,17 +257,15 @@ describe('the Finance shell', () => {
   it('shows the landing page at / to a signed-in account too', async () => {
     await renderAt('/', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('header.f-nav')).toBeNull();
-    expect(document.title).toBe('Alethical Finance');
+    expect(document.title).toBe('Alethical.AI');
   });
 
   it('shows the no-access state, naming the account but no reason', async () => {
     await renderAt('/money', fakeSupabase(SIGNED_IN), 403);
-    expect(container.textContent).toContain(
-      'This account doesn’t have access to Alethical Finance',
-    );
+    expect(container.textContent).toContain('This account doesn’t have access to Alethical.AI');
     expect(container.textContent).toContain('Signed in as reader@example.test');
     expect(container.querySelector('nav')).toBeNull();
-    expect(document.title).toBe('Alethical Finance');
+    expect(document.title).toBe('Alethical.AI');
   });
 
   it('offers a retry when access cannot be checked, never the no-access state', async () => {

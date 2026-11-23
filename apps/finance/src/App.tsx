@@ -138,10 +138,10 @@ export function App() {
   // A page's own title only once the reader can see that page.
   const pageVisible = signedOutRoute || status === 'granted';
   useEffect(() => {
-    if (match?.route.name === 'landing') document.title = 'Alethical Finance';
-    else if (!pageVisible) document.title = 'Alethical Finance';
-    else if (match) document.title = `${match.route.title} · Alethical Finance`;
-    else document.title = 'Page not found · Alethical Finance';
+    if (match?.route.name === 'landing') document.title = 'Alethical.AI';
+    else if (!pageVisible) document.title = 'Alethical.AI';
+    else if (match) document.title = `${match.route.title} · Alethical.AI`;
+    else document.title = 'Page not found · Alethical.AI';
   }, [match, pageVisible]);
 
   useEffect(() => {

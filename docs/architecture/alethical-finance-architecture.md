@@ -506,7 +506,7 @@ of approval to build the graph frontend.
   | 200 (`GET /access`: `{"data": {"allowed": true}}`) | A listed account with a valid session | Shows Finance |
   | 401, "Sign in to continue." | No token | Asks the person to sign in |
   | 401, "Sign in again to continue." | An expired, invalid or unreadable token | Asks the person to sign in again |
-  | 403, type `finance-no-access`, "This account does not have access to Alethical Finance." | Refused: never listed, revoked, unconfirmed address, locked, banned or deleted account | Shows the no-access state |
+  | 403, type `finance-no-access`, "This account does not have access to Alethical.AI." | Refused: never listed, revoked, unconfirmed address, locked, banned or deleted account | Shows the no-access state |
   | 503, type `service-unavailable` | The sign-in service or the list cannot be read | Keeps the page and offers Try again; never reads it as no access |
 
   A listing has no expiry date: it ends only when Alethical revokes it

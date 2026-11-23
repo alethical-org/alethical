@@ -286,7 +286,7 @@ it.each(['changed', 'same', 'failed then recovered'])(
 );
 it('keeps source and auth secrets out of report navigation and rejects foreign return state', () => {
   const url = new URL(
-    'https://alethicalfinance.com/money/races?election=mn-2026-11-03-general&race=r&report=funders&fq=Example&funder=one&token=secret&expenseExcluded=old',
+    'https://alethical.ai/money/races?election=mn-2026-11-03-general&race=r&report=funders&fq=Example&funder=one&token=secret&expenseExcluded=old',
   );
   expect(reportHref(url, 'comparison')).not.toContain('token');
   expect(reportHref(url, 'comparison')).not.toContain('expenseExcluded');
@@ -535,7 +535,7 @@ it('a payment excluded only by selected dates keeps that exact reason', async ()
 });
 it('returns from each report with the selected comparison filing and precinct scope intact', () => {
   const original = new URL(
-    `https://alethicalfinance.com/money/races?election=mn-2026-11-03-general&race=r&q=Attorney&reports=123:${'a'.repeat(64)}&pq=Ward&ppage=2&votesView=table&token=secret`,
+    `https://alethical.ai/money/races?election=mn-2026-11-03-general&race=r&q=Attorney&reports=123:${'a'.repeat(64)}&pq=Ward&ppage=2&votesView=table&token=secret`,
   );
   for (const mode of ['funders', 'expenses'] as const) {
     const report = new URL(reportHref(original, mode), original.origin);

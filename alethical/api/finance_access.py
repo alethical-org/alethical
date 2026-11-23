@@ -26,7 +26,7 @@ from alethical.api.services.finance_access import (
 from alethical.api.services import finance_research_access
 from alethical.db.session import get_db
 
-NO_ACCESS_DETAIL = "This account does not have access to Alethical Finance."
+NO_ACCESS_DETAIL = "This account does not have access to Alethical.AI."
 
 
 def _unavailable(request: Request):

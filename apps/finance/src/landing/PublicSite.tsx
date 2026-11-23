@@ -39,8 +39,7 @@ export function PublicSite() {
       'auth-return': 'Signing in',
       'not-found': 'Page not found',
     };
-    document.title =
-      page === 'landing' ? 'Alethical Finance' : `${titles[page]} · Alethical Finance`;
+    document.title = page === 'landing' ? 'Alethical.AI' : `${titles[page]} · Alethical.AI`;
   }, [page]);
 
   // What is on screen, not the sign-in state behind it: that state settles from

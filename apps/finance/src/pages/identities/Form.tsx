@@ -204,7 +204,7 @@ export function IdentityForm({
       <label className="ci-field">
         <span className="ci-field-label">{spec.noteLabel}</span>
         <span id="note-hint" className="ci-hint">
-          Every Alethical Finance account can read this note
+          Every Alethical.AI account can read this note
         </span>
         <textarea
           className="ci-input ci-textarea"

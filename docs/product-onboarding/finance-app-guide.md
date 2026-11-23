@@ -4,7 +4,7 @@
 
 **Net:** Alethical Finance is the sign-in-only research site for law firms and their
 political committees. With its signed-in screens on, a listed account researches bills,
-legislators, committees and their money from Finance Home; a page not built yet answers
+legislators, committees and their money from Home; a page not built yet answers
 exactly like an unknown address. With them off, https://alethical.ai serves only
 the landing page and sign-in.
 
@@ -28,7 +28,7 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   visuals show research imports and client work, followed by the live figures, share action
   and sources. The hero background moves slowly and follows the pointer; it is still for a
   reader who asks for reduced motion. A slim bar with Sign in appears once the hero scrolls away.
-- **Share Alethical Finance** copies the canonical landing address with no account or page
+- **Share Alethical.AI** copies the canonical landing address with no account or page
   state in it. It confirms the copy or lets the reader try again. The address is not printed
   on the landing page.
 - **The counts** are read live from `GET /api/v1/finance/landing/counts`
@@ -52,14 +52,14 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   so no unfinished screen is public.
 
 With `VITE_FINANCE_SCREENS` set to `on`, the app is the signed-in site described in the rest
-of this guide. `/` stays the landing page for everyone, signed in or not, and Finance Home is
+of this guide. `/` stays the landing page for everyone, signed in or not, and Home is
 `/home` (Design decision D20: 1 address never shows 2 pages).
 
 ## Ways in (screens on)
 
 - **Any Finance address.** A signed-out visitor is sent to `/sign-in`, which remembers the
   address so sign-in returns there. A return address is kept only when it is a built
-  signed-in Finance page; anything else, another site included, returns to Finance Home at
+  signed-in Finance page; anything else, another site included, returns to Home at
   `/home` (to `/` while the screens are off).
 - **`/sign-in`.** Google for listed team accounts during the private beta. Ordinary accounts
   have no Finance password or signup path. Shared research accounts enter through the landing
@@ -67,7 +67,7 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
-  (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
+  (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical.AI is
   not open yet."
 - **`/auth/return`.** Where Google brings the visitor back, to the Finance page they asked
   for. Finance's emails carry no link, so email sign-in never comes here. A sign-in token in
@@ -111,7 +111,7 @@ for the owning permission and password-management rules.
 2. The app asks the server for a code (`POST /api/v1/finance/sign-in/code`). The server
    answers every address the same way, with a new challenge the app keeps, and Alethical
    emails an 8-digit code, with no link, only to a listed one, so the next screen says "If
-   {address} has access to Alethical Finance, a code is on its way to it", never that a code
+   {address} has access to Alethical.AI, a code is on its way to it", never that a code
    was sent.
 3. **Code:** the visitor pastes the code. The app sends it with the challenge from this
    tab's newest request (`POST /api/v1/finance/sign-in/verify`); the server returns a 1-time
@@ -133,14 +133,14 @@ for the owning permission and password-management rules.
   last answer, and a refusal replaces the page at once. Every request gives up after 10
   seconds and offers Try again.
 - **Listed account:** the dark navigation bar from the "Finance Nav" drawing: the
-  ALETHICAL | Finance lockup (a link to Finance Home), the record families in this order:
+  ALETHICAL | Finance lockup (a link to Home), the record families in this order:
   Money, Media buys, Lobbying, People, Legislation (the phone Menu lists the same order; a
   family whose page is not built yet is left out, never linked to a missing page), and the
   Account menu with Sign out. The current family is underlined. On a phone the families and
-  Sign out sit in a Menu. The lockup returns to the main search on Finance Home. Both menus show the signed-in address for ordinary
+  Sign out sit in a Menu. The lockup returns to the main search on Home. Both menus show the signed-in address for ordinary
   accounts and omit the shared address for investors. Escape or a press outside closes each menu.
   Sign out also forgets every answer and scroll position this browser held for the account.
-- **Search suggestions** on Finance Home: from 2 typed characters, 1
+- **Search suggestions** on Home: from 2 typed characters, 1
   request per pause in typing to `GET /api/v1/finance/suggestions`; new typing cancels the
   older request immediately and its answer cannot replace the new query. This field reuses
   up to 20 successful queries for 60 seconds while mounted for the same account; nothing
@@ -161,7 +161,7 @@ for the owning permission and password-management rules.
   spellings, names matching the typed words without accents, common nicknames or the
   formal name behind one ("Zack Stephenson" finds "Stephenson, Zachary"), and names
   missing a typed middle initial ("Mark W. Koran" finds "Koran, Mark"). The full results page retains its broader bill search.
-- **Finance Home (`/home`)**: "Research public records" with the search field, and a quiet
+- **Home (`/home`)**: "Research public records" with the search field, and a quiet
   "Explore money connections" link after the record-family cards, before Sources and updates.
   It keeps the same lower placement on computer, tablet and phone, with a 44px target,
   visible hover, keyboard focus and pressed feedback; under "Browse records", entrances into each built directory in this order (Legislators,
@@ -173,15 +173,15 @@ for the owning permission and password-management rules.
   Finance and Public Disclosure Board (Campaign money, Lobbying), the Secretary of State
   (People), the Legislature (Legislation), then the TV stations (Media buys). Confirm identities, Check TV station files and
   Donors by employer are not entered from Home.
-- **Not listed:** "This account doesn’t have access to Alethical Finance", the signed-in
+- **Not listed:** "This account doesn’t have access to Alethical.AI", the signed-in
   address, Switch account and Contact us (an email to ask@alethical.com). The page never
   says why, because the server never says. An account refused after having access in this
-  session reads "This account does not have access to Alethical Finance" with "Results kept
+  session reads "This account does not have access to Alethical.AI" with "Results kept
   from this account are no longer shown": every held answer and unfinished entry is cleared.
 - **Access cannot be checked:** "Couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
 - **Unknown address, or a page not built yet:** "Couldn’t find that page" inside the
-  navigation, with Go to Finance Home.
+  navigation, with Go to Home.
 - Opening a research page shows "Loading page…" while its extra page code loads. If that code
   or its styles cannot load, "Couldn’t load this page" offers **Reload page**, which reloads
   the current address. A failed download of that page code or its styles keeps research
@@ -191,7 +191,7 @@ for the owning permission and password-management rules.
   that page. Each sign-in step moves focus to its field.
 - A link to a record carries the earlier page's own address (`?from=`), so the record's
   "Back to {page}" link reopens exactly that page, its tab, year and search included; up to
-  3 earlier pages are kept. A link back to Finance Home names it by its heading, "Back to
+  3 earlier pages are kept. A link back to Home names it by its heading, "Back to
   Research public records". The 5 destinations the top bar reaches (Campaign money,
   Media buys, Lobbying, People, Legislation) carry no return link. In-page choices (tab, year,
   sort, page, search) are kept in the address, so a copied link or a new tab opens the same
@@ -227,13 +227,13 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 
 ## Research pages
 
-Money connections (`/money/connections`), opened from Finance Home's and Campaign money's
+Money connections (`/money/connections`), opened from Home's and Campaign money's
 "Explore money connections", reads direct recorded
 relationships from `GET /api/v1/finance/connections`. Search, year, relationship and the
 selected name (`focus`) are server filters; a selected line stays in the address (`edge`),
 with how many pages were loaded (`pages`, up to 10), so a return from a record reloads those
 pages and restores it. Opened with no earlier page, it reads "Back to Research public
-records", Finance Home. The page loads 100 relationships at a time: "Show
+records", Home. The page loads 100 relationships at a time: "Show
 {n} more connections" adds the next min(100, remaining), and "{loaded} of {total}
 connections loaded" appears once the selection is larger than 1 page. Map and Table read
 the same loaded set. Map opens at every band, phone included, where the 3 columns stack
@@ -324,7 +324,7 @@ an unavailable source is not a no-match result.
   Office; Legislators adds Service, party from the Legislature record and Chamber. All
   records has none, and switching type clears the other type's filters. Menu options come
   from the selected record type's held records. Every choice stays in the address, so
-  Finance Home's `?type=legislators&service=current` and `?type=candidates` open those views.
+  Home's `?type=legislators&service=current` and `?type=candidates` open those views.
   A candidacy's row names its election and seat ("2026 general · State Representative,
   District 56A"), each fact once even where the official record names the district twice;
   party prints only from the candidacy's filed record. A legislator's party comes only

@@ -1041,7 +1041,7 @@ def test_evidence_notes_are_documented_as_readable_by_every_account(client):
         ("IdentitySplitPart", "name"),
     ]:
         description = schemas[model]["properties"][field]["description"]
-        assert "Every Finance account can read this" in description, (model, field)
+        assert "Every Alethical.AI account can read this" in description, (model, field)
 
 
 # Decisions are append-only; merges redirect; splits replace.

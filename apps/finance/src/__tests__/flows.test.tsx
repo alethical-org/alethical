@@ -159,7 +159,7 @@ describe('the access answer', () => {
     await act(async () => supabase.emit('TOKEN_REFRESHED', session('token-2')));
     await act(async () => {});
     // Access held in this session and now refused (Access drawing, Revoked).
-    expect(text()).toContain('This account does not have access to Alethical Finance');
+    expect(text()).toContain('This account does not have access to Alethical.AI');
     expect(text()).toContain('Results kept from this account are no longer shown');
   });
 
@@ -410,7 +410,7 @@ describe('sign-in steps', () => {
     await askForACode();
     await reload('/sign-in', supabase.client, server.fetcher);
     expect(text()).toContain(
-      'If reader@example.test has access to Alethical Finance, a code is on its way to it.',
+      'If reader@example.test has access to Alethical.AI, a code is on its way to it.',
     );
     expect(button('Send a new code').disabled).toBe(true);
     await proveACode();

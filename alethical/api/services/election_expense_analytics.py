@@ -3458,7 +3458,7 @@ def _csv_body(data):
     )
     meta(
         "Sources",
-        "Source URL opens the exact retained original in Finance; sign in if needed. Original URL may be a generic official viewer. Source pages, lines, references and text locate the evidence.",
+        "Source URL opens the exact retained original in Alethical.AI; sign in if needed. Original URL may be a generic official viewer. Source pages, lines, references and text locate the evidence.",
     )
     meta(
         "Spreadsheet text",

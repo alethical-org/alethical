@@ -19,7 +19,7 @@ export function ElectionSource({ match }: { match: RouteMatch }) {
   if (!selection) return <NotFound />;
   return (
     <main id="main" className="f-page">
-      <DestLink to={hrefFor('home')}>Finance Home</DestLink>
+      <DestLink to={hrefFor('home')}>Home</DestLink>
       <h1 tabIndex={-1} className="f-page-title">
         Original source
       </h1>
