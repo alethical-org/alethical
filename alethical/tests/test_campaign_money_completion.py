@@ -826,3 +826,33 @@ def test_a_held_back_recurrence_is_announced_once_the_quiet_period_ends(monkeypa
     )
     assert report.main() == 0
     assert any(args[:2] == ("issue", "comment") for args, _ in calls)
+
+
+def test_the_issue_says_how_many_roll_calls_went_unmatched():
+    """A bare "votes: review_required" hid 45 special-session roll calls for months."""
+    body, _, attention = report.packet(
+        [
+            health_row(
+                "votes",
+                {
+                    "missing": {"no_source_match": 45, "cross_chamber_mirror": 19},
+                    "corrections": {"rejected": 12, "unchanged": 88},
+                    "review_required": True,
+                },
+                status="review_required",
+            )
+        ]
+    )
+    assert attention
+    assert "45 official roll call(s) matched no House vote page" in body
+    assert "12 saved roll call(s) no longer match the official record" in body
+    quiet, _, _ = report.packet(
+        [
+            health_row(
+                "votes",
+                {"missing": {"no_source_match": 0}, "corrections": {"rejected": 0}},
+                status="review_required",
+            )
+        ]
+    )
+    assert "roll call(s)" not in quiet
