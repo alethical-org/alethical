@@ -77,6 +77,10 @@ const PURPOSE_PREFILL: Record<ContactPurpose, Pick<ContactValues, 'subject' | 'm
     subject: 'Possible correction',
     message: 'Where I saw it:\n\nWhat may be wrong:\n',
   },
+  'alethical-ai': {
+    subject: 'Alethical.AI inquiry',
+    message: 'What would you like to research or try with Alethical.AI?\n\n',
+  },
 };
 
 export function contactPrefillValues(article?: string, purpose?: string): ContactValues {
