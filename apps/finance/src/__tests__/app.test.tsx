@@ -134,9 +134,7 @@ describe('the Finance shell', () => {
     expect(container.textContent).toContain('Continue with Google');
     expect(container.textContent).not.toContain('Sign in with email');
     expect(container.querySelector('#code')).toBeNull();
-    expect(
-      container.querySelector('a[aria-label="Alethical Finance home"]')?.getAttribute('href'),
-    ).toBe('/');
+    expect(container.querySelector('a[aria-label="Alethical.AI"]')?.getAttribute('href')).toBe('/');
   });
 
   it('keeps shared-password access when ordinary sign-in methods are off', async () => {
@@ -190,6 +188,11 @@ describe('the Finance shell', () => {
   it('shows Finance Home in the shell to a listed account', async () => {
     await renderAt('/home', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('header.f-nav')).not.toBeNull();
+    const logo = container.querySelector<HTMLAnchorElement>('a.f-nav-lockup')!;
+    expect(logo.getAttribute('aria-label')).toBe('Alethical.AI home');
+    expect(logo.getAttribute('href')).toBe('/home');
+    expect(logo.textContent).toBe('ALETHICAL.AI');
+    expect(container.querySelector('header.f-nav')?.textContent).not.toContain('Finance');
     expect(container.querySelector('header [role="search"]')).toBeNull();
     expect(container.querySelectorAll('main [role="search"]')).toHaveLength(1);
     expect(container.querySelector('h1')?.textContent).toBe('Research public records');

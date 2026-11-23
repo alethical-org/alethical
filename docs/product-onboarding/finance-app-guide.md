@@ -1,9 +1,9 @@
-# Alethical Finance app guide
+# Alethical.AI app guide
 
 <!-- describes: apps/finance/** -->
 
-**Net:** Alethical Finance is the sign-in-only research site for law firms and their
-political committees. With its signed-in screens on, a listed account researches bills,
+**Net:** Alethical.AI is the sign-in-only research site for professional political and
+policy researchers (the app lives in `apps/finance`). With its signed-in screens on, a listed account researches bills,
 legislators, committees and their money from Home; a page not built yet answers
 exactly like an unknown address. With them off, https://alethical.ai serves only
 the landing page and sign-in.
@@ -17,37 +17,50 @@ app is its own React web app in `apps/finance`, not a mode of alethical.com's ap
 Until Finance's signed-in screens are approved, the build setting `VITE_FINANCE_SCREENS`
 stays off (anything other than `on`), and the app serves 3 addresses:
 
-- **`/`, the expanded landing page**, follows the Product Landing drawing in Alethical B2B.
-  The hero reads “Connect political money, people and policy” and
-  “Political intelligence for law firms, PACs and research teams”. The chart directly below
-  it shows 57 supported research paths in 9 runs across money, people and organizations,
-  and policy and elections. On phones and for screen readers, the same paths are named in
-  text. The giving path links a contribution to its recipient committee, then the committee
-  to its candidate. A line does not claim influence, shared identity or a payment. Five benefits
-  follow the chart. Separate
-  visuals show research imports and client work, followed by the live figures, share action
-  and sources. The hero background moves slowly and follows the pointer; it is still for a
-  reader who asks for reduced motion. A slim bar with Sign in appears once the hero scrolls away.
+- **`/`, the landing page**, follows Design's Product Landing drawing (Alethical.AI landing
+  and investor pages handoff, 23 Nov 2026). Both headers, the opening one and the slim bar
+  that appears once the opening scrolls away, carry the ALETHICAL.AI logo (named
+  "Alethical.AI" for screen readers), a **For investors** link to `/investors` and **Sign in**.
+  The slim bar's links are skipped by the keyboard until it appears. The opening reads “A
+  clearer view of money and media in elections and legislation”, says the team prepares
+  reports today and an AI analyst is being built, and has one button, **Contact our team**,
+  which opens alethical.com's contact form with the Alethical.AI inquiry purpose
+  (`https://www.alethical.com/about/contact?purpose=alethical-ai`). The chart below shows 56
+  supported research paths in 9 runs across money, people and organizations, and policy and
+  elections; TV ad buys lead only to Stations. On phones and for screen readers, the same
+  paths are named in text. A line does not claim influence, shared identity or a payment.
+  Five feature rows follow the chart. **What we’re building** then lists 3 planned
+  capabilities (bringing your own research, seeing what changed, finishing a brief with your
+  team), drawn with hollow dots and dashed lines so they never read as working features.
+  The opening background moves slowly and follows the pointer; it is still for a reader who
+  asks for reduced motion. The footer names Alethical.AI as the professional research
+  product on the Alethical platform, linked to alethical.com.
 - **Share Alethical.AI** copies the canonical landing address with no account or page
   state in it. It confirms the copy or lets the reader try again. The address is not printed
   on the landing page.
-- **The counts** are read live from `GET /api/v1/finance/landing/counts`
-  ([alethical-finance-architecture.md §9, Landing-page counts](../architecture/alethical-finance-architecture.md#9-landing-page-counts)):
-  campaign money records with their years; lobbying spending reports with how many
-  organizations filed them and their years; bills held for the current Legislature; and TV
-  station files with their years. A count the server cannot read has no tile, never a 0; when
-  none can be read, the counts block is left out. "Sources and updates" names each source
-  with the date its records were copied (bills: updated), in Minnesota time; a date the server
-  cannot support is left out and the source stays named.
-- Finance is a private beta. No **Request access** email action or closing access section
-  appears on the landing page. With signed-in screens enabled, the hero has the only
-  **Investor access** button, opening `/investor-access` directly. The header keeps **Sign in**,
-  with 24px above its button and the wordmark aligned beside it; the slim scrolled bar keeps
-  its compact spacing.
+- **The figures** are read live from `GET /api/v1/finance/landing/counts`
+  ([alethical-finance-architecture.md §9, Landing-page counts](../architecture/alethical-finance-architecture.md#9-landing-page-counts))
+  in 2 groups. **Nationwide**: FCC political ad filings indexed since 2012, shown in millions
+  rounded down. **Minnesota**: campaign finance records with their years; lobbying spending
+  reports with how many organizations filed them and their years; bills held for the current
+  Legislature with its roll calls; and races with reported results in the latest general
+  election, saying when results were unofficial at the time of the count. Each group shows 1
+  "As of" date, the oldest date among its figures, so it never claims a newer copy than a
+  figure has. The heading counts the figures shown: "More than N million public records". A
+  count the server cannot read has no tile, never a 0; a group with none is left out, and
+  with no groups the figures block is left out. "Sources and updates" links each of the 4
+  sources to its own site, says what it supplies, and gives its own date only where it differs
+  from its group's date; a missing date reads "Copy date not recorded".
+- Alethical.AI is a private beta. No **Request access** email action appears on the landing
+  page.
+- **`/investors`**, "Alethical.AI for investors", has the same header with **For investors**
+  marked as the current page, 3 paragraphs of introduction and one **Investor access** button
+  to `/investor-access`. The introduction fills the first screen. Raise amount and terms are
+  not on the page.
 - **Sign in** opens `/sign-in`. After signing in, an account not on the access list sees the
   not-listed state at `/`; a listed account sees the landing page, because no signed-in screen
   is public yet.
-- **`/sign-in` and `/auth/return`** work as described below.
+- **`/sign-in`, `/investors` and `/auth/return`** work as described below.
 - **Every other address** shows "Couldn’t find that page" with a link to the landing page,
   so no unfinished screen is public.
 
@@ -62,8 +75,8 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Ho
   signed-in Finance page; anything else, another site included, returns to Home at
   `/home` (to `/` while the screens are off).
 - **`/sign-in`.** Google for listed team accounts during the private beta. Ordinary accounts
-  have no Finance password or signup path. Shared research accounts enter through the landing
-  page’s Investor access button. The emailed-code option stays off until the rollout. Each way
+  have no Finance password or signup path. Shared research accounts enter through the
+  Investor access button on `/investors`. The emailed-code option stays off until the rollout. Each way
   is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
@@ -80,13 +93,15 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Ho
 ## Shared research sign-in
 
 Ordinary `/sign-in` has the heading **Sign in** and no investor option. The separate
-`/investor-access` page has one **Investor access code** field and an **Enter** button
-(**Opening…** while pending), with no separate heading. Both forms link the Alethical
-Finance wordmark to the public homepage and keep the added top space:
-12% of viewport height, bounded between 64px and 112px, in normal page flow so short
-screens and keyboards can scroll. The investor field has 24px of space after the
-wordmark. It shows the code as typed and disables automatic capitalization, correction and
-spellcheck. The investor page asks for no email.
+`/investor-access` page has the heading **Investor access**, one **Code** field and an
+**Enter** button (**Opening…** while pending). Sign in, investor access, the no-access answer
+and the signing-in step share 1 layout: the ALETHICAL.AI logo on the dark ground above a white
+card. On sign-in and investor access the logo links to the landing page; on the no-access
+and signing-in pages it is not a link. The investor field shows the code as typed and
+disables automatic capitalization, correction and spellcheck. "Enter your code" and "That
+code is not right. Try again." appear under the field; "Too many attempts. Wait a minute and
+try again." and "Couldn’t open investor access. Try again." appear at the top of the card.
+The investor page asks for no email.
 The server chooses the shared account through its private configuration. It accepts an operator-created research
 account and returns to the requested browsing page. An invalid code, too many
 attempts and unavailable service have distinct retry messages; fields stay filled
@@ -205,14 +220,14 @@ focus, hover and pressed treatments stay visible; this scroll never moves the pa
 ## Addresses
 
 The addresses follow Design's system map (decision D20), with the station-file pages under
-Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
+Media buys: `/` (landing), `/investors`, `/home`, `/search`, `/organizations/:id`, `/money`,
 `/money/recipients`, `/money/connections`, `/money/employers`,
 `/money/employers/:name`, `/money/committees/:id`, `/money/names/:query`, `/money/races/:id`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
 `/media-buys/agencies/:name`, `/media-buys/stations/:id`, `/media-buys/check`, `/people`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
-Built: `/`, `/home`, `/sign-in`, `/investor-access`, `/auth/return`, `/search`, `/people`, `/people/:id`,
+Built: `/`, `/home`, `/sign-in`, `/investors`, `/investor-access`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
 `/money/races/:id`, `/money/recipients`, `/money/connections`, `/money/employers`, `/money/employers/:name`,

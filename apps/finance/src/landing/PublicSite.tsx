@@ -8,6 +8,7 @@ import { NoAccess } from '../pages/NoAccess';
 import { SignIn } from '../pages/SignIn';
 import { NotFound, Unavailable } from '../pages/Status';
 import { useLocation } from '../router';
+import { Investors } from './Investors';
 import { Landing } from './Landing';
 
 /** The whole app while the screens are approved, the public site otherwise. */
@@ -27,11 +28,13 @@ export function PublicSite() {
   const page =
     pathname === '/'
       ? 'landing'
-      : pathname === '/sign-in'
-        ? 'sign-in'
-        : pathname === '/auth/return'
-          ? 'auth-return'
-          : 'not-found';
+      : pathname === '/investors'
+        ? 'investors'
+        : pathname === '/sign-in'
+          ? 'sign-in'
+          : pathname === '/auth/return'
+            ? 'auth-return'
+            : 'not-found';
 
   useEffect(() => {
     const titles = {
@@ -39,7 +42,12 @@ export function PublicSite() {
       'auth-return': 'Signing in',
       'not-found': 'Page not found',
     };
-    document.title = page === 'landing' ? 'Alethical.AI' : `${titles[page]} · Alethical.AI`;
+    document.title =
+      page === 'landing'
+        ? 'Alethical.AI'
+        : page === 'investors'
+          ? 'Alethical.AI for investors'
+          : `${titles[page]} · Alethical.AI`;
   }, [page]);
 
   // What is on screen, not the sign-in state behind it: that state settles from
@@ -63,7 +71,7 @@ export function PublicSite() {
       first.current = false;
       return;
     }
-    document.querySelector<HTMLElement>('main h1')?.focus();
+    document.querySelector<HTMLElement>('main h1, .lp-hero h1')?.focus();
   }, [view]);
 
   if (view === 'sign-in') return <SignIn />;
@@ -71,5 +79,6 @@ export function PublicSite() {
   if (view === 'auth-return') return <AuthReturn />;
   if (view === 'not-found') return <NotFound />;
   if (view === 'no-access') return <NoAccess />;
+  if (view === 'investors') return <Investors />;
   return <Landing />;
 }

@@ -31,9 +31,20 @@ a {
  * is a Tab stop or control, so it draws no ring (Access drawing). */
 h1[tabindex='-1']:focus,
 h1[tabindex='-1']:focus-visible,
-.access--sign-in[tabindex='-1']:focus,
-.access--sign-in[tabindex='-1']:focus-visible {
+.access-card h1[tabindex='-1']:focus-visible {
   outline: none;
+}
+/* The ALETHICAL.AI wordmark (parts/Logo.tsx); each placement sets its size. */
+.ai-wordmark {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.ai-wordmark-ai {
+  color: #5cc2dc;
 }
 .skip {
   position: absolute;
@@ -131,11 +142,127 @@ a.lockup:hover {
 .access {
   max-width: 440px;
 }
-.access--sign-in {
-  padding-top: clamp(64px, 12vh, 112px);
+/* Sign in, investor access, no access and signing in: the logo on the dark
+ * ground above a white card (Access and Investor Access drawings). */
+.access-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 72px 24px 48px;
+  background: #0b1f2a;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-feature-settings: 'cv05';
 }
-.investor-access-form {
-  margin-top: 24px;
+.access-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: 6px;
+  color: #fff;
+  text-decoration: none;
+}
+a.access-logo:hover {
+  opacity: 0.85;
+}
+a.access-logo:focus-visible {
+  outline: 2px solid #9b7dff;
+  outline-offset: 2px;
+}
+.access-wordmark {
+  font-size: 18px;
+}
+.access-card {
+  margin-top: 36px;
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  padding: 32px;
+  border-radius: 12px;
+  background: #fff;
+  color: #141b22;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+.access-card h1 {
+  margin: 0 0 18px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.access-card label {
+  font-size: 13px;
+}
+.access-card input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(20, 27, 34, 0.28);
+  border-radius: 8px;
+  color: #141b22;
+  font-size: 16px;
+}
+.access-card input:focus,
+.access-card input:focus-visible {
+  outline: none;
+  border-color: #5b30d6;
+  box-shadow: 0 0 0 3px rgba(91, 48, 214, 0.22);
+}
+.access-card input[aria-invalid='true'] {
+  border-color: #9a6114;
+}
+.access-card button:not(.link),
+.access-card .button {
+  min-height: 48px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  border-color: #0e6a82;
+  background: #0e6a82;
+}
+.access-card button:not(.link):hover:not(:disabled),
+.access-card .button:hover {
+  filter: none;
+  background: #0b5668;
+  border-color: #0b5668;
+}
+.access-card .secondary,
+.access-card .secondary:hover:not(:disabled) {
+  background: #fff;
+  color: #0b5c72;
+}
+.access-card .secondary:hover:not(:disabled) {
+  background: #eef5f7;
+}
+.access-card .link {
+  color: #0b5c72;
+}
+.access-card .error {
+  margin: 0;
+  color: #9a6114;
+  font-size: 14px;
+  font-weight: 600;
+}
+.access-card .error-box {
+  margin: 0;
+  padding: 13px 15px;
+  border: 1px solid #f4c9c6;
+  border-radius: 8px;
+  background: #fdecec;
+  color: #8f2a20;
+  font-size: 14px;
+  line-height: 1.5;
+}
+@media (max-width: 767px) {
+  .access-page {
+    padding: 40px 16px 32px;
+  }
+  .access-card {
+    margin-top: 28px;
+    padding: 24px 20px;
+  }
 }
 .stack {
   display: flex;

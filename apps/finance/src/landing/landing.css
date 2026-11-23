@@ -41,38 +41,42 @@
   margin: 0;
 }
 
-/* Brand lockup */
-.lp-lockup {
+/* Logo and the 2 header links (both bars) */
+.lp-logo {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: none;
   color: #fff;
 }
-.lp-wordmark {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 500;
+.lp-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin-left: auto;
+}
+.lp-top-nav {
+  margin-left: auto;
+}
+.lp .lp-investors {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  color: #c9d7de;
   font-size: 15px;
-  letter-spacing: 0.18em;
-}
-.lp-divider {
-  width: 1px;
-  height: 17px;
-  background: rgba(255, 255, 255, 0.28);
-}
-.lp-product {
   font-weight: 500;
-  font-size: 15px;
-  color: #9db3bf;
+  white-space: nowrap;
+  text-decoration: none;
+  text-underline-offset: 4px;
 }
-.lp-lockup--bar .lp-wordmark,
-.lp-lockup--bar .lp-product {
-  font-size: 14px;
+.lp .lp-investors:hover {
+  color: #fff;
+  text-decoration: underline;
 }
-.lp-lockup--bar .lp-divider {
-  height: 16px;
-}
-
-/* Sign in */
 .lp .lp-signin {
   display: inline-flex;
   align-items: center;
@@ -99,11 +103,6 @@
 .lp .lp-signin:active {
   background: rgba(255, 255, 255, 0.16);
 }
-.lp .lp-signin--bar {
-  height: 44px;
-  padding: 0 14px;
-  font-size: 14px;
-}
 
 /* Slim bar that appears once the hero has scrolled away */
 .lp-bar {
@@ -112,12 +111,14 @@
   right: 0;
   top: 0;
   z-index: 30;
-  height: 56px;
+  min-height: 56px;
   box-sizing: border-box;
-  padding: 0 var(--inset);
+  padding: 6px var(--inset);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0 12px;
   background: rgba(11, 31, 42, 0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid rgba(232, 239, 243, 0.1);
@@ -150,32 +151,36 @@
   box-sizing: border-box;
 }
 .lp-top {
-  height: 64px;
-  padding-top: 14px;
+  min-height: 64px;
+  padding: 10px 0;
+  box-sizing: border-box;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0 12px;
 }
 .lp-hero-copy {
-  padding: 120px 0 140px;
-  max-width: 840px;
+  padding: 96px 0 128px;
+  max-width: 1040px;
 }
 .lp-hero h1 {
-  font-size: 64px;
+  font-size: 60px;
   font-weight: 600;
-  line-height: 1.04;
+  line-height: 1.05;
   letter-spacing: -0.03em;
   color: #fff;
   text-wrap: balance;
 }
 .lp-hero-copy p {
   margin-top: 24px;
-  font-size: 21px;
-  line-height: 1.45;
+  max-width: 41em;
+  font-size: 20px;
+  line-height: 1.5;
   color: #c9d7de;
 }
 
-/* Investor access */
+/* Contact our team */
 .lp .lp-demo {
   display: inline-flex;
   align-items: center;
@@ -221,10 +226,10 @@
   text-wrap: balance;
 }
 .lp .lp-story-intro {
-  max-width: 740px;
+  max-width: 54em;
   margin-top: 20px;
-  font-size: 20px;
-  line-height: 1.45;
+  font-size: 19px;
+  line-height: 1.5;
   color: #4a5661;
 }
 .lp .lp-diagram {
@@ -278,8 +283,7 @@
   overflow: visible;
   pointer-events: none;
 }
-.lp-lines path,
-.lp-flow path {
+.lp-lines path {
   fill: none;
   stroke: #0e6a82;
   stroke-opacity: 0.3;
@@ -331,6 +335,8 @@
 }
 
 .lp-benefits {
+  list-style: none;
+  padding: 0;
   margin-top: var(--after-chart);
   border-bottom: 1px solid rgba(20, 27, 34, 0.12);
 }
@@ -339,8 +345,10 @@
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: var(--support-gap);
-  padding: 30px 0;
-  border-top: 1px solid rgba(20, 27, 34, 0.12);
+  row-gap: 10px;
+  align-items: baseline;
+  padding: 30px 0 32px;
+  border-top: 1px solid rgba(20, 27, 34, 0.14);
 }
 .lp-benefit::before {
   content: '';
@@ -351,74 +359,86 @@
   background: #0e6a82;
 }
 .lp-benefit h3 {
-  max-width: 22ch;
+  max-width: 16em;
   font-size: var(--benefit-title);
   line-height: 1.2;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   text-wrap: balance;
 }
 .lp-benefit p,
-.lp-support p {
+.lp-plan p {
+  max-width: 38em;
   font-size: var(--story-text);
   line-height: 1.55;
   color: #4a5661;
 }
-.lp-research {
+
+/* What we're building: planned work, drawn with hollow dots and dashed lines so
+ * it never reads as the live diagram's solid dots and curves. */
+.lp-building {
   background: #fff;
-}
-.lp-support {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--support-gap);
   padding-block: var(--section-space);
 }
-.lp-support-stack {
-  display: grid;
-  align-content: start;
-  gap: 48px;
-}
-.lp-support h2 {
-  font-size: var(--support-title);
-  line-height: 1.18;
-  letter-spacing: -0.02em;
-  font-weight: 650;
+.lp-building h2 {
+  max-width: 16em;
+  font-size: var(--section-title);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 600;
   text-wrap: balance;
 }
-.lp-support h2 + p {
-  margin-top: 16px;
+.lp .lp-building-intro {
+  max-width: 34em;
+  margin-top: 20px;
+  font-size: 19px;
+  line-height: 1.5;
+  color: #4a5661;
 }
-.lp .lp-flow {
-  display: grid;
-  gap: 16px;
-  align-content: start;
+.lp .lp-plans {
   list-style: none;
   padding: 0;
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 1.4;
+  margin-top: var(--before-chart);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--plan-gap, 48px);
 }
-.lp-research .lp-flow {
-  margin-top: 30px;
-}
-.lp-flow li {
+.lp-plan {
   position: relative;
   display: grid;
-  grid-template-columns: 7px minmax(0, 1fr);
-  column-gap: 10px;
+  gap: 10px;
+  align-content: start;
+  padding-top: 30px;
 }
-.lp-flow li:nth-child(2) {
-  margin-left: 24px;
-}
-.lp-flow li:nth-child(3) {
-  margin-left: 48px;
-}
-.lp-flow svg {
+.lp-plan::before {
+  content: '';
   position: absolute;
-  top: 12px;
-  left: 3px;
-  overflow: visible;
-  pointer-events: none;
+  left: 0;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid #0e6a82;
+  background: #fff;
+}
+.lp-plan:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  right: calc(-1 * var(--plan-gap, 48px));
+  top: 4px;
+  border-top: 1.5px dashed rgba(14, 106, 130, 0.45);
+}
+.lp-plan h3 {
+  font-size: var(--benefit-title);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lp-plan p {
+  max-width: 30em;
 }
 
 /* Figures, sharing and sources */
@@ -457,23 +477,63 @@
   box-sizing: border-box;
 }
 .lp-figures {
-  padding: var(--section-space) var(--inset) 24px;
+  padding: 88px var(--inset) 24px;
 }
-.lp-figures .lp-eyebrow {
-  margin-bottom: 18px;
+.lp-figures h2 {
+  font-size: var(--section-title);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  color: #fff;
+  text-wrap: balance;
+}
+.lp-figure-groups {
+  margin-top: 52px;
+  display: grid;
+  gap: 56px;
+}
+.lp-figure-group {
+  padding-top: 14px;
+  border-top: 1px solid rgba(232, 239, 243, 0.18);
+  display: grid;
+  gap: 26px;
+}
+.lp-figure-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+.lp-figure-group-head .lp-eyebrow {
+  color: #9fe3f2;
+}
+.lp-figure-group-head span {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #9db3bf;
 }
 .lp-figure-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  column-gap: 40px;
+  gap: 36px 40px;
+}
+.lp-figure-group--one .lp-figure-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 .lp-figure {
-  --figure: clamp(40px, 3.4vw, 52px);
-  padding: 32px 0 8px;
-  border-top: 1px solid rgba(232, 239, 243, 0.16);
+  --figure: clamp(40px, 3.4vw, 48px);
   display: grid;
   align-content: start;
   gap: 16px;
+}
+.lp-figure-group--one .lp-figure {
+  --figure: 72px;
+}
+.lp-figure-group--one .lp-figure-text {
+  max-width: 30em;
+}
+.lp-figure-group--many .lp-figure-text {
+  max-width: 22em;
 }
 .lp-figure-value {
   font-size: var(--figure);
@@ -518,8 +578,10 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 20px;
-  padding-block: 48px 64px;
+  gap: 12px 20px;
+  margin-top: 56px;
+  padding-block: 40px 72px;
+  border-top: 1px solid rgba(232, 239, 243, 0.12);
 }
 .lp-share button {
   background: transparent;
@@ -528,7 +590,7 @@
   touch-action: manipulation;
 }
 .lp-share-result {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.4;
   color: #e8eff3;
 }
@@ -551,7 +613,7 @@
 .lp-sources-inner {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px var(--inset) 36px;
+  padding: 28px var(--inset) 24px;
   box-sizing: border-box;
   display: grid;
   gap: 16px;
@@ -565,19 +627,42 @@
   color: #c9d7de;
 }
 .lp-sources dl {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px 32px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 32px;
 }
 .lp-sources dl > div {
-  flex: 0 1 auto;
   display: grid;
-  gap: 2px;
   align-content: start;
 }
 .lp-sources dt {
   font-weight: 400;
+}
+.lp .lp-sources a,
+.lp .lp-footer a {
+  display: inline-block;
+  padding: 4px 0;
   color: #c9d7de;
+  text-decoration: underline;
+  text-decoration-color: rgba(201, 215, 222, 0.4);
+  text-underline-offset: 3px;
+}
+.lp .lp-sources a:hover,
+.lp .lp-footer a:hover {
+  color: #fff;
+  text-decoration-color: #fff;
+}
+.lp-footer {
+  background: #0b1f2a;
+}
+.lp-footer p {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 var(--inset) 36px;
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #9db3bf;
 }
 .lp-nowrap {
   white-space: nowrap;
@@ -597,16 +682,46 @@
     --before-chart: 48px;
   }
   .lp-hero-copy {
-    padding: 96px 0 112px;
+    padding: 80px 0 104px;
+    max-width: 840px;
   }
   .lp-hero h1 {
-    font-size: 52px;
+    font-size: 50px;
   }
   .lp-hero-copy p {
-    font-size: 20px;
+    max-width: none;
+    font-size: 19px;
   }
-  .lp-story-intro {
+  .lp-hero-copy .lp-demo {
+    margin-top: 32px;
+  }
+  .lp .lp-story-intro {
+    max-width: 38em;
     font-size: 18px;
+  }
+  .lp .lp-building-intro {
+    font-size: 18px;
+  }
+  .lp {
+    --plan-gap: 28px;
+  }
+  .lp-benefit {
+    padding: 26px 0 28px;
+  }
+  .lp-figures {
+    padding-top: 72px;
+  }
+  .lp-figure-groups {
+    margin-top: 44px;
+  }
+  .lp-figure-group--one .lp-figure {
+    --figure: 60px;
+  }
+  .lp-share {
+    padding-block: 40px 64px;
+  }
+  .lp-sources dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .lp-runs {
     flex-direction: column;
@@ -632,7 +747,6 @@
   }
   .lp-figure {
     --figure: 40px;
-    padding: 32px 0;
   }
 }
 
@@ -649,30 +763,85 @@
     --before-chart: 40px;
   }
   .lp-sources dl {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
   }
-  .lp-lockup--hero svg {
-    width: 20px;
-    height: 20px;
+  .lp-logo {
+    gap: 8px;
   }
-  .lp-lockup--hero .lp-wordmark,
-  .lp-lockup--hero .lp-product {
+  .lp-logo .lp-wordmark {
+    font-size: 14px;
+    letter-spacing: 0.14em;
+  }
+  .lp-top,
+  .lp-bar {
+    gap: 0 10px;
+  }
+  .lp-nav {
+    gap: 4px;
+  }
+  .lp .lp-investors {
+    padding: 0 2px;
     font-size: 14px;
   }
   .lp .lp-signin {
-    padding-inline: 14px;
+    padding-inline: 12px;
+    font-size: 14px;
   }
   .lp-hero-copy {
-    padding: 64px 0 72px;
+    padding: 48px 0 72px;
   }
   .lp-hero h1 {
-    font-size: 40px;
+    font-size: 38px;
   }
   .lp-hero-copy p {
-    font-size: 18px;
+    max-width: 34em;
+    font-size: 17px;
   }
-  .lp-story-intro {
-    font-size: 16px;
+  .lp-hero-copy .lp-demo {
+    margin-top: 28px;
+  }
+  .lp .lp-story-intro,
+  .lp .lp-building-intro {
+    font-size: 17px;
+  }
+  .lp .lp-plans {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    margin-top: 40px;
+  }
+  .lp-plan {
+    padding: 0 0 0 26px;
+  }
+  .lp-plan::before {
+    top: 7px;
+  }
+  .lp-plan:not(:last-child)::after {
+    left: 4px;
+    right: auto;
+    top: 22px;
+    bottom: -26px;
+    border-top: none;
+    border-left: 1.5px dashed rgba(14, 106, 130, 0.45);
+  }
+  .lp-figures {
+    padding-top: 56px;
+  }
+  .lp-figure-groups {
+    margin-top: 36px;
+    gap: 44px;
+  }
+  .lp-figure-group {
+    gap: 22px;
+  }
+  .lp-figure-grid {
+    row-gap: 32px;
+  }
+  .lp-figure-group--one .lp-figure {
+    --figure: 52px;
+  }
+  .lp-share {
+    margin-top: 32px;
+    padding-block: 32px 48px;
   }
   .lp .lp-diagram {
     gap: 48px;
@@ -741,20 +910,15 @@
     font-weight: 650;
   }
   .lp-benefit,
-  .lp-support,
   .lp-figure-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   .lp-benefit {
     gap: 10px;
-    padding: 22px 0;
-  }
-  .lp-support-stack {
-    gap: 36px;
+    padding: 22px 0 24px;
   }
   .lp-figure {
-    --figure: 48px;
-    padding: 24px 0 32px;
+    --figure: 44px;
     gap: 12px;
   }
   .lp-share-result {
@@ -787,5 +951,120 @@
   .lp-bar {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* For investors (/investors): the landing page's dark ground and header, one
+ * introduction that fills the first screen, centered between header and footer. */
+.lp-investor-page {
+  position: relative;
+  overflow: hidden;
+  min-height: max(100vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: #0b1f2a;
+  color: #e8eff3;
+}
+.lp-investor-page > * {
+  position: relative;
+}
+.lp-investor-page .lp-glow {
+  position: absolute;
+}
+.lp-investor-page .lp-glow--one {
+  left: auto;
+  right: -20%;
+  top: -25%;
+  width: 80%;
+  height: 85%;
+  background: radial-gradient(closest-side, rgba(14, 106, 130, 0.36), transparent);
+}
+.lp-investor-page .lp-glow--two {
+  left: -25%;
+  right: auto;
+  bottom: -20%;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(closest-side, rgba(92, 194, 220, 0.12), transparent);
+}
+.lp .lp-logo--link {
+  min-height: 44px;
+  border-radius: 4px;
+  color: #fff;
+  text-decoration: none;
+}
+.lp .lp-logo--link:hover {
+  color: #fff;
+  opacity: 0.85;
+}
+.lp .lp-investors[aria-current='page'] {
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: #5cc2dc;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+.lp-investor-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 64px 0 80px;
+}
+.lp-investor-main > .lp-wrap {
+  width: 100%;
+}
+.lp-investor-copy {
+  max-width: 760px;
+}
+.lp-investor-copy h1 {
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-wrap: balance;
+}
+.lp-investor-text {
+  margin-top: 28px;
+  display: grid;
+  gap: 18px;
+  max-width: 34em;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #c9d7de;
+}
+.lp-investor-copy .lp-demo {
+  margin-top: 40px;
+}
+@media (max-width: 1099px) {
+  .lp-investor-page {
+    min-height: max(100vh, 1000px);
+  }
+  .lp-investor-main {
+    padding: 56px 0 72px;
+  }
+  .lp-investor-copy h1 {
+    font-size: 46px;
+  }
+  .lp-investor-text {
+    font-size: 19px;
+  }
+}
+@media (max-width: 767px) {
+  .lp-investor-page {
+    min-height: max(100vh, 640px);
+  }
+  .lp-investor-main {
+    padding: 40px 0 56px;
+  }
+  .lp-investor-copy h1 {
+    font-size: 36px;
+  }
+  .lp-investor-text {
+    margin-top: 24px;
+    font-size: 17px;
+  }
+  .lp-investor-copy .lp-demo {
+    margin-top: 32px;
   }
 }
