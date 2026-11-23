@@ -895,7 +895,7 @@ names its period and source ([grounded-answers.md](../../.claude/rules/grounded-
 rule 12).
 
 `GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
-the 4 counts without sign-in, the same answer for everyone, cached for the short public
+the 6 counts without sign-in, the same answer for everyone, cached for the short public
 window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
 not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). Any site's browser may read
 it (`Access-Control-Allow-Origin: *`, no credentials), so the landing page shows its counts
@@ -906,8 +906,29 @@ date the oldest of the 3), lobbying spending reports with the number of organiza
 filed them, every bill held for the current Legislature (whether or not its plain-language
 summary exists yet, with the copy date every held bill supports, as on alethical.com), and
 TV station files held, with the oldest of each station's newest copy (no date while a
-station has no file held). Each answers `reported` with its count, years, source and copy
-date, or `unavailable` with a reason and no count: `nothing_published`, `empty` or
-`unreadable` for any count, and `rows_replaced` for campaign money only (lobbying answers
-`nothing_published` when its published rows no longer match, because `published_pair`
-does not say which). 1 unreadable source never hides another.
+station has no file held). The bills count also carries `roll_calls`: every recorded vote
+held on a bill of the same sessions, each with its official tally, whether or not its
+member-by-member votes are held yet; it is `null`, never 0, when it cannot be read or none
+is held, and the bill count still stands. 2 more counts follow:
+
+- `national_fcc_filings`: every political filing in the active national FCC search release
+  (`national_fcc_search_release`, the `active` row), from 2012, the first day of FCC history
+  the inventory requests ([national-fcc-archive.md](../operations/national-fcc-archive.md)),
+  through its `index_through` day. That day is served as `as_of`, a calendar date
+  (`YYYY-MM-DD`) with no time, so a page in another time zone never moves it; `copied_at`
+  stays `null`. No active release answers `nothing_published`.
+- `election_races_with_results`: the races in the newest published Minnesota general
+  election, read from the current copy the election pages use
+  (`election_comparison_current`), that report results: at least 1 precinct reporting and a
+  stored status other than pending or unavailable. It names the election
+  (`election_label`, such as "November 2026 general election"), the election year as both
+  years, the copy time as `copied_at`, and `results_status` `unofficial` only when the copy
+  says so, every race in it is still unofficial and no outcome review is recorded for it;
+  otherwise `null`. The import accepts unofficial sources only and certification is a
+  per-race review, so this count never claims `official`.
+
+Each answers `reported` with its count, years, source and date, or `unavailable` with a
+reason and no count: `nothing_published`, `empty` or `unreadable` for any count, and
+`rows_replaced` for campaign money only (lobbying answers `nothing_published` when its
+published rows no longer match, because `published_pair` does not say which). 1 unreadable
+source never hides another.

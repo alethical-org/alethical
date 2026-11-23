@@ -1,4 +1,4 @@
-"""The 4 record counts on Alethical Finance's public landing page.
+"""The record counts on Alethical.AI's public landing page.
 
 Each count is read live from the current published copy of its source and is
 refused, never reported as 0, when it cannot be read
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Callable
 
 from sqlalchemy import func, select, text
@@ -45,6 +45,13 @@ UNREADABLE = "unreadable"
 EMPTY = "empty"
 
 BOARD = "Minnesota Campaign Finance Board"
+FCC = "FCC public inspection files"
+SECRETARY_OF_STATE = "Minnesota Secretary of State"
+
+# The national FCC inventory asks the FCC for every day of political-file history
+# from January 1, 2012 (docs/operations/national-fcc-archive.md), so its index
+# speaks for 2012 onward and no earlier.
+NATIONAL_FCC_FIRST_YEAR = 2012
 
 
 @dataclass(frozen=True)
@@ -59,6 +66,15 @@ class LandingCount:
     # Lobbying only: the organizations whose spending the reports record.
     organizations: int | None = None
     reason: str | None = None
+    # A calendar date ("YYYY-MM-DD") with no time, so a page never moves it a day
+    # across time zones: the national FCC index's last complete day.
+    as_of: str | None = None
+    # Bills only: roll calls held for the same sessions; None when unreadable.
+    roll_calls: int | None = None
+    # Election races only: which election, and the results' official status when
+    # the stored source establishes it for every counted race.
+    election_label: str | None = None
+    results_status: str | None = None
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -156,7 +172,29 @@ def _bills(db: Session) -> LandingCount:
         last_year=max(ends, default=None),
         # The date every held bill's copy supports, or none (alethical.com's rule).
         copied_at=_iso(legislative_copy_date(db, scope.ids)),
+        roll_calls=_roll_calls(db, scope.ids),
     )
+
+
+def _roll_calls(db: Session, session_ids) -> int | None:
+    """Every recorded vote held on a bill of these sessions, each with its tally.
+
+    Read in its own savepoint, so a failure answers None and never takes the bill
+    count with it. None, never 0, when nothing is held: the landing page prints no
+    zero it has not verified.
+    """
+    try:
+        with db.begin_nested():
+            count = db.scalar(
+                select(func.count())
+                .select_from(m.VoteEvent)
+                .join(m.Bill, m.Bill.id == m.VoteEvent.bill_id)
+                .where(m.Bill.session_id.in_(session_ids))
+            )
+    except Exception as exc:  # noqa: BLE001 -- the bill count still stands
+        logger.warning("Finance landing roll calls unreadable: %s", type(exc).__name__)
+        return None
+    return count or None
 
 
 def _station_files(db: Session) -> LandingCount:
@@ -191,6 +229,92 @@ def _station_files(db: Session) -> LandingCount:
     )
 
 
+def _national_fcc_filings(db: Session) -> LandingCount:
+    unit, source = "FCC political filings nationwide", FCC
+    # The 1 active national search release: every indexed political filing,
+    # through the last day of FCC history the inventory holds complete.
+    release = db.execute(
+        select(
+            m.NationalFCCSearchRelease.filings,
+            m.NationalFCCSearchRelease.index_through,
+        ).where(m.NationalFCCSearchRelease.active.is_(True))
+    ).one_or_none()
+    if release is None:
+        return _unavailable(unit, source, NOTHING_PUBLISHED)
+    filings, through = release
+    if not filings:
+        return _unavailable(unit, source, EMPTY)
+    return LandingCount(
+        REPORTED,
+        filings,
+        unit,
+        source,
+        first_year=NATIONAL_FCC_FIRST_YEAR,
+        last_year=through.year,
+        as_of=through.isoformat(),
+    )
+
+
+def _election_label(election_date: date, stage: str) -> str:
+    return f"{election_date:%B} {election_date.year} {stage} election"
+
+
+def _election_races(db: Session) -> LandingCount:
+    unit, source = "election races with results", SECRETARY_OF_STATE
+    # The published copy the election pages read for the newest Minnesota general
+    # election, and in the same statement its races that report results: at least
+    # 1 precinct reporting, and a stored status other than pending or unavailable.
+    # "unofficial" is served only when the copy says so and every race in it is
+    # still unofficial with no outcome review recorded, since a review can certify
+    # 1 race. The import accepts unofficial sources only, so nothing here ever
+    # establishes "official".
+    row = db.execute(
+        text("""
+        SELECT s.election_date, s.stage, s.fetched_at,
+               s.coverage->>'source_status' AS source_status,
+               (SELECT count(*) FROM election_comparison_race r
+                 WHERE r.snapshot_id = s.id
+                   AND r.result_status NOT IN ('pending', 'unavailable')
+                   AND coalesce((r.payload->'coverage'->>'reporting_precincts')::int, 0) > 0
+               ) AS reported,
+               (SELECT count(*) FROM election_comparison_race r
+                 WHERE r.snapshot_id = s.id AND r.result_status <> 'unofficial'
+               ) AS not_unofficial,
+               EXISTS (SELECT 1 FROM election_outcome_decision d
+                        WHERE d.snapshot_id = s.id) AS reviewed
+          FROM election_comparison_snapshot s
+          JOIN election_comparison_current c
+            ON c.snapshot_id = s.id AND c.election_key = s.election_key
+         WHERE s.first_published_at IS NOT NULL
+           AND s.stage = 'general'
+           AND s.election_key LIKE 'mn-%'
+         ORDER BY s.election_date DESC, s.election_key
+         LIMIT 1
+        """)
+    ).one_or_none()
+    if row is None:
+        return _unavailable(unit, source, NOTHING_PUBLISHED)
+    if not row.reported:
+        return _unavailable(unit, source, EMPTY)
+    unofficial = (
+        row.source_status == "unofficial"
+        and row.not_unofficial == 0
+        and not row.reviewed
+    )
+    year = row.election_date.year
+    return LandingCount(
+        REPORTED,
+        row.reported,
+        unit,
+        source,
+        first_year=year,
+        last_year=year,
+        copied_at=_iso(row.fetched_at),
+        election_label=_election_label(row.election_date, row.stage),
+        results_status="unofficial" if unofficial else None,
+    )
+
+
 _COUNTS: tuple[tuple[str, str, str, Callable[[Session], LandingCount]], ...] = (
     ("campaign_money_records", "campaign money records", BOARD, _campaign_money),
     ("lobbying_spending_reports", "lobbying spending reports", BOARD, _lobbying),
@@ -201,6 +325,18 @@ _COUNTS: tuple[tuple[str, str, str, Callable[[Session], LandingCount]], ...] = (
         _bills,
     ),
     ("tv_station_files", "TV station files", "FCC public files", _station_files),
+    (
+        "national_fcc_filings",
+        "FCC political filings nationwide",
+        FCC,
+        _national_fcc_filings,
+    ),
+    (
+        "election_races_with_results",
+        "election races with results",
+        SECRETARY_OF_STATE,
+        _election_races,
+    ),
 )
 
 
