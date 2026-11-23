@@ -1,19 +1,16 @@
-// Finance never links to alethical.com (docs/architecture/alethical-finance-architecture.md
-// §7). The source test (src/__tests__/noAlethicalLinks.test.ts) reads Finance's own
-// files; this reads what Finance's production build ships, so code that arrives through
-// @alethical/shared is covered too. Run it after `pnpm run build`.
+// A link to an alethical.com page must carry alethical.com's full address. A path-only link
+// such as `/bills/${id}` opens on Alethical.AI's own address and lands on its not-found page
+// (docs/architecture/alethical-finance-architecture.md §7). This reads what the production
+// build ships, so code that arrives through @alethical/shared is covered too. Run it after
+// `pnpm run build`.
 //
-// It fails on:
-// - the alethical.com domain anywhere in a shipped text file, except an email address on
-//   it (a contact action) and https://api.alethical.com (the data service), the same
-//   allowances the source test makes;
-// - a path-only link to an alethical.com page: a string in the shipped code naming a
-//   path whose first segment is one of alethical.com's page routes (/money/, /bills/,
-//   /legislators/, /blog/, /read/ ...) unless it is exactly 1 of Finance's own addresses
-//   in src/routes.ts. Finance builds its own links from those patterns, because a
-//   hand-written `/bills/${id}` cannot be told apart from alethical.com's. The 4
-//   Supabase sign-in server paths below are the only exception, and only straight
-//   after a `${...}`, where Supabase writes them after its own server's address.
+// It fails on a string in the shipped code naming a path whose first segment is one of
+// alethical.com's page routes (/money/, /bills/, /legislators/, /blog/, /read/ ...) unless
+// it is exactly 1 of Alethical.AI's own addresses in src/routes.ts. Alethical.AI builds its
+// own links from those patterns, because a hand-written `/bills/${id}` cannot be told apart
+// from alethical.com's. The 4 Supabase sign-in server paths below are the only exception,
+// and only straight after a `${...}`, where Supabase writes them after its own server's
+// address. Full alethical.com addresses are allowed.
 // Source maps are skipped: they carry the original files, comments included, for
 // debugging, and no reader follows them.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -161,12 +158,6 @@ export function builtLinkProblems(files, { segments, patterns }) {
   for (const { name, text } of files) {
     const extension = extname(name);
     if (!TEXT_EXTENSIONS.has(extension)) continue;
-    const kept = text
-      .replace(/[\w.+-]+@alethical\.com/gi, '')
-      .replace(/https:\/\/api\.alethical\.com/gi, '');
-    for (const match of kept.matchAll(/.{0,40}alethical\.com.{0,40}/gi)) {
-      problems.push(`${name}: names the alethical.com domain: ${match[0]}`);
-    }
     const strings =
       extension === '.js' || extension === '.mjs'
         ? stringsIn(parse(name, text))
@@ -212,9 +203,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   });
   if (problems.length > 0) {
     console.error(
-      `Finance's build links to alethical.com (alethical-finance-architecture.md §7):\n${problems.join('\n')}`,
+      `Alethical.AI's build has a path-only link to an alethical.com page (alethical-finance-architecture.md §7):\n${problems.join('\n')}`,
     );
     process.exit(1);
   }
-  console.log(`Checked ${files.length} built files: no alethical.com address or page path.`);
+  console.log(`Checked ${files.length} built files: no path-only alethical.com page link.`);
 }

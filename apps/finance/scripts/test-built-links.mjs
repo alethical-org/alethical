@@ -1,5 +1,6 @@
-// Proves each rule in check-built-links.mjs fires, and stays quiet on what Finance may
-// ship: its own addresses, email contacts, the data service and Supabase's server paths.
+// Proves check-built-links.mjs fires on a path-only alethical.com page link, and stays quiet
+// on what Alethical.AI may ship: its own addresses, full alethical.com addresses, email
+// contacts, the data service and Supabase's server paths.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -17,15 +18,6 @@ test("reads alethical.com's page routes and Finance's own addresses from their c
     assert.ok(options.segments.has(segment), segment);
   }
   assert.ok(options.patterns.includes('/money/committees/:id'));
-});
-
-test('fails on the alethical.com domain in any shipped text file', () => {
-  assert.equal(check('dist/a.js', 'const o="https://www.alethical.com";').length, 1);
-  assert.equal(check('dist/index.html', '<a href="https://alethical.com/money">x</a>').length, 1);
-  assert.equal(
-    check('dist/robots.txt', 'Sitemap: https://www.Alethical.com/sitemap.xml').length,
-    1,
-  );
 });
 
 test('fails on a path-only link to an alethical.com page', () => {
@@ -51,12 +43,13 @@ test('fails on an alethical.com page path whose start is only known at run time'
   );
 });
 
-test("passes Finance's own addresses, contacts, the data service and Supabase's server", () => {
+test("passes its own addresses, full alethical.com addresses, contacts, the data service and Supabase's server", () => {
   const text = [
     'const r=[{pattern:"/money/committees/:id"},{pattern:"/bills"},{pattern:"/sign-in"}];',
     'const m="mailto:ask@alethical.com", api=`https://api.alethical.com/api/v1/x`;',
     'const s=`${authUrl}/admin/users`, u=`${authUrl}/admin/oauth/clients/${id}`;',
     'const f=`/auth/return?x=${y}`;',
+    'const c="https://www.alethical.com/about/contact?purpose=alethical-ai", h="https://www.alethical.com/";',
   ].join('\n');
   assert.deepEqual(check('dist/a.js', text), []);
   assert.deepEqual(check('dist/a.js.map', '"https://www.alethical.com"'), []);
