@@ -68,8 +68,17 @@ Community:
 ```
 
 The link carries no personal details or arbitrary form text. Unknown purposes do
-not choose a template. Generic navigation stays blank apart from account email,
-and article-correction links retain their own template. Both templates share the
+not choose a template. The Alethical.AI landing page's "Contact our team" button opens
+`/about/contact?purpose=alethical-ai`, which starts the subject as **Alethical.AI inquiry**
+and the message as:
+
+```text
+What would you like to research or try with Alethical.AI?
+
+```
+
+Generic navigation stays blank apart from account email,
+and article-correction links retain their own template. All templates share the
 same editable fields, account-email behavior and retained-draft protection.
 
 The reader can edit every field. The article link never fills name, email, or phone; the

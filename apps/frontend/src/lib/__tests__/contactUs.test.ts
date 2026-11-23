@@ -23,6 +23,25 @@ it('uses trusted hosting copy without filling personal information or accepting 
   );
 });
 
+it('starts an Alethical.AI inquiry with editable trusted words and nothing personal', () => {
+  expect(contactPrefillValues(undefined, 'alethical-ai')).toEqual({
+    name: '',
+    email: '',
+    phone: '',
+    subject: 'Alethical.AI inquiry',
+    message: 'What would you like to research or try with Alethical.AI?\n\n',
+  });
+  const draft = createContactDraft(undefined, 'alethical-ai');
+  draft.dispatch({ type: 'change', field: 'subject', value: '' });
+  draft.dispatch({ type: 'change', field: 'message', value: 'My own words' });
+  draft.prefill(undefined, 'alethical-ai');
+  expect(draft.getSnapshot().values.subject).toBe('');
+  expect(draft.getSnapshot().values.message).toBe('My own words');
+  expect(contactPrefillValues(undefined, 'alethical-ai-extra')).toEqual(
+    initialContactFormState.values,
+  );
+});
+
 it('keeps existing and deliberately cleared draft fields across contact purposes', () => {
   const draft = createContactDraft(undefined, 'host-debate');
   draft.dispatch({ type: 'change', field: 'subject', value: '' });
