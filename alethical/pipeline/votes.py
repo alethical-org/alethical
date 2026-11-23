@@ -390,13 +390,39 @@ SENATE_JOURNAL_LIST_URL = (
     "https://www.senate.mn/journals/journal_list.php?display_ls_year=94"
 )
 
+# The House vote site's key for each session of the 94th Legislature, read off the
+# session list on house.mn.gov/votes. A special session has its own key, and asking
+# the regular session's key for a special-session bill returns no vote at all.
+HOUSE_VOTE_SESSION_KEYS = {"2025": "302", "2026": "302", "2025s1": "304"}
 
-def senate_journal_index(*, source_session: Any | None = None) -> dict[str, str]:
+
+def legislature_session_part(bill_key: str) -> str:
+    """The session part of a bill key: '94-2025s1-HF-1' -> '2025s1'."""
+    parts = str(bill_key).split("-")
+    return parts[1] if len(parts) > 1 else ""
+
+
+def special_session_suffix(bill_key: str) -> str | None:
+    """'_ss1' for a first-special-session bill, None for a regular-session one.
+
+    The Senate publishes a special session as its own journal, named with this
+    suffix, whose page numbers start again at 1; the journal page lookup only
+    reaches the regular session's journal.
+    """
+    match = re.fullmatch(r"\d{4}s(\d+)", legislature_session_part(bill_key))
+    return f"_ss{match.group(1)}" if match else None
+
+
+def senate_journal_index(
+    *, source_session: Any | None = None, special_suffix: str | None = None
+) -> dict[str, str]:
     """Map each session day 'YYYYMMDD' to its Senate journal PDF URL.
 
     Used to recover the journal for a roll-call action whose JOURNAL_PAGE is
-    empty at the Revisor source: the day's journal is located by the action
-    date instead.
+    empty at the Revisor source, and for every special-session roll call: the
+    day's journal is located by the action date instead. ``special_suffix``
+    keeps only that special session's journals; without it they are left out,
+    so a regular-session day never resolves to a special-session file.
     """
     html_text = get_text(SENATE_JOURNAL_LIST_URL, source_session=source_session)
     index: dict[str, str] = {}
@@ -404,6 +430,12 @@ def senate_journal_index(*, source_session: Any | None = None) -> dict[str, str]
         name = href.rsplit("/", 1)[-1]
         match = re.match(r"(\d{8})", name)
         if not match:
+            continue
+        stem = name.rsplit(".", 1)[0].lower()
+        if special_suffix:
+            if not stem.endswith(special_suffix):
+                continue
+        elif re.search(r"_ss\d+$", stem):
             continue
         path = re.sub(r"/{2,}", "/", href)
         url = path if path.startswith("http") else f"https://www.senate.mn{path}"
@@ -759,6 +791,22 @@ def find_matching_vote(
     # break a genuine tie when several votes share the same tally.
     if len(tally_matches) == 1:
         return tally_matches[0]
+    # A tied tally on 1 day is real: the Senate's journal for 9 June 2025 holds
+    # HF 2's 34-33 appeal of the chair's ruling and its 34-33 passage. A passage
+    # action takes the 1 tied vote the journal itself labels as passage; any other
+    # tie stays unmatched.
+    if len(tally_matches) > 1 and re.search(
+        r"\b(?:re)?passed\b", action.action_text or "", flags=re.I
+    ):
+        passage = [
+            vote
+            for vote in tally_matches
+            if re.search(
+                r"\b(?:re)?passage of the bill\b", vote.motion_text or "", flags=re.I
+            )
+        ]
+        if len(passage) == 1:
+            return passage[0]
     if len(votes) == 1:
         return votes[0]
     return None
@@ -784,10 +832,15 @@ def _source_vote_for_action(
         return None
     yes_count, no_count = counts
     if chamber.slug == "house":
+        session_key = HOUSE_VOTE_SESSION_KEYS.get(
+            legislature_session_part(bill.bill_key)
+        )
+        if session_key is None:
+            return None
         bill_number = house_bill_number(bill.file_type, bill.file_number)
         url = (
             "https://www.house.mn.gov/votes/Details?"
-            f"{urlencode({'BillNumber': bill_number, 'SessionKey': '302'})}"
+            f"{urlencode({'BillNumber': bill_number, 'SessionKey': session_key})}"
         )
         if url not in house_cache:
             house_cache[url] = parse_house_votes(
@@ -796,7 +849,8 @@ def _source_vote_for_action(
         return find_matching_vote(
             house_cache[url], action, yes_count, no_count, saved_event
         )
-    if chamber.slug == "senate" and action.journal_page:
+    special_suffix = special_session_suffix(bill.bill_key)
+    if chamber.slug == "senate" and action.journal_page and special_suffix is None:
         pdf_url, internal_page = senate_pdf_for_page(
             action.journal_page, source_session=source_session
         )
@@ -824,10 +878,10 @@ def _source_vote_for_action(
                 return vote
         return None
     if chamber.slug == "senate":
-        index_key = "__journal_index__"
+        index_key = f"__journal_index__{special_suffix or ''}"
         if index_key not in senate_cache:
             senate_cache[index_key] = senate_journal_index(
-                source_session=source_session
+                source_session=source_session, special_suffix=special_suffix
             )
         pdf_url = senate_pdf_for_date(
             action.action_at, journal_index=senate_cache[index_key]
