@@ -137,7 +137,7 @@ because a client's address names the client and this repository is public: addre
 added and revoked with `scripts/finance_access.py`, which reads the address from its
 arguments. Finance's 2 signed-out sign-in routes, asking for a code and proving it, are the
 only Finance routes without that check
-([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+([sign-in-guide.md § Alethical.AI sign-in](../product-onboarding/sign-in-guide.md#alethicalai-sign-in)).
 
 ## 5. Background jobs
 
@@ -201,7 +201,7 @@ emails a day and 3,000 a month, shared by Contact us, comment alerts, alethical.
 sign-in emails (Supabase sends them through Resend) and Finance's codes. Finance takes at
 most 40 a day, and so at most about 1,200 a month: codes at least 50 seconds apart, 5 an
 hour and 10 a day per address, and 40 a day in total
-([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+([sign-in-guide.md § Alethical.AI sign-in](../product-onboarding/sign-in-guide.md#alethicalai-sign-in)).
 Codes are sent by 2 threads of their own in the API process, never inside a request.
 
 Comment alerts use the same transport and provider key, plus the separate

@@ -40,7 +40,8 @@ export interface Figure {
 export interface FigureGroup {
   id: string;
   name: string;
-  /** "As of Nov 18, 2026": the oldest date among the group's figures. */
+  /** "Nov 18, 2026" when every figure shares 1 date, "Jul 14 to Nov 18, 2026"
+   * when they differ, or null when any figure has no date. */
   date: string | null;
   figures: Figure[];
 }
@@ -156,6 +157,15 @@ function instant(counts: ServedCounts, key: CountKey): number | null {
   return Number.isNaN(time) ? null : time;
 }
 
+/** "Nov 18, 2026", or "Jul 14 to Nov 18, 2026" when 2 dates differ. */
+function span(first: string | null, last: string | null): string | null {
+  if (!first || !last) return null;
+  if (first === last) return first;
+  const [firstDay, firstYear] = first.split(', ');
+  const [, lastYear] = last.split(', ');
+  return firstYear === lastYear ? `${firstDay} to ${last}` : `${first} to ${last}`;
+}
+
 /** The 2 figure groups in the drawing's order; an unreadable count has no tile
  * and a group with no readable count is left out. */
 export function figureGroups(counts: ServedCounts): FigureGroup[] {
@@ -174,13 +184,17 @@ export function figureGroups(counts: ServedCounts): FigureGroup[] {
       ];
     });
     if (figures.length === 0) return [];
-    // The oldest date, so the group's date never claims a newer copy than any
-    // figure under it has. A figure without a date leaves the group undated.
+    // Every figure's own date, so the label never claims a figure is newer or
+    // older than it is. A figure without a date leaves the group undated.
     const times = figures.map(({ key }) => instant(counts, key));
-    const oldest = times.every((time) => time !== null)
-      ? figures[times.indexOf(Math.min(...(times as number[])))].key
+    const known = times.every((time) => time !== null) ? (times as number[]) : null;
+    const date = known
+      ? span(
+          dateOf(counts, figures[known.indexOf(Math.min(...known))].key),
+          dateOf(counts, figures[known.indexOf(Math.max(...known))].key),
+        )
       : null;
-    return [{ id, name, date: oldest ? dateOf(counts, oldest) : null, figures }];
+    return [{ id, name, date, figures }];
   });
 }
 
@@ -190,7 +204,8 @@ export function recordsHeading(groups: FigureGroup[]): string {
     (sum, group) => sum + group.figures.reduce((part, figure) => part + figure.count, 0),
     0,
   );
-  const millions = Math.floor(total / 1_000_000);
+  // "More than" only where the total really exceeds the round number.
+  const millions = Math.floor((total - 1) / 1_000_000);
   return millions >= 1 ? `More than ${millions} million public records` : 'Public records';
 }
 

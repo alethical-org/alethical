@@ -60,24 +60,10 @@ h1[tabindex='-1']:focus-visible,
   padding: 0 12px;
   background: var(--surface);
 }
-.lockup {
-  font-weight: 700;
-  color: var(--ink);
-  text-decoration: none;
-  margin: 0;
-}
-a.lockup,
 .text-link {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-}
-a.lockup:hover {
-  text-decoration: underline;
-}
-.lockup span {
-  font-weight: 400;
-  color: var(--muted);
 }
 .shell {
   display: flex;

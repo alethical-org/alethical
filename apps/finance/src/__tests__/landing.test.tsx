@@ -243,12 +243,13 @@ describe('the public Finance site', () => {
     expect(text).toContain(
       'November 2026 general election. Results were unofficial at the time of this count.',
     );
-    // The Minnesota group carries its oldest date; newer sources say their own.
-    expect(text).toContain('As of Jul 14, 2026');
+    // The Minnesota figures' dates differ, so the group gives their range and
+    // each source says its own.
+    expect(text).toContain('As of Jul 14 to Nov 18, 2026');
     expect(text).toContain('Campaign money copied Sep 1, 2026');
     expect(text).toContain('Lobbying copied Aug 28, 2026');
     expect(text).toContain('Copied Nov 18, 2026');
-    expect(text).not.toContain('Updated Jul 14, 2026');
+    expect(text).toContain('Updated Jul 14, 2026');
     expect(text).not.toContain('Nationwide index as of');
     // The station files stay named; their unsupported date is said, not guessed.
     expect(text).toContain('Station files: copy date not recorded');
@@ -387,13 +388,31 @@ describe('landing counts', () => {
     const [national, minnesota] = figureGroups(SERVED);
     expect(national.figures[0].value).toBe('19.6 million');
     expect(national.date).toBe('Nov 22, 2026');
-    expect(minnesota.date).toBe('Jul 14, 2026');
+    expect(minnesota.date).toBe('Jul 14 to Nov 18, 2026');
+    const sameDay = figureGroups({
+      campaign_money_records: SERVED.campaign_money_records,
+      lobbying_spending_reports: {
+        ...SERVED.lobbying_spending_reports!,
+        copied_at: '2026-09-01T15:00:00+00:00',
+      },
+    });
+    expect(sameDay[0].date).toBe('Sep 1, 2026');
+    const acrossYears = figureGroups({
+      campaign_money_records: SERVED.campaign_money_records,
+      lobbying_spending_reports: {
+        ...SERVED.lobbying_spending_reports!,
+        copied_at: '2025-12-30T15:00:00+00:00',
+      },
+    });
+    expect(acrossYears[0].date).toBe('Dec 30, 2025 to Sep 1, 2026');
     expect(
       figureGroups({
         national_fcc_filings: { ...SERVED.national_fcc_filings!, count: 19999999 },
       })[0].figures[0].value,
     ).toBe('19.9 million');
     expect(recordsHeading([national, minnesota])).toBe('More than 20 million public records');
+    const exact = [{ ...national, figures: [{ ...national.figures[0], count: 20_000_000 }] }];
+    expect(recordsHeading(exact)).toBe('More than 19 million public records');
   });
 
   it('dates in Minnesota time', () => {

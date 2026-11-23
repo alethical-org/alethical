@@ -1,3 +1,4 @@
+import { useFinanceSession } from '../auth/session';
 import { Logo } from '../parts/Logo';
 import { Link } from '../router';
 import './fonts.css';
@@ -11,22 +12,28 @@ const PLATFORM_URL = 'https://www.alethical.com/';
  * introduction only: raise amount, terms and milestones stay in the deck.
  */
 export function Investors() {
+  // Investor access is served only with the signed-in screens on.
+  const { screens } = useFinanceSession();
   return (
     <div className="lp lp-investor-page">
       <div className="lp-glow lp-glow--one" aria-hidden="true" />
       <div className="lp-glow lp-glow--two" aria-hidden="true" />
-      <header className="lp-wrap lp-top">
-        <Link to="/" className="lp-logo lp-logo--link" aria-label="Alethical.AI">
-          <Logo className="lp-wordmark" />
-        </Link>
-        <nav aria-label="Alethical.AI" className="lp-nav">
-          <Link to="/investors" className="lp-investors" aria-current="page">
-            For investors
-          </Link>
-          <Link to="/sign-in" className="lp-signin">
-            Sign in
-          </Link>
-        </nav>
+      <header className="lp-investor-header">
+        <div className="lp-wrap">
+          <div className="lp-top">
+            <Link to="/" className="lp-logo lp-logo--link" aria-label="Alethical.AI">
+              <Logo className="lp-wordmark" />
+            </Link>
+            <nav aria-label="Alethical.AI" className="lp-nav">
+              <Link to="/investors" className="lp-investors" aria-current="page">
+                For investors
+              </Link>
+              <Link to="/sign-in" className="lp-signin">
+                Sign in
+              </Link>
+            </nav>
+          </div>
+        </div>
       </header>
       <main id="main" className="lp-investor-main">
         <div className="lp-wrap">
@@ -48,9 +55,11 @@ export function Investors() {
                 pay for.
               </p>
             </div>
-            <Link to="/investor-access" className="lp-demo">
-              Investor access
-            </Link>
+            {screens && (
+              <Link to="/investor-access" className="lp-demo">
+                Investor access
+              </Link>
+            )}
           </div>
         </div>
       </main>
