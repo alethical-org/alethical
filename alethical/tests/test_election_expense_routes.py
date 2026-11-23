@@ -278,9 +278,7 @@ def test_actual_report_export_and_source_loss_keep_same_evidence(
                 account["Report total USD"]
                 == first["summary"]["source_report_totals"]["amounts"]["total"]
             )
-            assert account["Source URL"].startswith(
-                "https://alethicalfinance.com/elections/"
-            )
+            assert account["Source URL"].startswith("https://alethical.ai/elections/")
             continue
         assert context["version"] == first["version"]
         assert (

@@ -26,7 +26,7 @@ from alethical.db import models as m
 from alethical.pipeline.election_external_adapters import register_external_adapters
 from alethical.pipeline.election_comparison import ComparisonImportError
 
-ORIGIN = "https://alethicalfinance.com"
+ORIGIN = "https://alethical.ai"
 BOARD_MEASURES = {
     "contributions_received": "Contributions received",
     "campaign_expenditures": "Campaign expenses",

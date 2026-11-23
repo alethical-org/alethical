@@ -3008,7 +3008,7 @@ def _csv_payment_locations(payment):
 
 # Canonical Finance address: docs/architecture/alethical-finance-architecture.md.
 # Exported links must work away from the API and must never trust request Host.
-_FINANCE_PUBLIC_ORIGIN = "https://alethicalfinance.com"
+_FINANCE_PUBLIC_ORIGIN = "https://alethical.ai"
 
 
 def _csv_source_url(url):

@@ -448,7 +448,7 @@ walkthrough remain unfinished. The earlier live comparison is described below.
 The comparison code merged in [PR 2944](https://github.com/alethical-org/alethical/pull/2944).
 The production API runs merge `be942f16` with migration `0093_election_comparison`.
 The source collections are published and the Finance build is live at
-[alethicalfinance.com](https://alethicalfinance.com/money/races/attorney-general?election=mn-2026-11-03-general&race=dc88f14ef11f28d4e295a4a63037a0d11a280df59304c670c9116102b1cf37f7).
+[alethical.ai](https://alethical.ai/money/races/attorney-general?election=mn-2026-11-03-general&race=dc88f14ef11f28d4e295a4a63037a0d11a280df59304c670c9116102b1cf37f7).
 Authenticated live acceptance passed on November 11, 2026. The official return files reconcile 5,023
 races, 8,002 named candidacies and 140,815 precinct/race records within their feeds.
 84 single-seat precinct/race totals exceed the separately reported voter count;
