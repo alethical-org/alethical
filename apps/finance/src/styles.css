@@ -240,6 +240,80 @@ a.access-logo:focus-visible {
 .access-card .link {
   color: #0b5c72;
 }
+/* Email sign-in steps (Access drawing): the back button above the heading, the
+ * line under the code step's heading, and the links below the code form. */
+.access-card .access-back {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: -11px 0 8px;
+  padding: 11px 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 0;
+  background: transparent;
+  color: #4a5661;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: left;
+  text-decoration: none;
+}
+.access-card .access-back svg {
+  flex: none;
+  margin-top: 2px;
+}
+.access-card .access-back:hover {
+  filter: none;
+  color: #141b22;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.access-card h1 + .access-lead {
+  margin: -10px 0 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #4a5661;
+  overflow-wrap: anywhere;
+}
+.access-card .access-links {
+  margin-top: 14px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(20, 27, 34, 0.12);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0 16px;
+}
+.access-card .access-links .link {
+  min-height: 44px;
+  padding: 0;
+  color: #0b5c72;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.access-card .access-links .link:hover:not([aria-disabled='true']) {
+  color: #083f4f;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.access-card .access-wait,
+.access-card .access-status {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4a5661;
+}
+.access-card .access-wait {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.access-card .access-status:empty {
+  display: none;
+}
 .access-card .error {
   margin: 0;
   color: #9a6114;

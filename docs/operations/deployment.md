@@ -541,8 +541,8 @@ alethical.com's Cloudflare zone so old links keep working. Vercel also answers a
 The 6 build settings are public values: `VITE_SUPABASE_URL`,
 `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_API_BASE_URL` (`https://api.alethical.com`),
 `VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`.
-For the private beta, `VITE_EMAIL_SIGN_IN` is `off` and the API's emailed-code switch is
-disabled. To open the emailed-code flow for a later rollout, enable both switches as described in
+`VITE_EMAIL_SIGN_IN` is `on` and the API's emailed-code switch is enabled, so listed accounts can
+sign in with Google or an emailed code. To close the emailed-code flow, turn both switches off as described in
 [sign-in-guide.md § Alethical.AI sign-in](../product-onboarding/sign-in-guide.md#alethicalai-sign-in).
 `VITE_FINANCE_SCREENS` is `on`, so a listed account reaches the signed-in screens built so far;
 unset, the site serves only
@@ -583,9 +583,9 @@ Before anyone can sign in at that address:
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
 
-For a later emailed-code rollout, confirm the API has its `SUPABASE_SECRET_KEY` (a
-Supabase secret key, added by a person) and working email sender settings. Set
-`ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` to `1`, then set `VITE_EMAIL_SIGN_IN` to `on` and redeploy Finance
+Emailed codes need the API's `SUPABASE_SECRET_KEY` (a Supabase secret key, added by a
+person) and working email sender settings, with `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` set
+to `1` and `VITE_EMAIL_SIGN_IN` set to `on` in the deployed Finance build
 ([sign-in-guide.md § Alethical.AI sign-in](../product-onboarding/sign-in-guide.md#alethicalai-sign-in)).
 
 Investor sign-in needs `ALETHICAL_FINANCE_RESEARCH_EMAIL` set privately on the API

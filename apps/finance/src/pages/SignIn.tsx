@@ -52,6 +52,8 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   const [verified, setVerified] = useState(false);
   const moved = useRef(false);
+  // Set at once on a press, before the busy state redraws, so a double press sends once.
+  const inFlight = useRef(false);
 
   useEffect(() => {
     if (status === 'granted' || status === 'no-access') navigate(next, { replace: true });
@@ -115,15 +117,19 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
 
   async function sendCode(event?: FormEvent) {
     event?.preventDefault();
+    // A busy button stays focusable (aria-disabled), so a repeat press stops here.
+    if (busy !== null || inFlight.current) return;
     const address = email.trim();
     if (!address) {
       setError('email');
       return;
     }
+    inFlight.current = true;
     setBusy(step === 'code' ? 'resend' : 'send');
     setError(null);
     setResent(false);
     const result = await requestSignInCode(apiBaseUrl, address);
+    inFlight.current = false;
     setBusy(null);
     if (result.kind === 'invalid-email') {
       setError(step === 'code' ? 'send' : 'email');
@@ -144,10 +150,12 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
 
   async function verifyCode(event: FormEvent) {
     event.preventDefault();
+    if (busy !== null || finishing || inFlight.current) return;
     if (!code.trim()) {
       setError('code');
       return;
     }
+    inFlight.current = true;
     setBusy('verify');
     setError(null);
     // Alethical checks the code; Supabase turns the 1-time token into a session.
@@ -157,6 +165,7 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
       code.trim(),
       request?.challenge ?? '',
     );
+    inFlight.current = false;
     if (proof.kind !== 'token') {
       setBusy(null);
       setError(proof.kind === 'refused' ? 'code' : 'check');
@@ -203,8 +212,36 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
 
   return (
     <AccessPage>
+      {(step === 'email' || step === 'code') && (
+        <button
+          type="button"
+          className="link access-back"
+          onClick={() => {
+            setError(null);
+            setResent(false);
+            goTo('options');
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M15 5 L8 12 L15 19"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Back to sign-in options
+        </button>
+      )}
       <h1 id="sign-in-heading" tabIndex={-1}>
-        {investor ? 'Investor access' : 'Sign in'}
+        {investor
+          ? 'Investor access'
+          : step === 'email'
+            ? 'Sign in with email'
+            : step === 'code'
+              ? 'Enter the newest code'
+              : 'Sign in'}
       </h1>
 
       {step === 'options' && (
@@ -280,103 +317,97 @@ export function SignIn({ investor = false }: { investor?: boolean }) {
 
       {step === 'email' && (
         <form className="stack" onSubmit={sendCode} noValidate>
+          {error === 'send' && (
+            <p role="alert" className="error-box">
+              Couldn’t send a code. Try again.
+            </p>
+          )}
           <label htmlFor="email">Email</label>
           <input
             id="email"
             type="email"
+            inputMode="email"
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            readOnly={busy !== null}
             aria-invalid={error === 'email'}
-            aria-describedby={error ? 'email-error' : undefined}
+            aria-describedby={error === 'email' ? 'email-error' : undefined}
           />
           {error === 'email' && (
             <p id="email-error" role="alert" className="error">
               Enter an email address
             </p>
           )}
-          {error === 'send' && (
-            <p id="email-error" role="alert" className="error">
-              Couldn’t send a code. Try again.
-            </p>
-          )}
-          <button type="submit" disabled={busy !== null}>
-            {busy === 'send' ? 'Sending…' : 'Continue'}
-          </button>
-          <button
-            type="button"
-            className="link"
-            onClick={() => {
-              setError(null);
-              goTo('options');
-            }}
-          >
-            Back to sign-in options
+          <button type="submit" aria-disabled={busy !== null}>
+            {busy === 'send' ? 'Continuing…' : 'Continue'}
           </button>
         </form>
       )}
 
       {step === 'code' && (
-        <form className="stack" onSubmit={verifyCode} noValidate>
-          <h2>Enter the newest code</h2>
-          <p>If {email.trim()} has access to Alethical.AI, a code is on its way to it.</p>
-          {resent && <p role="status">New code requested</p>}
-          <label htmlFor="code">Code</label>
-          <input
-            id="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            aria-invalid={error === 'code'}
-            aria-describedby={error ? 'code-error' : undefined}
-          />
-          {error === 'code' && (
-            <p id="code-error" role="alert" className="error">
-              That code is wrong or expired. Enter the newest code or send a new one.
-            </p>
-          )}
-          {error === 'send' && (
-            <p id="code-error" role="alert" className="error">
-              Couldn’t send a code. Try again.
-            </p>
-          )}
-          {error === 'check' && (
-            <p id="code-error" role="alert" className="error">
-              Couldn’t check the code. Try again.
-            </p>
-          )}
-          {error === 'finish' && (
-            <p id="code-error" role="alert" className="error">
-              Couldn’t finish signing in. Send a new code and try again.
-            </p>
-          )}
-          <button type="submit" disabled={busy !== null || finishing}>
-            {busy === 'verify' || finishing ? 'Signing in…' : 'Continue'}
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => sendCode()}
-            disabled={busy !== null || waitSeconds > 0}
-          >
-            {busy === 'resend' ? 'Sending a new code…' : 'Send a new code'}
-          </button>
-          {waitSeconds > 0 && (
-            <p className="note">You can ask for a new code in {waitSeconds} seconds.</p>
-          )}
-          <button
-            type="button"
-            className="link"
-            onClick={() => {
-              setError(null);
-              setCode('');
-              goTo('email');
-            }}
-          >
-            Use another email
-          </button>
-        </form>
+        <>
+          <p className="access-lead">If {email.trim()} has access, a code is on its way.</p>
+          <form className="stack" onSubmit={verifyCode} noValidate>
+            {(error === 'send' || error === 'check' || error === 'finish') && (
+              <p role="alert" className="error-box">
+                {error === 'send'
+                  ? 'Couldn’t send a code. Try again.'
+                  : error === 'check'
+                    ? 'Couldn’t check the code. Try again.'
+                    : 'Couldn’t finish signing in. Send a new code and try again.'}
+              </p>
+            )}
+            <label htmlFor="code">Code</label>
+            <input
+              id="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={8}
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              readOnly={busy === 'verify' || finishing}
+              aria-invalid={error === 'code'}
+              aria-describedby={error === 'code' ? 'code-error' : undefined}
+            />
+            {error === 'code' && (
+              <p id="code-error" role="alert" className="error">
+                That code didn’t work.
+              </p>
+            )}
+            <button type="submit" aria-disabled={busy !== null || finishing}>
+              {busy === 'verify' || finishing ? 'Continuing…' : 'Continue'}
+            </button>
+          </form>
+          <div className="access-links">
+            {busy === 'resend' ? (
+              <button type="button" className="link" aria-disabled="true">
+                Sending a new code…
+              </button>
+            ) : waitSeconds > 0 ? (
+              <p className="access-wait">You can ask for a new code in {waitSeconds} seconds</p>
+            ) : (
+              <button type="button" className="link" onClick={() => sendCode()}>
+                Send a new code
+              </button>
+            )}
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setError(null);
+                setResent(false);
+                setCode('');
+                goTo('email');
+              }}
+            >
+              Use another email
+            </button>
+          </div>
+          <p role="status" className="access-status">
+            {resent && busy !== 'resend' ? 'New code requested' : ''}
+          </p>
+        </>
       )}
     </AccessPage>
   );
