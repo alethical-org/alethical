@@ -159,7 +159,7 @@ describe('the access answer', () => {
     await act(async () => supabase.emit('TOKEN_REFRESHED', session('token-2')));
     await act(async () => {});
     // Access held in this session and now refused (Access drawing, Revoked).
-    expect(text()).toContain('This account does not have access to Alethical.AI');
+    expect(text()).toContain('This account doesn’t have access to Alethical.AI');
     expect(text()).toContain('Results kept from this account are no longer shown');
   });
 
@@ -292,7 +292,8 @@ describe('sign-in steps', () => {
     await act(async () => button('Continue').click());
     await type('#code', '12345678');
     await act(async () => button('Continue').click());
-    expect(button('Signing in…').disabled).toBe(true);
+    expect(button('Continuing…').getAttribute('aria-disabled')).toBe('true');
+    expect(container.querySelector('h1')?.textContent).toBe('Enter the newest code');
     await act(async () => answer(new Response(null, { status: 200 })));
     await act(async () => {});
     expect(window.location.pathname).toBe('/home');
@@ -331,7 +332,7 @@ describe('sign-in steps', () => {
   });
 
   it.each([
-    [400, 'That code is wrong or expired.'],
+    [400, 'That code didn’t work.'],
     [503, 'Couldn’t check the code. Try again.'],
   ])('a code the server answers with %i never reaches Supabase', async (status, message) => {
     const supabase = fakeSupabase(null);
@@ -403,16 +404,38 @@ describe('sign-in steps', () => {
     await act(async () => button('Continue').click());
   }
 
+  it('sends 1 code request when Continue is pressed twice', async () => {
+    const server = codeServer();
+    const supabase = fakeSupabase(null);
+    await render('/sign-in', supabase.client, server.fetcher);
+    await act(async () => button('Sign in with email').click());
+    expect(container.querySelector('h1')?.textContent).toBe('Sign in with email');
+    await type('#email', 'reader@example.test');
+    const continueButton = button('Continue');
+    await act(async () => {
+      continueButton.click();
+      continueButton.click();
+    });
+    const requests = (server.fetcher as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([url]) => String(url).endsWith('/sign-in/code'),
+    );
+    expect(requests).toHaveLength(1);
+    expect(container.querySelector('h1')?.textContent).toBe('Enter the newest code');
+  });
+
   it('returns to the code step after a reload and proves with the kept challenge', async () => {
     const server = codeServer();
     const supabase = fakeSupabase(null);
     await render('/sign-in', supabase.client, server.fetcher);
     await askForACode();
     await reload('/sign-in', supabase.client, server.fetcher);
-    expect(text()).toContain(
-      'If reader@example.test has access to Alethical.AI, a code is on its way to it.',
-    );
-    expect(button('Send a new code').disabled).toBe(true);
+    expect(text()).toContain('If reader@example.test has access, a code is on its way.');
+    // The wait replaces the link until it ends.
+    expect(text()).toMatch(/You can ask for a new code in \d+ seconds/);
+    expect(
+      [...container.querySelectorAll('button')].some((b) => b.textContent === 'Send a new code'),
+    ).toBe(false);
+    expect(button('Back to sign-in options')).toBeDefined();
     await proveACode();
     expect(server.provedWith()).toMatchObject({
       email: 'reader@example.test',

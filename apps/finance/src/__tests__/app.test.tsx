@@ -165,7 +165,7 @@ describe('the Finance shell', () => {
     await click('Continue');
     expect(fetcher).toHaveBeenCalledWith(`${API}/api/v1/finance/sign-in/code`, expect.anything());
     expect(container.textContent).toContain(
-      'If reader@example.test has access to Alethical.AI, a code is on its way to it.',
+      'If reader@example.test has access, a code is on its way.',
     );
     await type('#code', ' 12345678 ');
     await click('Continue');

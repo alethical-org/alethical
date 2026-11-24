@@ -13,7 +13,7 @@ export function NoAccess() {
     <AccessPage linked={false}>
       {revoked ? (
         <>
-          <h1 tabIndex={-1}>This account does not have access to Alethical.AI</h1>
+          <h1 tabIndex={-1}>This account doesn’t have access to Alethical.AI</h1>
           <p>{email ? `${email}. ` : ''}Results kept from this account are no longer shown.</p>
         </>
       ) : (
