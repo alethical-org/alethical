@@ -74,9 +74,9 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Ho
   address so sign-in returns there. A return address is kept only when it is a built
   signed-in Finance page; anything else, another site included, returns to Home at
   `/home` (to `/` while the screens are off).
-- **`/sign-in`.** Google for listed team accounts during the private beta. Ordinary accounts
+- **`/sign-in`.** Google or an emailed code for listed accounts. Ordinary accounts
   have no Finance password or signup path. Shared research accounts enter through the
-  Investor access button on `/investors`. The emailed-code option stays off until the rollout. Each way
+  Investor access button on `/investors`. Each way
   is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
   visitor back to alethical.com, and email once Alethical's code sending is switched on
@@ -123,24 +123,33 @@ for the owning permission and password-management rules.
 
 ## Sign-in by emailed code
 
-1. **Email:** the visitor types an address and presses Continue. An empty or malformed
-   address shows "Enter an email address".
+The steps follow Design's Sign in drawing. The start step offers **Continue with Google**
+and **Sign in with email**; the email and code steps each have their own heading and a
+**Back to sign-in options** button above it. Busy buttons stay focusable and ignore a second
+press, so 1 press sends 1 request.
+
+1. **Email ("Sign in with email"):** the visitor types an address and presses Continue
+   (**Continuing…** while it sends). An empty or malformed address shows "Enter an email
+   address" under the field; a failed request shows "Couldn’t send a code. Try again." at
+   the top of the card.
 2. The app asks the server for a code (`POST /api/v1/finance/sign-in/code`). The server
    answers every address the same way, with a new challenge the app keeps, and Alethical
-   emails an 8-digit code, with no link, only to a listed one, so the next screen says "If
-   {address} has access to Alethical.AI, a code is on its way to it", never that a code
-   was sent.
-3. **Code:** the visitor pastes the code. The app sends it with the challenge from this
-   tab's newest request (`POST /api/v1/finance/sign-in/verify`); the server returns a 1-time
-   sign-in token that the app hands to Supabase. A request made again within 50 seconds, for
-   example after a reload or Use another email, sends no new email, and the code already
-   sent still works. Reloaded within the code's 10 minutes, the page opens at this step for
-   the same address. A wrong, expired or used code shows "That code is wrong or expired.
-   Enter the newest code or send a new one."; if the server cannot check it, "Couldn’t
-   check the code. Try again." Send a new code waits 60 seconds between requests and shows
-   the seconds left. Use another email goes back with the address kept. After a correct
-   code, Continue stays busy until the access answer arrives; if access cannot be checked,
-   the page offers Try again.
+   emails an 8-digit code, with no link, only to a listed one, so the next step says "If
+   {address} has access, a code is on its way.", never that a code was sent.
+3. **Code ("Enter the newest code"):** the visitor types or pastes the code (number keypad,
+   one-time-code autofill). The app sends it with the challenge from this tab's newest
+   request (`POST /api/v1/finance/sign-in/verify`); the server returns a 1-time sign-in token
+   that the app hands to Supabase. A request made again within 50 seconds, for example after
+   a reload or Use another email, sends no new email, and the code already sent still works.
+   Reloaded within the code's 10 minutes, the page opens at this step for the same address.
+   Any failed code (wrong, expired, used or never sent) shows "That code didn’t work.", the
+   same for every case because the server answers them alike; if the server cannot check
+   it, "Couldn’t check the code. Try again." appears at the top of the card. Below the form,
+   **Send a new code** (**Sending a new code…** while it sends, then "New code requested")
+   is replaced by "You can ask for a new code in N seconds" during the 60-second wait, and
+   **Use another email** goes back with the address kept. After a correct code, Continue
+   stays busy until the access answer arrives; if access cannot be checked, the page offers
+   Try again.
 
 ## After sign-in
 
@@ -193,7 +202,7 @@ for the owning permission and password-management rules.
 - **Not listed:** "This account doesn’t have access to Alethical.AI", the signed-in
   address, Switch account and Contact us (an email to ask@alethical.com). The page never
   says why, because the server never says. An account refused after having access in this
-  session reads "This account does not have access to Alethical.AI" with "Results kept
+  session reads "This account doesn’t have access to Alethical.AI" with "Results kept
   from this account are no longer shown": every held answer and unfinished entry is cleared.
 - **Access cannot be checked:** "Couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
