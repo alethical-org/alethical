@@ -774,15 +774,18 @@
     font-size: 14px;
     letter-spacing: 0.14em;
   }
+  /* Design's phone header (23 Nov redraw): 16px between For investors and the
+   * Sign in button. Below about 372px the links wrap to a right-aligned second
+   * row, 6px under the logo. */
   .lp-top,
   .lp-bar {
-    gap: 0 10px;
+    gap: 6px 10px;
   }
   .lp-nav {
-    gap: 4px;
+    gap: 10px;
   }
   .lp .lp-investors {
-    padding: 0 2px;
+    padding: 0 6px;
     font-size: 14px;
   }
   .lp .lp-signin {
